@@ -127,7 +127,7 @@ export default function Home() {
         <section className="relative overflow-hidden bg-[#1a2744] px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_70%_-10%,rgba(56,189,248,0.12),transparent),radial-gradient(ellipse_70%_50%_at_10%_100%,rgba(13,148,136,0.16),transparent)]" aria-hidden />
           <div className="relative mx-auto grid max-w-6xl gap-10 lg:grid-cols-2 lg:items-center lg:gap-14 xl:gap-20">
-            <div className="order-2 lg:order-1">
+            <div className="order-1">
               <p className="mb-4 inline-flex rounded-full border border-sky-300/35 bg-sky-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#38bdf8] sm:text-xs">Built for nurse injectors</p>
               <h1 className="text-balance text-[1.65rem] font-semibold leading-snug tracking-tight text-white sm:text-3xl sm:leading-tight md:text-4xl lg:text-[2.35rem] xl:text-[2.65rem]">
                 Your clients are texting you at 11pm. You&apos;re exhausted. And you&apos;re still losing them to whoever answered first.
@@ -140,7 +140,7 @@ export default function Home() {
                 <a href="#daily-flow" className="inline-flex min-h-[48px] items-center justify-center rounded-full border-2 border-sky-200/30 bg-transparent px-7 py-3.5 text-center text-sm font-semibold text-white transition hover:border-[#38bdf8] hover:text-[#38bdf8] sm:text-base">See how it works</a>
               </div>
             </div>
-            <div className="relative order-1 w-full max-w-md justify-self-center sm:max-w-lg lg:order-2 lg:max-w-none lg:justify-self-end">
+            <div className="relative order-2 w-full max-w-md justify-self-center sm:max-w-lg lg:max-w-none lg:justify-self-end">
               <div className="absolute -inset-1 rounded-[1.35rem] bg-gradient-to-br from-[#38bdf8]/30 via-[#0d9488]/20 to-transparent opacity-90 blur-xl sm:-inset-2" aria-hidden />
               <div className="relative overflow-hidden rounded-2xl border border-sky-200/25 bg-[#14213b] shadow-2xl shadow-black/40 ring-1 ring-sky-200/10">
                 <div className="flex items-center justify-between border-b border-sky-100/15 bg-[#1a2744] px-4 py-3">
