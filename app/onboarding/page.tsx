@@ -181,6 +181,23 @@ function savePersisted(data: OnboardingPersisted) {
   }
 }
 
+function friendlyBotSaveError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("jwt") || m.includes("session")) {
+    return "Your session may have expired. Please sign in again and try launching once more.";
+  }
+  if (m.includes("row-level security") || m.includes("permission denied") || m.includes("policy")) {
+    return "We couldn't save your bot due to a permissions issue. Please try again or contact support if this keeps happening.";
+  }
+  if (m.includes("does not exist") || m.includes("relation")) {
+    return "We couldn't reach the bot database. Please try again in a moment.";
+  }
+  if (m.includes("value too long") || m.includes("payload")) {
+    return "Some of your data (often photos) is too large to save. Try removing a few photos or using smaller images.";
+  }
+  return "Something went wrong while saving your bot. Please check your connection and try again.";
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -188,6 +205,9 @@ export default function OnboardingPage() {
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [chatInput, setChatInput] = useState("");
+  const [launchSaving, setLaunchSaving] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
+  const [launchSuccess, setLaunchSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -334,9 +354,68 @@ export default function OnboardingPage() {
     });
   }
 
-  function handleLaunch() {
-    updatePersisted({ launched: true });
-  }
+  const handleLaunch = useCallback(async () => {
+    setLaunchError(null);
+    setLaunchSuccess(null);
+    setLaunchSaving(true);
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session?.user) {
+        setLaunchError("You need to be signed in to launch your bot. Please sign in and try again.");
+        return;
+      }
+      const userId = sessionData.session.user.id;
+      const p = persisted;
+      const row = {
+        nurse_id: userId,
+        practice_name: p.step1.practiceName.trim(),
+        city: p.step1.city.trim(),
+        state: p.step1.state.trim(),
+        years_experience: p.step1.yearsExperience.trim(),
+        never_compromise: p.step1.specialSentence.trim(),
+        instagram: p.step1.instagram.trim() || null,
+        services: p.step2.serviceIds,
+        bot_name: p.step3.botName.trim(),
+        greeting: p.step3.greeting.trim(),
+        tone: p.step3.tone,
+        primary_color: p.step3.primaryColor,
+        forward_questions: p.step3.forwardQuestions.trim() || null,
+        booking_link: p.step3.bookingLink.trim() || null,
+        cancellation_policy: p.step3.cancellationPolicy.trim() || null,
+        aftercare: p.step3.aftercare.trim() || null,
+        photos: p.step4.photos.map((photo) => photo.dataUrl),
+        launched: true,
+      };
+
+      const { data: existing, error: selectError } = await supabase.from("bots").select("id").eq("nurse_id", userId).maybeSingle();
+      if (selectError) {
+        setLaunchError(friendlyBotSaveError(selectError.message));
+        return;
+      }
+
+      if (existing) {
+        const { nurse_id: _n, ...updates } = row;
+        const { error: updateError } = await supabase.from("bots").update(updates).eq("nurse_id", userId);
+        if (updateError) {
+          setLaunchError(friendlyBotSaveError(updateError.message));
+          return;
+        }
+      } else {
+        const { error: insertError } = await supabase.from("bots").insert(row);
+        if (insertError) {
+          setLaunchError(friendlyBotSaveError(insertError.message));
+          return;
+        }
+      }
+
+      updatePersisted({ launched: true });
+      setLaunchSuccess("Your bot is saved — you're all set to share it with your clients.");
+    } catch {
+      setLaunchError("Something went wrong while saving. Please try again.");
+    } finally {
+      setLaunchSaving(false);
+    }
+  }, [persisted, updatePersisted]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -815,17 +894,26 @@ export default function OnboardingPage() {
               </section>
 
               {!persisted.launched ? (
-                <button
-                  type="button"
-                  onClick={handleLaunch}
-                  className="w-full rounded-full bg-[#0d9488] py-4 text-base font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700 sm:py-3.5"
-                >
-                  Launch my bot
-                </button>
+                <div className="space-y-3">
+                  {launchError ? (
+                    <p className="rounded-lg border border-red-200 bg-red-50/90 px-3 py-2.5 text-sm leading-relaxed text-red-800">{launchError}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={launchSaving}
+                    onClick={() => void handleLaunch()}
+                    className="w-full rounded-full bg-[#0d9488] py-4 text-base font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 sm:py-3.5"
+                  >
+                    {launchSaving ? "Saving your bot…" : "Launch my bot"}
+                  </button>
+                </div>
               ) : null}
 
               {persisted.launched ? (
                 <section className="space-y-4 rounded-xl border border-teal-200 bg-teal-50/50 p-4 sm:p-6">
+                  {launchSuccess ? (
+                    <p className="text-sm font-medium text-[#0d9488]">{launchSuccess}</p>
+                  ) : null}
                   <h3 className="text-lg font-semibold text-[#1a2744]">You are live</h3>
                   <p className="text-sm text-slate-700">Share this link or embed the widget on your site.</p>
                   <div>
