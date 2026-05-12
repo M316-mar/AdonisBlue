@@ -42,7 +42,9 @@ export default function NurseDashboardPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [nurseName, setNurseName] = useState("there");
-  const [done, setDone] = useState<Record<ChecklistId, boolean>>({
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [done] = useState<Record<ChecklistId, boolean>>({
     account: true,
     practice: false,
     services: false,
@@ -77,6 +79,16 @@ export default function NurseDashboardPage() {
   const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     router.push("/auth");
+  }, [router]);
+
+  const handleConfirmDeleteDialog = useCallback(async () => {
+    setDeleteBusy(true);
+    try {
+      await supabase.auth.signOut();
+      router.push("/");
+    } finally {
+      setDeleteBusy(false);
+    }
   }, [router]);
 
   if (!ready) {
@@ -150,12 +162,20 @@ export default function NurseDashboardPage() {
                 />
               </div>
 
-              <ul className="mt-6 divide-y divide-slate-100">
+              <ul className="mt-6">
                 {CHECKLIST.map((item) => {
                   const isDone = done[item.id];
                   return (
-                    <li key={item.id} className="flex flex-col gap-3 py-4 first:pt-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                      <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <li
+                      key={item.id}
+                      className="relative flex flex-col gap-3 border-b border-slate-100 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                    >
+                      <Link
+                        href="/onboarding"
+                        className="absolute inset-0 z-[1] rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488] focus-visible:ring-offset-2"
+                        aria-label={`Continue setup: ${item.label}`}
+                      />
+                      <div className="relative z-[2] flex min-w-0 flex-1 items-start gap-3 pointer-events-none">
                         <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-lg leading-none" aria-hidden>
                           {isDone ? (
                             <span className="select-none">✅</span>
@@ -168,21 +188,17 @@ export default function NurseDashboardPage() {
                         </span>
                       </div>
                       {item.alwaysDone ? (
-                        <button
-                          type="button"
-                          disabled
-                          className="w-full shrink-0 rounded-full border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm font-semibold text-[#0d9488] opacity-80 sm:w-auto sm:min-w-[6.5rem]"
-                        >
+                        <span className="relative z-[2] inline-flex w-full shrink-0 items-center justify-center rounded-full border border-teal-200 bg-teal-50 px-4 py-2.5 text-center text-sm font-semibold text-[#0d9488] opacity-80 pointer-events-none sm:w-auto sm:min-w-[6.5rem]">
                           Done
-                        </button>
+                        </span>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => setDone((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
-                          className="w-full shrink-0 rounded-full bg-[#0d9488] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700 active:scale-[0.98] sm:w-auto sm:min-w-[6.5rem]"
+                        <Link
+                          href="/onboarding"
+                          tabIndex={-1}
+                          className="relative z-[2] inline-flex w-full shrink-0 items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700 sm:w-auto sm:min-w-[6.5rem]"
                         >
                           {isDone ? "Edit" : "Start"}
-                        </button>
+                        </Link>
                       )}
                     </li>
                   );
@@ -235,6 +251,56 @@ export default function NurseDashboardPage() {
             </button>
           </div>
         </section>
+
+        <div className="mt-8 border-t border-slate-200 pt-6 lg:mt-10 lg:pt-8">
+          <p className="text-xs text-slate-500">
+            Want to delete your account?{" "}
+            <button
+              type="button"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="text-xs font-medium text-red-600 underline decoration-red-600/40 underline-offset-2 transition hover:text-red-700"
+            >
+              Delete account
+            </button>
+          </p>
+        </div>
+
+        {deleteDialogOpen ? (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="delete-account-title">
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/40"
+              aria-label="Close dialog"
+              onClick={() => !deleteBusy && setDeleteDialogOpen(false)}
+            />
+            <div className="relative z-[101] w-full max-w-sm rounded-xl border border-slate-200 bg-white p-4 shadow-xl sm:p-5">
+              <h2 id="delete-account-title" className="sr-only">
+                Delete account
+              </h2>
+              <p className="text-sm leading-relaxed text-slate-700">
+                Are you sure? Deleting your account removes everything permanently — your bot, settings, and photos. This cannot be undone.
+              </p>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
+                <button
+                  type="button"
+                  disabled={deleteBusy}
+                  onClick={() => setDeleteDialogOpen(false)}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteBusy}
+                  onClick={handleConfirmDeleteDialog}
+                  className="rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {deleteBusy ? "Signing out…" : "Confirm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </main>
     </div>
   );
