@@ -57,13 +57,13 @@ export default function NurseDashboardPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data } = await supabase.auth.getUser();
+      const { data } = await supabase.auth.getSession();
       if (cancelled) return;
-      if (!data.user) {
+      if (!data.session) {
         router.replace("/auth");
         return;
       }
-      setNurseName(displayNameFromUser(data.user));
+      setNurseName(displayNameFromUser(data.session.user));
       setReady(true);
     })();
     return () => {
