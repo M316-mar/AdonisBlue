@@ -450,7 +450,7 @@ export default function OnboardingPage() {
                   />
                 </label>
                 <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">One sentence about what makes you special</span>
+                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">What is the one thing you never compromise on with your clients?</span>
                   <textarea
                     value={s1.specialSentence}
                     onChange={(e) => setStep1({ specialSentence: e.target.value })}
