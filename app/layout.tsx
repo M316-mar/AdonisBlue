@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { DM_Sans, Geist, Geist_Mono, Inter, Nunito, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -10,6 +10,26 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const botFontDmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-bot-dm-sans",
+});
+
+const botFontPlayfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-bot-playfair",
+});
+
+const botFontInter = Inter({
+  subsets: ["latin"],
+  variable: "--font-bot-inter",
+});
+
+const botFontNunito = Nunito({
+  subsets: ["latin"],
+  variable: "--font-bot-nunito",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +45,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${botFontDmSans.variable} ${botFontPlayfair.variable} ${botFontInter.variable} ${botFontNunito.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

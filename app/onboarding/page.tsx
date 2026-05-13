@@ -4,12 +4,14 @@ import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "adonisblue-onboarding";
 const TOTAL_STEPS = 5;
 const MAX_PHOTOS = 10;
 const MAX_IMAGE_BYTES = 1_500_000;
+const MAX_LOGO_BYTES = 800_000;
 
 const STEP_LABELS = ["Practice", "Services", "Personality", "Photos", "Launch"] as const;
 
@@ -39,6 +41,25 @@ const TONES = ["Warm & friendly", "Professional & polished", "Fun & bubbly", "Ca
 
 type Tone = (typeof TONES)[number];
 
+type BotNameFontId = "dm-sans" | "playfair" | "inter-bold" | "nunito" | "georgia";
+
+const BOT_NAME_FONT_IDS: BotNameFontId[] = ["dm-sans", "playfair", "inter-bold", "nunito", "georgia"];
+
+const BOT_FONT_CARDS: { id: BotNameFontId; label: string }[] = [
+  { id: "dm-sans", label: "Modern & Clean (DM Sans)" },
+  { id: "playfair", label: "Elegant & Serif (Playfair Display)" },
+  { id: "inter-bold", label: "Bold & Strong (Inter Bold)" },
+  { id: "nunito", label: "Soft & Friendly (Nunito)" },
+  { id: "georgia", label: "Classic (Georgia)" },
+];
+
+const ATTENTION_CHIP_TEXTS = [
+  "Need help? Click here! 💬",
+  "Need any assistance? ✨",
+  "Have a question? I am here! 👋",
+  "Hi! How can I help you today? 💙",
+] as const;
+
 type Step1Data = {
   fullName: string;
   practiceName: string;
@@ -55,6 +76,9 @@ type Step2Data = {
 
 type Step3Data = {
   botName: string;
+  logoDataUrl: string | null;
+  botNameFont: BotNameFontId;
+  bubbleAttentionMessage: string;
   greeting: string;
   tone: Tone;
   primaryColor: string;
@@ -99,6 +123,9 @@ function defaultStep2(): Step2Data {
 function defaultStep3(): Step3Data {
   return {
     botName: "",
+    logoDataUrl: null,
+    botNameFont: "dm-sans",
+    bubbleAttentionMessage: "",
     greeting: "",
     tone: "Warm & friendly",
     primaryColor: "#0d9488",
@@ -142,6 +169,35 @@ function slugify(input: string): string {
   return s || "my-practice";
 }
 
+function readLogoFileAsDataUrl(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (file.size > MAX_LOGO_BYTES) {
+      resolve(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+function getBotNameFontStyle(id: BotNameFontId): CSSProperties {
+  switch (id) {
+    case "dm-sans":
+      return { fontFamily: "var(--font-bot-dm-sans), system-ui, sans-serif" };
+    case "playfair":
+      return { fontFamily: "var(--font-bot-playfair), Georgia, serif" };
+    case "inter-bold":
+      return { fontFamily: "var(--font-bot-inter), system-ui, sans-serif", fontWeight: 700 };
+    case "nunito":
+      return { fontFamily: "var(--font-bot-nunito), system-ui, sans-serif" };
+    case "georgia":
+    default:
+      return { fontFamily: "Georgia, Palatino, serif" };
+  }
+}
+
 function readFileAsDataUrl(file: File): Promise<string | null> {
   return new Promise((resolve) => {
     if (file.size > MAX_IMAGE_BYTES) {
@@ -164,11 +220,25 @@ function loadPersisted(): OnboardingPersisted {
     const base = defaultPersisted();
     const toneRaw = parsed.step3?.tone;
     const tone: Tone = TONES.includes(toneRaw as Tone) ? (toneRaw as Tone) : base.step3.tone;
+    const fontRaw = parsed.step3?.botNameFont;
+    const botNameFont: BotNameFontId = BOT_NAME_FONT_IDS.includes(fontRaw as BotNameFontId) ? (fontRaw as BotNameFontId) : base.step3.botNameFont;
+    const logoRaw = parsed.step3?.logoDataUrl;
+    const logoDataUrl =
+      typeof logoRaw === "string" || logoRaw === null ? (logoRaw as string | null) : base.step3.logoDataUrl;
+    const bubbleRaw = parsed.step3?.bubbleAttentionMessage;
+    const bubbleAttentionMessage = typeof bubbleRaw === "string" ? bubbleRaw : base.step3.bubbleAttentionMessage;
     return {
       currentStep: typeof parsed.currentStep === "number" && parsed.currentStep >= 1 && parsed.currentStep <= TOTAL_STEPS ? parsed.currentStep : base.currentStep,
       step1: { ...base.step1, ...parsed.step1 },
       step2: { serviceIds: Array.isArray(parsed.step2?.serviceIds) ? parsed.step2!.serviceIds : base.step2.serviceIds },
-      step3: { ...base.step3, ...parsed.step3, tone },
+      step3: {
+        ...base.step3,
+        ...parsed.step3,
+        tone,
+        botNameFont,
+        logoDataUrl,
+        bubbleAttentionMessage,
+      },
       step4: {
         photos: Array.isArray(parsed.step4?.photos) ? parsed.step4!.photos : base.step4.photos,
         permissionConfirmed: Boolean(parsed.step4?.permissionConfirmed),
@@ -211,6 +281,7 @@ export default function OnboardingPage() {
   const [persisted, setPersisted] = useState<OnboardingPersisted>(defaultPersisted);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
   const [chatInput, setChatInput] = useState("");
   const [launchSaving, setLaunchSaving] = useState(false);
   const [launchError, setLaunchError] = useState<string | null>(null);
@@ -294,6 +365,11 @@ export default function OnboardingPage() {
   }, [persisted.step1.practiceName, persisted.step3.botName]);
 
   const shareOrigin = typeof window !== "undefined" ? window.location.origin : "https://adonisblue.com";
+
+  const previewBubbleAttention = useMemo(
+    () => persisted.step3.bubbleAttentionMessage.trim() || ATTENTION_CHIP_TEXTS[0],
+    [persisted.step3.bubbleAttentionMessage]
+  );
 
   const addPhotoFiles = useCallback((files: FileList | File[]) => {
     void (async () => {
@@ -641,6 +717,104 @@ export default function OnboardingPage() {
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
                 />
               </label>
+              <div className="space-y-2">
+                <span className="block text-sm font-medium text-[#1a2744]">Your logo (optional)</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => logoFileInputRef.current?.click()}
+                    className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                  >
+                    Upload logo
+                  </button>
+                  <input
+                    ref={logoFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      void (async () => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (!file || !file.type.startsWith("image/")) return;
+                        const dataUrl = await readLogoFileAsDataUrl(file);
+                        if (dataUrl) setStep3({ logoDataUrl: dataUrl });
+                      })();
+                    }}
+                  />
+                  {s3.logoDataUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setStep3({ logoDataUrl: null })}
+                      className="text-xs font-medium text-red-600 underline decoration-red-600/30 underline-offset-2 hover:text-red-700"
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+                <p className="text-xs leading-relaxed text-slate-600">
+                  Upload your own logo — from Canva, your phone, or anywhere. If you skip this we will use the AdonisBlue butterfly.
+                </p>
+                {s3.logoDataUrl ? (
+                  <div className="mt-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={s3.logoDataUrl} alt="" className="h-16 w-16 rounded-lg border border-slate-200 bg-white object-contain p-1" />
+                  </div>
+                ) : null}
+              </div>
+              <fieldset>
+                <legend className="mb-2 text-sm font-medium text-[#1a2744]">Choose a font for your bot name</legend>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                  {BOT_FONT_CARDS.map((f) => {
+                    const selected = s3.botNameFont === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setStep3({ botNameFont: f.id })}
+                        className={`rounded-xl border p-3 text-left transition sm:p-4 ${
+                          selected ? "border-[#0d9488] bg-teal-50/80 ring-1 ring-[#0d9488]/30" : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <span className="block text-xs font-medium text-slate-600">{f.label}</span>
+                        <span className="mt-2 block text-lg text-[#1a2744]" style={getBotNameFontStyle(f.id)}>
+                          AdonisBlue
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+              <div>
+                <span className="mb-2 block text-sm font-medium text-[#1a2744]">What should the chat bubble say to grab attention?</span>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {ATTENTION_CHIP_TEXTS.map((chip) => {
+                    const selected = s3.bubbleAttentionMessage === chip;
+                    return (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => setStep3({ bubbleAttentionMessage: chip })}
+                        className={`rounded-full border px-3 py-1.5 text-left text-xs font-medium transition sm:text-sm ${
+                          selected ? "border-[#0d9488] bg-teal-50 text-[#0d9488]" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                        }`}
+                      >
+                        {chip}
+                      </button>
+                    );
+                  })}
+                </div>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium text-slate-600">Or type your own message</span>
+                  <input
+                    type="text"
+                    value={s3.bubbleAttentionMessage}
+                    onChange={(e) => setStep3({ bubbleAttentionMessage: e.target.value })}
+                    placeholder="Your custom attention message"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
+                  />
+                </label>
+              </div>
               <div className="block">
                 <label htmlFor="bot-greeting" className="mb-1 block text-sm font-medium text-[#1a2744]">
                   Bot greeting message
@@ -959,14 +1133,37 @@ export default function OnboardingPage() {
               <section>
                 <h3 className="mb-3 text-sm font-semibold text-[#1a2744]">Live chat preview</h3>
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-900/5">
-                  <div className="flex items-center justify-between border-b border-slate-100 bg-[#1a2744] px-4 py-3">
+                  <div
+                    className="flex items-center justify-between border-b border-white/20 px-4 py-3 text-white"
+                    style={{ backgroundColor: s3.primaryColor }}
+                  >
                     <div className="flex min-w-0 items-center gap-2">
-                      <Image src="/Alona.png" alt="" width={32} height={32} className="h-8 w-8 shrink-0 rounded-lg bg-white/10" />
-                      <span className="truncate text-sm font-semibold text-white">{s3.botName || "Your bot"}</span>
+                      {s3.logoDataUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={s3.logoDataUrl}
+                          alt=""
+                          className="h-8 w-8 shrink-0 rounded-lg bg-white/10 object-contain p-0.5"
+                        />
+                      ) : (
+                        <Image
+                          src="/Alona.png"
+                          alt=""
+                          width={32}
+                          height={32}
+                          className="h-8 w-8 shrink-0 rounded-lg bg-white/10"
+                        />
+                      )}
+                      <span
+                        className="truncate text-sm font-semibold text-white"
+                        style={getBotNameFontStyle(s3.botNameFont)}
+                      >
+                        {s3.botName || "Your bot"}
+                      </span>
                     </div>
-                    <span className="text-xs text-teal-200/90">Preview</span>
+                    <span className="text-xs text-white/90">Preview</span>
                   </div>
-                  <div className="space-y-3 bg-slate-50 px-3 py-4 sm:px-4">
+                  <div className="relative space-y-3 bg-slate-50 px-3 py-4 pb-28 sm:px-4 sm:pb-32">
                     <div className="flex justify-start">
                       <div
                         className="max-w-[85%] rounded-2xl rounded-bl-md px-3 py-2.5 text-sm leading-relaxed text-white shadow-sm"
@@ -991,12 +1188,21 @@ export default function OnboardingPage() {
                       />
                       <button
                         type="button"
-                        className="shrink-0 rounded-full bg-[#1a2744] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243552]"
+                        style={{ backgroundColor: s3.primaryColor }}
+                        className="shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
                       >
                         Send
                       </button>
                     </div>
                     <p className="text-center text-xs text-slate-500">Preview only — messages are not saved.</p>
+                    <div className="pointer-events-none absolute bottom-4 right-3 left-3 z-10 flex justify-end sm:left-auto">
+                      <div
+                        className="max-w-[min(100%,16rem)] rounded-2xl px-3 py-2 text-left text-xs font-medium leading-snug text-white shadow-lg"
+                        style={{ backgroundColor: s3.primaryColor }}
+                      >
+                        {previewBubbleAttention}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </section>
