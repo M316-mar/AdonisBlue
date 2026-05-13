@@ -28,6 +28,13 @@ const SERVICES: { id: string; label: string; description: string }[] = [
   { id: "consultations", label: "Consultations", description: "First visits, education, and personalized treatment planning." },
 ];
 
+const GREETING_GENERATOR_TONES: { id: string; title: string; tagline: string }[] = [
+  { id: "warm", title: "Warm & Welcoming", tagline: "Feel like a warm hug the moment they say hello" },
+  { id: "polished", title: "Professional & Polished", tagline: "Elegant, confident and reassuring" },
+  { id: "fun", title: "Fun & Bubbly", tagline: "Bright, energetic and full of personality" },
+  { id: "calm", title: "Calm & Reassuring", tagline: "Gentle, safe and trustworthy" },
+];
+
 const TONES = ["Warm & friendly", "Professional & polished", "Fun & bubbly", "Calm & reassuring"] as const;
 
 type Tone = (typeof TONES)[number];
@@ -208,6 +215,10 @@ export default function OnboardingPage() {
   const [launchSaving, setLaunchSaving] = useState(false);
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [launchSuccess, setLaunchSuccess] = useState<string | null>(null);
+  const [greetingPanelOpen, setGreetingPanelOpen] = useState(false);
+  const [greetingPanelToneId, setGreetingPanelToneId] = useState("warm");
+  const [greetingGenerating, setGreetingGenerating] = useState(false);
+  const [greetingGenError, setGreetingGenError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -417,6 +428,42 @@ export default function OnboardingPage() {
     }
   }, [persisted, updatePersisted]);
 
+  const handleGenerateGreeting = useCallback(async () => {
+    setGreetingGenError(null);
+    setGreetingGenerating(true);
+    try {
+      const toneCard = GREETING_GENERATOR_TONES.find((t) => t.id === greetingPanelToneId) ?? GREETING_GENERATOR_TONES[0];
+      const serviceLabels = persisted.step2.serviceIds
+        .map((id) => SERVICES.find((s) => s.id === id)?.label)
+        .filter((label): label is string => Boolean(label));
+      const res = await fetch("/api/generate-greeting", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          practiceName: persisted.step1.practiceName,
+          services: serviceLabels,
+          toneTitle: toneCard.title,
+          toneTagline: toneCard.tagline,
+          botPersonalityTone: persisted.step3.tone,
+        }),
+      });
+      const data = (await res.json()) as { greeting?: string; error?: string };
+      if (!res.ok) {
+        setGreetingGenError(typeof data.error === "string" ? data.error : "Something went wrong. Please try again.");
+        return;
+      }
+      if (typeof data.greeting === "string" && data.greeting.trim()) {
+        setStep3({ greeting: data.greeting.trim() });
+      } else {
+        setGreetingGenError("Something went wrong. Please try again.");
+      }
+    } catch {
+      setGreetingGenError("Something went wrong. Please try again.");
+    } finally {
+      setGreetingGenerating(false);
+    }
+  }, [greetingPanelToneId, persisted.step1.practiceName, persisted.step2.serviceIds, persisted.step3.tone, setStep3]);
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -594,15 +641,76 @@ export default function OnboardingPage() {
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
                 />
               </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Bot greeting message</span>
+              <div className="block">
+                <label htmlFor="bot-greeting" className="mb-1 block text-sm font-medium text-[#1a2744]">
+                  Bot greeting message
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGreetingPanelOpen(true);
+                    setGreetingGenError(null);
+                  }}
+                  className="mb-2 text-left text-sm font-semibold text-[#0d9488] transition hover:text-teal-700"
+                >
+                  ✨ Generate a greeting for me
+                </button>
+                {greetingPanelOpen ? (
+                  <div className="mb-3 space-y-4 rounded-xl border border-slate-200 bg-slate-50/90 p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-base font-semibold leading-snug text-[#1a2744] sm:text-lg">Let us create your perfect greeting</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGreetingPanelOpen(false);
+                          setGreetingGenError(null);
+                        }}
+                        className="shrink-0 text-xs font-medium text-slate-500 transition hover:text-slate-700"
+                      >
+                        Close
+                      </button>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {GREETING_GENERATOR_TONES.map((tone) => {
+                        const selected = greetingPanelToneId === tone.id;
+                        return (
+                          <button
+                            key={tone.id}
+                            type="button"
+                            onClick={() => setGreetingPanelToneId(tone.id)}
+                            className={`rounded-xl border p-3 text-left text-sm transition sm:p-4 ${
+                              selected ? "border-[#0d9488] bg-teal-50/80 ring-1 ring-[#0d9488]/30" : "border-slate-200 bg-white hover:border-slate-300"
+                            }`}
+                          >
+                            <span className="font-semibold text-[#1a2744]">{tone.title}</span>
+                            <span className="mt-1 block text-xs leading-relaxed text-slate-600">— {tone.tagline}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {greetingGenerating ? (
+                      <p className="text-sm font-medium text-[#0d9488]">Creating your perfect greeting...</p>
+                    ) : null}
+                    {greetingGenError ? <p className="text-sm text-red-600">{greetingGenError}</p> : null}
+                    <button
+                      type="button"
+                      disabled={greetingGenerating}
+                      onClick={() => void handleGenerateGreeting()}
+                      className="w-full rounded-full bg-[#0d9488] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-900/10 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                    >
+                      Generate my greeting
+                    </button>
+                    <p className="text-xs text-slate-500">You can edit this anytime</p>
+                  </div>
+                ) : null}
                 <textarea
+                  id="bot-greeting"
                   value={s3.greeting}
                   onChange={(e) => setStep3({ greeting: e.target.value })}
                   rows={3}
                   className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
                 />
-              </label>
+              </div>
               <fieldset>
                 <legend className="mb-2 text-sm font-medium text-[#1a2744]">Tone</legend>
                 <div className="grid gap-2 sm:grid-cols-2">
