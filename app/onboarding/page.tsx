@@ -86,6 +86,7 @@ type Step2Data = {
 type Step3Data = {
   botName: string;
   logoDataUrl: string | null;
+  brandNameImage: string | null;
   botNameFont: BotNameFontId;
   bubbleAttentionMessage: string;
   greeting: string;
@@ -133,6 +134,7 @@ function defaultStep3(): Step3Data {
   return {
     botName: "",
     logoDataUrl: null,
+    brandNameImage: null,
     botNameFont: "dm-sans",
     bubbleAttentionMessage: "",
     greeting: "",
@@ -191,6 +193,12 @@ function readLogoFileAsDataUrl(file: File): Promise<string | null> {
   });
 }
 
+function isBrandNameImageFile(file: File): boolean {
+  const type = file.type.toLowerCase();
+  if (type === "image/png" || type === "image/jpeg" || type === "image/jpg" || type === "image/svg+xml") return true;
+  return /\.(png|jpe?g|svg)$/i.test(file.name);
+}
+
 function getBotNameFontStyle(id: BotNameFontId): CSSProperties {
   switch (id) {
     case "dm-sans":
@@ -234,6 +242,11 @@ function loadPersisted(): OnboardingPersisted {
     const logoRaw = parsed.step3?.logoDataUrl;
     const logoDataUrl =
       typeof logoRaw === "string" || logoRaw === null ? (logoRaw as string | null) : base.step3.logoDataUrl;
+    const brandImgRaw = parsed.step3?.brandNameImage;
+    const brandNameImage =
+      typeof brandImgRaw === "string" || brandImgRaw === null
+        ? (brandImgRaw as string | null)
+        : base.step3.brandNameImage;
     const bubbleRaw = parsed.step3?.bubbleAttentionMessage;
     const bubbleAttentionMessage = typeof bubbleRaw === "string" ? bubbleRaw : base.step3.bubbleAttentionMessage;
     return {
@@ -263,6 +276,7 @@ function loadPersisted(): OnboardingPersisted {
         tone,
         botNameFont,
         logoDataUrl,
+        brandNameImage,
         bubbleAttentionMessage,
       },
       step4: {
@@ -308,6 +322,7 @@ export default function OnboardingPage() {
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const brandNameImageFileInputRef = useRef<HTMLInputElement>(null);
   const [chatInput, setChatInput] = useState("");
   const [launchSaving, setLaunchSaving] = useState(false);
   const [launchError, setLaunchError] = useState<string | null>(null);
@@ -543,6 +558,7 @@ export default function OnboardingPage() {
           ...p.step2.customServices.filter((c) => c.name.trim()).map((c) => c.name.trim()),
         ],
         bot_name: p.step3.botName.trim(),
+        brand_name_image: p.step3.brandNameImage,
         greeting: p.step3.greeting.trim(),
         tone: p.step3.tone,
         primary_color: p.step3.primaryColor,
@@ -911,6 +927,60 @@ export default function OnboardingPage() {
                 <p className="text-xs leading-relaxed text-slate-600">
                   Upload your own logo — from Canva, your phone, or anywhere. If you skip this we will use the AdonisBlue butterfly.
                 </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-[#1a2744]">Have a custom logo or brand name image? Upload it here</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label
+                    htmlFor="onboarding-brand-name-image-upload"
+                    className="inline-flex cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                  >
+                    Upload
+                  </label>
+                  <input
+                    id="onboarding-brand-name-image-upload"
+                    ref={brandNameImageFileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/svg+xml,.png,.jpg,.jpeg,.svg"
+                    className="sr-only"
+                    onChange={(e) => {
+                      void (async () => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (!file || !isBrandNameImageFile(file)) return;
+                        const dataUrl = await readLogoFileAsDataUrl(file);
+                        if (dataUrl) setStep3({ brandNameImage: dataUrl });
+                      })();
+                    }}
+                  />
+                </div>
+                {s3.brandNameImage ? (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-end gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={s3.brandNameImage}
+                        alt=""
+                        className="max-h-16 max-w-full rounded-lg border border-slate-200 bg-white object-contain p-1 sm:max-w-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setStep3({ brandNameImage: null })}
+                        className="text-xs font-medium text-red-600 underline decoration-red-600/30 underline-offset-2 hover:text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-600">
+                      Your uploaded brand name will appear in your chat widget instead of the text name
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+              <div className="my-5 flex items-center gap-3">
+                <div className="h-px min-w-0 flex-1 bg-slate-200" aria-hidden />
+                <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-500">OR choose a font below</span>
+                <div className="h-px min-w-0 flex-1 bg-slate-200" aria-hidden />
               </div>
               <fieldset>
                 <legend className="mb-2 text-sm font-medium text-[#1a2744]">Choose a font for your bot name</legend>
@@ -1311,12 +1381,21 @@ export default function OnboardingPage() {
                           className="h-8 w-8 shrink-0 rounded-lg bg-white/10"
                         />
                       )}
-                      <span
-                        className="truncate text-sm font-semibold text-white"
-                        style={getBotNameFontStyle(s3.botNameFont)}
-                      >
-                        {s3.botName || "Your bot"}
-                      </span>
+                      {s3.brandNameImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={s3.brandNameImage}
+                          alt=""
+                          className="max-h-7 max-w-[min(12rem,55vw)] shrink object-contain object-left"
+                        />
+                      ) : (
+                        <span
+                          className="truncate text-sm font-semibold text-white"
+                          style={getBotNameFontStyle(s3.botNameFont)}
+                        >
+                          {s3.botName || "Your bot"}
+                        </span>
+                      )}
                     </div>
                     <span className="text-xs text-white/90">Preview</span>
                   </div>
