@@ -978,7 +978,7 @@ export default function OnboardingPage() {
                   }}
                   className="mb-2 text-left text-sm font-semibold text-[#0d9488] transition hover:text-teal-700"
                 >
-                  ✨ Generate a greeting for me
+                  ✨ Click here to generate your greeting
                 </button>
                 {greetingPanelOpen ? (
                   <div className="mb-3 space-y-4 rounded-xl border border-slate-200 bg-slate-50/90 p-4 sm:p-5">
