@@ -30,6 +30,14 @@ const SERVICES: { id: string; label: string; description: string }[] = [
   { id: "consultations", label: "Consultations", description: "First visits, education, and personalized treatment planning." },
 ];
 
+const OTHER_SERVICE_ID = "other";
+
+const OTHER_SERVICE_META = {
+  id: OTHER_SERVICE_ID,
+  label: "Other",
+  description: "Add your own services if they are not listed above.",
+} as const;
+
 const GREETING_GENERATOR_TONES: { id: string; title: string; tagline: string }[] = [
   { id: "warm", title: "Warm & Welcoming", tagline: "Feel like a warm hug the moment they say hello" },
   { id: "polished", title: "Professional & Polished", tagline: "Elegant, confident and reassuring" },
@@ -72,6 +80,7 @@ type Step1Data = {
 
 type Step2Data = {
   serviceIds: string[];
+  customServices: { name: string; description: string }[];
 };
 
 type Step3Data = {
@@ -117,7 +126,7 @@ function defaultStep1(): Step1Data {
 }
 
 function defaultStep2(): Step2Data {
-  return { serviceIds: [] };
+  return { serviceIds: [], customServices: [] };
 }
 
 function defaultStep3(): Step3Data {
@@ -230,7 +239,24 @@ function loadPersisted(): OnboardingPersisted {
     return {
       currentStep: typeof parsed.currentStep === "number" && parsed.currentStep >= 1 && parsed.currentStep <= TOTAL_STEPS ? parsed.currentStep : base.currentStep,
       step1: { ...base.step1, ...parsed.step1 },
-      step2: { serviceIds: Array.isArray(parsed.step2?.serviceIds) ? parsed.step2!.serviceIds : base.step2.serviceIds },
+      step2: {
+        serviceIds: Array.isArray(parsed.step2?.serviceIds) ? parsed.step2!.serviceIds : base.step2.serviceIds,
+        customServices: (() => {
+          const raw = parsed.step2?.customServices;
+          if (!Array.isArray(raw)) return base.step2.customServices;
+          const cleaned = raw
+            .filter((x) => x !== null && typeof x === "object")
+            .map((x) => {
+              const o = x as Record<string, unknown>;
+              return {
+                name: typeof o.name === "string" ? o.name : "",
+                description: typeof o.description === "string" ? o.description : "",
+              };
+            })
+            .slice(0, 3);
+          return cleaned;
+        })(),
+      },
       step3: {
         ...base.step3,
         ...parsed.step3,
@@ -411,7 +437,12 @@ export default function OnboardingPage() {
         Boolean(step1.specialSentence.trim())
       );
     }
-    if (step === 2) return step2.serviceIds.length > 0;
+    if (step === 2) {
+      const nonOther = step2.serviceIds.filter((id) => id !== OTHER_SERVICE_ID);
+      const hasOther = step2.serviceIds.includes(OTHER_SERVICE_ID);
+      const hasCustomName = step2.customServices.some((c) => c.name.trim().length > 0);
+      return nonOther.length > 0 || (hasOther && hasCustomName);
+    }
     if (step === 3) return Boolean(step3.botName.trim()) && Boolean(step3.greeting.trim());
     if (step === 4) return step4.permissionConfirmed && step4.photos.length > 0;
     return true;
@@ -430,12 +461,58 @@ export default function OnboardingPage() {
     }
   }
 
+  function updateCustomService(index: number, patch: Partial<{ name: string; description: string }>) {
+    setPersisted((prev) => {
+      const nextCs = [...prev.step2.customServices];
+      if (!nextCs[index]) return prev;
+      nextCs[index] = { ...nextCs[index], ...patch };
+      const next = { ...prev, step2: { ...prev.step2, customServices: nextCs } };
+      savePersisted(next);
+      return next;
+    });
+  }
+
+  function addCustomServiceRow() {
+    setPersisted((prev) => {
+      if (prev.step2.customServices.length >= 3) return prev;
+      const next = {
+        ...prev,
+        step2: {
+          ...prev.step2,
+          customServices: [...prev.step2.customServices, { name: "", description: "" }],
+        },
+      };
+      savePersisted(next);
+      return next;
+    });
+  }
+
+  function removeCustomServiceRow(index: number) {
+    setPersisted((prev) => {
+      const cs = prev.step2.customServices.filter((_, i) => i !== index);
+      const nextCs = cs.length > 0 ? cs : [{ name: "", description: "" }];
+      const next = { ...prev, step2: { ...prev.step2, customServices: nextCs } };
+      savePersisted(next);
+      return next;
+    });
+  }
+
   function toggleService(id: string) {
     setPersisted((prev) => {
       const set = new Set(prev.step2.serviceIds);
-      if (set.has(id)) set.delete(id);
-      else set.add(id);
-      const next = { ...prev, step2: { serviceIds: [...set] } };
+      let customServices = prev.step2.customServices;
+      if (set.has(id)) {
+        set.delete(id);
+        if (id === OTHER_SERVICE_ID) {
+          customServices = [];
+        }
+      } else {
+        set.add(id);
+        if (id === OTHER_SERVICE_ID && customServices.length === 0) {
+          customServices = [{ name: "", description: "" }];
+        }
+      }
+      const next = { ...prev, step2: { ...prev.step2, serviceIds: [...set], customServices } };
       savePersisted(next);
       return next;
     });
@@ -461,7 +538,10 @@ export default function OnboardingPage() {
         years_experience: p.step1.yearsExperience.trim(),
         never_compromise: p.step1.specialSentence.trim(),
         instagram: p.step1.instagram.trim() || null,
-        services: p.step2.serviceIds,
+        services: [
+          ...p.step2.serviceIds.filter((id) => id !== OTHER_SERVICE_ID),
+          ...p.step2.customServices.filter((c) => c.name.trim()).map((c) => c.name.trim()),
+        ],
         bot_name: p.step3.botName.trim(),
         greeting: p.step3.greeting.trim(),
         tone: p.step3.tone,
@@ -509,9 +589,13 @@ export default function OnboardingPage() {
     setGreetingGenerating(true);
     try {
       const toneCard = GREETING_GENERATOR_TONES.find((t) => t.id === greetingPanelToneId) ?? GREETING_GENERATOR_TONES[0];
-      const serviceLabels = persisted.step2.serviceIds
-        .map((id) => SERVICES.find((s) => s.id === id)?.label)
-        .filter((label): label is string => Boolean(label));
+      const serviceLabels = [
+        ...persisted.step2.serviceIds
+          .filter((id) => id !== OTHER_SERVICE_ID)
+          .map((id) => SERVICES.find((s) => s.id === id)?.label)
+          .filter((label): label is string => Boolean(label)),
+        ...persisted.step2.customServices.filter((c) => c.name.trim()).map((c) => c.name.trim()),
+      ];
       const res = await fetch("/api/generate-greeting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -538,7 +622,7 @@ export default function OnboardingPage() {
     } finally {
       setGreetingGenerating(false);
     }
-  }, [greetingPanelToneId, persisted.step1.practiceName, persisted.step2.serviceIds, persisted.step3.tone, setStep3]);
+  }, [greetingPanelToneId, persisted.step1.practiceName, persisted.step2.customServices, persisted.step2.serviceIds, persisted.step3.tone, setStep3]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -701,7 +785,76 @@ export default function OnboardingPage() {
                     </li>
                   );
                 })}
+                <li key={OTHER_SERVICE_ID}>
+                  <label
+                    className={`flex cursor-pointer flex-col gap-1 rounded-xl border p-4 transition sm:min-h-[7.5rem] ${
+                      s2.serviceIds.includes(OTHER_SERVICE_ID)
+                        ? "border-[#0d9488] bg-teal-50/60 ring-1 ring-[#0d9488]/30"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <span className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={s2.serviceIds.includes(OTHER_SERVICE_ID)}
+                        onChange={() => toggleService(OTHER_SERVICE_ID)}
+                        className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-[#0d9488] focus:ring-[#0d9488]"
+                      />
+                      <span className="font-semibold text-[#1a2744]">{OTHER_SERVICE_META.label}</span>
+                    </span>
+                    <span className="pl-7 text-xs leading-relaxed text-slate-600 sm:text-sm">{OTHER_SERVICE_META.description}</span>
+                  </label>
+                </li>
               </ul>
+              {s2.serviceIds.includes(OTHER_SERVICE_ID) ? (
+                <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+                  <p className="text-sm font-medium text-[#1a2744]">Custom services (up to 3)</p>
+                  {s2.customServices.map((row, index) => (
+                    <div key={index} className="space-y-2 rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Service {index + 1}</span>
+                        {s2.customServices.length > 1 ? (
+                          <button
+                            type="button"
+                            onClick={() => removeCustomServiceRow(index)}
+                            className="text-xs font-medium text-red-600 hover:text-red-700"
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                      <label className="block">
+                        <span className="mb-1 block text-xs font-medium text-[#1a2744]">Service name</span>
+                        <input
+                          value={row.name}
+                          onChange={(e) => updateCustomService(index, { name: e.target.value })}
+                          placeholder="e.g. Body contouring"
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-[#0d9488]/30 focus:border-[#0d9488] focus:ring-2"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-xs font-medium text-[#1a2744]">Description</span>
+                        <textarea
+                          value={row.description}
+                          onChange={(e) => updateCustomService(index, { description: e.target.value })}
+                          rows={2}
+                          placeholder="Brief description for your clients"
+                          className="w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-[#0d9488]/30 focus:border-[#0d9488] focus:ring-2"
+                        />
+                      </label>
+                    </div>
+                  ))}
+                  {s2.customServices.length < 3 ? (
+                    <button
+                      type="button"
+                      onClick={addCustomServiceRow}
+                      className="text-sm font-semibold text-[#0d9488] hover:text-teal-700"
+                    >
+                      + Add another custom service
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -720,18 +873,18 @@ export default function OnboardingPage() {
               <div className="space-y-2">
                 <span className="block text-sm font-medium text-[#1a2744]">Your logo (optional)</span>
                 <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => logoFileInputRef.current?.click()}
-                    className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                  <label
+                    htmlFor="onboarding-logo-upload"
+                    className="inline-flex cursor-pointer rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50"
                   >
                     Upload logo
-                  </button>
+                  </label>
                   <input
+                    id="onboarding-logo-upload"
                     ref={logoFileInputRef}
                     type="file"
                     accept="image/*"
-                    className="hidden"
+                    className="sr-only"
                     onChange={(e) => {
                       void (async () => {
                         const file = e.target.files?.[0];
@@ -742,7 +895,11 @@ export default function OnboardingPage() {
                       })();
                     }}
                   />
-                  {s3.logoDataUrl ? (
+                </div>
+                {s3.logoDataUrl ? (
+                  <div className="flex flex-wrap items-end gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={s3.logoDataUrl} alt="" className="h-16 w-16 rounded-lg border border-slate-200 bg-white object-contain p-1" />
                     <button
                       type="button"
                       onClick={() => setStep3({ logoDataUrl: null })}
@@ -750,17 +907,11 @@ export default function OnboardingPage() {
                     >
                       Remove
                     </button>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
                 <p className="text-xs leading-relaxed text-slate-600">
                   Upload your own logo — from Canva, your phone, or anywhere. If you skip this we will use the AdonisBlue butterfly.
                 </p>
-                {s3.logoDataUrl ? (
-                  <div className="mt-1">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={s3.logoDataUrl} alt="" className="h-16 w-16 rounded-lg border border-slate-200 bg-white object-contain p-1" />
-                  </div>
-                ) : null}
               </div>
               <fieldset>
                 <legend className="mb-2 text-sm font-medium text-[#1a2744]">Choose a font for your bot name</legend>
@@ -1075,11 +1226,17 @@ export default function OnboardingPage() {
                   <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
                     <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Services</dt>
                     <dd className="text-slate-700">
-                      {s2.serviceIds.length
-                        ? s2.serviceIds
-                            .map((id) => SERVICES.find((x) => x.id === id)?.label ?? id)
-                            .join(", ")
-                        : "—"}
+                      {(() => {
+                        const parts = [
+                          ...s2.serviceIds
+                            .filter((id) => id !== OTHER_SERVICE_ID)
+                            .map((id) => SERVICES.find((x) => x.id === id)?.label ?? id),
+                          ...s2.customServices
+                            .filter((c) => c.name.trim())
+                            .map((c) => (c.description.trim() ? `${c.name.trim()} (${c.description.trim()})` : c.name.trim())),
+                        ];
+                        return parts.length ? parts.join(", ") : "—";
+                      })()}
                     </dd>
                   </div>
                   <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
