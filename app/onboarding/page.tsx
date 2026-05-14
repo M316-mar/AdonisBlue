@@ -918,6 +918,7 @@ export default function OnboardingPage() {
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                   {BOT_FONT_CARDS.map((f) => {
                     const selected = s3.botNameFont === f.id;
+                    const fontPreviewName = s3.botName.trim() || "Your Bot Name";
                     return (
                       <button
                         key={f.id}
@@ -928,8 +929,8 @@ export default function OnboardingPage() {
                         }`}
                       >
                         <span className="block text-xs font-medium text-slate-600">{f.label}</span>
-                        <span className="mt-2 block text-lg text-[#1a2744]" style={getBotNameFontStyle(f.id)}>
-                          AdonisBlue
+                        <span className="mt-2 block truncate text-lg text-[#1a2744]" style={getBotNameFontStyle(f.id)}>
+                          {fontPreviewName}
                         </span>
                       </button>
                     );
