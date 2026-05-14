@@ -42,6 +42,8 @@ export async function POST(request: Request) {
     }),
   });
 
+  const anthropicBodyText = await anthropicRes.text();
+  console.log("Anthropic status:", anthropicRes.status, anthropicBodyText);
   if (!anthropicRes.ok) {
     return NextResponse.json(
       { error: "We could not reach the AI right now. Please try again in a moment." },
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const data = (await anthropicRes.json()) as {
+  const data = JSON.parse(anthropicBodyText) as {
     content?: Array<{ type?: string; text?: string }>;
   };
   const block = data.content?.find((c) => c.type === "text");
