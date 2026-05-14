@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const SYSTEM_PROMPT =
-  "You are helping an aesthetic nurse create a warm welcoming greeting for her AI chatbot. Generate a short 3-4 sentence greeting matching the tone. Feel human, warm, never pushy. Include one emoji. End asking how you can help today. No medical jargon.";
+  "You are helping an aesthetic nurse create a warm welcoming greeting for her AI chatbot. Generate ONLY the greeting message itself — no preamble like Here is a greeting or Here is a warm greeting. Just the greeting directly. Use the practice name provided naturally in the greeting. Make it 3-4 sentences, human, warm, never pushy. Include one emoji. End asking how you can help today. No medical jargon.";
 
 export async function POST(request: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
