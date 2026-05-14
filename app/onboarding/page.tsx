@@ -596,15 +596,14 @@ export default function OnboardingPage() {
           .filter((label): label is string => Boolean(label)),
         ...persisted.step2.customServices.filter((c) => c.name.trim()).map((c) => c.name.trim()),
       ];
+      const tone = `${toneCard.title} — ${toneCard.tagline}. Bot personality (tone step): ${persisted.step3.tone}.`;
       const res = await fetch("/api/generate-greeting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          practiceName: persisted.step1.practiceName,
+          practiceName: persisted.step1.practiceName.trim(),
           services: serviceLabels,
-          toneTitle: toneCard.title,
-          toneTagline: toneCard.tagline,
-          botPersonalityTone: persisted.step3.tone,
+          tone,
         }),
       });
       const data = (await res.json()) as { greeting?: string; error?: string };
