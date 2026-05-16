@@ -600,17 +600,15 @@ export default function OnboardingPage() {
     setLaunchSuccess(null);
     setLaunchSaving(true);
     try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      console.log('Session:', sessionData?.session?.user?.id);
-      console.log('Session error:', sessionError);
-      if (sessionError || !sessionData.session?.user) {
-        setLaunchError(sessionError?.message || "Please log in to save your bot");
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        setLaunchError(userError?.message || "Please log in to save your bot");
         router.replace("/auth");
         return;
       }
       const p = persisted;
       const row = {
-        nurse_id: sessionData?.session?.user?.id,
+        nurse_id: userData.user.id,
         practice_name: p.step1.practiceName.trim(),
         city: p.step1.city.trim(),
         state: p.step1.state.trim(),
@@ -667,6 +665,7 @@ export default function OnboardingPage() {
     } catch (error) {
       console.log("Unexpected bot save error:", error);
       setLaunchError(error instanceof Error ? error.message : "We could not save your bot. Please try again.");
+      router.replace("/auth");
     } finally {
       setLaunchSaving(false);
     }
