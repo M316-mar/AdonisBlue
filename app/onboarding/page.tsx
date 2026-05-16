@@ -608,7 +608,6 @@ export default function OnboardingPage() {
         router.replace("/auth");
         return;
       }
-      const accessToken = sessionData.session.access_token;
       const p = persisted;
       const row = {
         nurse_id: sessionData?.session?.user?.id,
@@ -639,7 +638,6 @@ export default function OnboardingPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(row),
       });
