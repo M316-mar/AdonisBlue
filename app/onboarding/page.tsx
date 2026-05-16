@@ -1473,37 +1473,20 @@ export default function OnboardingPage() {
                     style={{ backgroundColor: s3.primaryColor }}
                   >
                     <div className="flex min-w-0 items-center gap-2">
-                      {previewLogoImage ? (
+                      {s3.logoImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={previewLogoImage}
+                          src={s3.logoImage}
                           alt=""
                           className="h-8 w-8 shrink-0 rounded-lg bg-white/10 object-contain p-0.5"
                         />
-                      ) : (
-                        <Image
-                          src="/Alona.png"
-                          alt=""
-                          width={32}
-                          height={32}
-                          className="h-8 w-8 shrink-0 rounded-lg bg-white/10"
-                        />
-                      )}
-                      {s3.brandNameImage ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={s3.brandNameImage}
-                          alt=""
-                          className="max-h-7 max-w-[min(12rem,55vw)] shrink object-contain object-left"
-                        />
-                      ) : (
-                        <span
-                          className="truncate text-sm font-semibold text-white"
-                          style={getBotNameFontStyle(s3.botNameFont)}
-                        >
-                          {s3.botName || "Your bot"}
-                        </span>
-                      )}
+                      ) : null}
+                      <span
+                        className="truncate text-sm font-semibold text-white"
+                        style={getBotNameFontStyle(s3.botNameFont)}
+                      >
+                        {s3.botName || "Your bot"}
+                      </span>
                     </div>
                     <span className="text-xs text-white/90">Preview</span>
                   </div>

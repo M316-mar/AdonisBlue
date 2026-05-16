@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { useParams } from "next/navigation";
 import type { CSSProperties } from "react";
@@ -13,6 +12,8 @@ type BotRow = {
   nurse_id: string;
   practice_name: string | null;
   bot_name: string | null;
+  logo_image?: string | null;
+  logo_data_url?: string | null;
   brand_name_image?: string | null;
   greeting: string | null;
   tone: string | null;
@@ -267,7 +268,6 @@ export default function PublicChatPage() {
   if (loadState === "error" || loadState === "notfound" || !bot) {
     return (
       <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-slate-50 px-6 text-center">
-        <Image src="/Alona.png" alt="" width={64} height={64} className="mb-4 rounded-2xl" />
         <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">
           {loadState === "notfound" ? "We could not find this chat" : "Something went wrong"}
         </h1>
@@ -282,6 +282,7 @@ export default function PublicChatPage() {
 
   const fontId = (bot.bot_name_font as BotNameFontId | undefined) ?? "dm-sans";
   const botTitle = (bot.bot_name || "").trim() || (bot.practice_name || "").trim() || "Chat";
+  const botLogoImage = bot.logo_image || bot.logo_data_url;
 
   const ChatPanel = (
     <div
@@ -298,22 +299,18 @@ export default function PublicChatPage() {
         style={{ backgroundColor: primary }}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-white/15 ring-1 ring-white/30">
-            <Image src="/Alona.png" alt="" fill className="object-contain p-0.5" sizes="36px" />
-          </div>
+          {botLogoImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={botLogoImage}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-lg bg-white/15 object-contain p-0.5 ring-1 ring-white/30"
+            />
+          ) : null}
           <div className="min-w-0 flex-1">
-            {bot.brand_name_image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={bot.brand_name_image}
-                alt=""
-                className="max-h-7 max-w-[min(10rem,50vw)] object-contain object-left"
-              />
-            ) : (
-              <p className="truncate text-sm font-semibold leading-tight" style={getBotNameFontStyle(fontId)}>
-                {botTitle}
-              </p>
-            )}
+            <p className="truncate text-sm font-semibold leading-tight" style={getBotNameFontStyle(fontId)}>
+              {botTitle}
+            </p>
             <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-white/90">
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_0_2px_rgba(255,255,255,0.35)]" />
               Online
@@ -429,22 +426,18 @@ export default function PublicChatPage() {
         style={{ backgroundColor: primary, color: "#fff" }}
       >
         <div className="mx-auto flex max-w-3xl items-center gap-3 sm:gap-4">
-          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white/15 ring-2 ring-white/25 sm:h-14 sm:w-14">
-            <Image src="/Alona.png" alt="" fill className="object-contain p-1" sizes="56px" priority />
-          </div>
+          {botLogoImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={botLogoImage}
+              alt=""
+              className="h-12 w-12 shrink-0 rounded-xl bg-white/15 object-contain p-1 ring-2 ring-white/25 sm:h-14 sm:w-14"
+            />
+          ) : null}
           <div className="min-w-0 flex-1">
-            {bot.brand_name_image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={bot.brand_name_image}
-                alt=""
-                className="max-h-9 max-w-[min(14rem,70vw)] object-contain object-left sm:max-h-10"
-              />
-            ) : (
-              <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl" style={getBotNameFontStyle(fontId)}>
-                {botTitle}
-              </h1>
-            )}
+            <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl" style={getBotNameFontStyle(fontId)}>
+              {botTitle}
+            </h1>
             <p className="mt-1 flex items-center gap-2 text-xs font-medium text-white/90 sm:text-sm">
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_0_2px_rgba(255,255,255,0.35)]" />
               Online — we typically reply right away
