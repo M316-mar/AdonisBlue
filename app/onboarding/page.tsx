@@ -590,6 +590,7 @@ export default function OnboardingPage() {
         router.replace("/auth");
         return;
       }
+      const accessToken = sessionData.session.access_token;
       const p = persisted;
       const row = {
         nurse_id: sessionData?.session?.user?.id,
@@ -604,7 +605,11 @@ export default function OnboardingPage() {
           ...p.step2.customServices.filter((c) => c.name.trim()).map((c) => c.name.trim()),
         ],
         bot_name: p.step3.botName.trim(),
+        logo_image: p.step3.logoImage,
+        logo_data_url: p.step3.logoDataUrl,
         brand_name_image: p.step3.brandNameImage,
+        bot_name_font: p.step3.botNameFont,
+        bubble_attention_message: p.step3.bubbleAttentionMessage,
         greeting: p.step3.greeting.trim(),
         tone: p.step3.tone,
         primary_color: p.step3.primaryColor,
@@ -616,11 +621,23 @@ export default function OnboardingPage() {
         launched: true,
       };
 
-      const { data, error } = await supabase.from('bots').upsert(row);
-      console.log('Save result:', data);
-      console.log('Save error:', error);
-      if (error) {
-        setLaunchError(error.message);
+      const res = await fetch("/api/save-bot", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(row),
+      });
+      const raw = await res.text();
+      let result: { success?: boolean; error?: string; data?: unknown } = {};
+      try {
+        result = raw ? (JSON.parse(raw) as { success?: boolean; error?: string; data?: unknown }) : {};
+      } catch {
+        result = { error: raw };
+      }
+      if (!res.ok || !result.success) {
+        setLaunchError(result.error || "We could not save your bot. Please try again.");
         return;
       }
 
