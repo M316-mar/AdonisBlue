@@ -583,16 +583,16 @@ export default function OnboardingPage() {
     setLaunchSaving(true);
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      console.log("Supabase session result:", { sessionData, sessionError });
+      console.log('Session:', sessionData?.session?.user?.id);
+      console.log('Session error:', sessionError);
       if (sessionError || !sessionData.session?.user) {
-        setLaunchError("Please log in to save your bot");
+        setLaunchError(sessionError?.message || "Please log in to save your bot");
         router.replace("/auth");
         return;
       }
-      const userId = sessionData.session.user.id;
       const p = persisted;
       const row = {
-        nurse_id: userId,
+        nurse_id: sessionData?.session?.user?.id,
         practice_name: p.step1.practiceName.trim(),
         city: p.step1.city.trim(),
         state: p.step1.state.trim(),
@@ -616,35 +616,19 @@ export default function OnboardingPage() {
         launched: true,
       };
 
-      const { data: existing, error: selectError } = await supabase.from("bots").select("id").eq("nurse_id", userId).maybeSingle();
-      if (selectError) {
-        console.log("Supabase bot select error:", selectError);
-        setLaunchError("We could not save your bot. Please try again.");
+      const { data, error } = await supabase.from('bots').upsert(row);
+      console.log('Save result:', data);
+      console.log('Save error:', error);
+      if (error) {
+        setLaunchError(error.message);
         return;
-      }
-
-      if (existing) {
-        const { nurse_id: _n, ...updates } = row;
-        const { error: updateError } = await supabase.from("bots").update(updates).eq("nurse_id", userId);
-        if (updateError) {
-          console.log("Supabase bot update error:", updateError);
-          setLaunchError("We could not save your bot. Please try again.");
-          return;
-        }
-      } else {
-        const { error: insertError } = await supabase.from("bots").insert(row);
-        if (insertError) {
-          console.log("Supabase bot insert error:", insertError);
-          setLaunchError("We could not save your bot. Please try again.");
-          return;
-        }
       }
 
       updatePersisted({ launched: true });
       setLaunchSuccess("Your bot is saved — you're all set to share it with your clients.");
     } catch (error) {
       console.log("Unexpected bot save error:", error);
-      setLaunchError("We could not save your bot. Please try again.");
+      setLaunchError(error instanceof Error ? error.message : "We could not save your bot. Please try again.");
     } finally {
       setLaunchSaving(false);
     }
