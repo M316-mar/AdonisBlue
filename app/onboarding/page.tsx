@@ -623,9 +623,6 @@ export default function OnboardingPage() {
           ...p.step2.customServices.filter((c) => c.name.trim()).map((c) => c.name.trim()),
         ],
         bot_name: p.step3.botName.trim(),
-        logo_image: p.step3.logoImage,
-        logo_data_url: p.step3.logoDataUrl,
-        brand_name_image: p.step3.brandNameImage,
         bot_name_font: p.step3.botNameFont,
         bubble_attention_message: p.step3.bubbleAttentionMessage,
         greeting: p.step3.greeting.trim(),
@@ -635,7 +632,6 @@ export default function OnboardingPage() {
         booking_link: p.step3.bookingLink.trim() || null,
         cancellation_policy: p.step3.cancellationPolicy.trim() || null,
         aftercare: p.step3.aftercare.trim() || null,
-        photos: p.step4.photos.map((photo) => photo.dataUrl),
         launched: true,
       };
 

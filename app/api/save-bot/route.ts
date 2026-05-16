@@ -24,6 +24,11 @@ export async function POST(request: Request) {
   if (!botData.nurse_id) {
     return NextResponse.json({ error: "Missing nurse_id." }, { status: 400 });
   }
+  delete botData.photos;
+  delete botData.logo_image;
+  delete botData.logo_data_url;
+  delete botData.brand_name_image;
+  delete botData.brand_name_data_url;
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: {
