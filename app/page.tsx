@@ -109,7 +109,17 @@ export default function Home() {
                 <NavLinkLight href="#features">Features</NavLinkLight>
                 <NavLinkLight href="#pricing">Pricing</NavLinkLight>
                 <NavLinkLight href="#faq">FAQ</NavLinkLight>
-                <a href="#pricing" className="mt-1 rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-teal-700">Get Started Free</a>
+                <div className="mt-2 flex flex-col gap-2">
+                  <a
+                    href="/auth"
+                    className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-[#1a2744] transition hover:border-[#0d9488]/50 hover:text-[#0d9488]"
+                  >
+                    Log in
+                  </a>
+                  <a href="#pricing" className="rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-teal-700">
+                    Get Started Free
+                  </a>
+                </div>
               </nav>
             </div>
           </details>
@@ -119,7 +129,17 @@ export default function Home() {
             <NavLinkLight href="#pricing">Pricing</NavLinkLight>
             <NavLinkLight href="#faq">FAQ</NavLinkLight>
           </nav>
-          <a href="#pricing" className="hidden rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-200/80 transition hover:bg-teal-700 lg:inline-flex">Get Started Free</a>
+          <div className="hidden shrink-0 items-center gap-2 lg:flex">
+            <a
+              href="/auth"
+              className="rounded-full border border-slate-200 px-4 py-2.5 text-sm font-semibold text-[#1a2744] transition hover:border-[#0d9488]/50 hover:text-[#0d9488]"
+            >
+              Log in
+            </a>
+            <a href="#pricing" className="rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-200/80 transition hover:bg-teal-700">
+              Get Started Free
+            </a>
+          </div>
         </div>
       </header>
 
