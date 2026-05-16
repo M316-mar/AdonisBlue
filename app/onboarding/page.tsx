@@ -345,6 +345,7 @@ export default function OnboardingPage() {
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
   const [brandUploadError, setBrandUploadError] = useState<string | null>(null);
   const [workPhotosUploadError, setWorkPhotosUploadError] = useState<string | null>(null);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -484,31 +485,48 @@ export default function OnboardingPage() {
     });
   }, []);
 
-  function validateStep(step: number): boolean {
+  function getStepValidationErrors(step: number): string[] {
     const { step1, step2, step3, step4 } = persisted;
+    const errors: string[] = [];
     if (step === 1) {
-      return (
-        Boolean(step1.fullName.trim()) &&
-        Boolean(step1.practiceName.trim()) &&
-        Boolean(step1.city.trim()) &&
-        Boolean(step1.state.trim()) &&
-        Boolean(step1.yearsExperience.trim()) &&
-        Boolean(step1.specialSentence.trim())
-      );
+      if (!step1.fullName.trim()) errors.push("Please add your full name");
+      if (!step1.practiceName.trim()) errors.push("Please add your practice name");
+      if (!step1.city.trim()) errors.push("Please add your city");
+      if (!step1.state.trim()) errors.push("Please add your state");
+      if (!step1.yearsExperience.trim()) errors.push("Please tell us how many years of experience you have");
+      if (!step1.specialSentence.trim()) errors.push("Please tell us what you never compromise on with your clients");
+      return errors;
     }
     if (step === 2) {
       const nonOther = step2.serviceIds.filter((id) => id !== OTHER_SERVICE_ID);
       const hasOther = step2.serviceIds.includes(OTHER_SERVICE_ID);
       const hasCustomName = step2.customServices.some((c) => c.name.trim().length > 0);
-      return nonOther.length > 0 || (hasOther && hasCustomName);
+      if (nonOther.length === 0 && (!hasOther || !hasCustomName)) errors.push("Please select at least one service you offer");
+      return errors;
     }
-    if (step === 3) return Boolean(step3.botName.trim()) && Boolean(step3.greeting.trim());
-    if (step === 4) return step4.permissionConfirmed && step4.photos.length > 0;
-    return true;
+    if (step === 3) {
+      if (!step3.botName.trim()) errors.push("Please give your bot a name");
+      if (!step3.greeting.trim()) errors.push("Please add a greeting message for your clients");
+      return errors;
+    }
+    if (step === 4) {
+      if (step4.photos.length === 0) errors.push("Please upload at least one photo");
+      if (!step4.permissionConfirmed) errors.push("Please confirm you have permission to use these photos");
+      return errors;
+    }
+    return errors;
+  }
+
+  function validateStep(step: number): boolean {
+    return getStepValidationErrors(step).length === 0;
   }
 
   function goNext() {
-    if (!validateStep(persisted.currentStep)) return;
+    if (!validateStep(persisted.currentStep)) {
+      setShowValidationErrors(true);
+      return;
+    }
+    setShowValidationErrors(false);
     if (persisted.currentStep < TOTAL_STEPS) {
       updatePersisted({ currentStep: persisted.currentStep + 1 });
     }
@@ -712,6 +730,7 @@ export default function OnboardingPage() {
   const s3 = persisted.step3;
   const s4 = persisted.step4;
   const previewLogoImage = s3.logoImage || s3.logoDataUrl;
+  const currentValidationErrors = showValidationErrors ? getStepValidationErrors(persisted.currentStep) : [];
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
@@ -1592,6 +1611,17 @@ export default function OnboardingPage() {
                   </div>
                 </section>
               ) : null}
+            </div>
+          ) : null}
+
+          {currentValidationErrors.length > 0 ? (
+            <div className="mt-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800">
+              <p className="font-semibold">Please finish these before continuing:</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {currentValidationErrors.map((error) => (
+                  <li key={error}>{error}</li>
+                ))}
+              </ul>
             </div>
           ) : null}
 
