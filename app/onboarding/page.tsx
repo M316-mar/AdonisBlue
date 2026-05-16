@@ -10,8 +10,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 const STORAGE_KEY = "adonisblue-onboarding";
 const TOTAL_STEPS = 5;
 const MAX_PHOTOS = 10;
-const MAX_IMAGE_BYTES = 1_500_000;
-const MAX_LOGO_BYTES = 800_000;
+/** Max size for logo, brand image, and work photos (5 MB). */
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const FILE_TOO_LARGE_MSG = "This file is larger than 5 MB. Please choose a smaller image.";
+const LOGO_BRAND_TYPE_MSG = "Please choose a PNG, JPG, JPEG, WEBP, or SVG image.";
+const WORK_PHOTO_TYPE_MSG = "Please choose a PNG, JPG, JPEG, or WEBP image.";
 
 const STEP_LABELS = ["Practice", "Services", "Personality", "Photos", "Launch"] as const;
 
@@ -180,9 +183,29 @@ function slugify(input: string): string {
   return s || "my-practice";
 }
 
-function readLogoFileAsDataUrl(file: File): Promise<string | null> {
+function isLogoOrBrandImageFile(file: File): boolean {
+  const type = file.type.toLowerCase();
+  if (
+    type === "image/png" ||
+    type === "image/jpeg" ||
+    type === "image/jpg" ||
+    type === "image/webp" ||
+    type === "image/svg+xml"
+  ) {
+    return true;
+  }
+  return /\.(png|jpe?g|webp|svg)$/i.test(file.name);
+}
+
+function isWorkPhotoFile(file: File): boolean {
+  const type = file.type.toLowerCase();
+  if (type === "image/png" || type === "image/jpeg" || type === "image/jpg" || type === "image/webp") return true;
+  return /\.(png|jpe?g|webp)$/i.test(file.name);
+}
+
+function readImageAsDataUrl(file: File): Promise<string | null> {
   return new Promise((resolve) => {
-    if (file.size > MAX_LOGO_BYTES) {
+    if (file.size > MAX_UPLOAD_BYTES) {
       resolve(null);
       return;
     }
@@ -191,12 +214,6 @@ function readLogoFileAsDataUrl(file: File): Promise<string | null> {
     reader.onerror = () => resolve(null);
     reader.readAsDataURL(file);
   });
-}
-
-function isBrandNameImageFile(file: File): boolean {
-  const type = file.type.toLowerCase();
-  if (type === "image/png" || type === "image/jpeg" || type === "image/jpg" || type === "image/svg+xml") return true;
-  return /\.(png|jpe?g|svg)$/i.test(file.name);
 }
 
 function getBotNameFontStyle(id: BotNameFontId): CSSProperties {
@@ -213,19 +230,6 @@ function getBotNameFontStyle(id: BotNameFontId): CSSProperties {
     default:
       return { fontFamily: "Georgia, Palatino, serif" };
   }
-}
-
-function readFileAsDataUrl(file: File): Promise<string | null> {
-  return new Promise((resolve) => {
-    if (file.size > MAX_IMAGE_BYTES) {
-      resolve(null);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null);
-    reader.onerror = () => resolve(null);
-    reader.readAsDataURL(file);
-  });
 }
 
 function loadPersisted(): OnboardingPersisted {
@@ -331,6 +335,9 @@ export default function OnboardingPage() {
   const [greetingPanelToneId, setGreetingPanelToneId] = useState("warm");
   const [greetingGenerating, setGreetingGenerating] = useState(false);
   const [greetingGenError, setGreetingGenError] = useState<string | null>(null);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+  const [brandUploadError, setBrandUploadError] = useState<string | null>(null);
+  const [workPhotosUploadError, setWorkPhotosUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -412,24 +419,54 @@ export default function OnboardingPage() {
     [persisted.step3.bubbleAttentionMessage]
   );
 
-  const addPhotoFiles = useCallback((files: FileList | File[]) => {
-    void (async () => {
-      const list = Array.from(files).filter((f) => f.type.startsWith("image/"));
-      for (const file of list) {
-        const dataUrl = await readFileAsDataUrl(file);
-        if (!dataUrl) continue;
-        setPersisted((p) => {
-          if (p.step4.photos.length >= MAX_PHOTOS) return p;
-          const next = {
-            ...p,
-            step4: { ...p.step4, photos: [...p.step4.photos, { name: file.name, dataUrl }] },
-          };
-          savePersisted(next);
-          return next;
-        });
-      }
-    })();
-  }, []);
+  const addPhotoFiles = useCallback(
+    (files: FileList | File[]) => {
+      const countAtOpen = persisted.step4.photos.length;
+      void (async () => {
+        setWorkPhotosUploadError(null);
+        const problems: string[] = [];
+        const newEntries: PhotoEntry[] = [];
+
+        for (const file of Array.from(files)) {
+          if (!isWorkPhotoFile(file)) {
+            problems.push(`“${file.name}” is not a supported type — use PNG, JPG, JPEG, or WEBP.`);
+            continue;
+          }
+          if (file.size > MAX_UPLOAD_BYTES) {
+            problems.push(`“${file.name}” is larger than 5 MB.`);
+            continue;
+          }
+          const dataUrl = await readImageAsDataUrl(file);
+          if (!dataUrl) {
+            problems.push(`“${file.name}” could not be read. Try another file.`);
+            continue;
+          }
+          newEntries.push({ name: file.name, dataUrl });
+        }
+
+        const space = MAX_PHOTOS - countAtOpen;
+        const slice = newEntries.slice(0, Math.max(0, space));
+        if (countAtOpen >= MAX_PHOTOS && newEntries.length > 0) {
+          problems.push("You already have 10 work photos. Remove one to add more.");
+        } else if (newEntries.length > slice.length && newEntries.length > 0) {
+          problems.push("Only some photos were added — you can upload up to 10 work photos.");
+        }
+
+        if (slice.length > 0) {
+          setPersisted((p) => {
+            const take = newEntries.slice(0, MAX_PHOTOS - p.step4.photos.length);
+            if (take.length === 0) return p;
+            const next = { ...p, step4: { ...p.step4, photos: [...p.step4.photos, ...take] } };
+            savePersisted(next);
+            return next;
+          });
+        }
+
+        if (problems.length) setWorkPhotosUploadError(problems.slice(0, 4).join(" "));
+      })();
+    },
+    [persisted.step4.photos]
+  );
 
   const removePhoto = useCallback((index: number) => {
     setPersisted((prev) => {
