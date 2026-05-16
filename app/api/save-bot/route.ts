@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
     return NextResponse.json({ error: "Supabase environment variables are not configured." }, { status: 500 });
   }
 
@@ -30,13 +30,7 @@ export async function POST(request: Request) {
   delete botData.brand_name_image;
   delete botData.brand_name_data_url;
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: {
-        Authorization: authorization,
-      },
-    },
-  });
+  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
   const { data, error } = await supabase.from("bots").upsert(botData, { onConflict: "nurse_id" }).select().single();
 
