@@ -14,7 +14,6 @@ const MAX_PHOTOS = 10;
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const FILE_TOO_LARGE_MSG = "This file is larger than 5 MB. Please choose a smaller image.";
 const LOGO_BRAND_TYPE_MSG = "Please choose a PNG, JPG, JPEG, WEBP, or SVG image.";
-const WORK_PHOTO_TYPE_MSG = "Please choose a PNG, JPG, JPEG, or WEBP image.";
 
 const STEP_LABELS = ["Practice", "Services", "Personality", "Photos", "Launch"] as const;
 
@@ -88,6 +87,7 @@ type Step2Data = {
 
 type Step3Data = {
   botName: string;
+  logoImage: string | null;
   logoDataUrl: string | null;
   brandNameImage: string | null;
   botNameFont: BotNameFontId;
@@ -136,6 +136,7 @@ function defaultStep2(): Step2Data {
 function defaultStep3(): Step3Data {
   return {
     botName: "",
+    logoImage: null,
     logoDataUrl: null,
     brandNameImage: null,
     botNameFont: "dm-sans",
@@ -243,9 +244,14 @@ function loadPersisted(): OnboardingPersisted {
     const tone: Tone = TONES.includes(toneRaw as Tone) ? (toneRaw as Tone) : base.step3.tone;
     const fontRaw = parsed.step3?.botNameFont;
     const botNameFont: BotNameFontId = BOT_NAME_FONT_IDS.includes(fontRaw as BotNameFontId) ? (fontRaw as BotNameFontId) : base.step3.botNameFont;
+    const logoImageRaw = parsed.step3?.logoImage;
     const logoRaw = parsed.step3?.logoDataUrl;
     const logoDataUrl =
       typeof logoRaw === "string" || logoRaw === null ? (logoRaw as string | null) : base.step3.logoDataUrl;
+    const logoImage =
+      typeof logoImageRaw === "string" || logoImageRaw === null
+        ? (logoImageRaw as string | null)
+        : logoDataUrl;
     const brandImgRaw = parsed.step3?.brandNameImage;
     const brandNameImage =
       typeof brandImgRaw === "string" || brandImgRaw === null
@@ -279,6 +285,7 @@ function loadPersisted(): OnboardingPersisted {
         ...parsed.step3,
         tone,
         botNameFont,
+        logoImage,
         logoDataUrl,
         brandNameImage,
         bubbleAttentionMessage,
@@ -324,9 +331,9 @@ export default function OnboardingPage() {
   const [ready, setReady] = useState(false);
   const [persisted, setPersisted] = useState<OnboardingPersisted>(defaultPersisted);
   const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const brandNameImageFileInputRef = useRef<HTMLInputElement>(null);
+  const photosFileInputRef = useRef<HTMLInputElement>(null);
   const [chatInput, setChatInput] = useState("");
   const [launchSaving, setLaunchSaving] = useState(false);
   const [launchError, setLaunchError] = useState<string | null>(null);
@@ -465,7 +472,7 @@ export default function OnboardingPage() {
         if (problems.length) setWorkPhotosUploadError(problems.slice(0, 4).join(" "));
       })();
     },
-    [persisted.step4.photos]
+    [persisted.step4.photos.length]
   );
 
   const removePhoto = useCallback((index: number) => {
@@ -576,8 +583,10 @@ export default function OnboardingPage() {
     setLaunchSaving(true);
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      console.log("Supabase session result:", { sessionData, sessionError });
       if (sessionError || !sessionData.session?.user) {
-        setLaunchError("You need to be signed in to launch your bot. Please sign in and try again.");
+        setLaunchError("Please log in to save your bot");
+        router.replace("/auth");
         return;
       }
       const userId = sessionData.session.user.id;
@@ -609,7 +618,8 @@ export default function OnboardingPage() {
 
       const { data: existing, error: selectError } = await supabase.from("bots").select("id").eq("nurse_id", userId).maybeSingle();
       if (selectError) {
-        setLaunchError(friendlyBotSaveError(selectError.message));
+        console.log("Supabase bot select error:", selectError);
+        setLaunchError("We could not save your bot. Please try again.");
         return;
       }
 
@@ -617,25 +627,28 @@ export default function OnboardingPage() {
         const { nurse_id: _n, ...updates } = row;
         const { error: updateError } = await supabase.from("bots").update(updates).eq("nurse_id", userId);
         if (updateError) {
-          setLaunchError(friendlyBotSaveError(updateError.message));
+          console.log("Supabase bot update error:", updateError);
+          setLaunchError("We could not save your bot. Please try again.");
           return;
         }
       } else {
         const { error: insertError } = await supabase.from("bots").insert(row);
         if (insertError) {
-          setLaunchError(friendlyBotSaveError(insertError.message));
+          console.log("Supabase bot insert error:", insertError);
+          setLaunchError("We could not save your bot. Please try again.");
           return;
         }
       }
 
       updatePersisted({ launched: true });
       setLaunchSuccess("Your bot is saved — you're all set to share it with your clients.");
-    } catch {
-      setLaunchError("Something went wrong while saving. Please try again.");
+    } catch (error) {
+      console.log("Unexpected bot save error:", error);
+      setLaunchError("We could not save your bot. Please try again.");
     } finally {
       setLaunchSaving(false);
     }
-  }, [persisted, updatePersisted]);
+  }, [persisted, router, updatePersisted]);
 
   const handleGenerateGreeting = useCallback(async () => {
     setGreetingGenError(null);
@@ -697,6 +710,7 @@ export default function OnboardingPage() {
   const s2 = persisted.step2;
   const s3 = persisted.step3;
   const s4 = persisted.step4;
+  const previewLogoImage = s3.logoImage || s3.logoDataUrl;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
@@ -925,42 +939,66 @@ export default function OnboardingPage() {
               <div className="space-y-2">
                 <span className="block text-sm font-medium text-[#1a2744]">Your logo (optional)</span>
                 <div className="flex flex-wrap items-center gap-3">
-                  <label
-                    htmlFor="onboarding-logo-upload"
-                    className="inline-flex cursor-pointer rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLogoUploadError(null);
+                      logoFileInputRef.current?.click();
+                    }}
+                    className="inline-flex rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50"
                   >
                     Upload logo
-                  </label>
+                  </button>
                   <input
                     id="onboarding-logo-upload"
                     ref={logoFileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
                     className="sr-only"
+                    tabIndex={-1}
+                    aria-label="Upload logo image"
                     onChange={(e) => {
                       void (async () => {
                         const file = e.target.files?.[0];
                         e.target.value = "";
-                        if (!file || !file.type.startsWith("image/")) return;
-                        const dataUrl = await readLogoFileAsDataUrl(file);
-                        if (dataUrl) setStep3({ logoDataUrl: dataUrl });
+                        setLogoUploadError(null);
+                        if (!file) return;
+                        if (file.size > MAX_UPLOAD_BYTES) {
+                          setLogoUploadError(FILE_TOO_LARGE_MSG);
+                          return;
+                        }
+                        if (!isLogoOrBrandImageFile(file)) {
+                          setLogoUploadError(LOGO_BRAND_TYPE_MSG);
+                          return;
+                        }
+                        const dataUrl = await readImageAsDataUrl(file);
+                        if (!dataUrl) {
+                          setLogoUploadError("We could not read that file. Try another image.");
+                          return;
+                        }
+                        setStep3({ logoImage: dataUrl, logoDataUrl: dataUrl });
                       })();
                     }}
                   />
                 </div>
-                {s3.logoDataUrl ? (
+                {logoUploadError ? <p className="text-xs font-medium text-red-600">{logoUploadError}</p> : null}
+                {previewLogoImage ? (
                   <div className="flex flex-wrap items-end gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={s3.logoDataUrl} alt="" className="h-16 w-16 rounded-lg border border-slate-200 bg-white object-contain p-1" />
+                    <img src={previewLogoImage} alt="" className="h-16 w-16 rounded-lg border border-slate-200 bg-white object-contain p-1" />
                     <button
                       type="button"
-                      onClick={() => setStep3({ logoDataUrl: null })}
+                      onClick={() => {
+                        setLogoUploadError(null);
+                        setStep3({ logoImage: null, logoDataUrl: null });
+                      }}
                       className="text-xs font-medium text-red-600 underline decoration-red-600/30 underline-offset-2 hover:text-red-700"
                     >
                       Remove
                     </button>
                   </div>
                 ) : null}
+                <p className="text-xs text-slate-500">Accepted: PNG, JPG, JPEG, WEBP, SVG. Maximum file size 5 MB.</p>
                 <p className="text-xs leading-relaxed text-slate-600">
                   Upload your own logo — from Canva, your phone, or anywhere. If you skip this we will use the AdonisBlue butterfly.
                 </p>
@@ -968,29 +1006,49 @@ export default function OnboardingPage() {
               <div className="space-y-2">
                 <p className="text-sm text-[#1a2744]">Have a custom logo or brand name image? Upload it here</p>
                 <div className="flex flex-wrap items-center gap-2">
-                  <label
-                    htmlFor="onboarding-brand-name-image-upload"
-                    className="inline-flex cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBrandUploadError(null);
+                      brandNameImageFileInputRef.current?.click();
+                    }}
+                    className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
                   >
                     Upload
-                  </label>
+                  </button>
                   <input
                     id="onboarding-brand-name-image-upload"
                     ref={brandNameImageFileInputRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/svg+xml,.png,.jpg,.jpeg,.svg"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
                     className="sr-only"
+                    tabIndex={-1}
+                    aria-label="Upload brand name image"
                     onChange={(e) => {
                       void (async () => {
                         const file = e.target.files?.[0];
                         e.target.value = "";
-                        if (!file || !isBrandNameImageFile(file)) return;
-                        const dataUrl = await readLogoFileAsDataUrl(file);
-                        if (dataUrl) setStep3({ brandNameImage: dataUrl });
+                        setBrandUploadError(null);
+                        if (!file) return;
+                        if (file.size > MAX_UPLOAD_BYTES) {
+                          setBrandUploadError(FILE_TOO_LARGE_MSG);
+                          return;
+                        }
+                        if (!isLogoOrBrandImageFile(file)) {
+                          setBrandUploadError(LOGO_BRAND_TYPE_MSG);
+                          return;
+                        }
+                        const dataUrl = await readImageAsDataUrl(file);
+                        if (!dataUrl) {
+                          setBrandUploadError("We could not read that file. Try another image.");
+                          return;
+                        }
+                        setStep3({ brandNameImage: dataUrl });
                       })();
                     }}
                   />
                 </div>
+                {brandUploadError ? <p className="text-xs font-medium text-red-600">{brandUploadError}</p> : null}
                 {s3.brandNameImage ? (
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-end gap-3">
@@ -1002,7 +1060,10 @@ export default function OnboardingPage() {
                       />
                       <button
                         type="button"
-                        onClick={() => setStep3({ brandNameImage: null })}
+                        onClick={() => {
+                          setBrandUploadError(null);
+                          setStep3({ brandNameImage: null });
+                        }}
                         className="text-xs font-medium text-red-600 underline decoration-red-600/30 underline-offset-2 hover:text-red-700"
                       >
                         Remove
@@ -1013,6 +1074,7 @@ export default function OnboardingPage() {
                     </p>
                   </div>
                 ) : null}
+                <p className="text-xs text-slate-500">Accepted: PNG, JPG, JPEG, WEBP, SVG. Maximum file size 5 MB.</p>
               </div>
               <div className="my-5 flex items-center gap-3">
                 <div className="h-px min-w-0 flex-1 bg-slate-200" aria-hidden />
@@ -1222,8 +1284,11 @@ export default function OnboardingPage() {
             <div className="space-y-5">
               <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Upload your work photos</h2>
               <p className="text-sm text-slate-600">
-                Up to {MAX_PHOTOS} images. Files over {(MAX_IMAGE_BYTES / 1_000_000).toFixed(1)} MB are skipped to keep your browser storage happy.
+                Up to {MAX_PHOTOS} images. Each file can be up to 5 MB.
               </p>
+              {workPhotosUploadError ? (
+                <p className="text-xs font-medium text-red-600">{workPhotosUploadError}</p>
+              ) : null}
               <div
                 onDragEnter={(e) => {
                   e.preventDefault();
@@ -1243,23 +1308,29 @@ export default function OnboardingPage() {
                 <p className="mt-1 text-xs text-slate-500">or</p>
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    setWorkPhotosUploadError(null);
+                    photosFileInputRef.current?.click();
+                  }}
                   className="mt-3 rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
                 >
                   Browse files
                 </button>
                 <input
-                  ref={fileInputRef}
+                  ref={photosFileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
                   multiple
-                  className="hidden"
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-label="Browse work photos"
                   onChange={(e) => {
                     if (e.target.files?.length) addPhotoFiles(e.target.files);
                     e.target.value = "";
                   }}
                 />
               </div>
+              <p className="text-xs text-slate-500">Accepted: PNG, JPG, JPEG, WEBP. Maximum file size 5 MB per image.</p>
               <p className="text-xs leading-relaxed text-slate-600">
                 Only upload photos you have permission to share. Your clients may see these during conversations.
               </p>
@@ -1272,7 +1343,7 @@ export default function OnboardingPage() {
                       <button
                         type="button"
                         onClick={() => removePhoto(idx)}
-                        className="absolute right-1 top-1 rounded-full bg-[#1a2744]/85 px-2 py-0.5 text-xs font-semibold text-white opacity-0 transition group-hover:opacity-100"
+                        className="absolute right-1 top-1 rounded-full bg-[#1a2744]/85 px-2 py-0.5 text-xs font-semibold text-white shadow-sm sm:opacity-0 sm:transition sm:group-hover:opacity-100"
                       >
                         Remove
                       </button>
@@ -1402,10 +1473,10 @@ export default function OnboardingPage() {
                     style={{ backgroundColor: s3.primaryColor }}
                   >
                     <div className="flex min-w-0 items-center gap-2">
-                      {s3.logoDataUrl ? (
+                      {previewLogoImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={s3.logoDataUrl}
+                          src={previewLogoImage}
                           alt=""
                           className="h-8 w-8 shrink-0 rounded-lg bg-white/10 object-contain p-0.5"
                         />
