@@ -633,6 +633,15 @@ export default function OnboardingPage() {
         aftercare: p.step3.aftercare.trim() || null,
         launched: true,
       };
+      const blockedText = ["valentinamartinez", "git add", "git commit", "git push"];
+      const sanitizedFields: string[] = [];
+      for (const [field, value] of Object.entries(row)) {
+        if (typeof value === "string" && blockedText.some((text) => value.includes(text))) {
+          row[field as keyof typeof row] = "" as never;
+          sanitizedFields.push(field);
+        }
+      }
+      console.log("Sanitized bot fields:", sanitizedFields);
 
       const res = await fetch("/api/save-bot", {
         method: "POST",
