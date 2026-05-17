@@ -596,84 +596,9 @@ export default function OnboardingPage() {
   }
 
   const handleLaunch = useCallback(async () => {
-    setLaunchError(null);
-    setLaunchSuccess(null);
-    setLaunchSaving(true);
-    try {
-      // Get user from session storage directly
-      const authKey = Object.keys(localStorage).find(k => k.includes('auth-token'));
-      const authData = authKey ? JSON.parse(localStorage.getItem(authKey) || '{}') : {};
-      const userId = authData?.user?.id;
-
-      if (!userId) {
-        setLaunchError("Please log in to save your bot");
-        router.replace("/auth");
-        return;
-      }
-      const p = persisted;
-      const row = {
-        nurse_id: userId,
-        practice_name: p.step1.practiceName.trim(),
-        city: p.step1.city.trim(),
-        state: p.step1.state.trim(),
-        years_experience: p.step1.yearsExperience.trim(),
-        never_compromise: p.step1.specialSentence.trim(),
-        instagram: p.step1.instagram.trim() || null,
-        services: [
-          ...p.step2.serviceIds.filter((id) => id !== OTHER_SERVICE_ID),
-          ...p.step2.customServices.filter((c) => c.name.trim()).map((c) => c.name.trim()),
-        ],
-        bot_name: p.step3.botName.trim(),
-        bot_name_font: p.step3.botNameFont,
-        bubble_attention_message: p.step3.bubbleAttentionMessage,
-        greeting: p.step3.greeting.trim(),
-        tone: p.step3.tone,
-        primary_color: p.step3.primaryColor,
-        forward_questions: p.step3.forwardQuestions.trim() || null,
-        booking_link: p.step3.bookingLink.trim() || null,
-        cancellation_policy: p.step3.cancellationPolicy.trim() || null,
-        aftercare: p.step3.aftercare.trim() || null,
-        launched: true,
-      };
-      const blockedText = ["valentinamartinez", "git add", "git commit", "git push"];
-      const sanitizedFields: string[] = [];
-      for (const [field, value] of Object.entries(row)) {
-        if (typeof value === "string" && blockedText.some((text) => value.includes(text))) {
-          row[field as keyof typeof row] = "" as never;
-          sanitizedFields.push(field);
-        }
-      }
-      console.log("Sanitized bot fields:", sanitizedFields);
-
-      const res = await fetch("/api/savebot", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(row),
-      });
-      const raw = await res.text();
-      let result: { success?: boolean; error?: string; data?: unknown } = {};
-      try {
-        result = raw ? (JSON.parse(raw) as { success?: boolean; error?: string; data?: unknown }) : {};
-      } catch {
-        result = { error: raw };
-      }
-      if (!res.ok || !result.success) {
-        setLaunchError(result.error || "We could not save your bot. Please try again.");
-        return;
-      }
-
-      updatePersisted({ launched: true });
-      setLaunchSuccess("Your bot is saved — you're all set to share it with your clients.");
-    } catch (error) {
-      console.log("Unexpected bot save error:", error);
-      setLaunchError(error instanceof Error ? error.message : "We could not save your bot. Please try again.");
-      router.replace("/auth");
-    } finally {
-      setLaunchSaving(false);
-    }
-  }, [persisted, router, updatePersisted]);
+    setLaunchError("DEBUG: Launch button clicked successfully");
+    return;
+  }, []);
 
   const handleGenerateGreeting = useCallback(async () => {
     setGreetingGenError(null);
