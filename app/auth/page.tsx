@@ -51,11 +51,16 @@ export default function AuthPage() {
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
 
   const [signupLoading, setSignupLoading] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [signupError, setSignupError] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const [signupSuccessMessage, setSignupSuccessMessage] = useState<string | null>(null);
 
   function switchToSignup() {
@@ -67,6 +72,30 @@ export default function AuthPage() {
     setMode("login");
     setSignupError(null);
     setSignupSuccessMessage(null);
+  }
+
+  async function handlePasswordResetSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setResetError(null);
+    setResetSuccessMessage(null);
+
+    if (!resetEmail.trim()) {
+      setResetError("Please enter the email address for your account.");
+      return;
+    }
+
+    setResetLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+      redirectTo: "https://www.adonisblue.io/auth/reset-password",
+    });
+    setResetLoading(false);
+
+    if (error) {
+      setResetError("We couldn't send the reset link right now. Please check your email and try again.");
+      return;
+    }
+
+    setResetSuccessMessage("Check your email! We sent you a link to reset your password.");
   }
 
   async function handleSignupSubmit(e: FormEvent<HTMLFormElement>) {
@@ -268,6 +297,7 @@ export default function AuthPage() {
                 </p>
               </form>
             ) : (
+              <>
               <form className="mt-8 space-y-5" onSubmit={handleLoginSubmit}>
                 <div>
                   <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
@@ -289,9 +319,18 @@ export default function AuthPage() {
                     <label htmlFor="login-password" className="text-sm font-medium text-[#1a2744]">
                       Password
                     </label>
-                    <a href="#" className="text-xs font-medium text-[#0d9488] hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotOpen((open) => !open);
+                        setResetEmail(loginEmail);
+                        setResetError(null);
+                        setResetSuccessMessage(null);
+                      }}
+                      className="text-xs font-medium text-[#0d9488] hover:underline"
+                    >
                       Forgot password
-                    </a>
+                    </button>
                   </div>
                   <input
                     id="login-password"
@@ -324,6 +363,45 @@ export default function AuthPage() {
                   </button>
                 </p>
               </form>
+              {forgotOpen ? (
+                <form
+                  className="mt-4 rounded-xl border border-sky-100 bg-sky-50/60 p-4"
+                  onSubmit={handlePasswordResetSubmit}
+                >
+                  <label htmlFor="reset-email" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
+                    Email for password reset
+                  </label>
+                  <input
+                    id="reset-email"
+                    name="resetEmail"
+                    type="email"
+                    autoComplete="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                    placeholder="you@practice.com"
+                  />
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    aria-busy={resetLoading}
+                    className="mt-3 w-full rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-900/10 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {resetLoading ? "Sending..." : "Send reset link"}
+                  </button>
+                  {resetError ? (
+                    <p className="mt-3 text-center text-sm leading-relaxed text-red-600" role="alert">
+                      {resetError}
+                    </p>
+                  ) : null}
+                  {resetSuccessMessage ? (
+                    <p className="mt-3 text-center text-sm leading-relaxed text-[#0d9488]" role="status">
+                      {resetSuccessMessage}
+                    </p>
+                  ) : null}
+                </form>
+              ) : null}
+              </>
             )}
           </div>
         </div>
