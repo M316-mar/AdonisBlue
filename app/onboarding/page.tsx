@@ -600,15 +600,19 @@ export default function OnboardingPage() {
     setLaunchSuccess(null);
     setLaunchSaving(true);
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user) {
-        setLaunchError(userError?.message || "Please log in to save your bot");
+      // Get user from session storage directly
+      const authKey = Object.keys(localStorage).find(k => k.includes('auth-token'));
+      const authData = authKey ? JSON.parse(localStorage.getItem(authKey) || '{}') : {};
+      const userId = authData?.user?.id;
+
+      if (!userId) {
+        setLaunchError("Please log in to save your bot");
         router.replace("/auth");
         return;
       }
       const p = persisted;
       const row = {
-        nurse_id: userData.user.id,
+        nurse_id: userId,
         practice_name: p.step1.practiceName.trim(),
         city: p.step1.city.trim(),
         state: p.step1.state.trim(),
