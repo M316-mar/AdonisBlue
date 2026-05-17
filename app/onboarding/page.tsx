@@ -605,14 +605,41 @@ export default function OnboardingPage() {
         setLaunchError("No user ID found — please log in again");
         return;
       }
-      
-      setLaunchError("DEBUG: Got user ID: " + userId.substring(0, 8));
-      return;
+
+      const p = persisted;
+      const row = {
+        nurse_id: userId,
+        practice_name: p.step1.practiceName.trim(),
+        city: p.step1.city.trim(),
+        state: p.step1.state.trim(),
+        bot_name: p.step3.botName.trim(),
+        greeting: p.step3.greeting.trim(),
+        tone: p.step3.tone,
+        primary_color: p.step3.primaryColor,
+        booking_link: p.step3.bookingLink.trim() || null,
+        services: p.step2.serviceIds,
+        launched: true,
+      };
+
+      const res = await fetch('/api/savebot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(row),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        setLaunchError(result.error || 'Could not save. Please try again.');
+        return;
+      }
+
+      updatePersisted({ launched: true });
+      setLaunchSuccess("Your bot is live!");
     } catch(e) {
-      setLaunchError("ERROR: " + String(e));
-      return;
+      setLaunchError("Error: " + String(e));
     }
-  }, []);
+  }, [persisted, updatePersisted]);
 
   const handleGenerateGreeting = useCallback(async () => {
     setGreetingGenError(null);
