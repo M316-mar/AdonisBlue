@@ -611,8 +611,9 @@ export default function OnboardingPage() {
       setLaunchError(result.error || 'Failed');
       return;
     }
-    setLaunchSuccess('Bot saved successfully!');
-  }, []);
+    updatePersisted({ launched: true });
+    setLaunchSuccess("🎉 Your bot is live! Share your link below.");
+  }, [updatePersisted]);
 
   const handleGenerateGreeting = useCallback(async () => {
     setGreetingGenError(null);
