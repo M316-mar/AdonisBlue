@@ -125,19 +125,19 @@ export default function PublicChatPage() {
     let cancelled = false;
     (async () => {
       setLoadState("loading");
-      const { data, error } = await supabase.from("bots").select("*").eq("launched", true);
+      const { data: bot, error } = await supabase
+        .from("bots")
+        .select("*")
+        .ilike("bot_name", slug.replace(/-/g, " "))
+        .eq("launched", true)
+        .single();
       if (cancelled) return;
-      if (error || !data?.length) {
+      if (error || !bot) {
         setLoadState(error ? "error" : "notfound");
         setBot(null);
         return;
       }
-      const found = (data as BotRow[]).find((b) => botShareSlug(b) === slug);
-      if (!found) {
-        setLoadState("notfound");
-        setBot(null);
-        return;
-      }
+      const found = bot as BotRow;
       setBot(found);
       const greeting = (found.greeting || "").trim() || "Hello! How can we help you today?";
       setMessages([{ id: newId(), role: "assistant", content: greeting }]);
