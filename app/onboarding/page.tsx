@@ -596,8 +596,22 @@ export default function OnboardingPage() {
   }
 
   const handleLaunch = useCallback(async () => {
-    setLaunchError("DEBUG: Launch button clicked successfully");
-    return;
+    try {
+      const authKey = Object.keys(localStorage).find(k => k.includes('auth-token'));
+      const authData = authKey ? JSON.parse(localStorage.getItem(authKey) || '{}') : {};
+      const userId = authData?.user?.id;
+      
+      if (!userId) {
+        setLaunchError("No user ID found — please log in again");
+        return;
+      }
+      
+      setLaunchError("DEBUG: Got user ID: " + userId.substring(0, 8));
+      return;
+    } catch(e) {
+      setLaunchError("ERROR: " + String(e));
+      return;
+    }
   }, []);
 
   const handleGenerateGreeting = useCallback(async () => {
