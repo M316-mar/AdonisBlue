@@ -95,7 +95,7 @@ export default function AuthPage() {
       return;
     }
 
-    setResetSuccessMessage("Check your email! We sent you a link to reset your password.");
+    setResetSuccessMessage("Check your email! We sent you a reset link.");
   }
 
   async function handleSignupSubmit(e: FormEvent<HTMLFormElement>) {
@@ -329,7 +329,7 @@ export default function AuthPage() {
                       }}
                       className="text-xs font-medium text-[#0d9488] hover:underline"
                     >
-                      Forgot password
+                      Forgot password?
                     </button>
                   </div>
                   <input

@@ -77,7 +77,7 @@ export default function ResetPasswordPage() {
               </div>
               <div>
                 <label htmlFor="confirm-new-password" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
-                  Confirm new password
+                  Confirm password
                 </label>
                 <input
                   id="confirm-new-password"
@@ -96,7 +96,7 @@ export default function ResetPasswordPage() {
                 aria-busy={loading}
                 className="w-full rounded-full bg-[#0d9488] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-70 sm:text-base"
               >
-                {loading ? "Updating password..." : "Update password"}
+                {loading ? "Submitting..." : "Submit"}
               </button>
               {error ? (
                 <p className="text-center text-sm leading-relaxed text-red-600" role="alert">
