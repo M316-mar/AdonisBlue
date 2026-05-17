@@ -621,8 +621,6 @@ export default function OnboardingPage() {
         launched: true,
       };
 
-      setLaunchError("Sending: " + JSON.stringify(row).substring(0, 200));
-      return;
       const res = await fetch('/api/savebot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
