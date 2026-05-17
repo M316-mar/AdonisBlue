@@ -294,7 +294,7 @@ function loadPersisted(): OnboardingPersisted {
         photos: Array.isArray(parsed.step4?.photos) ? parsed.step4!.photos : base.step4.photos,
         permissionConfirmed: Boolean(parsed.step4?.permissionConfirmed),
       },
-      launched: Boolean(parsed.launched),
+      launched: false,
     };
   } catch {
     return defaultPersisted();
