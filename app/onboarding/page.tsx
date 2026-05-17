@@ -641,7 +641,7 @@ export default function OnboardingPage() {
       }
       console.log("Sanitized bot fields:", sanitizedFields);
 
-      const res = await fetch("/api/save-bot", {
+      const res = await fetch("/api/savebot", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
