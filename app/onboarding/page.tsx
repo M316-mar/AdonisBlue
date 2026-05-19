@@ -596,24 +596,45 @@ export default function OnboardingPage() {
   }
 
   const handleLaunch = useCallback(async () => {
+    const authKey = Object.keys(localStorage).find(k => k.includes('auth-token'));
+    const authData = authKey ? JSON.parse(localStorage.getItem(authKey) || '{}') : {};
+    const userId = authData?.user?.id;
+
+    if (!userId) {
+      setLaunchError("Please log in to save your bot");
+      return;
+    }
+
+    const p = persisted;
+    const row = {
+      nurse_id: userId,
+      practice_name: p.step1.practiceName.trim(),
+      city: p.step1.city.trim(),
+      state: p.step1.state.trim(),
+      bot_name: p.step3.botName.trim(),
+      greeting: p.step3.greeting.trim(),
+      tone: p.step3.tone,
+      primary_color: p.step3.primaryColor,
+      booking_link: p.step3.bookingLink.trim() || null,
+      services: p.step2.serviceIds,
+      launched: true,
+    };
+
     const res = await fetch('/api/savebot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nurse_id: '61b5e510-75da-475b-a363-fccc603c5804',
-        practice_name: 'Test Practice',
-        bot_name: 'Test Bot',
-        launched: true
-      }),
+      body: JSON.stringify(row),
     });
+
     const result = await res.json();
     if (!res.ok) {
-      setLaunchError(result.error || 'Failed');
+      setLaunchError(result.error || 'Could not save. Please try again.');
       return;
     }
+
     updatePersisted({ launched: true });
-    setLaunchSuccess("🎉 Your bot is live! Share your link below.");
-  }, [updatePersisted]);
+    setLaunchSuccess('🎉 Your bot is live! Share your link below.');
+  }, [persisted, updatePersisted]);
 
   const handleGenerateGreeting = useCallback(async () => {
     setGreetingGenError(null);
