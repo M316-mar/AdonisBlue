@@ -1,6 +1,5 @@
 "use client";
 
-import { supabase } from "@/lib/supabase";
 import { useParams } from "next/navigation";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -125,18 +124,14 @@ export default function PublicChatPage() {
     let cancelled = false;
     (async () => {
       setLoadState("loading");
-      const { data: bot, error } = await supabase
-        .from("bots")
-        .select("*")
-        .ilike("bot_name", slug.replace(/-/g, " "))
-        .eq("launched", true)
-        .single();
+      const res = await fetch(`/api/bot/${slug}`);
       if (cancelled) return;
-      if (error || !bot) {
-        setLoadState(error ? "error" : "notfound");
+      if (!res.ok) {
+        setLoadState(res.status === 404 ? "notfound" : "error");
         setBot(null);
         return;
       }
+      const bot = await res.json();
       const found = bot as BotRow;
       setBot(found);
       const greeting = (found.greeting || "").trim() || "Hello! How can we help you today?";
