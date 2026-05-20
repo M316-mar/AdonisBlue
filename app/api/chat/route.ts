@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const { messages, botConfig } = await request.json();
+    const { messages, botContext } = await request.json();
+    const botConfig = botContext || {};
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
