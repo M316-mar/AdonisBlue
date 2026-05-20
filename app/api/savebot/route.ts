@@ -5,23 +5,23 @@ export async function POST(request: Request) {
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-    
-    console.log("URL:", url ? "found" : "MISSING");
-    console.log("KEY:", key ? "found" : "MISSING");
-    
+
+    if (!url || !key) {
+      return NextResponse.json({ error: "Server configuration error." }, { status: 500 });
+    }
+
     const body = await request.json();
-    console.log("nurse_id:", body.nurse_id);
-    console.log("bot_name:", body.bot_name);
-    
+
+    if (!body.nurse_id) {
+      return NextResponse.json({ error: "Missing nurse_id." }, { status: 400 });
+    }
+
     const db = createClient(url, key);
     const { error } = await db.from("bots").upsert(body, { onConflict: "nurse_id" });
-    
-    console.log("DB error:", error?.message ?? "none");
-    
+
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
-  } catch(e) {
-    console.log("CAUGHT:", String(e));
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: "Unexpected error." }, { status: 500 });
   }
 }
