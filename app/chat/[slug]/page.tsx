@@ -92,24 +92,35 @@ function newId(): string {
 
 const URL_IN_TEXT_REGEX = /(https?:\/\/[^\s]+)/gi;
 
-function renderMessageWithLinks(content: string) {
+function renderMessageContent(content: string) {
   const parts = content.split(URL_IN_TEXT_REGEX);
-  return parts.map((part, i) => {
+  const urls: string[] = [];
+  const textChunks: string[] = [];
+  for (const part of parts) {
+    if (!part) continue;
     if (/^https?:\/\//i.test(part)) {
-      return (
+      urls.push(part);
+    } else {
+      textChunks.push(part);
+    }
+  }
+  const text = textChunks.join("");
+  return (
+    <>
+      {text ? <p className="whitespace-pre-wrap">{text}</p> : null}
+      {urls.map((url, i) => (
         <a
           key={i}
-          href={part}
+          href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-teal-400 underline"
+          className="mt-2 block w-fit rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700"
         >
-          {part}
+          📅 Book your appointment
         </a>
-      );
-    }
-    return part;
-  });
+      ))}
+    </>
+  );
 }
 
 export default function PublicChatPage() {
@@ -352,7 +363,7 @@ export default function PublicChatPage() {
               }`}
               style={m.role === "assistant" ? { backgroundColor: primary } : undefined}
             >
-              <p className="whitespace-pre-wrap">{renderMessageWithLinks(m.content)}</p>
+              {renderMessageContent(m.content)}
               {m.photos && m.photos.length > 0 ? (
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {m.photos.slice(0, 6).map((src, i) => (
