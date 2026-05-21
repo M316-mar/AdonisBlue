@@ -97,8 +97,9 @@ export default function NurseDashboardPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!cancelled && res.ok) {
-          const row = (await res.json()) as BotRow | null;
-          setBot(row && typeof row === "object" ? row : null);
+          const json = await res.json();
+          const row = json?.bot ?? json;
+          setBot(row && typeof row === "object" && !Array.isArray(row) ? row as BotRow : null);
         }
       }
 
