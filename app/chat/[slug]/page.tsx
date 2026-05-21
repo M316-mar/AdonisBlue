@@ -90,6 +90,28 @@ function newId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+const URL_IN_TEXT_REGEX = /(https?:\/\/[^\s]+)/gi;
+
+function renderMessageWithLinks(content: string) {
+  const parts = content.split(URL_IN_TEXT_REGEX);
+  return parts.map((part, i) => {
+    if (/^https?:\/\//i.test(part)) {
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-teal-400 underline"
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+}
+
 export default function PublicChatPage() {
   const params = useParams();
   const slug = typeof params?.slug === "string" ? params.slug : "";
@@ -330,7 +352,7 @@ export default function PublicChatPage() {
               }`}
               style={m.role === "assistant" ? { backgroundColor: primary } : undefined}
             >
-              <p className="whitespace-pre-wrap">{m.content}</p>
+              <p className="whitespace-pre-wrap">{renderMessageWithLinks(m.content)}</p>
               {m.photos && m.photos.length > 0 ? (
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {m.photos.slice(0, 6).map((src, i) => (
