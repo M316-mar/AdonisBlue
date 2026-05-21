@@ -116,7 +116,7 @@ function renderMessageContent(content: string) {
           rel="noopener noreferrer"
           className="mt-2 block w-fit rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700"
         >
-          📅 Click here to book your appointment
+          👉 Click here to book your appointment
         </a>
       ))}
     </>
