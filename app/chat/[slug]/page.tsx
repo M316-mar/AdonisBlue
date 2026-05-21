@@ -116,7 +116,7 @@ function renderMessageContent(content: string) {
           rel="noopener noreferrer"
           className="mt-2 block w-fit rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700"
         >
-          📅 Book your appointment
+          📅 Click here to book your appointment
         </a>
       ))}
     </>
@@ -129,7 +129,7 @@ export default function PublicChatPage() {
 
   const [loadState, setLoadState] = useState<"loading" | "ready" | "notfound" | "error">("loading");
   const [bot, setBot] = useState<BotRow | null>(null);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
