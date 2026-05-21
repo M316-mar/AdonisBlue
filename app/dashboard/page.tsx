@@ -49,6 +49,27 @@ function slugify(input: string): string {
   return s || "my-practice";
 }
 
+function onboardingHrefForChecklist(id: ChecklistId): string {
+  switch (id) {
+    case "practice":
+      return "/onboarding?step=1";
+    case "services":
+      return "/onboarding?step=2";
+    case "booking":
+      return "/onboarding?step=3";
+    case "photos":
+      return "/onboarding?step=4";
+    case "botStyle":
+      return "/onboarding?step=3";
+    case "policies":
+      return "/onboarding?step=3";
+    case "preview":
+      return "/onboarding?step=5";
+    default:
+      return "/onboarding";
+  }
+}
+
 function computeChecklistDone(bot: BotRow | null): Record<ChecklistId, boolean> {
   return {
     account: true,
@@ -211,6 +232,7 @@ export default function NurseDashboardPage() {
                   const isDone = done[item.id];
                   const isActiveBotStep = item.id === "share" && launched;
                   const label = isActiveBotStep ? "Bot is active ✅" : item.label;
+                  const onboardingHref = onboardingHrefForChecklist(item.id);
                   return (
                     <li
                       key={item.id}
@@ -218,7 +240,7 @@ export default function NurseDashboardPage() {
                     >
                       {!isActiveBotStep ? (
                         <Link
-                          href="/onboarding"
+                          href={onboardingHref}
                           className="absolute inset-0 z-[1] rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488] focus-visible:ring-offset-2"
                           aria-label={`Continue setup: ${item.label}`}
                         />
@@ -257,7 +279,7 @@ export default function NurseDashboardPage() {
                         </span>
                       ) : (
                         <Link
-                          href="/onboarding"
+                          href={onboardingHref}
                           tabIndex={-1}
                           className="relative z-[2] inline-flex w-full shrink-0 items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700 sm:w-auto sm:min-w-[6.5rem]"
                         >

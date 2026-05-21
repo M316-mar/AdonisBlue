@@ -362,6 +362,12 @@ export default function OnboardingPage() {
         loaded.step1.fullName = fromAccount;
         savePersisted(loaded);
       }
+      const stepRaw = new URLSearchParams(window.location.search).get("step");
+      const stepNum = stepRaw ? Number.parseInt(stepRaw, 10) : NaN;
+      if (Number.isFinite(stepNum) && stepNum >= 1 && stepNum <= TOTAL_STEPS) {
+        loaded.currentStep = stepNum;
+        savePersisted(loaded);
+      }
       setPersisted(loaded);
       setReady(true);
     })();
