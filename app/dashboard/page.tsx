@@ -29,6 +29,40 @@ const CHECKLIST: { id: ChecklistId; label: string; alwaysDone?: boolean }[] = [
   { id: "share", label: "Share your bot with your clients" },
 ];
 
+type BotRow = {
+  practice_name?: string | null;
+  bot_name?: string | null;
+  services?: string[] | null;
+  booking_link?: string | null;
+  photos?: string[] | null;
+  cancellation_policy?: string | null;
+  aftercare?: string | null;
+  launched?: boolean | null;
+};
+
+function slugify(input: string): string {
+  const s = input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return s || "my-practice";
+}
+
+function computeChecklistDone(bot: BotRow | null): Record<ChecklistId, boolean> {
+  return {
+    account: true,
+    practice: Boolean(bot?.practice_name?.trim()),
+    services: Array.isArray(bot?.services) && bot.services.length > 0,
+    booking: Boolean(bot?.booking_link?.trim()),
+    photos: Array.isArray(bot?.photos) && bot.photos.length > 0,
+    botStyle: Boolean(bot?.bot_name?.trim()),
+    policies: Boolean(bot?.cancellation_policy?.trim()) || Boolean(bot?.aftercare?.trim()),
+    preview: bot?.launched === true,
+    share: bot?.launched === true,
+  };
+}
+
 function displayNameFromUser(user: { user_metadata?: { full_name?: string }; email?: string } | null): string {
   if (!user) return "there";
   const fromMeta = user.user_metadata?.full_name;
@@ -44,17 +78,7 @@ export default function NurseDashboardPage() {
   const [nurseName, setNurseName] = useState("there");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
-  const [done] = useState<Record<ChecklistId, boolean>>({
-    account: true,
-    practice: false,
-    services: false,
-    booking: false,
-    photos: false,
-    botStyle: false,
-    policies: false,
-    preview: false,
-    share: false,
-  });
+  const [bot, setBot] = useState<BotRow | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,12 +90,31 @@ export default function NurseDashboardPage() {
         return;
       }
       setNurseName(displayNameFromUser(data.session.user));
+
+      const token = data.session.access_token;
+      if (token) {
+        const res = await fetch("/api/mybot", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled && res.ok) {
+          const row = (await res.json()) as BotRow | null;
+          setBot(row && typeof row === "object" ? row : null);
+        }
+      }
+
       setReady(true);
     })();
     return () => {
       cancelled = true;
     };
   }, [router]);
+
+  const done = useMemo(() => computeChecklistDone(bot), [bot]);
+  const launched = bot?.launched === true;
+  const botChatSlug = useMemo(() => {
+    const raw = (bot?.bot_name || "").trim() || (bot?.practice_name || "").trim() || "my-bot";
+    return slugify(raw);
+  }, [bot?.bot_name, bot?.practice_name]);
 
   const completedCount = useMemo(() => CHECKLIST.filter((item) => done[item.id]).length, [done]);
   const progressPct = Math.round((completedCount / CHECKLIST.length) * 100);
@@ -165,16 +208,20 @@ export default function NurseDashboardPage() {
               <ul className="mt-6">
                 {CHECKLIST.map((item) => {
                   const isDone = done[item.id];
+                  const isActiveBotStep = item.id === "share" && launched;
+                  const label = isActiveBotStep ? "Bot is active ✅" : item.label;
                   return (
                     <li
                       key={item.id}
                       className="relative flex flex-col gap-3 border-b border-slate-100 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                     >
-                      <Link
-                        href="/onboarding"
-                        className="absolute inset-0 z-[1] rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488] focus-visible:ring-offset-2"
-                        aria-label={`Continue setup: ${item.label}`}
-                      />
+                      {!isActiveBotStep ? (
+                        <Link
+                          href="/onboarding"
+                          className="absolute inset-0 z-[1] rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#0d9488] focus-visible:ring-offset-2"
+                          aria-label={`Continue setup: ${item.label}`}
+                        />
+                      ) : null}
                       <div className="relative z-[2] flex min-w-0 flex-1 items-start gap-3 pointer-events-none">
                         <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-lg leading-none" aria-hidden>
                           {isDone ? (
@@ -183,11 +230,27 @@ export default function NurseDashboardPage() {
                             <span className="block h-8 w-8 rounded-full border-2 border-slate-200 bg-white" />
                           )}
                         </span>
-                        <span className={`text-sm font-medium leading-snug sm:text-base ${isDone ? "text-slate-500 line-through decoration-slate-300" : "text-[#1a2744]"}`}>
-                          {item.label}
+                        <span
+                          className={`text-sm font-medium leading-snug sm:text-base ${
+                            isDone && !isActiveBotStep ? "text-slate-500 line-through decoration-slate-300" : "text-[#1a2744]"
+                          }`}
+                        >
+                          {label}
                         </span>
                       </div>
-                      {item.alwaysDone ? (
+                      {isActiveBotStep ? (
+                        <div className="relative z-[2] flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                          <span className="inline-flex w-full items-center justify-center rounded-full border border-green-200 bg-green-50 px-4 py-2.5 text-center text-sm font-semibold text-green-700 sm:w-auto sm:min-w-[6.5rem]">
+                            Active
+                          </span>
+                          <Link
+                            href={`/chat/${botChatSlug}`}
+                            className="inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700 sm:w-auto sm:min-w-[6.5rem]"
+                          >
+                            View my bot
+                          </Link>
+                        </div>
+                      ) : item.alwaysDone ? (
                         <span className="relative z-[2] inline-flex w-full shrink-0 items-center justify-center rounded-full border border-teal-200 bg-teal-50 px-4 py-2.5 text-center text-sm font-semibold text-[#0d9488] opacity-80 pointer-events-none sm:w-auto sm:min-w-[6.5rem]">
                           Done
                         </span>
