@@ -77,6 +77,10 @@ type Step1Data = {
   yearsExperience: string;
   specialSentence: string;
   instagram: string;
+  facebook: string;
+  tiktok: string;
+  website: string;
+  otherSocial: string;
 };
 
 type Step2Data = {
@@ -117,6 +121,10 @@ function defaultStep1(): Step1Data {
     yearsExperience: "",
     specialSentence: "",
     instagram: "",
+    facebook: "",
+    tiktok: "",
+    website: "",
+    otherSocial: "",
   };
 }
 
@@ -524,6 +532,10 @@ export default function OnboardingPage() {
       practice_name: p.step1.practiceName.trim(),
       city: p.step1.city.trim(),
       state: p.step1.state.trim(),
+      facebook: p.step1.facebook.trim() || null,
+      tiktok: p.step1.tiktok.trim() || null,
+      website: p.step1.website.trim() || null,
+      other_social: p.step1.otherSocial.trim() || null,
       bot_name: p.step3.botName.trim(),
       greeting: p.step3.greeting.trim(),
       tone: p.step3.tone,
@@ -709,6 +721,46 @@ export default function OnboardingPage() {
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
                   />
                 </label>
+                <div className="block sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">Facebook (optional)</label>
+                  <input
+                    type="text"
+                    placeholder="https://facebook.com/yourpage"
+                    value={s1.facebook}
+                    onChange={(e) => setStep1({ facebook: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
+                  />
+                </div>
+                <div className="block sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">TikTok (optional)</label>
+                  <input
+                    type="text"
+                    placeholder="@yourtiktok"
+                    value={s1.tiktok}
+                    onChange={(e) => setStep1({ tiktok: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
+                  />
+                </div>
+                <div className="block sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">Website (optional)</label>
+                  <input
+                    type="text"
+                    placeholder="https://yourwebsite.com"
+                    value={s1.website}
+                    onChange={(e) => setStep1({ website: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
+                  />
+                </div>
+                <div className="block sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">Other social link (optional)</label>
+                  <input
+                    type="text"
+                    placeholder="Any other link you want to share"
+                    value={s1.otherSocial}
+                    onChange={(e) => setStep1({ otherSocial: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
+                  />
+                </div>
               </div>
             </div>
           ) : null}
