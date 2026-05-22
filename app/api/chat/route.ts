@@ -61,7 +61,7 @@ ${botConfig.cancellation_policy ? `Cancellation policy: ${botConfig.cancellation
 ${botConfig.aftercare ? `Aftercare: ${botConfig.aftercare}` : ""}
 IMPORTANT: Before you send the booking link you MUST first say the cancellation policy in plain English. Then after mentioning it send the booking link. Never send the booking link without mentioning the policy first.
 
-${botConfig.numbing_method ? `NUMBING: When clients ask about pain or numbing, say: "${botConfig.numbing_method}"` : "NUMBING: If asked about pain, say we use a topical numbing cream to make the experience as comfortable as possible."}
+${botConfig.numbing_method ? `NUMBING METHOD — CRITICAL: When anyone asks about pain, numbing, or comfort, you MUST mention this specific method and nothing else: "${botConfig.numbing_method}". Do not say "numbing cream" or any generic term. Use the nurse's exact method.` : "NUMBING: If asked about pain, say we use a topical numbing cream to make the experience as comfortable as possible."}
 PREVIOUS FILLER WORK POLICY: ${botConfig.previous_work_policy || "We evaluate previous filler work case by case."}
 When a client mentions they have had filler before, ask warmly if they would be open to dissolving their previous filler first before getting new filler done.
 If they say yes to dissolving — great! Let them know the nurse will go over everything at their appointment and continue with intake.
@@ -73,13 +73,6 @@ ${botConfig.deposit_info ? `DEPOSIT: When clients ask about the deposit, explain
 If asked something you cannot answer, say: "That's a great question! Let me have your nurse get back to you on that one personally 💙"
 
 Always speak in plain simple English. No medical terms. Be the warm voice that makes someone feel safe enough to take the next step.`;
-
-    console.log("botConfig received:", JSON.stringify({
-      numbing_method: botConfig.numbing_method,
-      previous_work_policy: botConfig.previous_work_policy,
-      deposit_info: botConfig.deposit_info,
-      instagram: botConfig.instagram,
-    }));
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
