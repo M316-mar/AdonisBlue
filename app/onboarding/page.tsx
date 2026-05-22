@@ -538,6 +538,7 @@ export default function OnboardingPage() {
       website: p.step1.website.trim() || null,
       other_social: p.step1.otherSocial.trim() || null,
       bot_name: p.step3.botName.trim(),
+      slug: slugify(p.step3.botName.trim() || p.step1.practiceName.trim() || "my-bot"),
       greeting: p.step3.greeting.trim(),
       tone: p.step3.tone,
       primary_color: p.step3.primaryColor,
