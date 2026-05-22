@@ -417,7 +417,7 @@ export default function NurseDashboardPage() {
               onChange={(e) => setFeedbackText(e.target.value)}
               rows={4}
               className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#0d9488]/40 focus:bg-white focus:ring-2 focus:ring-[#0d9488]/20"
-              placeholder="Share your thoughts…"
+              placeholder="We'd love to hear from you! Your feedback helps us build something better for you and your clients 💙"
             />
             <div className="mt-3 flex gap-2">
               <button
