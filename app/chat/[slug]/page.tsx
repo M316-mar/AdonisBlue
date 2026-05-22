@@ -108,17 +108,25 @@ function renderMessageContent(content: string) {
   return (
     <>
       {text ? <p className="whitespace-pre-wrap">{text}</p> : null}
-      {urls.map((url, i) => (
-        <a
-          key={i}
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 block w-fit rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700"
-        >
-          👉 Click here to book your appointment
-        </a>
-      ))}
+      {urls.map((url, i) => {
+        const label = url.includes("instagram") ? "📸 View our Instagram"
+          : url.includes("tiktok") ? "🎵 Follow us on TikTok"
+          : url.includes("facebook") ? "👍 Find us on Facebook"
+          : url.includes("facebook") ? "👍 Find us on Facebook"
+          : /\.(com|io|co|net|org)/.test(url) && !url.includes("zenoti") && !url.includes("booking") && !url.includes("calendly") && !url.includes("acuity") ? "🌐 Visit our website"
+          : "👉 Click here to book your appointment";
+        return (
+          <a
+            key={i}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 block w-fit rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700"
+          >
+            {label}
+          </a>
+        );
+      })}
     </>
   );
 }
