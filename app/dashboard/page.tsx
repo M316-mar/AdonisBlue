@@ -411,13 +411,16 @@ export default function NurseDashboardPage() {
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
         {feedbackOpen ? (
           <div className="w-[min(100vw-3rem,20rem)] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/10">
-            <p className="text-sm font-medium text-[#1a2744]">What&apos;s on your mind? We read every message 💙</p>
+            <p className="text-sm font-semibold text-[#1a2744]">We grow because of you 💙</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              Tell us what&apos;s working, what&apos;s not, or what you wish existed. We read every single message.
+            </p>
             <textarea
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
               rows={4}
               className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#0d9488]/40 focus:bg-white focus:ring-2 focus:ring-[#0d9488]/20"
-              placeholder="We'd love to hear from you! Your feedback helps us build something better for you and your clients 💙"
+              placeholder="Your thoughts help us build something truly special for nurses like you..."
             />
             <div className="mt-3 flex gap-2">
               <button
@@ -448,7 +451,7 @@ export default function NurseDashboardPage() {
           onClick={() => setFeedbackOpen(true)}
           className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700"
         >
-          💬 Feedback
+          💬 How are we doing?
         </button>
       </div>
     </div>
