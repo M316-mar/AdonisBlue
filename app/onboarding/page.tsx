@@ -102,6 +102,9 @@ type Step3Data = {
   bookingLink: string;
   cancellationPolicy: string;
   aftercare: string;
+  nummingMethod: string;
+  previousWorkPolicy: string;
+  depositInfo: string;
 };
 
 type OnboardingPersisted = {
@@ -147,6 +150,9 @@ function defaultStep3(): Step3Data {
     bookingLink: "",
     cancellationPolicy: "",
     aftercare: "",
+    nummingMethod: "",
+    previousWorkPolicy: "",
+    depositInfo: "",
   };
 }
 
@@ -545,6 +551,9 @@ export default function OnboardingPage() {
       booking_link: p.step3.bookingLink.trim() || null,
       cancellation_policy: p.step3.cancellationPolicy.trim() || null,
       aftercare: p.step3.aftercare.trim() || null,
+      numbing_method: p.step3.nummingMethod.trim() || null,
+      previous_work_policy: p.step3.previousWorkPolicy.trim() || null,
+      deposit_info: p.step3.depositInfo.trim() || null,
       forward_questions: p.step3.forwardQuestions.trim() || null,
       instagram: p.step1.instagram.trim() || null,
       services: p.step2.serviceIds,
@@ -1222,6 +1231,36 @@ export default function OnboardingPage() {
                   value={s3.aftercare}
                   onChange={(e) => setStep3({ aftercare: e.target.value })}
                   rows={3}
+                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-[#1a2744]">How do you numb your clients?</span>
+                <textarea
+                  value={s3.nummingMethod}
+                  onChange={(e) => setStep3({ nummingMethod: e.target.value })}
+                  rows={2}
+                  placeholder="e.g. We use a topical numbing cream applied 20 minutes before treatment"
+                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Do you accept clients with previous filler work?</span>
+                <textarea
+                  value={s3.previousWorkPolicy}
+                  onChange={(e) => setStep3({ previousWorkPolicy: e.target.value })}
+                  rows={2}
+                  placeholder="e.g. Yes, but I require photos first. I also offer dissolving services if needed."
+                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Your deposit policy (in your own words)</span>
+                <textarea
+                  value={s3.depositInfo}
+                  onChange={(e) => setStep3({ depositInfo: e.target.value })}
+                  rows={2}
+                  placeholder="e.g. I require a $50 deposit to hold your appointment, which goes toward your treatment"
                   className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
                 />
               </label>
