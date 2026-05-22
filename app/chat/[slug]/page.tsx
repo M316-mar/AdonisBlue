@@ -10,6 +10,15 @@ type BotRow = {
   id: string;
   nurse_id: string;
   practice_name: string | null;
+  city?: string | null;
+  instagram?: string | null;
+  facebook?: string | null;
+  tiktok?: string | null;
+  website?: string | null;
+  other_social?: string | null;
+  numbing_method?: string | null;
+  previous_work_policy?: string | null;
+  deposit_info?: string | null;
   bot_name: string | null;
   logo_image?: string | null;
   logo_data_url?: string | null;
@@ -207,6 +216,15 @@ export default function PublicChatPage() {
 
       const botContext = {
         practice_name: bot.practice_name,
+        city: bot.city,
+        instagram: bot.instagram,
+        facebook: bot.facebook,
+        tiktok: bot.tiktok,
+        website: bot.website,
+        other_social: bot.other_social,
+        numbing_method: bot.numbing_method,
+        previous_work_policy: bot.previous_work_policy,
+        deposit_info: bot.deposit_info,
         bot_name: bot.bot_name,
         services: bot.services ?? [],
         tone: bot.tone,
