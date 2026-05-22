@@ -99,6 +99,8 @@ export default function NurseDashboardPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [bot, setBot] = useState<BotRow | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -405,6 +407,50 @@ export default function NurseDashboardPage() {
           </div>
         ) : null}
       </main>
+
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+        {feedbackOpen ? (
+          <div className="w-[min(100vw-3rem,20rem)] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/10">
+            <p className="text-sm font-medium text-[#1a2744]">What&apos;s on your mind? We read every message 💙</p>
+            <textarea
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
+              rows={4}
+              className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#0d9488]/40 focus:bg-white focus:ring-2 focus:ring-[#0d9488]/20"
+              placeholder="Share your thoughts…"
+            />
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const params = new URLSearchParams({
+                    subject: "Dashboard Feedback",
+                    body: feedbackText.trim() || "(no message)",
+                  });
+                  window.open(`mailto:hello@adonisblue.io?${params.toString()}`);
+                }}
+                className="flex-1 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+              >
+                Submit
+              </button>
+              <button
+                type="button"
+                onClick={() => setFeedbackOpen(false)}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setFeedbackOpen(true)}
+          className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700"
+        >
+          💬 Feedback
+        </button>
+      </div>
     </div>
   );
 }
