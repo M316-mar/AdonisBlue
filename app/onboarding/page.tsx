@@ -287,7 +287,7 @@ function loadPersisted(): OnboardingPersisted {
         brandNameImage,
         bubbleAttentionMessage,
       },
-      launched: false,
+      launched: parsed.launched === true,
     };
   } catch {
     return defaultPersisted();
