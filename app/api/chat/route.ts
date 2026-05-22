@@ -74,6 +74,13 @@ If asked something you cannot answer, say: "That's a great question! Let me have
 
 Always speak in plain simple English. No medical terms. Be the warm voice that makes someone feel safe enough to take the next step.`;
 
+    console.log("botConfig received:", JSON.stringify({
+      numbing_method: botConfig.numbing_method,
+      previous_work_policy: botConfig.previous_work_policy,
+      deposit_info: botConfig.deposit_info,
+      instagram: botConfig.instagram,
+    }));
+
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
