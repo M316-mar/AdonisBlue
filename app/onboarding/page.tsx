@@ -1395,21 +1395,19 @@ export default function OnboardingPage() {
                 </div>
               </section>
 
-              {!persisted.launched ? (
-                <div className="space-y-3">
-                  {launchError ? (
-                    <p className="rounded-lg border border-red-200 bg-red-50/90 px-3 py-2.5 text-sm leading-relaxed text-red-800">{launchError}</p>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={launchSaving}
-                    onClick={() => void handleLaunch()}
-                    className="w-full rounded-full bg-[#0d9488] py-4 text-base font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 sm:py-3.5"
-                  >
-                    {launchSaving ? "Saving your bot…" : "Launch my bot"}
-                  </button>
-                </div>
-              ) : null}
+              <div className="space-y-3">
+                {launchError ? (
+                  <p className="rounded-lg border border-red-200 bg-red-50/90 px-3 py-2.5 text-sm leading-relaxed text-red-800">{launchError}</p>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={launchSaving}
+                  onClick={() => void handleLaunch()}
+                  className="w-full rounded-full bg-[#0d9488] py-4 text-base font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 sm:py-3.5"
+                >
+                  {launchSaving ? "Saving your bot…" : persisted.launched ? "Update & Relaunch" : "Launch my bot"}
+                </button>
+              </div>
 
               {persisted.launched ? (
                 <section className="space-y-4 rounded-xl border border-teal-200 bg-teal-50/50 p-4 sm:p-6">
