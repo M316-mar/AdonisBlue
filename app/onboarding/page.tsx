@@ -451,6 +451,9 @@ export default function OnboardingPage() {
   function goNext() {
     if (!validateStep(persisted.currentStep)) {
       setShowValidationErrors(true);
+      setTimeout(() => {
+        document.getElementById("validation-errors")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
       return;
     }
     setShowValidationErrors(false);
@@ -1493,7 +1496,7 @@ export default function OnboardingPage() {
           ) : null}
 
           {currentValidationErrors.length > 0 ? (
-            <div className="mt-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800">
+            <div id="validation-errors" className="mt-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800">
               <p className="font-semibold">Please finish these before continuing:</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 {currentValidationErrors.map((error) => (
