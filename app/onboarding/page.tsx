@@ -541,6 +541,10 @@ export default function OnboardingPage() {
       tone: p.step3.tone,
       primary_color: p.step3.primaryColor,
       booking_link: p.step3.bookingLink.trim() || null,
+      cancellation_policy: p.step3.cancellationPolicy.trim() || null,
+      aftercare: p.step3.aftercare.trim() || null,
+      forward_questions: p.step3.forwardQuestions.trim() || null,
+      instagram: p.step1.instagram.trim() || null,
       services: p.step2.serviceIds,
       launched: true,
     };
