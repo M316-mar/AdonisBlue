@@ -294,25 +294,43 @@ export default function NurseDashboardPage() {
 
           <aside className="lg:col-span-4">
             <div className="lg:sticky lg:top-24">
-              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-lg shadow-slate-900/5">
-                <div className="aspect-video bg-gradient-to-br from-[#1a2744] via-[#1e3350] to-[#0d9488]/40 p-4 sm:p-5">
-                  <div className="flex h-full flex-col justify-between">
-                    <p className="text-sm font-semibold leading-snug text-white sm:text-base">Watch how it works — 3 min video</p>
-                    <div className="flex justify-center py-2">
-                      <button
-                        type="button"
-                        className="flex h-14 w-14 items-center justify-center rounded-full bg-white/95 text-[#0d9488] shadow-lg ring-4 ring-white/30 transition hover:scale-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-300"
-                        aria-label="Play how it works video"
-                      >
-                        <svg className="ml-0.5 h-7 w-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-                          <path d="M8 5v14l11-7L8 5z" />
-                        </svg>
-                      </button>
-                    </div>
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/5 sm:p-5">
+                <h3 className="text-base font-semibold text-[#1a2744] sm:text-lg">Your bot</h3>
+                <dl className="mt-4 space-y-3 text-sm">
+                  <div>
+                    <dt className="font-medium text-slate-500">Bot name</dt>
+                    <dd className="mt-0.5 font-medium text-[#1a2744]">{bot?.bot_name?.trim() || "—"}</dd>
                   </div>
-                </div>
-                <div className="border-t border-slate-100 px-4 py-3 sm:px-5">
-                  <p className="text-xs text-slate-500">A quick tour of your client-facing bot and dashboard.</p>
+                  <div>
+                    <dt className="font-medium text-slate-500">Practice name</dt>
+                    <dd className="mt-0.5 font-medium text-[#1a2744]">{bot?.practice_name?.trim() || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-slate-500">Booking link</dt>
+                    <dd className="mt-0.5 truncate font-medium text-[#0d9488]" title={bot?.booking_link?.trim() || undefined}>
+                      {(() => {
+                        const link = bot?.booking_link?.trim() || "";
+                        if (!link) return "—";
+                        return link.length > 40 ? `${link.slice(0, 37)}...` : link;
+                      })()}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="mt-5 flex flex-col gap-2">
+                  <Link
+                    href="/onboarding?step=1"
+                    className="inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                  >
+                    Edit my bot
+                  </Link>
+                  {launched ? (
+                    <Link
+                      href={`/chat/${botChatSlug}`}
+                      className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                    >
+                      View my bot
+                    </Link>
+                  ) : null}
                 </div>
               </div>
             </div>
