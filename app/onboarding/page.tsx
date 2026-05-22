@@ -8,14 +8,13 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "adonisblue-onboarding";
-const TOTAL_STEPS = 5;
-const MAX_PHOTOS = 10;
-/** Max size for logo, brand image, and work photos (5 MB). */
+const TOTAL_STEPS = 4;
+/** Max size for logo and brand image (5 MB). */
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const FILE_TOO_LARGE_MSG = "This file is larger than 5 MB. Please choose a smaller image.";
 const LOGO_BRAND_TYPE_MSG = "Please choose a PNG, JPG, JPEG, WEBP, or SVG image.";
 
-const STEP_LABELS = ["Practice", "Services", "Personality", "Photos", "Launch"] as const;
+const STEP_LABELS = ["Practice", "Services", "Personality", "Launch"] as const;
 
 const SERVICES: { id: string; label: string; description: string }[] = [
   { id: "lip-filler", label: "Lip Filler", description: "Shape, volume, and symmetry for natural-looking lips." },
@@ -101,19 +100,11 @@ type Step3Data = {
   aftercare: string;
 };
 
-type PhotoEntry = { name: string; dataUrl: string };
-
-export type Step4Data = {
-  photos: PhotoEntry[];
-  permissionConfirmed: boolean;
-};
-
 type OnboardingPersisted = {
   currentStep: number;
   step1: Step1Data;
   step2: Step2Data;
   step3: Step3Data;
-  step4: Step4Data;
   launched: boolean;
 };
 
@@ -151,17 +142,12 @@ function defaultStep3(): Step3Data {
   };
 }
 
-function defaultStep4(): Step4Data {
-  return { photos: [], permissionConfirmed: false };
-}
-
 function defaultPersisted(): OnboardingPersisted {
   return {
     currentStep: 1,
     step1: defaultStep1(),
     step2: defaultStep2(),
     step3: defaultStep3(),
-    step4: defaultStep4(),
     launched: false,
   };
 }
@@ -196,12 +182,6 @@ function isLogoOrBrandImageFile(file: File): boolean {
     return true;
   }
   return /\.(png|jpe?g|webp|svg)$/i.test(file.name);
-}
-
-function isWorkPhotoFile(file: File): boolean {
-  const type = file.type.toLowerCase();
-  if (type === "image/png" || type === "image/jpeg" || type === "image/jpg" || type === "image/webp") return true;
-  return /\.(png|jpe?g|webp)$/i.test(file.name);
 }
 
 function readImageAsDataUrl(file: File): Promise<string | null> {
@@ -259,8 +239,11 @@ function loadPersisted(): OnboardingPersisted {
         : base.step3.brandNameImage;
     const bubbleRaw = parsed.step3?.bubbleAttentionMessage;
     const bubbleAttentionMessage = typeof bubbleRaw === "string" ? bubbleRaw : base.step3.bubbleAttentionMessage;
+    let currentStep =
+      typeof parsed.currentStep === "number" && parsed.currentStep >= 1 ? parsed.currentStep : base.currentStep;
+    if (currentStep > TOTAL_STEPS) currentStep = TOTAL_STEPS;
     return {
-      currentStep: typeof parsed.currentStep === "number" && parsed.currentStep >= 1 && parsed.currentStep <= TOTAL_STEPS ? parsed.currentStep : base.currentStep,
+      currentStep,
       step1: { ...base.step1, ...parsed.step1 },
       step2: {
         serviceIds: Array.isArray(parsed.step2?.serviceIds) ? parsed.step2!.serviceIds : base.step2.serviceIds,
@@ -289,10 +272,6 @@ function loadPersisted(): OnboardingPersisted {
         logoDataUrl,
         brandNameImage,
         bubbleAttentionMessage,
-      },
-      step4: {
-        photos: Array.isArray(parsed.step4?.photos) ? parsed.step4!.photos : base.step4.photos,
-        permissionConfirmed: Boolean(parsed.step4?.permissionConfirmed),
       },
       launched: false,
     };
@@ -330,10 +309,8 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [persisted, setPersisted] = useState<OnboardingPersisted>(defaultPersisted);
-  const [dragActive, setDragActive] = useState(false);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const brandNameImageFileInputRef = useRef<HTMLInputElement>(null);
-  const photosFileInputRef = useRef<HTMLInputElement>(null);
   const [chatInput, setChatInput] = useState("");
   const [launchSaving, setLaunchSaving] = useState(false);
   const [launchError, setLaunchError] = useState<string | null>(null);
@@ -344,7 +321,6 @@ export default function OnboardingPage() {
   const [greetingGenError, setGreetingGenError] = useState<string | null>(null);
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
   const [brandUploadError, setBrandUploadError] = useState<string | null>(null);
-  const [workPhotosUploadError, setWorkPhotosUploadError] = useState<string | null>(null);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
   useEffect(() => {
@@ -363,7 +339,9 @@ export default function OnboardingPage() {
         savePersisted(loaded);
       }
       const stepRaw = new URLSearchParams(window.location.search).get("step");
-      const stepNum = stepRaw ? Number.parseInt(stepRaw, 10) : NaN;
+      const stepNumRaw = stepRaw ? Number.parseInt(stepRaw, 10) : NaN;
+      let stepNum = stepNumRaw;
+      if (stepNum === 5) stepNum = 4;
       if (Number.isFinite(stepNum) && stepNum >= 1 && stepNum <= TOTAL_STEPS) {
         loaded.currentStep = stepNum;
         savePersisted(loaded);
@@ -411,14 +389,6 @@ export default function OnboardingPage() {
     });
   }, []);
 
-  const setStep4 = useCallback((patch: Partial<Step4Data>) => {
-    setPersisted((prev) => {
-      const next = { ...prev, step4: { ...prev.step4, ...patch } };
-      savePersisted(next);
-      return next;
-    });
-  }, []);
-
   const progressPct = useMemo(() => (persisted.currentStep / TOTAL_STEPS) * 100, [persisted.currentStep]);
 
   const slug = useMemo(() => {
@@ -433,66 +403,8 @@ export default function OnboardingPage() {
     [persisted.step3.bubbleAttentionMessage]
   );
 
-  const addPhotoFiles = useCallback(
-    (files: FileList | File[]) => {
-      const countAtOpen = persisted.step4.photos.length;
-      void (async () => {
-        setWorkPhotosUploadError(null);
-        const problems: string[] = [];
-        const newEntries: PhotoEntry[] = [];
-
-        for (const file of Array.from(files)) {
-          if (!isWorkPhotoFile(file)) {
-            problems.push(`“${file.name}” is not a supported type — use PNG, JPG, JPEG, or WEBP.`);
-            continue;
-          }
-          if (file.size > MAX_UPLOAD_BYTES) {
-            problems.push(`“${file.name}” is larger than 5 MB.`);
-            continue;
-          }
-          const dataUrl = await readImageAsDataUrl(file);
-          if (!dataUrl) {
-            problems.push(`“${file.name}” could not be read. Try another file.`);
-            continue;
-          }
-          newEntries.push({ name: file.name, dataUrl });
-        }
-
-        const space = MAX_PHOTOS - countAtOpen;
-        const slice = newEntries.slice(0, Math.max(0, space));
-        if (countAtOpen >= MAX_PHOTOS && newEntries.length > 0) {
-          problems.push("You already have 10 work photos. Remove one to add more.");
-        } else if (newEntries.length > slice.length && newEntries.length > 0) {
-          problems.push("Only some photos were added — you can upload up to 10 work photos.");
-        }
-
-        if (slice.length > 0) {
-          setPersisted((p) => {
-            const take = newEntries.slice(0, MAX_PHOTOS - p.step4.photos.length);
-            if (take.length === 0) return p;
-            const next = { ...p, step4: { ...p.step4, photos: [...p.step4.photos, ...take] } };
-            savePersisted(next);
-            return next;
-          });
-        }
-
-        if (problems.length) setWorkPhotosUploadError(problems.slice(0, 4).join(" "));
-      })();
-    },
-    [persisted.step4.photos.length]
-  );
-
-  const removePhoto = useCallback((index: number) => {
-    setPersisted((prev) => {
-      const photos = prev.step4.photos.filter((_, i) => i !== index);
-      const next = { ...prev, step4: { ...prev.step4, photos } };
-      savePersisted(next);
-      return next;
-    });
-  }, []);
-
   function getStepValidationErrors(step: number): string[] {
-    const { step1, step2, step3, step4 } = persisted;
+    const { step1, step2, step3 } = persisted;
     const errors: string[] = [];
     if (step === 1) {
       if (!step1.fullName.trim()) errors.push("Please add your full name");
@@ -513,11 +425,6 @@ export default function OnboardingPage() {
     if (step === 3) {
       if (!step3.botName.trim()) errors.push("Please give your bot a name");
       if (!step3.greeting.trim()) errors.push("Please add a greeting message for your clients");
-      return errors;
-    }
-    if (step === 4) {
-      if (step4.photos.length === 0) errors.push("Please upload at least one photo");
-      if (!step4.permissionConfirmed) errors.push("Please confirm you have permission to use these photos");
       return errors;
     }
     return errors;
@@ -681,15 +588,6 @@ export default function OnboardingPage() {
     }
   }, [greetingPanelToneId, persisted.step1.practiceName, persisted.step2.customServices, persisted.step2.serviceIds, persisted.step3.tone, setStep3]);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragActive(false);
-      if (e.dataTransfer.files?.length) addPhotoFiles(e.dataTransfer.files);
-    },
-    [addPhotoFiles]
-  );
-
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
@@ -701,7 +599,6 @@ export default function OnboardingPage() {
   const s1 = persisted.step1;
   const s2 = persisted.step2;
   const s3 = persisted.step3;
-  const s4 = persisted.step4;
   const previewLogoImage = s3.logoImage || s3.logoDataUrl;
   const currentValidationErrors = showValidationErrors ? getStepValidationErrors(persisted.currentStep) : [];
 
@@ -919,7 +816,7 @@ export default function OnboardingPage() {
 
           {persisted.currentStep === 3 ? (
             <div className="space-y-5">
-              <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Your bot personality</h2>
+              <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Bot personality and settings</h2>
               <label className="block">
                 <span className="mb-1 block text-sm font-medium text-[#1a2744]">Bot name</span>
                 <input
@@ -1274,89 +1171,6 @@ export default function OnboardingPage() {
           ) : null}
 
           {persisted.currentStep === 4 ? (
-            <div className="space-y-5">
-              <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Upload your work photos</h2>
-              <p className="text-sm text-slate-600">
-                Up to {MAX_PHOTOS} images. Each file can be up to 5 MB.
-              </p>
-              {workPhotosUploadError ? (
-                <p className="text-xs font-medium text-red-600">{workPhotosUploadError}</p>
-              ) : null}
-              <div
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  setDragActive(true);
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragActive(true);
-                }}
-                onDragLeave={() => setDragActive(false)}
-                onDrop={handleDrop}
-                className={`rounded-2xl border-2 border-dashed px-4 py-10 text-center transition sm:py-14 ${
-                  dragActive ? "border-[#0d9488] bg-teal-50/50" : "border-slate-300 bg-slate-50/80"
-                }`}
-              >
-                <p className="text-sm font-medium text-[#1a2744]">Drag and drop images here</p>
-                <p className="mt-1 text-xs text-slate-500">or</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWorkPhotosUploadError(null);
-                    photosFileInputRef.current?.click();
-                  }}
-                  className="mt-3 rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
-                >
-                  Browse files
-                </button>
-                <input
-                  ref={photosFileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
-                  multiple
-                  className="sr-only"
-                  tabIndex={-1}
-                  aria-label="Browse work photos"
-                  onChange={(e) => {
-                    if (e.target.files?.length) addPhotoFiles(e.target.files);
-                    e.target.value = "";
-                  }}
-                />
-              </div>
-              <p className="text-xs text-slate-500">Accepted: PNG, JPG, JPEG, WEBP. Maximum file size 5 MB per image.</p>
-              <p className="text-xs leading-relaxed text-slate-600">
-                Only upload photos you have permission to share. Your clients may see these during conversations.
-              </p>
-              {s4.photos.length > 0 ? (
-                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                  {s4.photos.map((photo, idx) => (
-                    <li key={`${photo.name}-${idx}`} className="group relative aspect-square overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photo.dataUrl} alt="" className="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => removePhoto(idx)}
-                        className="absolute right-1 top-1 rounded-full bg-[#1a2744]/85 px-2 py-0.5 text-xs font-semibold text-white shadow-sm sm:opacity-0 sm:transition sm:group-hover:opacity-100"
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-                <input
-                  type="checkbox"
-                  checked={s4.permissionConfirmed}
-                  onChange={(e) => setStep4({ permissionConfirmed: e.target.checked })}
-                  className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-[#0d9488] focus:ring-[#0d9488]"
-                />
-                <span className="text-sm font-medium text-[#1a2744]">I confirm I have permission to use these photos</span>
-              </label>
-            </div>
-          ) : null}
-
-          {persisted.currentStep === 5 ? (
             <div className="space-y-8">
               <div>
                 <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Preview and launch</h2>
@@ -1451,10 +1265,6 @@ export default function OnboardingPage() {
                       <dd className="whitespace-pre-wrap text-slate-700">{s3.aftercare}</dd>
                     </div>
                   ) : null}
-                  <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                    <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Photos</dt>
-                    <dd className="text-slate-700">{s4.photos.length} uploaded</dd>
-                  </div>
                 </dl>
               </section>
 
