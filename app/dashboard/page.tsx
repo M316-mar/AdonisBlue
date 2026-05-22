@@ -22,7 +22,6 @@ const CHECKLIST: { id: ChecklistId; label: string; alwaysDone?: boolean }[] = [
   { id: "practice", label: "Tell us about your practice" },
   { id: "services", label: "Choose your services" },
   { id: "booking", label: "Add your booking link" },
-  { id: "photos", label: "Upload your work photos" },
   { id: "botStyle", label: "Set your bot colors and name" },
   { id: "policies", label: "Add your policies and agreements" },
   { id: "preview", label: "Preview your bot" },
