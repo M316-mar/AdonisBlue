@@ -449,6 +449,7 @@ export default function OnboardingPage() {
     }
     setShowValidationErrors(false);
     if (persisted.currentStep < TOTAL_STEPS) {
+      savePersisted(persisted);
       updatePersisted({ currentStep: persisted.currentStep + 1 });
     }
   }
@@ -1479,7 +1480,7 @@ export default function OnboardingPage() {
                 onClick={goNext}
                 className="rounded-full bg-[#0d9488] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-teal-900/10 transition hover:bg-teal-700"
               >
-                Next
+                Save & Next
               </button>
             ) : persisted.launched ? (
               <Link
