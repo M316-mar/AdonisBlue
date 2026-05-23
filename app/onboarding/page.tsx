@@ -104,6 +104,8 @@ type Step3Data = {
   aftercare: string;
   nummingMethod: string;
   previousWorkPolicy: string;
+  touchUpPolicy: string;
+  sameDayConsultation: string;
   depositInfo: string;
 };
 
@@ -152,6 +154,8 @@ function defaultStep3(): Step3Data {
     aftercare: "",
     nummingMethod: "",
     previousWorkPolicy: "",
+    touchUpPolicy: "",
+    sameDayConsultation: "",
     depositInfo: "",
   };
 }
@@ -556,6 +560,8 @@ export default function OnboardingPage() {
       aftercare: p.step3.aftercare.trim() || null,
       numbing_method: p.step3.nummingMethod.trim() || null,
       previous_work_policy: p.step3.previousWorkPolicy.trim() || null,
+      touch_up_policy: p.step3.touchUpPolicy.trim() || null,
+      same_day_consultation: p.step3.sameDayConsultation.trim() || null,
       deposit_info: p.step3.depositInfo.trim() || null,
       forward_questions: p.step3.forwardQuestions.trim() || null,
       instagram: p.step1.instagram.trim() || null,
@@ -1254,6 +1260,26 @@ export default function OnboardingPage() {
                   onChange={(e) => setStep3({ previousWorkPolicy: e.target.value })}
                   rows={2}
                   placeholder="e.g. Yes, but I require photos first. I also offer dissolving services if needed."
+                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Do you do touch ups on other nurses&apos; work? If yes, what is your policy?</span>
+                <textarea
+                  value={s3.touchUpPolicy}
+                  onChange={(e) => setStep3({ touchUpPolicy: e.target.value })}
+                  rows={2}
+                  placeholder="e.g. Yes I do touch ups! I require photos first and a consultation to assess the previous work."
+                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Do you do same day procedures during consultation? If yes, how does it work?</span>
+                <textarea
+                  value={s3.sameDayConsultation}
+                  onChange={(e) => setStep3({ sameDayConsultation: e.target.value })}
+                  rows={2}
+                  placeholder="e.g. Yes! If we both agree during the consultation, we can do the procedure the same day. Deposit goes toward your service."
                   className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
                 />
               </label>
