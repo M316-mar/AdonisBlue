@@ -9,6 +9,7 @@ type BotNameFontId = "dm-sans" | "playfair" | "inter-bold" | "nunito" | "georgia
 type BotRow = {
   id: string;
   nurse_id: string;
+  nurse_email?: string | null;
   practice_name: string | null;
   city?: string | null;
   instagram?: string | null;
@@ -273,6 +274,52 @@ export default function PublicChatPage() {
         }
 
         const assistantMsg: ChatMessage = { id: newId(), role: "assistant", content: reply };
+
+        // Detect intake completion — when booking link is sent
+        if (bot.booking_link && reply.includes(bot.booking_link)) {
+          const conversationText = [...messages, { role: "user", content: trimmed }]
+            .map(m => `${m.role}: ${m.content}`)
+            .join("\n");
+
+          // Extract intake data from conversation using a simple parse
+          const getName = () => {
+            const match = conversationText.match(/user:.*?(?:my name is|i(?:'m| am)) ([A-Za-z]+)/i);
+            return match?.[1] ?? null;
+          };
+          const getEmail = () => {
+            const match = conversationText.match(/user:.*?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+            return match?.[1] ?? null;
+          };
+          const getPhone = () => {
+            const match = conversationText.match(/user:.*?(\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/);
+            return match?.[1] ?? null;
+          };
+          const getService = () => {
+            const match = conversationText.match(/user:.*?(lip filler|botox|cheek|kybella|iv therapy|dissolv\w+)/i);
+            return match?.[1] ?? null;
+          };
+
+          void fetch("/api/intake", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              bot_id: bot.id,
+              nurse_id: bot.nurse_id,
+              nurse_email: (bot as BotRow & { nurse_email?: string }).nurse_email,
+              practice_name: bot.practice_name,
+              first_name: getName(),
+              email: getEmail(),
+              phone: getPhone(),
+              service_interested: getService(),
+              had_procedures_before: /user:.*?(yes|had|before|previous)/i.test(conversationText),
+              on_blood_thinners: /user:.*?(blood thinner|warfarin|aspirin)/i.test(conversationText),
+              blood_thinner_details: null,
+              allergies: null,
+              medication_allergies: null,
+            }),
+          });
+        }
+
         const photoFollowUp: ChatMessage[] =
           wantsToSeePhotos(trimmed) && (bot.photos?.length ?? 0) > 0
             ? [
