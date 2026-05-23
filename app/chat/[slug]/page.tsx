@@ -19,6 +19,8 @@ type BotRow = {
   other_social?: string | null;
   numbing_method?: string | null;
   previous_work_policy?: string | null;
+  touch_up_policy?: string | null;
+  same_day_consultation?: string | null;
   deposit_info?: string | null;
   bot_name: string | null;
   logo_image?: string | null;
@@ -225,6 +227,8 @@ export default function PublicChatPage() {
         other_social: bot.other_social,
         numbing_method: bot.numbing_method,
         previous_work_policy: bot.previous_work_policy,
+        touch_up_policy: bot.touch_up_policy,
+        same_day_consultation: bot.same_day_consultation,
         deposit_info: bot.deposit_info,
         bot_name: bot.bot_name,
         services: bot.services ?? [],
