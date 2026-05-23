@@ -289,6 +289,9 @@ export default function AuthPage() {
                     {signupSuccessMessage}
                   </p>
                 ) : null}
+                <p className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-center text-sm leading-relaxed text-slate-600">
+                  We know you work hard and have many options. We&apos;re honored you chose AdonisBlue. We&apos;re here to make sure every client who finds you feels as confident as the ones who already love your work. 💙
+                </p>
                 <p className="text-center text-sm text-slate-600">
                   Already have an account?{" "}
                   <button type="button" onClick={() => switchToLogin()} className="font-semibold text-[#0d9488] hover:underline">

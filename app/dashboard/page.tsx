@@ -165,15 +165,11 @@ export default function NurseDashboardPage() {
     );
   }
 
-  const WELCOME_MESSAGES = [
-    "Every client who walks through your door does so because they trust you. That's everything. 💙",
-    "You're not just doing aesthetics — you're helping people feel like themselves again. 🌸",
-    "Your clients are in the best hands. We're just here to make sure they know it. ✨",
-    "Behind every great nurse injector is a client whose confidence changed forever. That's you. 💕",
-    "You show up for your clients every day. We built AdonisBlue to show up for you. 🦋",
-  ];
-
-  const welcomeMessage = WELCOME_MESSAGES[new Date().getDay() % WELCOME_MESSAGES.length];
+  const nurseFirstName = (() => {
+    const trimmed = nurseName.trim();
+    if (!trimmed || trimmed === "there") return "there";
+    return trimmed.split(/\s+/)[0] ?? trimmed;
+  })();
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
@@ -210,10 +206,10 @@ export default function NurseDashboardPage() {
               <div className="relative">
                 <p className="text-sm font-semibold uppercase tracking-wider text-teal-300/90">Your dashboard</p>
                 <h1 className="mt-2 text-balance text-xl font-semibold leading-snug text-white sm:text-2xl lg:text-[1.65rem]">
-                  Welcome back, {nurseName} <span aria-hidden>✨</span>
+                  Welcome back, {nurseFirstName} <span aria-hidden>✨</span>
                 </h1>
                 <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate-200 sm:text-base">
-                  {welcomeMessage}
+                  As someone who truly cares about your clients&apos; experience, you&apos;re exactly the kind of injector AdonisBlue was built for. Let&apos;s make today count. 🦋
                 </p>
               </div>
             </section>
