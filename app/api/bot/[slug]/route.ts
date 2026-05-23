@@ -23,5 +23,9 @@ export async function GET(
     return NextResponse.json({ error: "Bot not found" }, { status: 404 });
   }
 
-  return NextResponse.json(data);
+  // Get nurse email from auth
+  const { data: nurseData } = await supabase.auth.admin.getUserById(data.nurse_id);
+  const nurse_email = nurseData?.user?.email ?? null;
+
+  return NextResponse.json({ ...data, nurse_email });
 }
