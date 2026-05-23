@@ -52,6 +52,7 @@ const QUICK_REPLIES = [
   "How do I book?",
   "Does it hurt?",
   "What are your prices?",
+  "I'm a returning client 💕",
 ];
 
 const DEFAULT_ATTENTION = "Need help? Tap to chat with us 💬";
