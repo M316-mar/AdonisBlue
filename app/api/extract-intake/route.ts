@@ -22,7 +22,7 @@ export async function POST(request: Request) {
         max_tokens: 500,
         messages: [{
           role: "user",
-          content: `Extract the intake information from this chat conversation. Return ONLY a JSON object with these fields: first_name, email, phone, service_interested, had_procedures_before (boolean), on_blood_thinners (boolean), blood_thinner_details, allergies, medication_allergies. If a field was not mentioned set it to null. Do not include any text outside the JSON.
+          content: `Extract the intake information from this chat conversation. Return ONLY a JSON object with these fields: first_name, email, phone, service_interested, had_procedures_before (boolean), on_blood_thinners (boolean), blood_thinner_details, allergies, medication_allergies, referred_by (where they heard about the practice — instagram, tiktok, facebook, google, friend, etc. Set to null if not mentioned). If a field was not mentioned set it to null. Do not include any text outside the JSON.
 
 Conversation:
 ${conversation}`
@@ -63,6 +63,7 @@ ${conversation}`
             <p><strong>Email:</strong> ${intake.email || "Not provided"}</p>
             <p><strong>Phone:</strong> ${intake.phone || "Not provided"}</p>
             <p><strong>Service interested in:</strong> ${intake.service_interested || "Not specified"}</p>
+            ${intake.referred_by ? `<p><strong>Found you via:</strong> ${intake.referred_by} 📍</p>` : ""}
           </div>
 
           <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0;">
