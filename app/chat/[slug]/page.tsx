@@ -219,6 +219,9 @@ export default function PublicChatPage() {
       }));
 
       const botContext = {
+        nurse_email: (bot as BotRow & { nurse_email?: string }).nurse_email,
+        bot_id: bot.id,
+        nurse_id: bot.nurse_id,
         practice_name: bot.practice_name,
         city: bot.city,
         instagram: bot.instagram,

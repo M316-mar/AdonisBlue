@@ -108,6 +108,33 @@ Always speak in plain simple English. No medical terms. Be the warm voice that m
     const reply = data.content?.[0]?.text || "I'm here to help! Could you tell me a little more?";
     console.log("REPLY PREVIEW:", reply.slice(0, 150));
 
+    // Detect intake completion server-side
+    const intakeComplete =
+      reply.toLowerCase().includes("here's the link to book") ||
+      reply.toLowerCase().includes("link to book your") ||
+      reply.toLowerCase().includes("i've got everything noted") ||
+      reply.toLowerCase().includes("noted everything down") ||
+      reply.toLowerCase().includes("i've noted everything");
+
+    if (intakeComplete && botConfig.nurse_email && messages.length > 3) {
+      const conversationText = messages
+        .map((m: { role: string; content: string }) => `${m.role}: ${m.content}`)
+        .join("\n");
+
+      // Fire and forget — don't await
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io"}/api/extract-intake`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversation: conversationText,
+          bot_id: botConfig.bot_id,
+          nurse_id: botConfig.nurse_id,
+          nurse_email: botConfig.nurse_email,
+          practice_name: botConfig.practice_name,
+        }),
+      }).catch(console.error);
+    }
+
     return NextResponse.json({ reply });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
