@@ -281,7 +281,13 @@ export default function PublicChatPage() {
         const assistantMsg: ChatMessage = { id: newId(), role: "assistant", content: reply };
 
         // Detect intake completion — when booking link is sent
-        if (bot.booking_link && reply.includes(bot.booking_link)) {
+        const intakeComplete = (bot.booking_link && reply.includes(bot.booking_link)) ||
+          reply.includes("I've noted everything down") ||
+          reply.includes("noted everything down") ||
+          reply.includes("Here's the link to book") ||
+          reply.includes("link to book your spot");
+
+        if (intakeComplete && bot.nurse_id) {
           const conversationText = [...messages, { role: "user", content: trimmed }]
             .map(m => `${m.role}: ${m.content}`)
             .join("\n");
