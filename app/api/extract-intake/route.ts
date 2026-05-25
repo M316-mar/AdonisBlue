@@ -49,11 +49,11 @@ ${conversation}`
     await resend.emails.send({
       from: "AdonisBlue <hello@adonisblue.io>",
       to: nurse_email,
-      subject: `💙 New client intake — ${intake.first_name || "A new client"} is ready to book!`,
+      subject: `💙 New client intake — ${intake.first_name || "A new client"} has been sent your booking link!`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #1a2744;">New Client Intake — ${practice_name}</h2>
-          <p style="color: #475569;">A new client just completed their intake form and is ready to book!</p>
+          <p style="color: #475569;">Great news! A new client just completed their intake and we've already sent them your booking link. Here's their information so you're ready when they come in 💙</p>
           
           <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0;">
             <h3 style="color: #0d9488; margin-top: 0;">Client Information</h3>
@@ -72,7 +72,7 @@ ${conversation}`
           </div>
 
           <p style="color: #94a3b8; font-size: 12px; margin-top: 32px;">
-            Sent by AdonisBlue — your client is waiting 💙
+            We already sent them your booking link — we've got you covered 🦋
           </p>
         </div>
       `,
