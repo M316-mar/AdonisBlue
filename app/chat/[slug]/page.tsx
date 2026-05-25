@@ -286,41 +286,15 @@ export default function PublicChatPage() {
             .map(m => `${m.role}: ${m.content}`)
             .join("\n");
 
-          // Extract intake data from conversation using a simple parse
-          const getName = () => {
-            const match = conversationText.match(/user:.*?(?:my name is|i(?:'m| am)) ([A-Za-z]+)/i);
-            return match?.[1] ?? null;
-          };
-          const getEmail = () => {
-            const match = conversationText.match(/user:.*?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
-            return match?.[1] ?? null;
-          };
-          const getPhone = () => {
-            const match = conversationText.match(/user:.*?(\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/);
-            return match?.[1] ?? null;
-          };
-          const getService = () => {
-            const match = conversationText.match(/user:.*?(lip filler|botox|cheek|kybella|iv therapy|dissolv\w+)/i);
-            return match?.[1] ?? null;
-          };
-
-          void fetch("/api/intake", {
+          void fetch("/api/extract-intake", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              conversation: conversationText,
               bot_id: bot.id,
               nurse_id: bot.nurse_id,
               nurse_email: (bot as BotRow & { nurse_email?: string }).nurse_email,
               practice_name: bot.practice_name,
-              first_name: getName(),
-              email: getEmail(),
-              phone: getPhone(),
-              service_interested: getService(),
-              had_procedures_before: /user:.*?(yes|had|before|previous)/i.test(conversationText),
-              on_blood_thinners: /user:.*?(blood thinner|warfarin|aspirin)/i.test(conversationText),
-              blood_thinner_details: null,
-              allergies: null,
-              medication_allergies: null,
             }),
           });
         }
