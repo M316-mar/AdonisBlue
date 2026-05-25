@@ -7,6 +7,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function POST(request: Request) {
   try {
     const { conversation, bot_id, nurse_id, nurse_email, practice_name } = await request.json();
+    console.log("Conversation received:", conversation?.slice(0, 200));
 
     const apiKey = process.env.ANTHROPIC_API_KEY!;
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -33,6 +34,7 @@ ${conversation}`
     const text = data.content?.[0]?.text || "{}";
     const clean = text.replace(/```json|```/g, "").trim();
     const intake = JSON.parse(clean);
+    console.log("Intake extracted:", JSON.stringify(intake));
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
