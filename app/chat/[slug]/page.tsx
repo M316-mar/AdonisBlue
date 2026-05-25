@@ -282,10 +282,14 @@ export default function PublicChatPage() {
 
         // Detect intake completion — when booking link is sent
         const intakeComplete = (bot.booking_link && reply.includes(bot.booking_link)) ||
-          reply.includes("I've noted everything down") ||
+          reply.includes("I've got everything noted") ||
           reply.includes("noted everything down") ||
+          reply.includes("I've noted everything") ||
           reply.includes("Here's the link to book") ||
-          reply.includes("link to book your spot");
+          reply.includes("link to book your") ||
+          reply.includes("link to book your spot") ||
+          reply.includes("here's your booking link") ||
+          reply.toLowerCase().includes("here's the link to book");
 
         if (intakeComplete && bot.nurse_id) {
           const conversationText = [...messages, { role: "user", content: trimmed }]
