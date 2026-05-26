@@ -108,8 +108,6 @@ Always speak in plain simple English. No medical terms. Be the warm voice that m
 
     const data = await res.json();
     const reply = data.content?.[0]?.text || "I'm here to help! Could you tell me a little more?";
-    console.log("REPLY PREVIEW:", reply.slice(0, 150));
-
     // Detect intake completion server-side
     const intakeComplete =
       reply.toLowerCase().includes("here's the link to book") ||
