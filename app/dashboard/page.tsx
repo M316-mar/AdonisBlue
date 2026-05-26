@@ -491,11 +491,20 @@ export default function NurseDashboardPage() {
               <button
                 type="button"
                 onClick={() => {
-                  const params = new URLSearchParams({
-                    subject: "Dashboard Feedback",
-                    body: feedbackText.trim() || "(no message)",
-                  });
-                  window.open(`mailto:hello@adonisblue.io?${params.toString()}`);
+                  void (async () => {
+                    const res = await fetch("/api/send-feedback", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        feedback: feedbackText.trim(),
+                        nurse_name: nurseName,
+                      }),
+                    });
+                    if (res.ok) {
+                      setFeedbackText("");
+                      setFeedbackOpen(false);
+                    }
+                  })();
                 }}
                 className="flex-1 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
               >
