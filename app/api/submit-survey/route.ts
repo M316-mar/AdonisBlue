@@ -69,6 +69,13 @@ export async function POST(request: Request) {
               <p><strong>Comment:</strong> ${typeof comment === "string" && comment.trim() ? comment.trim() : "No comment provided"}</p>
             </div>
 
+            ${typeof comment === "string" && comment.trim() ? `
+<div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px; padding: 20px; margin: 20px 0;">
+  <h3 style="color: #16a34a; margin-top: 0;">⭐ Use this review</h3>
+  <p style="color: #475569; font-style: italic;">"${comment.trim()}"</p>
+  <p style="color: #64748b; font-size: 12px; margin-top: 8px;">You can copy this review and add it to your Google Business, website, or social media!</p>
+</div>` : ""}
+
             <p style="color: #94a3b8; font-size: 12px; margin-top: 32px;">
               Sent by AdonisBlue 💙
             </p>
