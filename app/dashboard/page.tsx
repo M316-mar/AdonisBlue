@@ -39,6 +39,17 @@ type BotRow = {
   launched?: boolean | null;
 };
 
+type IntakeRow = {
+  id: string;
+  first_name: string | null;
+  email: string | null;
+  phone: string | null;
+  service_interested: string | null;
+  referred_by: string | null;
+  created_at: string;
+  survey_sent?: boolean | null;
+};
+
 function slugify(input: string): string {
   const s = input
     .toLowerCase()
@@ -99,6 +110,8 @@ export default function NurseDashboardPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [bot, setBot] = useState<BotRow | null>(null);
+  const [intakes, setIntakes] = useState<IntakeRow[]>([]);
+  const [surveyLoading, setSurveyLoading] = useState<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
 
@@ -122,6 +135,15 @@ export default function NurseDashboardPage() {
           const json = await res.json();
           const row = json?.bot ?? json;
           setBot(row && typeof row === "object" && !Array.isArray(row) ? row as BotRow : null);
+
+          // Fetch recent intakes
+          const intakesRes = await fetch("/api/myintakes", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!cancelled && intakesRes.ok) {
+            const intakesJson = await intakesRes.json();
+            setIntakes(intakesJson.intakes ?? []);
+          }
         }
       }
 
@@ -156,6 +178,17 @@ export default function NurseDashboardPage() {
       setDeleteBusy(false);
     }
   }, [router]);
+
+  const handleSendSurvey = useCallback(async (intake: IntakeRow) => {
+    setSurveyLoading(intake.id);
+    await fetch("/api/send-survey", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ intake_id: intake.id }),
+    });
+    setIntakes((prev) => prev.map((i) => i.id === intake.id ? { ...i, survey_sent: true } : i));
+    setSurveyLoading(null);
+  }, []);
 
   if (!ready) {
     return (
@@ -298,6 +331,32 @@ export default function NurseDashboardPage() {
                 })}
               </ul>
             </section>
+
+            {intakes.length > 0 ? (
+              <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-md shadow-slate-900/5 sm:p-6">
+                <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Recent client intakes</h2>
+                <p className="mt-1 text-sm text-slate-600">Send a follow-up survey to clients after their appointment.</p>
+                <ul className="mt-4 space-y-3">
+                  {intakes.map((intake) => (
+                    <li key={intake.id} className="flex flex-col gap-2 rounded-xl border border-slate-100 p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-[#1a2744]">{intake.first_name || "Client"}</p>
+                        <p className="text-xs text-slate-500">{intake.service_interested || "Service not specified"} • {new Date(intake.created_at).toLocaleDateString()}</p>
+                        {intake.referred_by ? <p className="text-xs text-teal-600">Found you via {intake.referred_by}</p> : null}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!!intake.survey_sent || surveyLoading === intake.id}
+                        onClick={() => void handleSendSurvey(intake)}
+                        className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {intake.survey_sent ? "Survey sent ✅" : surveyLoading === intake.id ? "Sending..." : "Send survey 💌"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
           </div>
 
           <aside className="lg:col-span-4">
