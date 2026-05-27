@@ -190,6 +190,15 @@ export default function NurseDashboardPage() {
     setSurveyLoading(null);
   }, []);
 
+  const handleDeleteIntake = useCallback(async (id: string) => {
+    await fetch("/api/delete-intake", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    setIntakes((prev) => prev.filter((i) => i.id !== id));
+  }, []);
+
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
@@ -351,6 +360,13 @@ export default function NurseDashboardPage() {
                         className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {intake.survey_sent ? "Survey sent ✅" : surveyLoading === intake.id ? "Sending..." : "Send survey 💌"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteIntake(intake.id)}
+                        className="shrink-0 rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
+                      >
+                        Delete
                       </button>
                     </li>
                   ))}

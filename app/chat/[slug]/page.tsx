@@ -284,35 +284,6 @@ export default function PublicChatPage() {
         console.log("BOT REPLY:", reply.slice(0, 100));
         const assistantMsg: ChatMessage = { id: newId(), role: "assistant", content: reply };
 
-        // Detect intake completion — when booking link is sent
-        const intakeComplete = (bot.booking_link && reply.includes(bot.booking_link)) ||
-          reply.includes("I've got everything noted") ||
-          reply.includes("noted everything down") ||
-          reply.includes("I've noted everything") ||
-          reply.includes("Here's the link to book") ||
-          reply.includes("link to book your") ||
-          reply.includes("link to book your spot") ||
-          reply.includes("here's your booking link") ||
-          reply.toLowerCase().includes("here's the link to book");
-
-        if (intakeComplete && bot.nurse_id) {
-          const conversationText = [...messages, { role: "user", content: trimmed }]
-            .map(m => `${m.role}: ${m.content}`)
-            .join("\n");
-
-          void fetch("/api/extract-intake", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              conversation: conversationText,
-              bot_id: bot.id,
-              nurse_id: bot.nurse_id,
-              nurse_email: (bot as BotRow & { nurse_email?: string }).nurse_email,
-              practice_name: bot.practice_name,
-            }),
-          });
-        }
-
         const photoFollowUp: ChatMessage[] =
           wantsToSeePhotos(trimmed) && (bot.photos?.length ?? 0) > 0
             ? [

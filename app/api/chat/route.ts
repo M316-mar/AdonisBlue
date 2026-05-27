@@ -110,13 +110,10 @@ Always speak in plain simple English. No medical terms. Be the warm voice that m
     const reply = data.content?.[0]?.text || "I'm here to help! Could you tell me a little more?";
     // Detect intake completion server-side
     const intakeComplete =
-      reply.toLowerCase().includes("here's the link to book") ||
-      reply.toLowerCase().includes("link to book your") ||
-      reply.toLowerCase().includes("i've got everything noted") ||
-      reply.toLowerCase().includes("noted everything down") ||
-      reply.toLowerCase().includes("i've noted everything");
+      reply.toLowerCase().includes("here's the link to book your") ||
+      reply.toLowerCase().includes("i've got everything noted down");
 
-    if (intakeComplete && botConfig.nurse_email && messages.length > 3) {
+    if (intakeComplete && botConfig.nurse_email && botConfig.nurse_id && messages.length > 5) {
       const conversationText = messages
         .map((m: { role: string; content: string }) => `${m.role}: ${m.content}`)
         .join("\n");
