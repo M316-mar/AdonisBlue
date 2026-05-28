@@ -12,12 +12,24 @@ export async function GET(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const { data, error } = await supabase
+  // Try slug first, then fall back to bot_name
+  let { data, error } = await supabase
     .from("bots")
     .select("*")
-    .ilike("bot_name", slug.replace(/-/g, " "))
+    .eq("slug", slug)
     .eq("launched", true)
     .single();
+
+  if (error || !data) {
+    const result = await supabase
+      .from("bots")
+      .select("*")
+      .ilike("bot_name", slug.replace(/-/g, " "))
+      .eq("launched", true)
+      .single();
+    data = result.data;
+    error = result.error;
+  }
 
   if (error || !data) {
     return NextResponse.json({ error: "Bot not found" }, { status: 404 });
