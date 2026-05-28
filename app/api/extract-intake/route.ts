@@ -21,7 +21,21 @@ export async function POST(request: Request) {
         max_tokens: 500,
         messages: [{
           role: "user",
-          content: `Extract the intake information from this chat conversation. Return ONLY a JSON object with these fields: first_name, email, phone, service_interested, had_procedures_before (boolean), on_blood_thinners (boolean), blood_thinner_details, allergies, medication_allergies, referred_by (where they heard about the practice — instagram, tiktok, facebook, google, friend, etc. Set to null if not mentioned). If a field was not mentioned set it to null. Do not include any text outside the JSON.
+          content: `Extract the intake information from this chat conversation. Return ONLY a JSON object with these exact fields:
+- first_name: their full name (first AND last name if provided, otherwise just first name)
+- email: email address
+- phone: phone number (any format)
+- service_interested: service they want
+- had_procedures_before: boolean
+- on_blood_thinners: boolean  
+- blood_thinner_details: string or null
+- allergies: string or null
+- medication_allergies: string or null
+- referred_by: where they heard about the practice
+
+IMPORTANT: For first_name capture the FULL name including last name if they gave both. For phone, capture any number they provided even if formatted differently.
+
+If a field was not mentioned set it to null. Return ONLY the JSON object, no other text.
 
 Conversation:
 ${conversation}`
