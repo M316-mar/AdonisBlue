@@ -345,6 +345,12 @@ export default function NurseDashboardPage() {
               <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-md shadow-slate-900/5 sm:p-6">
                 <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Recent client intakes</h2>
                 <p className="mt-1 text-sm text-slate-600">Know how you did, collect real reviews, and use them on your Google Business, website, or social media. Every review builds your reputation 💙</p>
+                <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <span className="text-base">💡</span>
+                  <p className="text-xs leading-relaxed text-amber-800">
+                    <strong>Heads up:</strong> The first email from AdonisBlue may land in your client's spam or junk folder. Ask them to mark it as "Not Spam" so future emails go straight to their inbox!
+                  </p>
+                </div>
                 <ul className="mt-4 space-y-3">
                   {intakes.map((intake) => (
                     <li key={intake.id} className="flex flex-col gap-2 rounded-xl border border-slate-100 p-3 sm:flex-row sm:items-center sm:justify-between">
