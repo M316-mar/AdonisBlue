@@ -74,9 +74,8 @@ type Step1Data = {
   practiceName: string;
   city: string;
   state: string;
-  yearsExperience: string;
-  specialSentence: string;
   instagram: string;
+  notificationEmail: string;
   facebook: string;
   tiktok: string;
   website: string;
@@ -123,9 +122,8 @@ function defaultStep1(): Step1Data {
     practiceName: "",
     city: "",
     state: "",
-    yearsExperience: "",
-    specialSentence: "",
     instagram: "",
+    notificationEmail: "",
     facebook: "",
     tiktok: "",
     website: "",
@@ -429,8 +427,6 @@ export default function OnboardingPage() {
       if (!step1.practiceName.trim()) errors.push("Please add your practice name");
       if (!step1.city.trim()) errors.push("Please add your city");
       if (!step1.state.trim()) errors.push("Please add your state");
-      if (!step1.yearsExperience.trim()) errors.push("Please tell us how many years of experience you have");
-      if (!step1.specialSentence.trim()) errors.push("Please tell us what you never compromise on with your clients");
       return errors;
     }
     if (step === 2) {
@@ -545,6 +541,7 @@ export default function OnboardingPage() {
       practice_name: p.step1.practiceName.trim(),
       city: p.step1.city.trim(),
       state: p.step1.state.trim(),
+      notification_email: p.step1.notificationEmail.trim() || null,
       facebook: p.step1.facebook.trim() || null,
       tiktok: p.step1.tiktok.trim() || null,
       website: p.step1.website.trim() || null,
@@ -717,30 +714,21 @@ export default function OnboardingPage() {
                   />
                 </label>
                 <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">Years of experience</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={s1.yearsExperience}
-                    onChange={(e) => setStep1({ yearsExperience: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </label>
-                <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">What is the one thing you never compromise on with your clients?</span>
-                  <textarea
-                    value={s1.specialSentence}
-                    onChange={(e) => setStep1({ specialSentence: e.target.value })}
-                    rows={3}
-                    className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </label>
-                <label className="block sm:col-span-2">
                   <span className="mb-1 block text-sm font-medium text-[#1a2744]">Your Instagram handle (optional)</span>
                   <input
                     value={s1.instagram}
                     onChange={(e) => setStep1({ instagram: e.target.value })}
                     placeholder="@yourhandle"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">Notification email (optional)</span>
+                  <input
+                    type="email"
+                    value={s1.notificationEmail}
+                    onChange={(e) => setStep1({ notificationEmail: e.target.value })}
+                    placeholder="Where should we send client intake notifications?"
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
                   />
                 </label>
@@ -1309,14 +1297,6 @@ export default function OnboardingPage() {
                     <dd className="text-slate-700">
                       {s1.city || "—"}, {s1.state || "—"}
                     </dd>
-                  </div>
-                  <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                    <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Experience</dt>
-                    <dd className="text-slate-700">{s1.yearsExperience || "—"} years</dd>
-                  </div>
-                  <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                    <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">You</dt>
-                    <dd className="text-slate-700">{s1.specialSentence || "—"}</dd>
                   </div>
                   {s1.instagram ? (
                     <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
