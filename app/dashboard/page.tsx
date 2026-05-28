@@ -343,41 +343,60 @@ export default function NurseDashboardPage() {
             </section>
 
             {intakes.length > 0 ? (
-              <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-md shadow-slate-900/5 sm:p-6">
-                <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Recent client intakes</h2>
-                <p className="mt-1 text-sm text-slate-600">Know how you did, collect real reviews, and use them on your Google Business, website, or social media. Every review builds your reputation 💙</p>
-                <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
-                  <span className="text-base">💡</span>
-                  <p className="text-xs leading-relaxed text-amber-800">
-                    <strong>Heads up:</strong> The first email from AdonisBlue may land in your client's spam or junk folder. Ask them to mark it as "Not Spam" so future emails go straight to their inbox!
-                  </p>
-                </div>
-                <ul className="mt-4 space-y-3">
-                  {intakes.map((intake) => (
-                    <li key={intake.id} className="flex flex-col gap-2 rounded-xl border border-slate-100 p-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-[#1a2744]">{intake.first_name || "Client"}</p>
-                        <p className="text-xs text-slate-500">{intake.service_interested || "Service not specified"} • {new Date(intake.created_at).toLocaleDateString()}</p>
-                        {intake.referred_by ? <p className="text-xs text-teal-600">Found you via {intake.referred_by}</p> : null}
-                      </div>
-                      <button
-                        type="button"
-                        disabled={!!intake.survey_sent || surveyLoading === intake.id}
-                        onClick={() => void handleSendSurvey(intake)}
-                        className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {intake.survey_sent ? "Survey sent ✅" : surveyLoading === intake.id ? "Sending..." : "Send survey 💌"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleDeleteIntake(intake.id)}
-                        className="shrink-0 rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
-                      >
-                        Delete
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              <section className="rounded-2xl border border-slate-200/80 bg-white shadow-md shadow-slate-900/5">
+                <button
+                  type="button"
+                  onClick={() => setIntakesOpen((o) => !o)}
+                  className="flex w-full items-center justify-between px-4 py-4 sm:px-6"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-sm">💌</span>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-[#1a2744]">Client Intakes & Follow-ups</p>
+                      <p className="text-xs text-slate-500">{intakes.length} client{intakes.length !== 1 ? "s" : ""} — {intakes.filter(i => !i.survey_sent).length} follow-up{intakes.filter(i => !i.survey_sent).length !== 1 ? "s" : ""} pending</p>
+                    </div>
+                  </div>
+                  <span className="text-slate-400 text-sm">{intakesOpen ? "▲" : "▼"}</span>
+                </button>
+                {intakesOpen ? (
+                  <div className="border-t border-slate-100 px-4 pb-4 pt-3 sm:px-6">
+                    <p className="mb-3 text-xs leading-relaxed text-slate-600">Know how you did, collect real reviews, and use them on your Google Business, website, or social media. Every review builds your reputation 💙</p>
+                    <div className="mt-2 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 mb-4">
+                      <span className="text-base">💡</span>
+                      <p className="text-xs leading-relaxed text-amber-800">
+                        <strong>Heads up:</strong> The first email from AdonisBlue may land in your client's spam folder. Ask them to mark it as "Not Spam" so future emails go straight to their inbox!
+                      </p>
+                    </div>
+                    <ul className="space-y-3">
+                      {intakes.map((intake) => (
+                        <li key={intake.id} className="flex flex-col gap-2 rounded-xl border border-slate-100 p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-[#1a2744]">{intake.first_name || "Client"}</p>
+                            <p className="text-xs text-slate-500">{intake.service_interested || "Service not specified"} • {new Date(intake.created_at).toLocaleDateString()}</p>
+                            {intake.referred_by ? <p className="text-xs text-teal-600">Found you via {intake.referred_by}</p> : null}
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={!!intake.survey_sent || surveyLoading === intake.id}
+                              onClick={() => void handleSendSurvey(intake)}
+                              className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {intake.survey_sent ? "Survey sent ✅" : surveyLoading === intake.id ? "Sending..." : "Send survey 💌"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteIntake(intake.id)}
+                              className="shrink-0 rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </section>
             ) : null}
           </div>
