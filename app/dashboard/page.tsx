@@ -112,6 +112,7 @@ export default function NurseDashboardPage() {
   const [bot, setBot] = useState<BotRow | null>(null);
   const [intakes, setIntakes] = useState<IntakeRow[]>([]);
   const [surveyLoading, setSurveyLoading] = useState<string | null>(null);
+  const [intakesOpen, setIntakesOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
 
