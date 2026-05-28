@@ -441,7 +441,6 @@ export default function OnboardingPage() {
       return errors;
     }
     if (step === 3) {
-      if (!step3.botName.trim()) errors.push("Please give your bot a name");
       if (!step3.greeting.trim()) errors.push("Please add a greeting message for your clients");
       return errors;
     }
@@ -550,8 +549,8 @@ export default function OnboardingPage() {
       tiktok: p.step1.tiktok.trim() || null,
       website: p.step1.website.trim() || null,
       other_social: p.step1.otherSocial.trim() || null,
-      bot_name: p.step3.botName.trim(),
-      slug: slugify(p.step3.botName.trim() || p.step1.practiceName.trim() || "my-bot"),
+      bot_name: p.step1.practiceName.trim(),
+      slug: slugify(p.step1.practiceName.trim() || "my-bot"),
       greeting: p.step3.greeting.trim(),
       tone: p.step3.tone,
       primary_color: p.step3.primaryColor,
@@ -893,15 +892,6 @@ export default function OnboardingPage() {
           {persisted.currentStep === 3 ? (
             <div className="space-y-5">
               <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Bot personality and settings</h2>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Bot name</span>
-                <input
-                  value={s3.botName}
-                  onChange={(e) => setStep3({ botName: e.target.value })}
-                  placeholder="e.g. Glow Assistant"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                />
-              </label>
               <div className="space-y-2">
                 <span className="block text-sm font-medium text-[#1a2744]">Your logo (optional)</span>
                 <div className="flex flex-wrap items-center gap-3">
