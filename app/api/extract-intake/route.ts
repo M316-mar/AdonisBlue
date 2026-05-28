@@ -60,9 +60,17 @@ ${conversation}`
       notified_nurse: false,
     });
 
+    const { data: botData } = await supabase
+      .from("bots")
+      .select("notification_email")
+      .eq("nurse_id", nurse_id)
+      .single();
+
+    const emailTo = botData?.notification_email || nurse_email;
+
     await resend.emails.send({
       from: "AdonisBlue <hello@adonisblue.io>",
-      to: nurse_email,
+      to: emailTo,
       subject: `💙 New client intake — ${intake.first_name || "A new client"} has been sent your booking link!`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
