@@ -29,6 +29,7 @@ const CHECKLIST: { id: ChecklistId; label: string; alwaysDone?: boolean }[] = [
 ];
 
 type BotRow = {
+  slug?: string | null;
   practice_name?: string | null;
   bot_name?: string | null;
   services?: string[] | null;
@@ -158,9 +159,10 @@ export default function NurseDashboardPage() {
   const done = useMemo(() => computeChecklistDone(bot), [bot]);
   const launched = bot?.launched === true;
   const botChatSlug = useMemo(() => {
+    if (bot?.slug) return bot.slug;
     const raw = (bot?.bot_name || "").trim() || (bot?.practice_name || "").trim() || "my-bot";
     return slugify(raw);
-  }, [bot?.bot_name, bot?.practice_name]);
+  }, [bot?.slug, bot?.bot_name, bot?.practice_name]);
 
   const completedCount = useMemo(() => CHECKLIST.filter((item) => done[item.id]).length, [done]);
   const progressPct = Math.round((completedCount / CHECKLIST.length) * 100);
