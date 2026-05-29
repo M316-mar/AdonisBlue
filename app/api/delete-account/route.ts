@@ -2,41 +2,46 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  try {
+    const token = request.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!url || !anonKey || !serviceRoleKey) {
-    return NextResponse.json({ error: "Account deletion is not configured on this server." }, { status: 503 });
+    const supabaseAuth = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { data: { user } } = await supabaseAuth.auth.getUser(token);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const nurse_id = user.id;
+
+    // Delete reviews first (references intakes)
+    const { data: intakes } = await supabase
+      .from("intakes")
+      .select("id")
+      .eq("nurse_id", nurse_id);
+
+    if (intakes && intakes.length > 0) {
+      const intakeIds = intakes.map(i => i.id);
+      await supabase.from("reviews").delete().in("intake_id", intakeIds);
+    }
+
+    // Delete intakes
+    await supabase.from("intakes").delete().eq("nurse_id", nurse_id);
+
+    // Delete bots
+    await supabase.from("bots").delete().eq("nurse_id", nurse_id);
+
+    // Delete auth user
+    await supabase.auth.admin.deleteUser(nurse_id);
+
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
-
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const accessToken = authHeader.slice("Bearer ".length).trim();
-
-  const userClient = createClient(url, anonKey, {
-    global: { headers: { Authorization: `Bearer ${accessToken}` } },
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
-  const {
-    data: { user },
-    error: userError,
-  } = await userClient.auth.getUser();
-  if (userError || !user) {
-    return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 });
-  }
-
-  const admin = createClient(url, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
-  const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
-  if (deleteError) {
-    return NextResponse.json({ error: deleteError.message }, { status: 400 });
-  }
-
-  return NextResponse.json({ ok: true });
 }

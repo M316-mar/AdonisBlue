@@ -175,6 +175,14 @@ export default function NurseDashboardPage() {
   const handleConfirmDeleteDialog = useCallback(async () => {
     setDeleteBusy(true);
     try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (token) {
+        await fetch("/api/delete-account", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
       await supabase.auth.signOut();
       router.push("/");
     } finally {
