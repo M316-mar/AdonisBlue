@@ -419,20 +419,6 @@ export default function AuthPage() {
               Tech<span className="text-[#38bdf8]">.</span> that cares
             </p>
           </div>
-          <ul className="relative mt-12 space-y-6 border-t border-white/10 pt-10 text-left">
-            <li className="text-sm leading-relaxed text-slate-200">
-              <span className="font-semibold text-white">Sarah M.</span>
-              <span className="text-slate-400"> — </span>I never miss a client question anymore.
-            </li>
-            <li className="text-sm leading-relaxed text-slate-200">
-              <span className="font-semibold text-white">Jessica R.</span>
-              <span className="text-slate-400"> — </span>My clients think I have a full team.
-            </li>
-            <li className="text-sm leading-relaxed text-slate-200">
-              <span className="font-semibold text-white">Maria L.</span>
-              <span className="text-slate-400"> — </span>Best investment I made for my practice.
-            </li>
-          </ul>
         </aside>
       </div>
     </div>

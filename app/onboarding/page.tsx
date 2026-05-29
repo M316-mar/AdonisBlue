@@ -109,6 +109,7 @@ type Step3Data = {
 };
 
 type OnboardingPersisted = {
+  userId?: string;
   currentStep: number;
   step1: Step1Data;
   step2: Step2Data;
@@ -160,6 +161,7 @@ function defaultStep3(): Step3Data {
 
 function defaultPersisted(): OnboardingPersisted {
   return {
+    userId: "",
     currentStep: 1,
     step1: defaultStep1(),
     step2: defaultStep2(),
@@ -350,6 +352,18 @@ export default function OnboardingPage() {
       }
       const fromAccount = displayNameFromUser(data.session.user);
       const loaded = loadPersisted();
+      // Clear localStorage if it belongs to a different user
+      const storedUserId = loaded.userId;
+      if (storedUserId && storedUserId !== data.session.user.id) {
+        const fresh = defaultPersisted();
+        fresh.userId = data.session.user.id;
+        savePersisted(fresh);
+        setPersisted(fresh);
+        setReady(true);
+        return;
+      }
+      loaded.userId = data.session.user.id;
+      savePersisted(loaded);
       if (fromAccount && !loaded.step1.fullName.trim()) {
         loaded.step1.fullName = fromAccount;
         savePersisted(loaded);
