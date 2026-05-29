@@ -409,10 +409,6 @@ export default function NurseDashboardPage() {
                 <h3 className="text-base font-semibold text-[#1a2744] sm:text-lg">Your bot</h3>
                 <dl className="mt-4 space-y-3 text-sm">
                   <div>
-                    <dt className="font-medium text-slate-500">Bot name</dt>
-                    <dd className="mt-0.5 font-medium text-[#1a2744]">{bot?.bot_name?.trim() || "—"}</dd>
-                  </div>
-                  <div>
                     <dt className="font-medium text-slate-500">Practice name</dt>
                     <dd className="mt-0.5 font-medium text-[#1a2744]">{bot?.practice_name?.trim() || "—"}</dd>
                   </div>
