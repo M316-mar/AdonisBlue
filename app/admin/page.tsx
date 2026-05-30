@@ -113,7 +113,7 @@ export default function AdminPage() {
                     <td className="py-3 pr-4">
                       <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${nurse.frozen ? "border-amber-200 bg-amber-50 text-amber-700" : nurse.launched ? "border-green-200 bg-green-50 text-green-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
                         {nurse.frozen ? "Frozen" : nurse.launched ? "Active" : "Not launched"}
-                      </sp>
+                      </span>
                     </td>
                     <td className="py-3 pr-4 text-slate-600">{new Date(nurse.created_at).toLocaleDateString()}</td>
                     <td className="py-3">
