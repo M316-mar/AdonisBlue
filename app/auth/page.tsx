@@ -198,107 +198,118 @@ export default function AuthPage() {
             </div>
 
             {mode === "signup" ? (
-              <form className="mt-8 space-y-5" onSubmit={handleSignupSubmit}>
-                <div>
-                  <label htmlFor="signup-name" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
-                    Full name
-                  </label>
-                  <input
-                    id="signup-name"
-                    name="name"
-                    type="text"
-                    autoComplete="name"
-                    value={signupName}
-                    onChange={(e) => setSignupName(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
-                    placeholder="Jane Doe"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="signup-email" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
-                    Email address
-                  </label>
-                  <input
-                    id="signup-email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    value={signupEmail}
-                    onChange={(e) => setSignupEmail(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
-                    placeholder="you@practice.com"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="signup-password" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
-                    Password
-                  </label>
-                  <input
-                    id="signup-password"
-                    name="password"
-                    type="password"
-                    autoComplete="new-password"
-                    value={signupPassword}
-                    onChange={(e) => setSignupPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
-                    placeholder="Create a strong password"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="signup-confirm" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
-                    Confirm password
-                  </label>
-                  <input
-                    id="signup-confirm"
-                    name="confirmPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    value={signupConfirm}
-                    onChange={(e) => setSignupConfirm(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
-                    placeholder="Confirm your password"
-                  />
-                </div>
-                <label className="flex cursor-pointer items-start gap-3 pt-1">
-                  <input
-                    type="checkbox"
-                    name="terms"
-                    checked={termsAccepted}
-                    onChange={(e) => setTermsAccepted(e.target.checked)}
-                    className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-[#0d9488] focus:ring-[#0d9488]"
-                  />
-                  <span className="text-sm leading-snug text-slate-600">
-                    I agree to keep my clients privacy and AdonisBlue terms
-                  </span>
-                </label>
-                <button
-                  type="submit"
-                  disabled={signupLoading}
-                  aria-busy={signupLoading}
-                  className="mt-2 w-full rounded-full bg-[#0d9488] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-70 sm:text-base"
-                >
-                  {signupLoading ? "Creating your account..." : "Create my account"}
-                </button>
-                {signupError ? (
-                  <p className="text-center text-sm leading-relaxed text-red-600" role="alert">
-                    {signupError}
-                  </p>
-                ) : null}
-                {signupSuccessMessage ? (
-                  <p className="text-center text-sm leading-relaxed text-[#0d9488]" role="status">
-                    {signupSuccessMessage}
-                  </p>
-                ) : null}
-                <p className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-center text-sm leading-relaxed text-slate-600">
-                  We know you work hard and have many options. We&apos;re honored you chose AdonisBlue. We&apos;re here to make sure every client who finds you feels as confident as the ones who already love your work. 💙
-                </p>
-                <p className="text-center text-sm text-slate-600">
-                  Already have an account?{" "}
-                  <button type="button" onClick={() => switchToLogin()} className="font-semibold text-[#0d9488] hover:underline">
-                    Log in
+              signupSuccessMessage ? (
+                <div className="mt-8 text-center">
+                  <p className="text-4xl">🦋</p>
+                  <h2 className="mt-4 text-xl font-semibold text-[#1a2744]">You&apos;re in!</h2>
+                  <p className="mt-3 text-sm leading-relaxed text-[#0d9488]">{signupSuccessMessage}</p>
+                  <p className="mt-4 text-sm text-slate-600">Check your email and click the confirmation link to get started.</p>
+                  <button
+                    type="button"
+                    onClick={() => switchToLogin()}
+                    className="mt-6 text-sm font-semibold text-[#0d9488] hover:underline"
+                  >
+                    Already confirmed? Log in →
                   </button>
-                </p>
-              </form>
+                </div>
+              ) : (
+                <form className="mt-8 space-y-5" onSubmit={handleSignupSubmit}>
+                  <div>
+                    <label htmlFor="signup-name" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
+                      Full name
+                    </label>
+                    <input
+                      id="signup-name"
+                      name="name"
+                      type="text"
+                      autoComplete="name"
+                      value={signupName}
+                      onChange={(e) => setSignupName(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                      placeholder="Jane Doe"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="signup-email" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
+                      Email address
+                    </label>
+                    <input
+                      id="signup-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                      placeholder="you@practice.com"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="signup-password" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
+                      Password
+                    </label>
+                    <input
+                      id="signup-password"
+                      name="password"
+                      type="password"
+                      autoComplete="new-password"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                      placeholder="Create a strong password"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="signup-confirm" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
+                      Confirm password
+                    </label>
+                    <input
+                      id="signup-confirm"
+                      name="confirmPassword"
+                      type="password"
+                      autoComplete="new-password"
+                      value={signupConfirm}
+                      onChange={(e) => setSignupConfirm(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                      placeholder="Confirm your password"
+                    />
+                  </div>
+                  <label className="flex cursor-pointer items-start gap-3 pt-1">
+                    <input
+                      type="checkbox"
+                      name="terms"
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-[#0d9488] focus:ring-[#0d9488]"
+                    />
+                    <span className="text-sm leading-snug text-slate-600">
+                      I agree to keep my clients privacy and AdonisBlue terms
+                    </span>
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={signupLoading}
+                    aria-busy={signupLoading}
+                    className="mt-2 w-full rounded-full bg-[#0d9488] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-70 sm:text-base"
+                  >
+                    {signupLoading ? "Creating your account..." : "Create my account"}
+                  </button>
+                  {signupError ? (
+                    <p className="text-center text-sm leading-relaxed text-red-600" role="alert">
+                      {signupError}
+                    </p>
+                  ) : null}
+                  <p className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-center text-sm leading-relaxed text-slate-600">
+                    We know you work hard and have many options. We&apos;re honored you chose AdonisBlue. We&apos;re here to make sure every client who finds you feels as confident as the ones who already love your work. 💙
+                  </p>
+                  <p className="text-center text-sm text-slate-600">
+                    Already have an account?{" "}
+                    <button type="button" onClick={() => switchToLogin()} className="font-semibold text-[#0d9488] hover:underline">
+                      Log in
+                    </button>
+                  </p>
+                </form>
+              )
             ) : (
               <>
               <form className="mt-8 space-y-5" onSubmit={handleLoginSubmit}>
