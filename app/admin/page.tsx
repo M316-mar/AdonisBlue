@@ -86,19 +86,11 @@ export default function AdminPage() {
     const nextFrozen = !nurse.frozen;
     setFreezeLoading(nurse.nurse_id);
     try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) return;
-
       const res = await fetch("/api/admin/freeze-account", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nurse_id: nurse.nurse_id, frozen: nextFrozen }),
       });
-
       if (res.ok) {
         setNurses((prev) =>
           prev.map((n) => (n.nurse_id === nurse.nurse_id ? { ...n, frozen: nextFrozen } : n))
