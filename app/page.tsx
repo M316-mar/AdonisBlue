@@ -149,11 +149,11 @@ export default function Home() {
           <div className="relative mx-auto grid max-w-6xl gap-10 lg:grid-cols-2 lg:items-center lg:gap-14 xl:gap-20">
             <div className="order-1">
               <p className="mb-4 inline-flex rounded-full border border-sky-300/35 bg-sky-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#38bdf8] sm:text-xs">Built for nurse injectors</p>
-              <h1 className="text-balance text-[1.65rem] font-semibold leading-snug tracking-tight text-white sm:text-3xl sm:leading-tight md:text-4xl lg:text-[2.35rem] xl:text-[2.65rem]">
-                Your clients are texting you at 11pm. You&apos;re exhausted. And you&apos;re still losing them to whoever answered first.
+              <h1 className="text-balance text-[1.65rem] font-bold leading-snug tracking-tight text-white sm:text-3xl sm:leading-tight md:text-4xl lg:text-[2.35rem] xl:text-[2.65rem]">
+                Stop losing clients to whoever answered first.
               </h1>
               <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">
-                AdonisBlue handles repetitive client questions in your voice, routes complex ones to you, and keeps your front desk feeling responsive even when you are in treatment.
+                AdonisBlue is your AI front desk — built for nurse injectors. It answers client questions in your voice, 24/7, while you focus on what you do best.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <a href="#pricing" className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-[#0d9488] px-7 py-3.5 text-center text-sm font-semibold text-white shadow-lg shadow-teal-900/20 transition hover:bg-teal-700 sm:text-base">Start my free trial</a>
@@ -200,6 +200,24 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="border-b border-sky-100 bg-white px-4 py-8 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-6xl">
+            <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
+              {[
+                { stat: "24/7", label: "Client coverage" },
+                { stat: "5 min", label: "Setup time" },
+                { stat: "2x", label: "More bookings" },
+                { stat: "0", label: "Missed questions" },
+              ].map((item) => (
+                <div key={item.label} className="text-center">
+                  <p className="text-3xl font-bold text-[#0d9488] sm:text-4xl">{item.stat}</p>
+                  <p className="mt-1 text-sm font-medium text-slate-600">{item.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section id="daily-flow" className="border-b border-sky-100 bg-[#ffffff] px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-2xl text-center">
@@ -241,6 +259,52 @@ export default function Home() {
                 </li>
               ))}
             </ul>
+          </div>
+        </section>
+
+        <section className="border-b border-sky-100 bg-[#ffffff] px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#0d9488]">How nurses use it</p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[#1a2744] sm:text-3xl md:text-4xl">Meet clients where they already are</h2>
+            </div>
+            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+              {[
+                {
+                  title: "Share your bot link in your Instagram bio",
+                  description: "One link handles story replies and DMs while you are in treatment — no more typing the same answers all day.",
+                  icon: (
+                    <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                    </svg>
+                  ),
+                },
+                {
+                  title: "Embed the chat bubble on your website",
+                  description: "Visitors get instant answers on your site without waiting for email — so fewer people bounce to a competitor.",
+                  icon: (
+                    <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                    </svg>
+                  ),
+                },
+                {
+                  title: "Send the link directly in a text or DM",
+                  description: "Drop your bot link in a message so curious clients get clear answers before they book with someone else.",
+                  icon: (
+                    <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                    </svg>
+                  ),
+                },
+              ].map((item) => (
+                <article key={item.title} className="rounded-2xl border border-sky-100 bg-[#e0f2fe]/45 p-6 shadow-sm shadow-sky-100/70 sm:p-8">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0d9488]/15 text-[#0d9488]">{item.icon}</div>
+                  <h3 className="mt-5 text-lg font-bold text-[#1a2744]">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-slate-600">{item.description}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -327,16 +391,18 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="final-cta" className="bg-[#1a2744] px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
+        <section id="final-cta" className="bg-gradient-to-br from-[#1a2744] to-[#0d9488] px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl md:text-4xl">Ready to create your assistant?</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-5xl">Ready to create your assistant?</h2>
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-slate-300 sm:text-lg">Watch how a nurse sets up her chatbot in under 5 minutes - and never misses a client question again.</p>
-            <div className="mt-10 flex flex-col items-center gap-6 sm:flex-row sm:justify-center sm:gap-5">
+            <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-5">
               <a href="#pricing" className="inline-flex min-h-[52px] w-full min-w-[200px] items-center justify-center rounded-full bg-[#0d9488] px-8 py-3.5 text-sm font-semibold text-white shadow-xl shadow-teal-900/25 transition hover:bg-teal-700 sm:w-auto sm:text-base">Build my free chatbot</a>
-              <div className="flex w-full flex-col items-center sm:w-auto">
-                <button type="button" disabled className="inline-flex min-h-[52px] w-full cursor-not-allowed items-center justify-center rounded-full border-2 border-sky-200/30 bg-white/[0.04] px-8 py-3.5 text-sm font-semibold text-sky-200/60 opacity-70 sm:w-auto sm:min-w-[200px] sm:text-base">Watch it in action</button>
-                <p className="mt-2 text-xs text-sky-200/60">Coming soon</p>
-              </div>
+              <a
+                href="/auth"
+                className="inline-flex min-h-[52px] w-full min-w-[200px] items-center justify-center rounded-full border-2 border-white/40 bg-white/10 px-8 py-3.5 text-sm font-semibold text-white transition hover:border-white hover:bg-white/20 sm:w-auto sm:text-base"
+              >
+                Log in
+              </a>
             </div>
           </div>
         </section>
