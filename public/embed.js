@@ -18,7 +18,7 @@
   // Create iframe container
   var container = document.createElement('div');
   container.id = 'adonisblue-container';
-  container.style.cssText = 'posion:fixed;bottom:90px;right:24px;width:380px;height:600px;border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.2);z-index:99998;display:none;';
+  container.style.cssText = 'position:fixed;bottom:90px;right:24px;width:380px;height:600px;border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.2);z-index:99998;display:none;';
   
   var iframe = document.createElement('iframe');
   iframe.src = 'https://www.adonisblue.io/chat/' + slug;
