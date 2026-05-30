@@ -31,7 +31,10 @@ export async function GET(request: Request) {
     const user = await getAuthedUser(request);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!(await isAdmin(user.id))) {
+    console.log("Checking admin for user:", user.id);
+    const adminCheck = await isAdmin(user.id);
+    console.log("Is admin:", adminCheck);
+    if (!adminCheck) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
