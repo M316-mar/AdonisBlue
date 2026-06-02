@@ -360,8 +360,8 @@ export default function PublicChatPage() {
       aria-hidden={!chatOpen}
     >
       <div
-        className="flex shrink-0 items-center justify-between gap-2 border-b border-white/25 px-4 py-3 text-white md:rounded-t-2xl"
-        style={{ backgroundColor: primary }}
+        className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 md:rounded-t-2xl"
+        style={{ background: `linear-gradient(135deg, ${primary}15 0%, white 100%)` }}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {botLogoImage ? (
@@ -373,10 +373,10 @@ export default function PublicChatPage() {
             />
           ) : null}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold leading-tight" style={getBotNameFontStyle(fontId)}>
+            <p className="truncate text-sm font-semibold leading-tight text-slate-800" style={getBotNameFontStyle(fontId)}>
               {botTitle}
             </p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-white/90">
+            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_0_2px_rgba(255,255,255,0.35)]" />
               Online
             </p>
@@ -385,7 +385,7 @@ export default function PublicChatPage() {
         <button
           type="button"
           onClick={() => setChatOpen(false)}
-          className="shrink-0 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-white/30 transition hover:bg-white/25"
+          className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
         >
           Close
         </button>
@@ -395,10 +395,12 @@ export default function PublicChatPage() {
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
-              className={`max-w-[90%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-sm ${
-                m.role === "user" ? "rounded-br-md bg-white text-slate-800 ring-1 ring-slate-200/80" : "rounded-bl-md text-white"
+              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-sm ${
+                m.role === "user"
+                  ? "rounded-br-sm bg-[#0d9488] text-white"
+                  : "rounded-bl-sm bg-white text-slate-800 ring-1 ring-slate-100 shadow-sm"
               }`}
-              style={m.role === "assistant" ? { backgroundColor: primary } : undefined}
+              style={m.role === "user" ? { backgroundColor: primary } : undefined}
             >
               {renderMessageContent(m.content)}
               {m.photos && m.photos.length > 0 ? (
@@ -419,10 +421,7 @@ export default function PublicChatPage() {
         ))}
         {sending ? (
           <div className="flex justify-start">
-            <div
-              className="rounded-2xl rounded-bl-md px-4 py-3 text-sm text-white/95"
-              style={{ backgroundColor: primary }}
-            >
+            <div className="rounded-2xl rounded-bl-sm bg-white px-4 py-3 text-sm text-slate-400 ring-1 ring-slate-100 shadow-sm">
               <span className="inline-flex gap-1">
                 <span className="animate-bounce">●</span>
                 <span className="animate-bounce [animation-delay:120ms]">●</span>
