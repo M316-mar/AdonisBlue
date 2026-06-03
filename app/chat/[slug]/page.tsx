@@ -361,7 +361,7 @@ export default function PublicChatPage() {
     >
       <div
         className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 md:rounded-t-2xl"
-        style={{ background: `linear-gradient(135deg, ${primary}15 0%, white 100%)` }}
+        style={{ background: `linear-gradient(135deg, ${primary}08 0%, #ffffff 60%)` }}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {botLogoImage ? (
@@ -373,7 +373,7 @@ export default function PublicChatPage() {
             />
           ) : null}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold leading-tight text-slate-800" style={getBotNameFontStyle(fontId)}>
+            <p className="truncate text-sm font-semibold leading-tight text-[#1a2744]" style={getBotNameFontStyle(fontId)}>
               {botTitle}
             </p>
             <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
