@@ -512,15 +512,15 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              className="h-12 w-12 shrink-0 rounded-xl bg-white/15 object-contain p-1 ring-2 ring-white/25 sm:h-14 sm:w-14"
+              className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1 shadow-sm sm:h-14 sm:w-14"
             />
           ) : null}
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl" style={getBotNameFontStyle(fontId)}>
+            <h1 className="truncate text-lg font-semibold tracking-tight text-[#1a2744] sm:text-xl" style={getBotNameFontStyle(fontId)}>
               {botTitle}
             </h1>
-            <p className="mt-1 flex items-center gap-2 text-xs font-medium text-white/90 sm:text-sm">
-              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_0_2px_rgba(255,255,255,0.35)]" />
+            <p className="mt-1 flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
               Online — we typically reply right away
             </p>
           </div>
