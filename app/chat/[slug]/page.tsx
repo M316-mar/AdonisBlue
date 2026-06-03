@@ -370,7 +370,7 @@ export default function PublicChatPage() {
           ? "inset-0 translate-y-0 opacity-100 md:inset-auto md:bottom-6 md:right-6 md:h-[min(36rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:w-[min(100%,24rem)]"
           : "pointer-events-none inset-0 translate-y-full opacity-0 md:inset-auto md:bottom-6 md:right-6 md:h-[min(36rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:w-[min(100%,24rem)] md:translate-y-8 md:opacity-0"
       }`}
-      style={{ visibility: chatOpen ? "visible" : "hidden", "--tw-border-opacity": "1" }}
+      style={{ visibility: chatOpen ? "visible" : "hidden" }}
       aria-hidden={!chatOpen}
     >
       <div className="h-1 w-full md:rounded-t-2xl" style={{ backgroundColor: primary }} />
