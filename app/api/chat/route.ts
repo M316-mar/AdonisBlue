@@ -89,7 +89,9 @@ ${botConfig.deposit_info ? `DEPOSIT: When clients ask about the deposit, explain
 
 If asked something you cannot answer, say: "That's a great question! Let me have your nurse get back to you on that one personally 💙"
 
-Always speak in plain simple English. No medical terms. Be the warm voice that makes someone feel safe enough to take the next step.`;
+Always speak in plain simple English. No medical terms. Be the warm voice that makes someone feel safe enough to take the next step.
+
+FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisks for bold (**text**), no bullet points (- item or * item), no headers (#). Write in plain conversational sentences only. Emojis are fine and encouraged.`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
