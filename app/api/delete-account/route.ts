@@ -37,6 +37,9 @@ export async function POST(request: Request) {
     // Delete bots
     await supabase.from("bots").delete().eq("nurse_id", nurse_id);
 
+    // Delete from admins if they were an admin
+    await supabase.from("admins").delete().eq("user_id", nurse_id);
+
     // Delete auth user
     await supabase.auth.admin.deleteUser(nurse_id);
 

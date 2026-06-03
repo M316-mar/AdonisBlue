@@ -183,6 +183,9 @@ export default function NurseDashboardPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
+      // Clear all local storage data
+      localStorage.clear();
+      sessionStorage.clear();
       await supabase.auth.signOut();
       router.push("/");
     } finally {
