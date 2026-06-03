@@ -25,16 +25,19 @@ function friendlySignupError(error: AuthError): string {
 }
 
 function friendlyLoginError(error: AuthError): string {
-  const raw = `${error.message ?? ""}`.toLowerCase();
+  const raw = `${error.message ?? ""} ${(error as { code?: string }).code ?? ""}`.toLowerCase();
   if (raw.includes("email not confirmed")) {
     return "Please confirm your email first — we sent you a link when you signed up.";
+  }
+  if (raw.includes("user not found") || raw.includes("no user") || raw.includes("email not found")) {
+    return "We don't have an account for that email. Would you like to sign up instead?";
   }
   if (
     raw.includes("invalid login") ||
     raw.includes("invalid credentials") ||
     raw.includes("wrong password")
   ) {
-    return "Hmm that password doesn't look right — want to try again?";
+    return "Hmm, that email or password doesn't look right — want to try again?";
   }
   return "We couldn't sign you in right now. Please try again in a moment.";
 }
