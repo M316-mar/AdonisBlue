@@ -398,9 +398,10 @@ export default function PublicChatPage() {
             <div
               className={`max-w-[85%] text-sm leading-relaxed ${
                 m.role === "user"
-                  ? "rounded-2xl rounded-br-sm bg-slate-100 px-3.5 py-2.5 text-slate-800"
+                  ? "rounded-2xl rounded-br-sm border-2 bg-white px-3.5 py-2.5 text-slate-800"
                   : "py-1 text-slate-800"
               }`}
+              style={m.role === "user" ? { borderColor: primary } : undefined}
             >
               {renderMessageContent(m.content)}
               {m.photos && m.photos.length > 0 ? (
