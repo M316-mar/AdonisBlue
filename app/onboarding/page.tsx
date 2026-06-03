@@ -351,6 +351,10 @@ export default function OnboardingPage() {
         return;
       }
       const fromAccount = displayNameFromUser(data.session.user);
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get("new") === "1") {
+        localStorage.removeItem(STORAGE_KEY);
+      }
       const loaded = loadPersisted();
       // Clear localStorage if it belongs to a different user
       const storedUserId = loaded.userId;
@@ -368,7 +372,7 @@ export default function OnboardingPage() {
         loaded.step1.fullName = fromAccount;
         savePersisted(loaded);
       }
-      const stepRaw = new URLSearchParams(window.location.search).get("step");
+      const stepRaw = searchParams.get("step");
       const stepNumRaw = stepRaw ? Number.parseInt(stepRaw, 10) : NaN;
       let stepNum = stepNumRaw;
       if (stepNum === 5) stepNum = 4;
