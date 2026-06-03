@@ -171,6 +171,14 @@ export default function NurseDashboardPage() {
   const completedCount = useMemo(() => CHECKLIST.filter((item) => done[item.id]).length, [done]);
   const progressPct = Math.round((completedCount / CHECKLIST.length) * 100);
 
+  const totalClients = useMemo(() => intakes.length, [intakes]);
+  const aftercareSent = useMemo(() => intakes.filter((i) => i.aftercare_sent_at).length, [intakes]);
+  const reviewsRequested = useMemo(() => intakes.filter((i) => i.survey_sent).length, [intakes]);
+  const remindersScheduled = useMemo(
+    () => intakes.filter((i) => i.aftercare_sent_at && !i.reminder_6m_sent).length,
+    [intakes]
+  );
+
   const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     router.push("/auth");
@@ -283,6 +291,32 @@ export default function NurseDashboardPage() {
                   As someone who truly cares about your clients&apos; experience, you&apos;re exactly the kind of injector AdonisBlue was built for. Let&apos;s make today count. 🦋
                 </p>
               </div>
+            </section>
+
+            <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+              {[
+                { label: "Total Clients", value: totalClients, emoji: "💌", color: "#0d9488" },
+                { label: "Aftercare Sent", value: aftercareSent, emoji: "✅", color: "#0d9488" },
+                { label: "Reviews Requested", value: reviewsRequested, emoji: "⭐", color: "#0d9488" },
+                { label: "Reminders Queued", value: remindersScheduled, emoji: "🔔", color: "#0d9488" },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="relative overflow-hidden rounded-2xl border border-teal-900/10 bg-[#1a2744] px-4 py-4 shadow-lg shadow-slate-900/10 sm:px-5 sm:py-5"
+                >
+                  <div
+                    className="pointer-events-none absolute inset-0 opacity-60"
+                    style={{
+                      background: "radial-gradient(ellipse 80% 60% at 80% 0%, rgba(13,148,136,0.25), transparent)",
+                    }}
+                    aria-hidden
+                  />
+                  <div className="relative">
+                    <p className="text-2xl font-bold tabular-nums text-white sm:text-3xl">{stat.value}</p>
+                    <p className="mt-1 text-xs font-medium text-teal-300/90 sm:text-sm">{stat.emoji} {stat.label}</p>
+                  </div>
+                </div>
+              ))}
             </section>
 
             <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-md shadow-slate-900/5 sm:p-6">
