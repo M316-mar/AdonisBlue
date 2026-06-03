@@ -63,6 +63,10 @@ export default function AuthPage() {
   const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const [signupSuccessMessage, setSignupSuccessMessage] = useState<string | null>(null);
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+
   function switchToSignup() {
     setMode("signup");
     setLoginError(null);
@@ -248,31 +252,51 @@ export default function AuthPage() {
                     <label htmlFor="signup-password" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
                       Password
                     </label>
-                    <input
-                      id="signup-password"
-                      name="password"
-                      type="password"
-                      autoComplete="new-password"
-                      value={signupPassword}
-                      onChange={(e) => setSignupPassword(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
-                      placeholder="Create a strong password"
-                    />
+                    <div className="relative">
+                      <input
+                        id="signup-password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                        placeholder="Create a strong password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((p) => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? "🙈" : "👁️"}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label htmlFor="signup-confirm" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
                       Confirm password
                     </label>
-                    <input
-                      id="signup-confirm"
-                      name="confirmPassword"
-                      type="password"
-                      autoComplete="new-password"
-                      value={signupConfirm}
-                      onChange={(e) => setSignupConfirm(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
-                      placeholder="Confirm your password"
-                    />
+                    <div className="relative">
+                      <input
+                        id="signup-confirm"
+                        name="confirmPassword"
+                        type={showConfirm ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={signupConfirm}
+                        onChange={(e) => setSignupConfirm(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                        placeholder="Confirm your password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirm((p) => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        aria-label={showConfirm ? "Hide password" : "Show password"}
+                      >
+                        {showConfirm ? "🙈" : "👁️"}
+                      </button>
+                    </div>
                   </div>
                   <label className="flex cursor-pointer items-start gap-3 pt-1">
                     <input
@@ -346,16 +370,26 @@ export default function AuthPage() {
                       Forgot password?
                     </button>
                   </div>
-                  <input
-                    id="login-password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
-                    placeholder="Your password"
-                  />
+                  <div className="relative">
+                    <input
+                      id="login-password"
+                      name="password"
+                      type={showLoginPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                      placeholder="Your password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword((p) => !p)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                    >
+                      {showLoginPassword ? "🙈" : "👁️"}
+                    </button>
+                  </div>
                 </div>
                 <button
                   type="submit"
