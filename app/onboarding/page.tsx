@@ -428,11 +428,6 @@ export default function OnboardingPage() {
 
   const shareOrigin = typeof window !== "undefined" ? window.location.origin : "https://adonisblue.com";
 
-  const previewBubbleAttention = useMemo(
-    () => persisted.step3.bubbleAttentionMessage.trim() || ATTENTION_CHIP_TEXTS[0],
-    [persisted.step3.bubbleAttentionMessage]
-  );
-
   function getStepValidationErrors(step: number): string[] {
     const { step1, step2, step3 } = persisted;
     const errors: string[] = [];
@@ -1380,69 +1375,93 @@ export default function OnboardingPage() {
 
               <section>
                 <h3 className="mb-3 text-sm font-semibold text-[#1a2744]">Live chat preview</h3>
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-900/5">
-                  <div
-                    className="flex items-center justify-between border-b border-white/20 px-4 py-3 text-white"
-                    style={{ backgroundColor: s3.primaryColor }}
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      {s3.logoImage ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={s3.logoImage}
-                          alt=""
-                          className="h-8 w-8 shrink-0 rounded-lg bg-white/10 object-contain p-0.5"
-                        />
-                      ) : null}
-                      <span
-                        className="truncate text-sm font-semibold text-white"
+                <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-900/5">
+                  <div className="h-1 w-full shrink-0" style={{ backgroundColor: s3.primaryColor }} aria-hidden />
+                  <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 bg-white px-4 py-3">
+                    {previewLogoImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={previewLogoImage}
+                        alt=""
+                        className="h-9 w-9 shrink-0 rounded-lg object-contain ring-1 ring-slate-100"
+                      />
+                    ) : null}
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className="truncate text-sm font-semibold leading-tight text-[#1a2744]"
                         style={getBotNameFontStyle(s3.botNameFont)}
                       >
-                        {s3.botName || "Your bot"}
-                      </span>
+                        {s1.practiceName.trim() || s3.botName.trim() || "Your practice"}
+                      </p>
+                      <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                        <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+                        Online
+                      </p>
                     </div>
-                    <span className="text-xs text-white/90">Preview</span>
                   </div>
-                  <div className="relative space-y-3 bg-slate-50 px-3 py-4 pb-28 sm:px-4 sm:pb-32">
+                  <div className="min-h-[12rem] space-y-3 bg-slate-50 px-3 py-4 sm:px-4">
                     <div className="flex justify-start">
-                      <div
-                        className="max-w-[85%] rounded-2xl rounded-bl-md px-3 py-2.5 text-sm leading-relaxed text-white shadow-sm"
-                        style={{ backgroundColor: s3.primaryColor }}
-                      >
+                      <p className="max-w-[85%] whitespace-pre-wrap py-1 text-sm leading-relaxed text-slate-800">
                         {s3.greeting || "Your greeting will appear here."}
-                      </div>
+                      </p>
                     </div>
                     {chatInput.trim() ? (
                       <div className="flex justify-end">
-                        <div className="max-w-[85%] rounded-2xl rounded-br-md border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm">
+                        <div
+                          className="max-w-[85%] rounded-full border-2 bg-white px-3.5 py-2 text-sm leading-relaxed text-slate-800"
+                          style={{ borderColor: s3.primaryColor }}
+                        >
                           {chatInput}
                         </div>
                       </div>
-                    ) : null}
-                    <div className="flex gap-2 pt-1">
+                    ) : (
+                      <div className="flex justify-end">
+                        <div
+                          className="max-w-[85%] rounded-full border-2 bg-white px-3.5 py-2 text-sm leading-relaxed text-slate-800"
+                          style={{ borderColor: s3.primaryColor }}
+                        >
+                          What services do you offer?
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex justify-start">
+                      <div className="py-1 text-sm text-slate-400">
+                        <span className="inline-flex gap-1">
+                          <span className="animate-bounce">●</span>
+                          <span className="animate-bounce [animation-delay:120ms]">●</span>
+                          <span className="animate-bounce [animation-delay:240ms]">●</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-3 sm:px-4">
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {["What services do you offer?", "How do I book?", "Does it hurt?"].map((chip) => (
+                        <span
+                          key={chip}
+                          className="rounded-full border-2 bg-white px-3 py-1.5 text-xs font-medium text-slate-700"
+                          style={{ borderColor: s3.primaryColor }}
+                        >
+                          {chip}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex items-end gap-2">
                       <input
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         placeholder="Type a test message…"
-                        className="min-w-0 flex-1 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm outline-none ring-[#0d9488]/20 focus:ring-2"
+                        className="min-w-0 flex-1 rounded-full border-2 border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-300"
                       />
                       <button
                         type="button"
-                        style={{ backgroundColor: s3.primaryColor }}
-                        className="shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                        className="shrink-0 rounded-full border-2 bg-white px-4 py-2 text-sm font-semibold transition hover:bg-slate-50"
+                        style={{ borderColor: s3.primaryColor, color: s3.primaryColor }}
                       >
                         Send
                       </button>
                     </div>
-                    <p className="text-center text-xs text-slate-500">Preview only — messages are not saved.</p>
-                    <div className="pointer-events-none absolute bottom-4 right-3 left-3 z-10 flex justify-end sm:left-auto">
-                      <div
-                        className="max-w-[min(100%,16rem)] rounded-2xl px-3 py-2 text-left text-xs font-medium leading-snug text-white shadow-lg"
-                        style={{ backgroundColor: s3.primaryColor }}
-                      >
-                        {previewBubbleAttention}
-                      </div>
-                    </div>
+                    <p className="mt-2 text-center text-xs text-slate-500">Preview only — messages are not saved.</p>
                   </div>
                 </div>
               </section>
