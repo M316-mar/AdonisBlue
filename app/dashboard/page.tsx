@@ -49,6 +49,9 @@ type IntakeRow = {
   referred_by: string | null;
   created_at: string;
   survey_sent?: boolean | null;
+  aftercare_sent_at?: string | null;
+  reminder_6m_sent?: boolean | null;
+  reminder_9m_sent?: boolean | null;
 };
 
 function slugify(input: string): string {
@@ -113,6 +116,7 @@ export default function NurseDashboardPage() {
   const [bot, setBot] = useState<BotRow | null>(null);
   const [intakes, setIntakes] = useState<IntakeRow[]>([]);
   const [surveyLoading, setSurveyLoading] = useState<string | null>(null);
+  const [aftercareLoading, setAftercareLoading] = useState<string | null>(null);
   const [intakesOpen, setIntakesOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
@@ -202,6 +206,17 @@ export default function NurseDashboardPage() {
     });
     setIntakes((prev) => prev.map((i) => i.id === intake.id ? { ...i, survey_sent: true } : i));
     setSurveyLoading(null);
+  }, []);
+
+  const handleSendAftercare = useCallback(async (intake: IntakeRow) => {
+    setAftercareLoading(intake.id);
+    await fetch("/api/send-aftercare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ intake_id: intake.id }),
+    });
+    setIntakes((prev) => prev.map((i) => i.id === intake.id ? { ...i, aftercare_sent_at: new Date().toISOString() } : i));
+    setAftercareLoading(null);
   }, []);
 
   const handleDeleteIntake = useCallback(async (id: string) => {
@@ -366,7 +381,7 @@ export default function NurseDashboardPage() {
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-sm">💌</span>
                     <div className="text-left">
                       <p className="text-sm font-semibold text-[#1a2744]">Client Intakes & Follow-ups</p>
-                      <p className="text-xs text-slate-500">{intakes.length} client{intakes.length !== 1 ? "s" : ""} — {intakes.filter(i => !i.survey_sent).length} follow-up{intakes.filter(i => !i.survey_sent).length !== 1 ? "s" : ""} pending</p>
+                      <p className="text-xs text-slate-500">{intakes.length} client{intakes.length !== 1 ? "s" : ""} — {intakes.filter(i => !i.aftercare_sent_at).length} aftercare pending</p>
                     </div>
                   </div>
                   <span className="text-slate-400 text-sm">{intakesOpen ? "▲" : "▼"}</span>
@@ -388,14 +403,22 @@ export default function NurseDashboardPage() {
                             <p className="text-xs text-slate-500">{intake.service_interested || "Service not specified"} • {new Date(intake.created_at).toLocaleDateString()}</p>
                             {intake.referred_by ? <p className="text-xs text-teal-600">Found you via {intake.referred_by}</p> : null}
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={!!intake.aftercare_sent_at || aftercareLoading === intake.id}
+                              onClick={() => void handleSendAftercare(intake)}
+                              className="shrink-0 rounded-full bg-[#1a2744] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#243552] disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {intake.aftercare_sent_at ? "Aftercare sent ✅" : aftercareLoading === intake.id ? "Sending..." : "Send aftercare 💌"}
+                            </button>
                             <button
                               type="button"
                               disabled={!!intake.survey_sent || surveyLoading === intake.id}
                               onClick={() => void handleSendSurvey(intake)}
                               className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              {intake.survey_sent ? "Survey sent ✅" : surveyLoading === intake.id ? "Sending..." : "Send survey 💌"}
+                              {intake.survey_sent ? "Review sent ✅" : surveyLoading === intake.id ? "Sending..." : "Send review 💌"}
                             </button>
                             <button
                               type="button"
