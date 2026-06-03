@@ -50,6 +50,8 @@ function FaqAccordion() {
 }
 
 export default function Home() {
+  const [annual, setAnnual] = useState(false);
+
   return (
     <div className="min-h-full bg-[#0d1628] font-sans text-slate-800 antialiased">
 
@@ -289,6 +291,19 @@ export default function Home() {
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-xs font-semibold uppercase tracking-widest text-teal-400">Pricing</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">Choose the pace that matches your practice</h2>
+              <div className="mt-6 flex items-center justify-center gap-3">
+                <span className={`text-sm font-medium ${!annual ? "text-white" : "text-slate-400"}`}>Monthly</span>
+                <button
+                  type="button"
+                  onClick={() => setAnnual((a) => !a)}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${annual ? "bg-teal-400" : "bg-white/20"}`}
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${annual ? "translate-x-6" : "translate-x-1"}`} />
+                </button>
+                <span className={`text-sm font-medium ${annual ? "text-white" : "text-slate-400"}`}>
+                  Annual <span className="ml-1 rounded-full bg-teal-400/20 px-2 py-0.5 text-xs font-bold text-teal-300">2 months free</span>
+                </span>
+              </div>
             </div>
             <div className="mt-12 grid gap-6 lg:grid-cols-3 lg:items-start">
               {/* Free */}
@@ -307,7 +322,12 @@ export default function Home() {
               </div>
               {/* Starter */}
               <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/5 p-7 backdrop-blur-sm">
-                <p className="text-xs font-bold uppercase tracking-widest text-teal-400">$85 / month</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-teal-400">{annual ? "$71 / month" : "$85 / month"}</p>
+                {annual ? (
+                  <span className="text-xs text-teal-400">billed $850/yr — save $170</span>
+                ) : (
+                  <span className="text-xs text-slate-500">billed monthly</span>
+                )}
                 <h3 className="mt-3 text-xl font-bold text-white">Starter</h3>
                 <p className="mt-2 text-sm text-slate-400">One extra booking a month pays for this. Everything else is pure profit.</p>
                 <ul className="mt-6 flex-1 space-y-2.5">
@@ -324,7 +344,14 @@ export default function Home() {
                 <div className="absolute inset-0 bg-gradient-to-br from-teal-400/10 via-transparent to-sky-400/5" aria-hidden />
                 <div className="relative">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold uppercase tracking-widest text-teal-300">$150 / month</p>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-teal-300">{annual ? "$125 / month" : "$150 / month"}</p>
+                      {annual ? (
+                        <span className="text-xs text-teal-300">billed $1,500/yr — save $300</span>
+                      ) : (
+                        <span className="text-xs text-slate-400">billed monthly</span>
+                      )}
+                    </div>
                     <span className="rounded-full bg-teal-400 px-3 py-1 text-xs font-bold text-[#0d1628]">Most Popular</span>
                   </div>
                   <h3 className="mt-3 text-xl font-bold text-white">Pro</h3>
@@ -337,6 +364,29 @@ export default function Home() {
                   <a href="/auth" className="mt-8 inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-teal-400 px-5 py-3 text-sm font-bold text-[#0d1628] transition hover:bg-teal-300">
                     Get Pro
                   </a>
+                </div>
+              </div>
+            </div>
+            <div className="mt-10 flex flex-col items-center gap-6 sm:flex-row sm:justify-center sm:gap-10">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-teal-400/30 bg-teal-400/10 text-xl">🛡️</div>
+                <div>
+                  <p className="text-sm font-semibold text-white">30-day money back guarantee</p>
+                  <p className="text-xs text-slate-400">See results or we refund you. No questions asked.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-teal-400/30 bg-teal-400/10 text-xl">💰</div>
+                <div>
+                  <p className="text-sm font-semibold text-white">A front desk costs $2,000/mo</p>
+                  <p className="text-xs text-slate-400">AdonisBlue starts at $85. One booking pays for it.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-teal-400/30 bg-teal-400/10 text-xl">⚡</div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Set up in 5 minutes</p>
+                  <p className="text-xs text-slate-400">No tech skills. No credit card to start.</p>
                 </div>
               </div>
             </div>
