@@ -359,10 +359,7 @@ export default function PublicChatPage() {
       style={{ visibility: chatOpen ? "visible" : "hidden" }}
       aria-hidden={!chatOpen}
     >
-      <div
-        className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 md:rounded-t-2xl"
-        style={{ background: `linear-gradient(135deg, ${primary}08 0%, #ffffff 60%)` }}
-      >
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 bg-white px-4 py-3 md:rounded-t-2xl">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {botLogoImage ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -377,7 +374,10 @@ export default function PublicChatPage() {
               {botTitle}
             </p>
             <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
-              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_0_2px_rgba(255,255,255,0.35)]" />
+              <span
+                className="inline-block h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: primary }}
+              />
               Online
             </p>
           </div>
@@ -395,10 +395,10 @@ export default function PublicChatPage() {
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
-              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-sm ${
+              className={`max-w-[85%] text-sm leading-relaxed ${
                 m.role === "user"
-                  ? "rounded-br-sm bg-[#0d9488] text-white"
-                  : "rounded-bl-sm bg-white text-slate-800 ring-1 ring-slate-100 shadow-sm"
+                  ? "rounded-2xl rounded-br-sm px-3.5 py-2.5 text-white shadow-sm"
+                  : "py-1 text-slate-800"
               }`}
               style={m.role === "user" ? { backgroundColor: primary } : undefined}
             >
@@ -440,7 +440,8 @@ export default function PublicChatPage() {
               type="button"
               onClick={() => void sendUserText(q)}
               disabled={sending}
-              className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-left text-[11px] font-medium leading-snug text-slate-700 transition hover:border-slate-300 hover:bg-white disabled:opacity-50 sm:text-xs"
+              className="rounded-full border bg-white px-2.5 py-1 text-left text-[11px] font-medium leading-snug text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:text-xs"
+              style={{ borderColor: `${primary}60` }}
             >
               {q}
             </button>
@@ -463,12 +464,13 @@ export default function PublicChatPage() {
             }}
             placeholder="Type a message…"
             disabled={sending}
-            className="max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none ring-0 transition placeholder:text-slate-400 focus:border-slate-300 focus:bg-white disabled:opacity-50"
+            className="max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none ring-0 transition placeholder:text-slate-400 focus:border-slate-300 focus:bg-white focus:ring-1 disabled:opacity-50"
+            style={{ "--tw-ring-color": primary } as CSSProperties}
           />
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="shrink-0 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            className="shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             style={{ backgroundColor: primary }}
           >
             Send
@@ -486,8 +488,8 @@ export default function PublicChatPage() {
       }}
     >
       <header
-        className="shrink-0 border-b border-white/20 px-4 py-4 sm:px-6 sm:py-5"
-        style={{ backgroundColor: primary, color: "#fff" }}
+        className="shrink-0 border-b-4 bg-white px-4 py-4 sm:px-6 sm:py-5"
+        style={{ borderBottomColor: primary }}
       >
         <div className="mx-auto flex max-w-3xl items-center gap-3 sm:gap-4">
           {botLogoImage ? (
