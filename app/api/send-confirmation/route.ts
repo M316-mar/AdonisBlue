@@ -6,7 +6,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 export async function POST(request: Request) {
   try {
-    const payload = await request.json();
+    const rawBody = await request.text();
+    const payload = JSON.parse(rawBody);
     const { user, email_data } = payload;
 
     const toEmail = user?.email;
