@@ -118,23 +118,37 @@ function renderMessageContent(content: string) {
     }
   }
   const text = textChunks.join("");
+
+  const renderBold = (str: string) => {
+    const segments = str.split(/\*\*(.*?)\*\*/g);
+    return segments.map((seg, i) => (i % 2 === 1 ? <strong key={i}>{seg}</strong> : seg));
+  };
+
   return (
     <>
-      {text ? <p className="whitespace-pre-wrap">{text}</p> : null}
+      {text ? <p className="whitespace-pre-wrap">{renderBold(text)}</p> : null}
       {urls.map((url, i) => {
-        const label = url.includes("instagram") ? "📸 View our Instagram"
-          : url.includes("tiktok") ? "🎵 Follow us on TikTok"
-          : url.includes("facebook") ? "👍 Find us on Facebook"
-          : url.includes("facebook") ? "👍 Find us on Facebook"
-          : /\.(com|io|co|net|org)/.test(url) && !url.includes("zenoti") && !url.includes("booking") && !url.includes("calendly") && !url.includes("acuity") ? "🌐 Visit our website"
-          : "👉 Click here to book your appointment";
+        const label = url.includes("instagram")
+          ? "📸 View our Instagram"
+          : url.includes("tiktok")
+            ? "🎵 Follow us on TikTok"
+            : url.includes("facebook")
+              ? "👍 Find us on Facebook"
+              : /\.(com|io|co|net|org)/.test(url) &&
+                  !url.includes("zenoti") &&
+                  !url.includes("booking") &&
+                  !url.includes("calendly") &&
+                  !url.includes("acuity")
+                ? "🌐 Visit our website"
+                : "👉 Click here to book your appointment";
         return (
           <a
             key={i}
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 block w-fit rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700"
+            className="mt-2 block w-fit rounded-full border-2 px-4 py-2 text-sm font-semibold transition hover:opacity-80"
+            style={{ borderColor: "currentColor" }}
           >
             {label}
           </a>
@@ -398,7 +412,7 @@ export default function PublicChatPage() {
             <div
               className={`max-w-[85%] text-sm leading-relaxed ${
                 m.role === "user"
-                  ? "rounded-full border-2 bg-white px-3.5 py-2.5 text-slate-800"
+                  ? "rounded-2xl rounded-br-sm border-2 bg-white px-3.5 py-2.5 text-slate-800"
                   : "py-1 text-slate-800"
               }`}
               style={m.role === "user" ? { borderColor: primary } : undefined}
