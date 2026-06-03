@@ -351,14 +351,15 @@ export default function PublicChatPage() {
 
   const ChatPanel = (
     <div
-      className={`fixed z-50 flex flex-col bg-white shadow-2xl transition-[transform,opacity] duration-300 ease-out md:rounded-2xl md:border md:border-slate-200 ${
+      className={`fixed z-50 flex flex-col bg-white shadow-2xl transition-[transform,opacity] duration-300 ease-out md:rounded-2xl md:border-2 md:border-slate-100 ${
         chatOpen
           ? "inset-0 translate-y-0 opacity-100 md:inset-auto md:bottom-6 md:right-6 md:h-[min(36rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:w-[min(100%,24rem)]"
           : "pointer-events-none inset-0 translate-y-full opacity-0 md:inset-auto md:bottom-6 md:right-6 md:h-[min(36rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:w-[min(100%,24rem)] md:translate-y-8 md:opacity-0"
       }`}
-      style={{ visibility: chatOpen ? "visible" : "hidden" }}
+      style={{ visibility: chatOpen ? "visible" : "hidden", "--tw-border-opacity": "1" }}
       aria-hidden={!chatOpen}
     >
+      <div className="h-1 w-full md:rounded-t-2xl" style={{ backgroundColor: primary }} />
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 bg-white px-4 py-3 md:rounded-t-2xl">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {botLogoImage ? (
@@ -397,10 +398,9 @@ export default function PublicChatPage() {
             <div
               className={`max-w-[85%] text-sm leading-relaxed ${
                 m.role === "user"
-                  ? "rounded-2xl rounded-br-sm px-3.5 py-2.5 text-white shadow-sm"
+                  ? "rounded-2xl rounded-br-sm bg-slate-100 px-3.5 py-2.5 text-slate-800"
                   : "py-1 text-slate-800"
               }`}
-              style={m.role === "user" ? { backgroundColor: primary } : undefined}
             >
               {renderMessageContent(m.content)}
               {m.photos && m.photos.length > 0 ? (
@@ -440,8 +440,8 @@ export default function PublicChatPage() {
               type="button"
               onClick={() => void sendUserText(q)}
               disabled={sending}
-              className="rounded-full border bg-white px-2.5 py-1 text-left text-[11px] font-medium leading-snug text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:text-xs"
-              style={{ borderColor: `${primary}60` }}
+              className="rounded-full border-2 bg-white px-3 py-1.5 text-left text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              style={{ borderColor: primary }}
             >
               {q}
             </button>
@@ -464,14 +464,14 @@ export default function PublicChatPage() {
             }}
             placeholder="Type a message…"
             disabled={sending}
-            className="max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none ring-0 transition placeholder:text-slate-400 focus:border-slate-300 focus:bg-white focus:ring-1 disabled:opacity-50"
-            style={{ "--tw-ring-color": primary } as CSSProperties}
+            className="max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full border-2 border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-current disabled:opacity-50"
+            style={{ "--focus-color": primary } as CSSProperties}
           />
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-            style={{ backgroundColor: primary }}
+            className="shrink-0 rounded-full border-2 bg-white px-4 py-2 text-sm font-semibold transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ borderColor: primary, color: primary }}
           >
             Send
           </button>
