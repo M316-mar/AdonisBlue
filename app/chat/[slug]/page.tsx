@@ -413,9 +413,9 @@ export default function PublicChatPage() {
               className={`max-w-[85%] text-sm leading-relaxed ${
                 m.role === "user"
                   ? "rounded-full border-2 bg-white px-3.5 py-2 text-slate-800"
-                  : "py-1 text-slate-800"
+                  : "rounded-2xl border-2 bg-white px-3.5 py-2.5 text-slate-800"
               }`}
-              style={m.role === "user" ? { borderColor: primary } : undefined}
+              style={m.role === "user" ? { borderColor: primary } : { borderColor: primary, borderLeftWidth: "4px" }}
             >
               {renderMessageContent(m.content)}
               {m.photos && m.photos.length > 0 ? (
