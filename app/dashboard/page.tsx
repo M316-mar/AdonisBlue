@@ -541,7 +541,7 @@ export default function NurseDashboardPage() {
                 </div>
                 <h2 className="text-xl font-bold text-white sm:text-2xl">The Blue Room 💙</h2>
                 <p className="mt-2 text-sm leading-relaxed text-slate-200 sm:text-base">
-                  Your private community of nurse injectors. Share tips, get support, stay on top of the latest aesthetic trends, and grow together — all inside AdonisBlue. No Facebook needed.
+                  Your private community of nurse injectors. Share tips, get support, stay on top of the latest aesthetic trends, and grow together — all inside AdonisBlue, built just for you.
                 </p>
                 <ul className="mt-4 grid grid-cols-2 gap-2">
                   {["Trending procedures","New techniques","Holiday offer templates","Peer support","Industry news","Members only content"].map(item => (
