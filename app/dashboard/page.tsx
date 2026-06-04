@@ -251,21 +251,21 @@ export default function NurseDashboardPage() {
   })();
 
   return (
-    <div className="min-h-screen bg-[#0d1628] font-sans text-slate-200 antialiased">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0d1628]/95 shadow-sm backdrop-blur-md">
+    <div className="min-h-screen bg-slate-100 font-sans text-slate-800 antialiased">
+      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
           <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
             <Image src="/Alona.png" alt="AdonisBlue" width={48} height={48} className="h-10 w-10 sm:h-12 sm:w-12" />
             <span className="truncate text-base font-semibold tracking-tight text-white sm:text-lg">AdonisBlue</span>
           </Link>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-4">
-            <span className="hidden max-w-[12rem] truncate text-sm font-medium text-white/90 sm:inline sm:max-w-xs md:text-base">
+            <span className="hidden max-w-[12rem] truncate text-sm font-medium text-[#1a2744] sm:inline sm:max-w-xs md:text-base">
               {nurseName}
             </span>
             <button
               type="button"
               onClick={handleLogout}
-              className="shrink-0 rounded-full border border-white/25 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/20 sm:px-4 sm:text-sm"
+              className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50 sm:px-4 sm:text-sm"
             >
               Log out
             </button>
@@ -531,24 +531,41 @@ export default function NurseDashboardPage() {
         </div>
 
         <section className="mt-8 lg:mt-10">
-          <div className="flex flex-col gap-5 overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-7">
-            <div className="max-w-xl">
-              <h2 className="text-lg font-semibold text-white sm:text-xl">The Blue Room</h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-200 sm:text-base">
-                Join The Blue Room — connect with other nurses, share tips, and help us improve
-              </p>
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2744] via-[#0d4f6b] to-[#0d9488] px-4 py-8 sm:px-6 sm:py-10">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_80%_0%,rgba(56,189,248,0.15),transparent)]" aria-hidden />
+            <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="max-w-xl">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-teal-300/30 bg-teal-300/10 px-3 py-1">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-300" />
+                  <span className="text-xs font-semibold uppercase tracking-widest text-teal-300">Coming Soon</span>
+                </div>
+                <h2 className="text-xl font-bold text-white sm:text-2xl">The Blue Room 💙</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-200 sm:text-base">
+                  Your private community of nurse injectors. Share tips, get support, stay on top of the latest aesthetic trends, and grow together — all inside AdonisBlue. No Facebook needed.
+                </p>
+                <ul className="mt-4 grid grid-cols-2 gap-2">
+                  {["Trending procedures","New techniques","Holiday offer templates","Peer support","Industry news","Members only content"].map(item => (
+                    <li key={item} className="flex items-center gap-2 text-xs font-medium text-teal-100">
+                      <span className="text-teal-300">✓</span>{item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex flex-col gap-3 sm:shrink-0 sm:items-end">
+                <button
+                  type="button"
+                  className="inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-bold text-[#1a2744] shadow-lg transition hover:bg-teal-50 sm:w-auto"
+                  onClick={() => alert("The Blue Room is coming soon! We will notify you when it launches 💙")}
+                >
+                  Join the waitlist 💙
+                </button>
+                <p className="text-xs text-teal-200/70 text-center">Be first in when we launch</p>
+              </div>
             </div>
-            <button
-              type="button"
-              className="inline-flex w-full shrink-0 items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-[#1a2744] shadow-md transition hover:bg-teal-50 sm:w-auto sm:self-center"
-              style={{ backgroundColor: "#fff" }}
-            >
-              Join
-            </button>
           </div>
         </section>
 
-        <div className="mt-8 border-t border-white/10 pt-6 lg:mt-10 lg:pt-8">
+        <div className="mt-8 border-t border-slate-200 pt-6 lg:mt-10 lg:pt-8">
           <p className="text-xs text-slate-500">
             Want to delete your account?{" "}
             <button
