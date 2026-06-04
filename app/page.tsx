@@ -141,8 +141,7 @@ export default function Home() {
                       Can I get lip filler if I'm on a blood thinner?
                     </div>
                   </div>
-                  <div className="flex justify-start gap-2">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs">🤍</div>
+                  <div className="flex justify-start">
                     <div className="max-w-[80%] rounded-2xl rounded-bl-sm border border-white/10 bg-white/8 px-4 py-2.5 text-sm leading-relaxed text-slate-200">
                       Great question! Many practices review blood thinners before treatment. I can send our booking link so your injector can guide you safely 💙
                     </div>
@@ -152,8 +151,7 @@ export default function Home() {
                       How much is lip filler?
                     </div>
                   </div>
-                  <div className="flex justify-start gap-2">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs">🤍</div>
+                  <div className="flex justify-start">
                     <div className="max-w-[80%] rounded-2xl rounded-bl-sm border border-white/10 bg-white/8 px-4 py-2.5 text-sm leading-relaxed text-slate-200">
                       Pricing is personalized to exactly what you need — your nurse will go over everything at your appointment. Ready to grab a spot? 💕
                     </div>
