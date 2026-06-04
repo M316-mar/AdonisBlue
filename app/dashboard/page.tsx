@@ -256,7 +256,7 @@ export default function NurseDashboardPage() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
           <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
             <Image src="/Alona.png" alt="AdonisBlue" width={48} height={48} className="h-10 w-10 sm:h-12 sm:w-12" />
-            <span className="truncate text-base font-semibold tracking-tight text-white sm:text-lg">AdonisBlue</span>
+            <span className="truncate text-base font-semibold tracking-tight text-[#1a2744] sm:text-lg">AdonisBlue</span>
           </Link>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-4">
             <span className="hidden max-w-[12rem] truncate text-sm font-medium text-[#1a2744] sm:inline sm:max-w-xs md:text-base">
