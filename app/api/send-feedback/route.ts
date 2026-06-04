@@ -1,12 +1,26 @@
 import { Resend } from "resend";
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
   try {
-    const { feedback, nurse_name } = await request.json();
+    const { feedback, nurse_name, nurse_id } = await request.json();
 
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Save to Supabase so we can see it in admin
+    await supabase.from("feedback").insert({
+      nurse_name: nurse_name || "Unknown",
+      nurse_id: nurse_id || null,
+      message: feedback || "",
+    });
+
+    // Also email us
     await resend.emails.send({
       from: "AdonisBlue <hello@adonisblue.io>",
       to: "hello@adonisblue.io",
