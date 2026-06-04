@@ -477,11 +477,11 @@ export default function NurseDashboardPage() {
                 <h3 className="text-base font-semibold text-white sm:text-lg">Your bot</h3>
                 <dl className="mt-4 space-y-3 text-sm">
                   <div>
-                    <dt className="font-medium text-slate-500">Practice name</dt>
-                    <dd className="mt-0.5 font-medium text-[#1a2744]">{bot?.practice_name?.trim() || "—"}</dd>
+                    <dt className="font-medium text-slate-400">Practice name</dt>
+                    <dd className="mt-0.5 font-medium text-white">{bot?.practice_name?.trim() || "—"}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-slate-500">Booking link</dt>
+                    <dt className="font-medium text-slate-400">Booking link</dt>
                     <dd className="mt-0.5 truncate font-medium text-[#0d9488]" title={bot?.booking_link?.trim() || undefined}>
                       {(() => {
                         const link = bot?.booking_link?.trim() || "";
@@ -501,7 +501,7 @@ export default function NurseDashboardPage() {
                   {launched ? (
                     <Link
                       href={`/chat/${botChatSlug}`}
-                      className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                      className="inline-flex w-full items-center justify-center rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-white/20"
                     >
                       View my bot
                     </Link>
@@ -511,7 +511,7 @@ export default function NurseDashboardPage() {
               {launched ? (
                 <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur-sm sm:p-5">
                   <h3 className="text-base font-semibold text-white">Add to your website</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-500">Copy this code and paste it anywhere in your website&apos;s HTML. Your bot will appear automatically — and any updates you make here apply instantly, no changes needed on your site.</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-400">Copy this code and paste it anywhere in your website&apos;s HTML. Your bot will appear automatically — and any updates you make here apply instantly, no changes needed on your site.</p>
                   <div className="mt-3 rounded-xl bg-[#1a2744] px-3 py-3">
                     <code className="block break-all text-xs leading-relaxed text-teal-200">
                       {`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`}
