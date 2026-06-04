@@ -251,8 +251,8 @@ export default function NurseDashboardPage() {
   })();
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#1a2744]/95 shadow-sm shadow-slate-900/5 backdrop-blur-md">
+    <div className="min-h-screen bg-[#0d1628] font-sans text-slate-200 antialiased">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0d1628]/95 shadow-sm backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
           <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
             <Image src="/Alona.png" alt="AdonisBlue" width={48} height={48} className="h-10 w-10 sm:h-12 sm:w-12" />
@@ -277,7 +277,7 @@ export default function NurseDashboardPage() {
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <div className="grid gap-6 lg:grid-cols-12 lg:gap-8 lg:items-start">
           <div className="space-y-6 lg:col-span-8">
-            <section className="relative overflow-hidden rounded-2xl border border-teal-900/10 bg-[#1a2744] px-4 py-6 shadow-lg shadow-slate-900/5 sm:px-6 sm:py-8">
+            <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-6 shadow-lg backdrop-blur-sm sm:px-6 sm:py-8">
               <div
                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_85%_0%,rgba(13,148,136,0.22),transparent),radial-gradient(ellipse_60%_50%_at_0%_100%,rgba(56,189,248,0.12),transparent)] opacity-90"
                 aria-hidden
@@ -302,7 +302,7 @@ export default function NurseDashboardPage() {
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="relative overflow-hidden rounded-2xl border border-teal-900/10 bg-[#1a2744] px-4 py-4 shadow-lg shadow-slate-900/10 sm:px-5 sm:py-5"
+                  className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-4 shadow-lg backdrop-blur-sm sm:px-5 sm:py-5"
                 >
                   <div
                     className="pointer-events-none absolute inset-0 opacity-60"
@@ -319,11 +319,11 @@ export default function NurseDashboardPage() {
               ))}
             </section>
 
-            <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-md shadow-slate-900/5 sm:p-6">
+            <section className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-md backdrop-blur-sm sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Your setup checklist</h2>
-                  <p className="mt-1 text-sm text-slate-600">Complete each step when you are ready — you can revisit any time.</p>
+                  <h2 className="text-lg font-semibold text-white sm:text-xl">Your setup checklist</h2>
+                  <p className="mt-1 text-sm text-slate-400">Complete each step when you are ready — you can revisit any time.</p>
                 </div>
                 <p className="text-2xl font-bold tabular-nums text-[#0d9488]">{progressPct}%</p>
               </div>
@@ -405,7 +405,7 @@ export default function NurseDashboardPage() {
             </section>
 
             {intakes.length > 0 ? (
-              <section className="rounded-2xl border border-slate-200/80 bg-white shadow-md shadow-slate-900/5">
+              <section className="rounded-2xl border border-white/10 bg-white/5 shadow-md backdrop-blur-sm">
                 <button
                   type="button"
                   onClick={() => setIntakesOpen((o) => !o)}
@@ -414,8 +414,8 @@ export default function NurseDashboardPage() {
                   <div className="flex items-center gap-3">
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-sm">💌</span>
                     <div className="text-left">
-                      <p className="text-sm font-semibold text-[#1a2744]">Client Intakes & Follow-ups</p>
-                      <p className="text-xs text-slate-500">{intakes.length} client{intakes.length !== 1 ? "s" : ""} — {intakes.filter(i => !i.aftercare_sent_at).length} aftercare pending</p>
+                      <p className="text-sm font-semibold text-white">Client Intakes & Follow-ups</p>
+                      <p className="text-xs text-slate-400">{intakes.length} client{intakes.length !== 1 ? "s" : ""} — {intakes.filter(i => !i.aftercare_sent_at).length} aftercare pending</p>
                     </div>
                   </div>
                   <span className="text-slate-400 text-sm">{intakesOpen ? "▲" : "▼"}</span>
@@ -473,8 +473,8 @@ export default function NurseDashboardPage() {
 
           <aside className="lg:col-span-4">
             <div className="lg:sticky lg:top-24">
-              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/5 sm:p-5">
-                <h3 className="text-base font-semibold text-[#1a2744] sm:text-lg">Your bot</h3>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur-sm sm:p-5">
+                <h3 className="text-base font-semibold text-white sm:text-lg">Your bot</h3>
                 <dl className="mt-4 space-y-3 text-sm">
                   <div>
                     <dt className="font-medium text-slate-500">Practice name</dt>
@@ -509,8 +509,8 @@ export default function NurseDashboardPage() {
                 </div>
               </div>
               {launched ? (
-                <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/5 sm:p-5">
-                  <h3 className="text-base font-semibold text-[#1a2744]">Add to your website</h3>
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur-sm sm:p-5">
+                  <h3 className="text-base font-semibold text-white">Add to your website</h3>
                   <p className="mt-1 text-xs leading-relaxed text-slate-500">Copy this code and paste it anywhere in your website&apos;s HTML. Your bot will appear automatically — and any updates you make here apply instantly, no changes needed on your site.</p>
                   <div className="mt-3 rounded-xl bg-[#1a2744] px-3 py-3">
                     <code className="block break-all text-xs leading-relaxed text-teal-200">
@@ -531,7 +531,7 @@ export default function NurseDashboardPage() {
         </div>
 
         <section className="mt-8 lg:mt-10">
-          <div className="flex flex-col gap-5 overflow-hidden rounded-2xl border border-teal-800/20 bg-gradient-to-br from-[#1a2744] via-[#243552] to-[#1a3d45] px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-7">
+          <div className="flex flex-col gap-5 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-7">
             <div className="max-w-xl">
               <h2 className="text-lg font-semibold text-white sm:text-xl">The Blue Room</h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-200 sm:text-base">
@@ -548,7 +548,7 @@ export default function NurseDashboardPage() {
           </div>
         </section>
 
-        <div className="mt-8 border-t border-slate-200 pt-6 lg:mt-10 lg:pt-8">
+        <div className="mt-8 border-t border-white/10 pt-6 lg:mt-10 lg:pt-8">
           <p className="text-xs text-slate-500">
             Want to delete your account?{" "}
             <button
