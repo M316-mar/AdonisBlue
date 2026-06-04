@@ -277,7 +277,7 @@ export default function NurseDashboardPage() {
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <div className="grid gap-6 lg:grid-cols-12 lg:gap-8 lg:items-start">
           <div className="space-y-6 lg:col-span-8">
-            <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-6 shadow-lg backdrop-blur-sm sm:px-6 sm:py-8">
+            <section className="relative overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 shadow-lg sm:px-6 sm:py-8">
               <div
                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_85%_0%,rgba(13,148,136,0.22),transparent),radial-gradient(ellipse_60%_50%_at_0%_100%,rgba(56,189,248,0.12),transparent)] opacity-90"
                 aria-hidden
@@ -302,7 +302,7 @@ export default function NurseDashboardPage() {
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-4 shadow-lg backdrop-blur-sm sm:px-5 sm:py-5"
+                  className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-md sm:px-5 sm:py-5"
                 >
                   <div
                     className="pointer-events-none absolute inset-0 opacity-60"
@@ -312,18 +312,18 @@ export default function NurseDashboardPage() {
                     aria-hidden
                   />
                   <div className="relative">
-                    <p className="text-2xl font-bold tabular-nums text-white sm:text-3xl">{stat.value}</p>
-                    <p className="mt-1 text-xs font-medium text-teal-300/90 sm:text-sm">{stat.emoji} {stat.label}</p>
+                    <p className="text-2xl font-bold tabular-nums text-[#1a2744] sm:text-3xl">{stat.value}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">{stat.emoji} {stat.label}</p>
                   </div>
                 </div>
               ))}
             </section>
 
-            <section className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-md backdrop-blur-sm sm:p-6">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-md sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-white sm:text-xl">Your setup checklist</h2>
-                  <p className="mt-1 text-sm text-slate-400">Complete each step when you are ready — you can revisit any time.</p>
+                  <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Your setup checklist</h2>
+                  <p className="mt-1 text-sm text-slate-500">Complete each step when you are ready — you can revisit any time.</p>
                 </div>
                 <p className="text-2xl font-bold tabular-nums text-[#0d9488]">{progressPct}%</p>
               </div>
@@ -405,7 +405,7 @@ export default function NurseDashboardPage() {
             </section>
 
             {intakes.length > 0 ? (
-              <section className="rounded-2xl border border-white/10 bg-white/5 shadow-md backdrop-blur-sm">
+              <section className="rounded-2xl border border-slate-200 bg-white shadow-md">
                 <button
                   type="button"
                   onClick={() => setIntakesOpen((o) => !o)}
@@ -473,15 +473,15 @@ export default function NurseDashboardPage() {
 
           <aside className="lg:col-span-4">
             <div className="lg:sticky lg:top-24">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur-sm sm:p-5">
-                <h3 className="text-base font-semibold text-white sm:text-lg">Your bot</h3>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
+                <h3 className="text-base font-semibold text-[#1a2744] sm:text-lg">Your bot</h3>
                 <dl className="mt-4 space-y-3 text-sm">
                   <div>
-                    <dt className="font-medium text-slate-400">Practice name</dt>
-                    <dd className="mt-0.5 font-medium text-white">{bot?.practice_name?.trim() || "—"}</dd>
+                    <dt className="font-medium text-slate-500">Practice name</dt>
+                    <dd className="mt-0.5 font-medium text-[#1a2744]">{bot?.practice_name?.trim() || "—"}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-slate-400">Booking link</dt>
+                    <dt className="font-medium text-slate-500">Booking link</dt>
                     <dd className="mt-0.5 truncate font-medium text-[#0d9488]" title={bot?.booking_link?.trim() || undefined}>
                       {(() => {
                         const link = bot?.booking_link?.trim() || "";
@@ -501,7 +501,7 @@ export default function NurseDashboardPage() {
                   {launched ? (
                     <Link
                       href={`/chat/${botChatSlug}`}
-                      className="inline-flex w-full items-center justify-center rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-white/20"
+                      className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50"
                     >
                       View my bot
                     </Link>
@@ -509,9 +509,9 @@ export default function NurseDashboardPage() {
                 </div>
               </div>
               {launched ? (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur-sm sm:p-5">
-                  <h3 className="text-base font-semibold text-white">Add to your website</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-400">Copy this code and paste it anywhere in your website&apos;s HTML. Your bot will appear automatically — and any updates you make here apply instantly, no changes needed on your site.</p>
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
+                  <h3 className="text-base font-semibold text-[#1a2744]">Add to your website</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">Copy this code and paste it anywhere in your website&apos;s HTML. Your bot will appear automatically — and any updates you make here apply instantly, no changes needed on your site.</p>
                   <div className="mt-3 rounded-xl bg-[#1a2744] px-3 py-3">
                     <code className="block break-all text-xs leading-relaxed text-teal-200">
                       {`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`}
@@ -531,7 +531,7 @@ export default function NurseDashboardPage() {
         </div>
 
         <section className="mt-8 lg:mt-10">
-          <div className="flex flex-col gap-5 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-7">
+          <div className="flex flex-col gap-5 overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-7">
             <div className="max-w-xl">
               <h2 className="text-lg font-semibold text-white sm:text-xl">The Blue Room</h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-200 sm:text-base">
