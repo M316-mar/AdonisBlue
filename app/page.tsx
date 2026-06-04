@@ -23,12 +23,6 @@ const faqItems = [
   { q: "How is this different from a generic chatbot?", a: "Generic bots sound generic. AdonisBlue is trained on your services and your voice, so answers match your brand and workflow." },
 ];
 
-const testimonials = [
-  { quote: "I used to spend 2 hours a day answering the same questions on Instagram. Now my bot handles it and I focus on my clients.", name: "Sarah M.", role: "Nurse Injector, Miami" },
-  { quote: "My clients love how fast they get answers. I've had three people book just because the bot replied at midnight when I couldn't.", name: "Jessica R.", role: "Aesthetic Nurse, Dallas" },
-  { quote: "Setup took me 4 minutes. I was shocked. Now it's like having a receptionist that never sleeps.", name: "Tina F.", role: "Nurse Practitioner, Houston" },
-];
-
 function FaqAccordion() {
   const [open, setOpen] = useState<number | null>(null);
   return (
@@ -51,40 +45,6 @@ function FaqAccordion() {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-function TestimonialsCarousel() {
-  const [current, setCurrent] = useState(0);
-  return (
-    <div className="relative">
-      <div className="overflow-hidden rounded-3xl border border-teal-100 bg-gradient-to-br from-teal-50 via-sky-50 to-white p-8 shadow-lg sm:p-10">
-        <p className="text-lg font-medium leading-relaxed text-[#1a2744] sm:text-xl italic">"{testimonials[current].quote}"</p>
-        <div className="mt-6">
-          <p className="font-bold text-[#1a2744]">{testimonials[current].name}</p>
-          <p className="text-sm text-slate-500">{testimonials[current].role}</p>
-        </div>
-      </div>
-      <div className="mt-6 flex items-center justify-center gap-4">
-        <button
-          type="button"
-          onClick={() => setCurrent(c => (c - 1 + testimonials.length) % testimonials.length)}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-teal-300 hover:text-teal-600"
-        >←</button>
-        <div className="flex gap-2">
-          {testimonials.map((_, i) => (
-            <button key={i} type="button" onClick={() => setCurrent(i)}
-              className={`h-2 rounded-full transition-all ${i === current ? "w-8 bg-teal-500" : "w-2 bg-slate-300"}`}
-            />
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => setCurrent(c => (c + 1) % testimonials.length)}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-teal-300 hover:text-teal-600"
-        >→</button>
-      </div>
     </div>
   );
 }
@@ -308,19 +268,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── TESTIMONIALS — like Firefly's "Hear from customers" ── */}
-        <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-4xl">
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">From our nurses</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Hear from our community</h2>
-            </div>
-            <div className="mt-12">
-              <TestimonialsCarousel />
-            </div>
-          </div>
-        </section>
-
         {/* ── HOW NURSES USE IT ── */}
         <section className="bg-slate-50 px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-6xl">
@@ -365,15 +312,15 @@ export default function Home() {
               {/* Free */}
               <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
                 <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">14 Days Free</p>
-                <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Try it completely free</h3>
-                <p className="mt-2 text-sm text-slate-500">No credit card needed.</p>
+                <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Full access, free for 14 days</h3>
+                <p className="mt-2 text-sm text-slate-500">Every feature unlocked. No credit card needed. No commitment.</p>
                 <ul className="mt-6 flex-1 space-y-2.5">
-                  {["Your own custom chatbot","Up to 50 client questions","English and Spanish","Share via link or Instagram","Set up in under 5 minutes"].map(l => (
+                  {["Everything in Pro — fully unlocked","Unlimited client conversations","Custom bot name and colors","Aftercare + reminder emails","Embed chat on your website","Cancel before day 14 — pay nothing"].map(l => (
                     <li key={l} className="flex gap-2 text-sm text-slate-600"><span className="text-[#0d9488]">✓</span>{l}</li>
                   ))}
                 </ul>
                 <a href="/auth" className="mt-8 inline-flex min-h-[48px] w-full items-center justify-center rounded-full border-2 border-[#0d9488] px-5 py-3 text-sm font-semibold text-[#0d9488] transition hover:bg-teal-50">
-                  Start Free — No Card Needed
+                  Start my free 14-day trial
                 </a>
               </div>
               {/* Starter */}
