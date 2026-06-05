@@ -40,14 +40,11 @@ export default function AdminPage() {
   const [nurses, setNurses] = useState<NurseRow[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [freezeLoading, setFreezeLoading] = useState<string | null>(null);
-  const [tab, setTab] = useState<"nurses" | "feedback" | "blueroom" | "news" | "newsletter">("nurses");
+  const [tab, setTab] = useState<"nurses" | "feedback" | "blueroom" | "newsletter">("nurses");
   const [blueroomPosts, setBlueroomPosts] = useState<{id:string;title:string;content:string;category:string;emoji:string;created_at:string;}[]>([]);
   const [newPost, setNewPost] = useState({ title: "", content: "", category: "general", emoji: "💙" });
   const [postLoading, setPostLoading] = useState(false);
   const [postSuccess, setPostSuccess] = useState(false);
-  const [news, setNews] = useState<{title:string;category:string;summary:string;emoji:string;action:string;}[]>([]);
-  const [newsLoading, setNewsLoading] = useState(false);
-  const [newsGeneratedAt, setNewsGeneratedAt] = useState<string | null>(null);
   const [newsletter, setNewsletter] = useState({ subject: "", content: "", preview_text: "" });
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterSent, setNewsletterSent] = useState<number | null>(null);
@@ -110,20 +107,6 @@ export default function AdminPage() {
     }
     setPostLoading(false);
   }, [newPost]);
-
-  const handleFetchNews = useCallback(async () => {
-    setNewsLoading(true);
-    try {
-      const res = await fetch("/api/admin/news", { method: "POST" });
-      if (res.ok) {
-        const json = await res.json();
-        setNews(json.news ?? []);
-        setNewsGeneratedAt(json.generated_at ?? null);
-      }
-    } finally {
-      setNewsLoading(false);
-    }
-  }, []);
 
   const handleSendNewsletter = useCallback(async () => {
     if (!newsletter.subject.trim() || !newsletter.content.trim()) return;
@@ -204,13 +187,12 @@ export default function AdminPage() {
             { id: "nurses", label: `👩‍⚕️ Nurses (${nurses.length})` },
             { id: "feedback", label: `💬 Feedback (${feedback.length})` },
             { id: "blueroom", label: "💙 Blue Room" },
-            { id: "news", label: "🔬 Industry News" },
             { id: "newsletter", label: "📧 Newsletter" },
           ].map(t => (
             <button
               key={t.id}
               type="button"
-              onClick={() => setTab(t.id as "nurses" | "feedback" | "blueroom" | "news" | "newsletter")}
+              onClick={() => setTab(t.id as "nurses" | "feedback" | "blueroom" | "newsletter")}
               className={`shrink-0 rounded-full px-5 py-2 text-sm font-semibold transition ${tab === t.id ? "bg-teal-400 text-[#0d1628]" : "border border-white/20 bg-white/5 text-white hover:bg-white/10"}`}
             >
               {t.label}
@@ -381,93 +363,6 @@ export default function AdminPage() {
                       <p className="mt-1 text-sm text-slate-400 line-clamp-2">{post.content}</p>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {tab === "news" && (
-          <div className="space-y-6">
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2744] to-[#0d4f6b] p-6">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_80%_0%,rgba(56,189,248,0.2),transparent)]" aria-hidden />
-              <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-lg font-bold text-white">🔬 Aesthetic Industry Intelligence</h2>
-                  <p className="mt-1 text-sm text-slate-300">AI-powered briefing on what&apos;s happening in aesthetics right now. Use this to inform your Blue Room posts and nurse newsletters.</p>
-                  {newsGeneratedAt && (
-                    <p className="mt-1 text-xs text-teal-300">Last generated: {new Date(newsGeneratedAt).toLocaleString()}</p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  disabled={newsLoading}
-                  onClick={() => void handleFetchNews()}
-                  className="shrink-0 rounded-full bg-teal-400 px-6 py-3 text-sm font-bold text-[#0d1628] transition hover:bg-teal-300 disabled:opacity-50"
-                >
-                  {newsLoading ? "Generating…" : "🔄 Generate briefing"}
-                </button>
-              </div>
-            </div>
-
-            {news.length === 0 && !newsLoading && (
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-12 text-center">
-                <p className="text-4xl mb-3">🔬</p>
-                <p className="text-white font-semibold">Click &quot;Generate briefing&quot; to get the latest aesthetic industry news</p>
-                <p className="mt-1 text-sm text-slate-400">Powered by Claude AI — updated every time you generate</p>
-              </div>
-            )}
-
-            {newsLoading && (
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-12 text-center">
-                <p className="text-4xl mb-3 animate-pulse">🔬</p>
-                <p className="text-white font-semibold">Analyzing aesthetic industry trends…</p>
-                <p className="mt-1 text-sm text-slate-400">This takes about 10 seconds</p>
-              </div>
-            )}
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {news.map((item, i) => (
-                <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
-                  <div className="flex items-start gap-3">
-                    <span className="text-3xl">{item.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-2">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                          item.category === "trending" ? "bg-orange-400/20 text-orange-300 border border-orange-400/30" :
-                          item.category === "new_product" ? "bg-blue-400/20 text-blue-300 border border-blue-400/30" :
-                          item.category === "safety" ? "bg-red-400/20 text-red-300 border border-red-400/30" :
-                          item.category === "business" ? "bg-green-400/20 text-green-300 border border-green-400/30" :
-                          item.category === "technique" ? "bg-purple-400/20 text-purple-300 border border-purple-400/30" :
-                          "bg-pink-400/20 text-pink-300 border border-pink-400/30"
-                        }`}>
-                          {item.category.replace("_", " ")}
-                        </span>
-                      </div>
-                      <h3 className="font-bold text-white text-sm">{item.title}</h3>
-                      <p className="mt-2 text-xs leading-relaxed text-slate-300">{item.summary}</p>
-                      <div className="mt-3 rounded-xl border border-teal-400/20 bg-teal-400/10 px-3 py-2">
-                        <p className="text-xs font-semibold text-teal-300">💡 Action: {item.action}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTab("blueroom");
-                      setNewPost({
-                        title: item.title,
-                        content: item.summary + "\n\n💡 Action for your practice: " + item.action,
-                        category: item.category === "trending" ? "trending" :
-                                  item.category === "technique" ? "techniques" :
-                                  item.category === "business" ? "business" : "news",
-                        emoji: item.emoji,
-                      });
-                    }}
-                    className="mt-3 w-full rounded-full border border-white/15 bg-white/8 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/15"
-                  >
-                    📝 Draft as Blue Room post
-                  </button>
                 </div>
               ))}
             </div>
