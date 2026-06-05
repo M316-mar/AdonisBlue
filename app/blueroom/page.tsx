@@ -153,7 +153,7 @@ export default function BlueRoomPage() {
 
       {/* Top nav */}
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:px-6 sm:gap-3">
           <div className="flex items-center gap-3">
             <Link href="/dashboard">
               <Image src="/Alona.png" alt="AdonisBlue" width={36} height={36} className="rounded-xl" />
@@ -175,7 +175,7 @@ export default function BlueRoomPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:grid lg:grid-cols-12 lg:gap-6">
+      <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4 lg:grid lg:grid-cols-12 lg:gap-6">
 
         {/* Left sidebar */}
         <aside className="hidden lg:col-span-3 lg:block">
@@ -204,7 +204,7 @@ export default function BlueRoomPage() {
         </aside>
 
         {/* Main feed */}
-        <main className="lg:col-span-9 space-y-4">
+        <main className="lg:col-span-9 space-y-3">
 
           {/* Mobile categories */}
           <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden">
@@ -223,7 +223,7 @@ export default function BlueRoomPage() {
           </div>
 
           {/* Create post box — like Facebook */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0d9488] text-sm font-bold text-white">
                 {initials}
@@ -294,7 +294,7 @@ export default function BlueRoomPage() {
               return (
                 <div key={post.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                   {/* Post header */}
-                  <div className="flex items-start gap-3 px-4 pt-4 pb-3 sm:px-5">
+                  <div className="flex items-start gap-2 px-3 pt-3 pb-2 sm:gap-3 sm:px-5 sm:pt-4 sm:pb-3">
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${isAdonisBlue ? "bg-gradient-to-br from-[#1a2744] to-[#0d9488]" : "bg-[#0d9488]"}`}>
                       {authorInitials}
                     </div>
@@ -312,7 +312,7 @@ export default function BlueRoomPage() {
                   </div>
 
                   {/* Post content */}
-                  <div className="px-4 pb-3 sm:px-5">
+                  <div className="px-3 pb-3 sm:px-5">
                     <h3 className="text-base font-bold text-[#1a2744] mb-2">{post.title}</h3>
                     <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">{post.content}</p>
                   </div>
@@ -333,21 +333,21 @@ export default function BlueRoomPage() {
                     <button
                       type="button"
                       onClick={() => setLiked(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
-                      className={`flex flex-1 items-center justify-center gap-2 py-2.5 text-sm font-semibold transition hover:bg-slate-50 ${liked[post.id] ? "text-[#0d9488]" : "text-slate-500"}`}
+                      className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition hover:bg-slate-50 sm:text-sm sm:gap-2 ${liked[post.id] ? "text-[#0d9488]" : "text-slate-500"}`}
                     >
                       <span>{liked[post.id] ? "💙" : "🤍"}</span> Like
                     </button>
                     <button
                       type="button"
                       onClick={() => void handleExpandPost(post.id)}
-                      className="flex flex-1 items-center justify-center gap-2 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50"
+                      className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 sm:text-sm sm:gap-2"
                     >
                       <span>💬</span> Comment
                     </button>
                     <button
                       type="button"
                       onClick={() => void navigator.clipboard.writeText("https://adonisblue.io/blueroom")}
-                      className="flex flex-1 items-center justify-center gap-2 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50"
+                      className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 sm:text-sm sm:gap-2"
                     >
                       <span>↗️</span> Share
                     </button>
@@ -355,7 +355,7 @@ export default function BlueRoomPage() {
 
                   {/* Comments */}
                   {expandedPost === post.id && (
-                    <div className="border-t border-slate-100 bg-slate-50 px-4 py-4 sm:px-5">
+                    <div className="border-t border-slate-100 bg-slate-50 px-3 py-3 sm:px-5 sm:py-4">
                       <div className="space-y-3 mb-4">
                         {(comments[post.id] ?? []).length === 0 ? (
                           <p className="text-xs text-slate-400 text-center py-2">No comments yet — be the first! 💙</p>
