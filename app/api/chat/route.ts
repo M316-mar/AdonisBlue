@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -120,6 +121,23 @@ FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisk
       reply.toLowerCase().includes("here is your link to book") ||
       reply.toLowerCase().includes("link to book your") ||
       reply.toLowerCase().includes("link to book your consultation");
+
+    // Save conversation to Supabase for insights
+    if (botConfig.nurse_id && messages.length >= 2) {
+      try {
+        const supabaseInsights = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        await supabaseInsights.from("conversations").insert({
+          nurse_id: botConfig.nurse_id,
+          bot_id: botConfig.bot_id || null,
+          messages: messages,
+        });
+      } catch (e) {
+        console.error("Failed to save conversation:", e);
+      }
+    }
 
     if (intakeComplete && botConfig.nurse_email && botConfig.nurse_id && messages.length > 5) {
       const conversationText = messages

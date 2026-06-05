@@ -514,6 +514,14 @@ export default function NurseDashboardPage() {
                     </Link>
                   ) : null}
                 </div>
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <Link
+                    href="/insights"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-4 py-2.5 text-center text-sm font-semibold text-[#0d9488] transition hover:bg-teal-100"
+                  >
+                    📊 View my insights
+                  </Link>
+                </div>
               </div>
               {launched ? (
                 <>
