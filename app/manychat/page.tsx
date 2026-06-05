@@ -66,14 +66,52 @@ export default function ManyChatGuidePage() {
 
       <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
         {/* Hero */}
-        <div className="mb-10 text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-4 py-1.5">
-            <span className="text-xs font-bold uppercase tracking-widest text-pink-600">Instagram Integration</span>
+        <div className="mb-10">
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <p className="text-sm font-bold text-amber-800">Before you start — read this first</p>
+                <p className="mt-1 text-sm leading-relaxed text-amber-700">
+                  ManyChat is a <strong>separate free app</strong> — it is not part of AdonisBlue. You will need to create your own free account at <strong>manychat.com</strong>. It takes 2 minutes and it is completely free to use for this.
+                </p>
+              </div>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-[#1a2744] sm:text-4xl">Connect ManyChat to your AdonisBlue bot</h1>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-500">
-            When someone comments on your Instagram post, ManyChat automatically sends them your bot link in a DM — hands free, 24/7.
-          </p>
+
+          <div className="text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-4 py-1.5">
+              <span className="text-xs font-bold uppercase tracking-widest text-pink-600">Instagram Integration</span>
+            </div>
+            <h1 className="text-3xl font-bold text-[#1a2744] sm:text-4xl">Get clients from Instagram — automatically</h1>
+            <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-500">
+              Here is exactly how it works in plain English:
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm">
+              <div className="mb-3 text-4xl">1️⃣</div>
+              <p className="text-sm font-bold text-[#1a2744]">You post on Instagram</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">You tell followers to comment a word like "INFO" or "BOOK" to get details</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm">
+              <div className="mb-3 text-4xl">2️⃣</div>
+              <p className="text-sm font-bold text-[#1a2744]">ManyChat sends them a DM</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">Automatically — no touching your phone. ManyChat sends your bot link instantly</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm">
+              <div className="mb-3 text-4xl">3️⃣</div>
+              <p className="text-sm font-bold text-[#1a2744]">Your AdonisBlue bot closes them</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">They click the link, chat with your bot, get their questions answered and book</p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-teal-100 bg-teal-50 p-4">
+            <p className="text-center text-sm font-semibold text-[#1a2744]">
+              💙 You do not need to be online. You do not need to reply. It all happens automatically while you sleep, work, or treat clients.
+            </p>
+          </div>
         </div>
 
         {/* How it works banner */}
