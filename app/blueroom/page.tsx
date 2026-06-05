@@ -15,6 +15,8 @@ type Post = {
   created_at: string;
   author_id: string | null;
   author_name: string | null;
+  media_url?: string | null;
+  media_type?: string | null;
   blueroom_comments: { count: number }[];
 };
 
@@ -58,6 +60,10 @@ export default function BlueRoomPage() {
   const [newPostCategory, setNewPostCategory] = useState("general");
   const [postBoxOpen, setPostBoxOpen] = useState(false);
   const [postSubmitting, setPostSubmitting] = useState(false);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,28 +119,83 @@ export default function BlueRoomPage() {
   }, [commentText, nurseId, nurseName]);
 
   const handleSubmitPost = useCallback(async () => {
-    if (!newPostText.trim()) return;
+    if (!newPostText.trim() && !mediaFile) return;
     setPostSubmitting(true);
+    let mediaUrl: string | null = null;
+    let mediaMimeType: string | null = null;
+
+    if (mediaFile) {
+      setUploadingMedia(true);
+      try {
+        const { createClient } = await import("@supabase/supabase-js");
+        const sb = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (token) {
+          const ext = mediaFile.name.split(".").pop();
+          const path = `${nurseId}/${Date.now()}.${ext}`;
+          const sbWithAuth = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { global: { headers: { Authorization: `Bearer ${token}` } } }
+          );
+          const { error } = await sbWithAuth.storage
+            .from("blueroom-media")
+            .upload(path, mediaFile, { contentType: mediaFile.type });
+          if (!error) {
+            const { data: urlData } = sbWithAuth.storage
+              .from("blueroom-media")
+              .getPublicUrl(path);
+            mediaUrl = urlData.publicUrl;
+            mediaMimeType = mediaFile.type;
+          }
+        }
+      } catch (e) {
+        console.error("Upload error:", e);
+      }
+      setUploadingMedia(false);
+    }
+
     const res = await fetch("/api/blueroom/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        title: newPostText.slice(0, 80),
+        title: newPostText.slice(0, 80) || "Shared a photo",
         content: newPostText,
         category: newPostCategory,
-        emoji: "💙",
+        emoji: mediaType === "video" ? "🎥" : mediaType === "image" ? "📸" : "💙",
         author_id: nurseId,
         author_name: nurseName,
+        media_url: mediaUrl,
+        media_type: mediaMimeType,
       }),
     });
     if (res.ok) {
       const json = await res.json();
       setPosts(prev => [{ ...json.post, blueroom_comments: [{ count: 0 }] }, ...prev]);
       setNewPostText("");
+      setMediaFile(null);
+      setMediaPreview(null);
+      setMediaType(null);
       setPostBoxOpen(false);
     }
     setPostSubmitting(false);
-  }, [newPostText, newPostCategory, nurseId, nurseName]);
+  }, [newPostText, newPostCategory, nurseId, nurseName, mediaFile, mediaType]);
+
+  const handleMediaSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const isVideo = file.type.startsWith("video/");
+    const isImage = file.type.startsWith("image/");
+    if (!isVideo && !isImage) return;
+    setMediaFile(file);
+    setMediaType(isVideo ? "video" : "image");
+    const url = URL.createObjectURL(file);
+    setMediaPreview(url);
+  }, []);
 
   const filteredPosts = activeCategory === "all" ? posts : posts.filter(p => p.category === activeCategory);
   const firstName = nurseName.split(" ")[0] ?? nurseName;
@@ -246,6 +307,21 @@ export default function BlueRoomPage() {
                   className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20 placeholder:text-slate-400"
                   autoFocus
                 />
+                {mediaPreview && (
+                  <div className="relative rounded-xl overflow-hidden border border-slate-200">
+                    {mediaType === "video" ? (
+                      <video src={mediaPreview} controls className="w-full max-h-64 rounded-xl" />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={mediaPreview} alt="Preview" className="w-full max-h-64 object-cover rounded-xl" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setMediaFile(null); setMediaPreview(null); setMediaType(null); }}
+                      className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white text-xs hover:bg-black/80"
+                    >✕</button>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <select
                     value={newPostCategory}
@@ -259,6 +335,16 @@ export default function BlueRoomPage() {
                     <option value="news">📰 News</option>
                   </select>
                   <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
+                      <label className="cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 flex items-center gap-1">
+                        📸 Photo
+                        <input type="file" accept="image/*" className="hidden" onChange={handleMediaSelect} />
+                      </label>
+                      <label className="cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 flex items-center gap-1">
+                        🎥 Video
+                        <input type="file" accept="video/*" className="hidden" onChange={handleMediaSelect} />
+                      </label>
+                    </div>
                     <button
                       type="button"
                       onClick={() => { setPostBoxOpen(false); setNewPostText(""); }}
@@ -268,11 +354,11 @@ export default function BlueRoomPage() {
                     </button>
                     <button
                       type="button"
-                      disabled={postSubmitting || !newPostText.trim()}
+                      disabled={postSubmitting || (!newPostText.trim() && !mediaFile)}
                       onClick={() => void handleSubmitPost()}
                       className="rounded-full bg-[#0d9488] px-4 py-2 text-xs font-bold text-white transition hover:bg-teal-700 disabled:opacity-50"
                     >
-                      {postSubmitting ? "Posting…" : "Post"}
+                      {postSubmitting ? (uploadingMedia ? "Uploading…" : "Posting…") : "Post"}
                     </button>
                   </div>
                 </div>
@@ -316,6 +402,17 @@ export default function BlueRoomPage() {
                     <h3 className="text-base font-bold text-[#1a2744] mb-2">{post.title}</h3>
                     <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">{post.content}</p>
                   </div>
+
+                  {post.media_url && (
+                    <div className="px-3 pb-3 sm:px-5">
+                      {post.media_type?.startsWith("video") ? (
+                        <video src={post.media_url} controls className="w-full rounded-xl max-h-96 bg-black" />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={post.media_url} alt="" className="w-full rounded-xl max-h-96 object-cover" />
+                      )}
+                    </div>
+                  )}
 
                   {/* Like + comment count */}
                   <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2 sm:px-5">
