@@ -60,6 +60,7 @@ export default function BlueRoomPage() {
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const [commentLoading, setCommentLoading] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
+  const [commentReactions, setCommentReactions] = useState<Record<string, {likes: number, dislikes: number, myReaction: string | null}>>({});
   const [commentMedia, setCommentMedia] = useState<Record<string, File | null>>({});
   const [commentMediaPreview, setCommentMediaPreview] = useState<Record<string, string | null>>({});
   const [liked, setLiked] = useState<Record<string, boolean>>({});
@@ -164,6 +165,29 @@ export default function BlueRoomPage() {
     }
     setCommentLoading(null);
   }, [commentText, commentMedia, nurseId, nurseName]);
+
+  const handleCommentReaction = useCallback(async (commentId: string, reaction: "like" | "dislike") => {
+    const res = await fetch("/api/blueroom/reactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comment_id: commentId, nurse_id: nurseId, reaction }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      setCommentReactions(prev => {
+        const current = prev[commentId] ?? { likes: 0, dislikes: 0, myReaction: null };
+        const wasLike = current.myReaction === "like";
+        const wasDislike = current.myReaction === "dislike";
+        if (json.action === "removed") {
+          return { ...prev, [commentId]: { likes: reaction === "like" ? Math.max(0, current.likes - 1) : current.likes, dislikes: reaction === "dislike" ? Math.max(0, current.dislikes - 1) : current.dislikes, myReaction: null } };
+        } else if (json.action === "updated") {
+          return { ...prev, [commentId]: { likes: reaction === "like" ? current.likes + 1 : Math.max(0, current.likes - (wasLike ? 1 : 0)), dislikes: reaction === "dislike" ? current.dislikes + 1 : Math.max(0, current.dislikes - (wasDislike ? 1 : 0)), myReaction: reaction } };
+        } else {
+          return { ...prev, [commentId]: { likes: reaction === "like" ? current.likes + 1 : current.likes, dislikes: reaction === "dislike" ? current.dislikes + 1 : current.dislikes, myReaction: reaction } };
+        }
+      });
+    }
+  }, [nurseId]);
 
   const handleSubmitPost = useCallback(async () => {
     if (!newPostText.trim() && !mediaFile) return;
@@ -528,7 +552,23 @@ export default function BlueRoomPage() {
                                     <img src={comment.media_url} alt="" className="mt-2 max-h-40 rounded-xl object-cover border border-slate-100" />
                                   )}
                                 </div>
-                                <p className="mt-1 px-2 text-[10px] text-slate-400">{new Date(comment.created_at).toLocaleDateString()}</p>
+                                <div className="mt-1 flex items-center gap-3 px-2">
+                                  <p className="text-[10px] text-slate-400">{new Date(comment.created_at).toLocaleDateString()}</p>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleCommentReaction(comment.id, "like")}
+                                    className={`flex items-center gap-1 text-[10px] font-semibold transition ${commentReactions[comment.id]?.myReaction === "like" ? "text-[#0d9488]" : "text-slate-400 hover:text-[#0d9488]"}`}
+                                  >
+                                    👍 {commentReactions[comment.id]?.likes ?? 0}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleCommentReaction(comment.id, "dislike")}
+                                    className={`flex items-center gap-1 text-[10px] font-semibold transition ${commentReactions[comment.id]?.myReaction === "dislike" ? "text-red-500" : "text-slate-400 hover:text-red-400"}`}
+                                  >
+                                    👎 {commentReactions[comment.id]?.dislikes ?? 0}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           ))
