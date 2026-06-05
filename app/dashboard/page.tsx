@@ -559,13 +559,12 @@ export default function NurseDashboardPage() {
                 </ul>
               </div>
               <div className="flex flex-col gap-3 sm:shrink-0 sm:items-end">
-                <button
-                  type="button"
+                <Link
+                  href="/blueroom"
                   className="inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-bold text-[#1a2744] shadow-lg transition hover:bg-teal-50 sm:w-auto"
-                  onClick={() => alert("The Blue Room is coming soon! We will notify you when it launches 💙")}
                 >
-                  Join the waitlist 💙
-                </button>
+                  Enter The Blue Room 💙
+                </Link>
                 <p className="text-xs text-teal-200/70 text-center">Be first in when we launch</p>
               </div>
             </div>
