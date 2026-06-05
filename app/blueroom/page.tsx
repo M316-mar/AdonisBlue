@@ -248,6 +248,15 @@ export default function BlueRoomPage() {
   const firstName = nurseName.split(" ")[0] ?? nurseName;
   const initials = nurseName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
+  function detectCategory(text: string): string {
+    const lower = text.toLowerCase();
+    if (lower.includes("trend") || lower.includes("popular") || lower.includes("everyone") || lower.includes("viral") || lower.includes("hot")) return "trending";
+    if (lower.includes("technique") || lower.includes("how to") || lower.includes("tip") || lower.includes("inject") || lower.includes("cannula") || lower.includes("needle") || lower.includes("filler") || lower.includes("botox") || lower.includes("dissolve")) return "techniques";
+    if (lower.includes("business") || lower.includes("client") || lower.includes("booking") || lower.includes("price") || lower.includes("marketing") || lower.includes("instagram") || lower.includes("income") || lower.includes("money") || lower.includes("grow")) return "business";
+    if (lower.includes("news") || lower.includes("fda") || lower.includes("approved") || lower.includes("study") || lower.includes("research") || lower.includes("allergan") || lower.includes("galderma") || lower.includes("launch")) return "news";
+    return "general";
+  }
+
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5]">
@@ -348,7 +357,12 @@ export default function BlueRoomPage() {
               <div className="mt-4 space-y-3">
                 <textarea
                   value={newPostText}
-                  onChange={e => setNewPostText(e.target.value)}
+                  onChange={e => {
+                    setNewPostText(e.target.value);
+                    if (e.target.value.length > 20) {
+                      setNewPostCategory(detectCategory(e.target.value));
+                    }
+                  }}
                   placeholder={`What's on your mind, ${firstName}? Share a tip, question, or update with the community 💙`}
                   rows={4}
                   className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20 placeholder:text-slate-400"
@@ -369,18 +383,21 @@ export default function BlueRoomPage() {
                     >✕</button>
                   </div>
                 )}
-                <div className="flex items-center justify-between">
-                  <select
-                    value={newPostCategory}
-                    onChange={e => setNewPostCategory(e.target.value)}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none"
-                  >
-                    <option value="general">💙 General</option>
-                    <option value="trending">🔥 Trending</option>
-                    <option value="techniques">💉 Techniques</option>
-                    <option value="business">📈 Business</option>
-                    <option value="news">📰 News</option>
-                  </select>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <select
+                      value={newPostCategory}
+                      onChange={e => setNewPostCategory(e.target.value)}
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none"
+                    >
+                      <option value="general">💙 General</option>
+                      <option value="trending">🔥 Trending</option>
+                      <option value="techniques">💉 Techniques</option>
+                      <option value="business">📈 Business</option>
+                      <option value="news">📰 News</option>
+                    </select>
+                    <p className="text-xs text-slate-400">✨ Category auto-detected based on your post</p>
+                  </div>
                   <div className="flex gap-2">
                     <div className="flex items-center gap-2">
                       <label className="cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 flex items-center gap-1">
