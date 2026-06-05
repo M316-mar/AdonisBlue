@@ -40,7 +40,11 @@ export default function AdminPage() {
   const [nurses, setNurses] = useState<NurseRow[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [freezeLoading, setFreezeLoading] = useState<string | null>(null);
-  const [tab, setTab] = useState<"nurses" | "feedback">("nurses");
+  const [tab, setTab] = useState<"nurses" | "feedback" | "blueroom">("nurses");
+  const [blueroomPosts, setBlueroomPosts] = useState<{id:string;title:string;content:string;category:string;emoji:string;created_at:string;}[]>([]);
+  const [newPost, setNewPost] = useState({ title: "", content: "", category: "general", emoji: "💙" });
+  const [postLoading, setPostLoading] = useState(false);
+  const [postSuccess, setPostSuccess] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -48,14 +52,22 @@ export default function AdminPage() {
       router.replace("/admin-login");
       return;
     }
-    fetch("/api/admin/nurses-public")
-      .then(r => r.json())
-      .then(json => {
+    (async () => {
+      try {
+        const r = await fetch("/api/admin/nurses-public");
+        const json = await r.json();
         setNurses(Array.isArray(json.nurses) ? json.nurses : []);
         setFeedback(Array.isArray(json.feedback) ? json.feedback : []);
+        const blueroomRes = await fetch("/api/blueroom/posts");
+        if (blueroomRes.ok) {
+          const blueroomJson = await blueroomRes.json();
+          setBlueroomPosts(blueroomJson.posts ?? []);
+        }
         setReady(true);
-      })
-      .catch(() => setReady(true));
+      } catch {
+        setReady(true);
+      }
+    })();
   }, [router]);
 
   const handleFreezeToggle = useCallback(async (nurse: NurseRow) => {
@@ -74,6 +86,24 @@ export default function AdminPage() {
       setFreezeLoading(null);
     }
   }, []);
+
+  const handleCreatePost = useCallback(async () => {
+    if (!newPost.title.trim() || !newPost.content.trim()) return;
+    setPostLoading(true);
+    const res = await fetch("/api/blueroom/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newPost),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      setBlueroomPosts(prev => [json.post, ...prev]);
+      setNewPost({ title: "", content: "", category: "general", emoji: "💙" });
+      setPostSuccess(true);
+      setTimeout(() => setPostSuccess(false), 3000);
+    }
+    setPostLoading(false);
+  }, [newPost]);
 
   const totalActive = nurses.filter(n => n.launched && !n.frozen).length;
   const totalFrozen = nurses.filter(n => n.frozen).length;
@@ -143,6 +173,13 @@ export default function AdminPage() {
             className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "feedback" ? "bg-teal-400 text-[#0d1628]" : "border border-white/20 bg-white/5 text-white hover:bg-white/10"}`}
           >
             💬 Feedback ({feedback.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("blueroom")}
+            className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "blueroom" ? "bg-teal-400 text-[#0d1628]" : "border border-white/20 bg-white/5 text-white hover:bg-white/10"}`}
+          >
+            💙 Blue Room
           </button>
         </div>
 
@@ -234,6 +271,84 @@ export default function AdminPage() {
                 <p className="mt-3 text-sm leading-relaxed text-slate-300 border-l-2 border-teal-400/30 pl-4">{f.message || "(no message)"}</p>
               </div>
             ))}
+          </div>
+        )}
+
+        {tab === "blueroom" && (
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+              <h2 className="mb-4 text-lg font-bold text-white">Create a new post 💙</h2>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {["💙","🔥","💉","📈","📰","✨","💡","⚠️"].map(e => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => setNewPost(p => ({ ...p, emoji: e }))}
+                      className={`rounded-xl border py-2 text-xl transition ${newPost.emoji === e ? "border-teal-400 bg-teal-400/20" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+                <select
+                  value={newPost.category}
+                  onChange={e => setNewPost(p => ({ ...p, category: e.target.value }))}
+                  className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none"
+                >
+                  <option value="general" className="text-black">💙 General</option>
+                  <option value="trending" className="text-black">🔥 Trending</option>
+                  <option value="techniques" className="text-black">💉 Techniques</option>
+                  <option value="business" className="text-black">📈 Business Tips</option>
+                  <option value="news" className="text-black">📰 Industry News</option>
+                </select>
+                <input
+                  value={newPost.title}
+                  onChange={e => setNewPost(p => ({ ...p, title: e.target.value }))}
+                  placeholder="Post title…"
+                  className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400/50"
+                />
+                <textarea
+                  value={newPost.content}
+                  onChange={e => setNewPost(p => ({ ...p, content: e.target.value }))}
+                  placeholder="Write your post content… Share trends, tips, news, techniques."
+                  rows={5}
+                  className="w-full resize-none rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400/50"
+                />
+                <button
+                  type="button"
+                  disabled={postLoading || !newPost.title.trim() || !newPost.content.trim()}
+                  onClick={() => void handleCreatePost()}
+                  className="w-full rounded-full bg-teal-400 px-6 py-3 text-sm font-bold text-[#0d1628] transition hover:bg-teal-300 disabled:opacity-50"
+                >
+                  {postLoading ? "Publishing…" : postSuccess ? "Published! ✅" : "Publish to Blue Room 💙"}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-widest">Published posts ({blueroomPosts.length})</h3>
+              {blueroomPosts.length === 0 && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+                  <p className="text-slate-500">No posts yet — create your first one above!</p>
+                </div>
+              )}
+              {blueroomPosts.map(post => (
+                <div key={post.id} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{post.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="rounded-full bg-teal-400/20 px-2 py-0.5 text-xs font-bold text-teal-300">{post.category}</span>
+                        <span className="text-xs text-slate-500">{new Date(post.created_at).toLocaleDateString()}</span>
+                      </div>
+                      <p className="mt-1 font-semibold text-white">{post.title}</p>
+                      <p className="mt-1 text-sm text-slate-400 line-clamp-2">{post.content}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </main>
