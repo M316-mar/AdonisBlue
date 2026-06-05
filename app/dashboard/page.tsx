@@ -516,22 +516,39 @@ export default function NurseDashboardPage() {
                 </div>
               </div>
               {launched ? (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
-                  <h3 className="text-base font-semibold text-[#1a2744]">Add to your website</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-500">Copy this code and paste it anywhere in your website&apos;s HTML. Your bot will appear automatically — and any updates you make here apply instantly, no changes needed on your site.</p>
-                  <div className="mt-3 rounded-xl bg-[#1a2744] px-3 py-3">
-                    <code className="block break-all text-xs leading-relaxed text-teal-200">
-                      {`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`}
-                    </code>
+                <>
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
+                    <h3 className="text-base font-semibold text-[#1a2744]">Add to your website</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">Copy this code and paste it anywhere in your website&apos;s HTML. Your bot will appear automatically — and any updates you make here apply instantly, no changes needed on your site.</p>
+                    <div className="mt-3 rounded-xl bg-[#1a2744] px-3 py-3">
+                      <code className="block break-all text-xs leading-relaxed text-teal-200">
+                        {`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`}
+                      </code>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void navigator.clipboard.writeText(`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`)}
+                      className="mt-3 w-full rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                    >
+                      Copy embed code
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void navigator.clipboard.writeText(`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`)}
-                    className="mt-3 w-full rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
-                  >
-                    Copy embed code
-                  </button>
-                </div>
+                  <div className="mt-4 rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50 to-rose-50 p-4 shadow-sm sm:p-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl">📱</span>
+                      <h3 className="text-sm font-bold text-[#1a2744]">Instagram integration</h3>
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-500 mb-3">
+                      Let clients comment a keyword on your posts and automatically receive your bot link in a DM — hands free.
+                    </p>
+                    <Link
+                      href="/manychat"
+                      className="inline-flex w-full items-center justify-center rounded-full border border-pink-200 bg-white px-4 py-2 text-xs font-bold text-pink-600 transition hover:bg-pink-50"
+                    >
+                      Set up Instagram automation →
+                    </Link>
+                  </div>
+                </>
               ) : null}
             </div>
           </aside>
