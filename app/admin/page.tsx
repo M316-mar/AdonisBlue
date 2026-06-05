@@ -40,7 +40,7 @@ export default function AdminPage() {
   const [nurses, setNurses] = useState<NurseRow[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [freezeLoading, setFreezeLoading] = useState<string | null>(null);
-  const [tab, setTab] = useState<"nurses" | "feedback" | "blueroom" | "news">("nurses");
+  const [tab, setTab] = useState<"nurses" | "feedback" | "blueroom" | "news" | "newsletter">("nurses");
   const [blueroomPosts, setBlueroomPosts] = useState<{id:string;title:string;content:string;category:string;emoji:string;created_at:string;}[]>([]);
   const [newPost, setNewPost] = useState({ title: "", content: "", category: "general", emoji: "💙" });
   const [postLoading, setPostLoading] = useState(false);
@@ -48,6 +48,9 @@ export default function AdminPage() {
   const [news, setNews] = useState<{title:string;category:string;summary:string;emoji:string;action:string;}[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsGeneratedAt, setNewsGeneratedAt] = useState<string | null>(null);
+  const [newsletter, setNewsletter] = useState({ subject: "", content: "", preview_text: "" });
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [newsletterSent, setNewsletterSent] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -121,6 +124,26 @@ export default function AdminPage() {
       setNewsLoading(false);
     }
   }, []);
+
+  const handleSendNewsletter = useCallback(async () => {
+    if (!newsletter.subject.trim() || !newsletter.content.trim()) return;
+    setNewsletterLoading(true);
+    setNewsletterSent(null);
+    try {
+      const res = await fetch("/api/admin/send-newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newsletter),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setNewsletterSent(json.sent_count ?? 0);
+        setNewsletter({ subject: "", content: "", preview_text: "" });
+      }
+    } finally {
+      setNewsletterLoading(false);
+    }
+  }, [newsletter]);
 
   const totalActive = nurses.filter(n => n.launched && !n.frozen).length;
   const totalFrozen = nurses.filter(n => n.frozen).length;
@@ -204,6 +227,13 @@ export default function AdminPage() {
             className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "news" ? "bg-teal-400 text-[#0d1628]" : "border border-white/20 bg-white/5 text-white hover:bg-white/10"}`}
           >
             🔬 Industry News
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("newsletter")}
+            className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "newsletter" ? "bg-teal-400 text-[#0d1628]" : "border border-white/20 bg-white/5 text-white hover:bg-white/10"}`}
+          >
+            📧 Newsletter
           </button>
         </div>
 
@@ -459,6 +489,84 @@ export default function AdminPage() {
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {tab === "newsletter" && (
+          <div className="space-y-6">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2744] to-[#0d4f6b] p-6">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_80%_0%,rgba(56,189,248,0.2),transparent)]" aria-hidden />
+              <div className="relative">
+                <h2 className="text-lg font-bold text-white">📧 Send Newsletter to All Nurses</h2>
+                <p className="mt-1 text-sm text-slate-300">Write a newsletter and send it to every active nurse on AdonisBlue. Use this for industry updates, tips, feature announcements, and holiday offer ideas.</p>
+              </div>
+            </div>
+
+            {newsletterSent !== null && (
+              <div className="rounded-2xl border border-teal-400/30 bg-teal-400/10 p-4 text-center">
+                <p className="text-lg font-bold text-teal-300">✅ Newsletter sent to {newsletterSent} nurse{newsletterSent !== 1 ? "s" : ""}!</p>
+                <p className="mt-1 text-sm text-slate-400">All active AdonisBlue members have received your newsletter.</p>
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+              <h3 className="mb-4 text-base font-bold text-white">Compose your newsletter</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">Subject line</label>
+                  <input
+                    value={newsletter.subject}
+                    onChange={e => setNewsletter(p => ({ ...p, subject: e.target.value }))}
+                    placeholder="e.g. 🔥 Top 3 trending procedures this month"
+                    className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400/50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">Preview text (shown in inbox preview)</label>
+                  <input
+                    value={newsletter.preview_text}
+                    onChange={e => setNewsletter(p => ({ ...p, preview_text: e.target.value }))}
+                    placeholder="e.g. What clients are asking for most right now..."
+                    className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400/50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">Content</label>
+                  <p className="mb-2 text-xs text-slate-500">Use double line breaks to separate paragraphs. Write naturally — it will be beautifully formatted.</p>
+                  <textarea
+                    value={newsletter.content}
+                    onChange={e => setNewsletter(p => ({ ...p, content: e.target.value }))}
+                    placeholder={"Hi nurse family! 💙\n\nHere's what we've been seeing in the aesthetic world this week...\n\nWrite your newsletter content here. Each double line break becomes a new paragraph in the email."}
+                    rows={10}
+                    className="w-full resize-none rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400/50"
+                  />
+                </div>
+
+                <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-4">
+                  <p className="text-xs font-bold text-amber-300 mb-2">💡 Newsletter tips (Alex Hormozi style):</p>
+                  <ul className="space-y-1">
+                    {[
+                      "Lead with a big insight or trend — hook them in the first line",
+                      "Give them one actionable thing they can do TODAY",
+                      "Share what clients are asking for — helps them prep their bot",
+                      "End with excitement about what's coming next",
+                    ].map(tip => (
+                      <li key={tip} className="text-xs text-amber-200 flex gap-2"><span>→</span>{tip}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={newsletterLoading || !newsletter.subject.trim() || !newsletter.content.trim()}
+                  onClick={() => void handleSendNewsletter()}
+                  className="w-full rounded-full bg-teal-400 px-6 py-3 text-sm font-bold text-[#0d1628] transition hover:bg-teal-300 disabled:opacity-50"
+                >
+                  {newsletterLoading ? "Sending to all nurses…" : "📧 Send newsletter to all nurses"}
+                </button>
+                <p className="text-center text-xs text-slate-500">This will send to every active AdonisBlue nurse immediately.</p>
+              </div>
             </div>
           </div>
         )}
