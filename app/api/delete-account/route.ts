@@ -10,6 +10,7 @@ export async function POST(request: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
+
     const { data: { user } } = await supabaseAuth.auth.getUser(token);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -20,27 +21,31 @@ export async function POST(request: Request) {
 
     const nurse_id = user.id;
 
-    // Delete reviews first (references intakes)
+    // 1. Get all intake IDs for this nurse
     const { data: intakes } = await supabase
       .from("intakes")
       .select("id")
       .eq("nurse_id", nurse_id);
 
+    // 2. Delete reviews linked to those intakes
     if (intakes && intakes.length > 0) {
       const intakeIds = intakes.map(i => i.id);
       await supabase.from("reviews").delete().in("intake_id", intakeIds);
     }
 
-    // Delete intakes
+    // 3. Delete intakes
     await supabase.from("intakes").delete().eq("nurse_id", nurse_id);
 
-    // Delete bots
+    // 4. Delete feedback
+    await supabase.from("feedback").delete().eq("nurse_id", nurse_id);
+
+    // 5. Delete bots
     await supabase.from("bots").delete().eq("nurse_id", nurse_id);
 
-    // Delete from admins if they were an admin
+    // 6. Delete from admins table
     await supabase.from("admins").delete().eq("user_id", nurse_id);
 
-    // Delete auth user
+    // 7. Delete the auth user completely
     await supabase.auth.admin.deleteUser(nurse_id);
 
     return NextResponse.json({ success: true });
