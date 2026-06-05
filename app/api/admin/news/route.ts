@@ -1,18 +1,6 @@
 import { NextResponse } from "next/server";
 
-const AESTHETIC_SOURCES = [
-  "American Society of Aesthetic Plastic Surgeons (ASAPS)",
-  "RealSelf",
-  "Allergan Aesthetics",
-  "Galderma",
-  "Journal of Clinical and Aesthetic Dermatology",
-  "Aesthetic Surgery Journal",
-  "American Med Spa Association (AmSpa)",
-  "Revance Therapeutics",
-  "Merz Aesthetics",
-];
-
-export async function GET() {
+export async function POST(request: Request) {
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "No API key" }, { status: 500 });
@@ -27,8 +15,6 @@ Focus on:
 5. Social media trends driving client demand
 6. Emerging techniques plastic surgeons and dermatologists are adopting
 
-Key sources to reference: ${AESTHETIC_SOURCES.join(", ")}
-
 Format your response as a JSON array of exactly 6 news items. Each item must have:
 - title: short punchy headline (max 10 words)
 - category: one of "trending", "new_product", "safety", "business", "technique", "social"
@@ -36,7 +22,7 @@ Format your response as a JSON array of exactly 6 news items. Each item must hav
 - emoji: one relevant emoji
 - action: one specific thing a nurse could do with this information (max 15 words)
 
-Return ONLY valid JSON, no markdown, no backticks, no explanation.`;
+Return ONLY valid JSON array, no markdown, no backticks, no explanation. Start with [ and end with ]`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -57,7 +43,8 @@ Return ONLY valid JSON, no markdown, no backticks, no explanation.`;
     
     let news = [];
     try {
-      news = JSON.parse(text);
+      const cleaned = text.trim().replace(/^```json\n?/, "").replace(/\n?```$/, "");
+      news = JSON.parse(cleaned);
     } catch {
       news = [];
     }

@@ -114,7 +114,7 @@ export default function AdminPage() {
   const handleFetchNews = useCallback(async () => {
     setNewsLoading(true);
     try {
-      const res = await fetch("/api/admin/news");
+      const res = await fetch("/api/admin/news", { method: "POST" });
       if (res.ok) {
         const json = await res.json();
         setNews(json.news ?? []);
