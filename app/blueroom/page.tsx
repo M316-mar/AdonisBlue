@@ -441,13 +441,6 @@ export default function BlueRoomPage() {
                     >
                       <span>💬</span> Comment
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void navigator.clipboard.writeText("https://adonisblue.io/blueroom")}
-                      className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 sm:text-sm sm:gap-2"
-                    >
-                      <span>↗️</span> Share
-                    </button>
                   </div>
 
                   {/* Comments */}
