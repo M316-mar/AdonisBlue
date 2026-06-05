@@ -49,7 +49,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { title, content, category, emoji } = await request.json();
+    const { title, content, category, emoji, author_id, author_name } = await request.json();
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -58,7 +58,14 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabase
       .from("blueroom_posts")
-      .insert({ title, content, category: category || "general", emoji: emoji || "💙" })
+      .insert({
+        title,
+        content,
+        category: category || "general",
+        emoji: emoji || "💙",
+        author_id: author_id ?? null,
+        author_name: author_name ?? null,
+      })
       .select()
       .single();
 
