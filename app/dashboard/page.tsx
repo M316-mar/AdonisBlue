@@ -120,6 +120,8 @@ export default function NurseDashboardPage() {
   const [intakesOpen, setIntakesOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
+  const [showLaunchCelebration, setShowLaunchCelebration] = useState(false);
+  const [justLaunched, setJustLaunched] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,6 +143,11 @@ export default function NurseDashboardPage() {
           const json = await res.json();
           const row = json?.bot ?? json;
           setBot(row && typeof row === "object" && !Array.isArray(row) ? row as BotRow : null);
+          const alreadyCelebrated = localStorage.getItem("ab-celebrated-" + (row?.slug || ""));
+          if (row?.launched && !alreadyCelebrated) {
+            setShowLaunchCelebration(true);
+            setJustLaunched(true);
+          }
 
           // Fetch recent intakes
           const intakesRes = await fetch("/api/myintakes", {
@@ -615,6 +622,75 @@ export default function NurseDashboardPage() {
           </div>
         ) : null}
       </main>
+
+      {showLaunchCelebration ? (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => {
+              setShowLaunchCelebration(false);
+              localStorage.setItem("ab-celebrated-" + botChatSlug, "true");
+            }}
+          />
+          <div className="relative z-[201] w-full max-w-lg overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[#1a2744] via-[#0d4f6b] to-[#0d9488] p-6 shadow-2xl sm:p-8">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(56,189,248,0.2),transparent)]" aria-hidden />
+            <div className="relative text-center">
+              <div className="mb-4 text-6xl">🎉</div>
+              <h2 className="text-2xl font-bold text-white sm:text-3xl">Your bot is live!</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-200">
+                Congratulations! Your AI front desk is ready to answer clients 24/7. Share it everywhere!
+              </p>
+
+              <div className="mt-6 space-y-3">
+                <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-teal-300">Your bot link</p>
+                  <p className="break-all text-sm font-medium text-white">https://adonisblue.io/chat/{botChatSlug}</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(`https://adonisblue.io/chat/${botChatSlug}`);
+                  }}
+                  className="w-full rounded-full bg-white px-6 py-3 text-sm font-bold text-[#1a2744] shadow-lg transition hover:bg-teal-50"
+                >
+                  📋 Copy my bot link
+                </button>
+
+                <a
+                  href={`https://www.instagram.com/?url=https://adonisblue.io/chat/${botChatSlug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full rounded-full border-2 border-white/30 bg-white/10 px-6 py-3 text-center text-sm font-bold text-white transition hover:bg-white/20"
+                >
+                  📱 Share on Instagram
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`);
+                  }}
+                  className="block w-full rounded-full border-2 border-white/30 bg-white/10 px-6 py-3 text-center text-sm font-bold text-white transition hover:bg-white/20"
+                >
+                  💻 Copy embed code
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLaunchCelebration(false);
+                  localStorage.setItem("ab-celebrated-" + botChatSlug, "true");
+                }}
+                className="mt-4 text-xs text-slate-400 underline underline-offset-2 transition hover:text-white"
+              >
+                Close and go to dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
         {feedbackOpen ? (
