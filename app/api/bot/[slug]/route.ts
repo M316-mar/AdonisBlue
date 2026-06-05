@@ -13,9 +13,12 @@ export async function GET(
   );
 
   // Try slug first, then fall back to bot_name
+  const botFields =
+    "id, nurse_id, practice_name, city, state, instagram, facebook, tiktok, website, other_social, notification_email, bot_name, slug, greeting, tone, chat_theme, primary_color, booking_link, cancellation_policy, aftercare, numbing_method, previous_work_policy, touch_up_policy, same_day_consultation, deposit_info, forward_questions, services, logo_image, logo_data_url, brand_name_image, bot_name_font, bubble_attention_message, photos, launched, frozen, created_at";
+
   let { data, error } = await supabase
     .from("bots")
-    .select("*")
+    .select(botFields)
     .eq("slug", slug)
     .eq("launched", true)
     .single();
@@ -23,7 +26,7 @@ export async function GET(
   if (error || !data) {
     const result = await supabase
       .from("bots")
-      .select("*")
+      .select(botFields)
       .ilike("bot_name", slug.replace(/-/g, " "))
       .eq("launched", true)
       .single();

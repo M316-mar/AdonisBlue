@@ -96,6 +96,7 @@ type Step3Data = {
   bubbleAttentionMessage: string;
   greeting: string;
   tone: Tone;
+  chatTheme: "dark" | "light";
   primaryColor: string;
   forwardQuestions: string;
   bookingLink: string;
@@ -146,6 +147,7 @@ function defaultStep3(): Step3Data {
     bubbleAttentionMessage: "",
     greeting: "",
     tone: "Warm & friendly",
+    chatTheme: "light",
     primaryColor: "#0d9488",
     forwardQuestions: "",
     bookingLink: "",
@@ -563,6 +565,7 @@ export default function OnboardingPage() {
       slug: slugify(p.step1.practiceName.trim() || "my-bot"),
       greeting: p.step3.greeting.trim(),
       tone: p.step3.tone,
+      chat_theme: p.step3.chatTheme,
       primary_color: p.step3.primaryColor,
       booking_link: p.step3.bookingLink.trim() || null,
       cancellation_policy: p.step3.cancellationPolicy.trim() || null,
@@ -1185,6 +1188,44 @@ export default function OnboardingPage() {
                   ))}
                 </div>
               </fieldset>
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-[#1a2744]">Chat theme</label>
+                <p className="text-xs text-slate-500">Choose how your chat looks to clients. You can change this any time.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep3({ chatTheme: "light" })}
+                    className={`relative overflow-hidden rounded-2xl border-2 p-4 text-left transition ${s3.chatTheme === "light" ? "border-[#0d9488] bg-teal-50" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#1a2744]">☀️ Light</span>
+                      {s3.chatTheme === "light" && <span className="rounded-full bg-[#0d9488] px-2 py-0.5 text-[10px] font-bold text-white">Selected</span>}
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-2">
+                      <div className="mb-1.5 h-2 w-3/4 rounded-full bg-slate-200" />
+                      <div className="mb-1.5 h-2 w-1/2 rounded-full bg-slate-100" />
+                      <div className="ml-auto h-2 w-2/3 rounded-full border border-[#0d9488]" style={{ borderColor: s3.primaryColor }} />
+                    </div>
+                    <p className="mt-2 text-[10px] text-slate-500">Clean white, color as accent</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStep3({ chatTheme: "dark" })}
+                    className={`relative overflow-hidden rounded-2xl border-2 p-4 text-left transition ${s3.chatTheme === "dark" ? "border-[#0d9488] bg-teal-50" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#1a2744]">🌙 Dark</span>
+                      {s3.chatTheme === "dark" && <span className="rounded-full bg-[#0d9488] px-2 py-0.5 text-[10px] font-bold text-white">Selected</span>}
+                    </div>
+                    <div className="rounded-xl bg-[#0d1628] p-2">
+                      <div className="mb-1.5 h-2 w-3/4 rounded-full bg-white/20" />
+                      <div className="mb-1.5 h-2 w-1/2 rounded-full bg-white/10" />
+                      <div className="ml-auto h-2 w-2/3 rounded-full" style={{ backgroundColor: s3.primaryColor + "60" }} />
+                    </div>
+                    <p className="mt-2 text-[10px] text-slate-500">Elegant dark glass style</p>
+                  </button>
+                </div>
+              </div>
               <label className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <span className="text-sm font-medium text-[#1a2744] sm:min-w-[10rem]">Primary chat bubble color</span>
                 <div className="flex flex-wrap items-center gap-3">

@@ -28,6 +28,7 @@ type BotRow = {
   brand_name_image?: string | null;
   greeting: string | null;
   tone: string | null;
+  chat_theme?: string | null;
   primary_color: string | null;
   services: string[] | null;
   booking_link: string | null;
@@ -362,6 +363,8 @@ export default function PublicChatPage() {
   const fontId = (bot.bot_name_font as BotNameFontId | undefined) ?? "dm-sans";
   const botTitle = (bot.bot_name || "").trim() || (bot.practice_name || "").trim() || "Chat";
   const botLogoImage = bot.logo_image || bot.logo_data_url;
+  const chatTheme = bot.chat_theme || "light";
+  const isDark = chatTheme === "dark";
 
   const ChatPanel = (
     <div
@@ -413,9 +416,11 @@ export default function PublicChatPage() {
               className={`max-w-[85%] text-sm leading-relaxed ${
                 m.role === "user"
                   ? "rounded-full border-2 bg-white px-3.5 py-2 text-slate-800"
-                  : "rounded-2xl border-2 bg-white px-3.5 py-2.5 text-slate-800"
+                  : isDark
+                    ? "rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-slate-200 backdrop-blur-sm"
+                    : "py-1 text-slate-800"
               }`}
-              style={m.role === "user" ? { borderColor: primary } : { borderColor: primary, borderLeftWidth: "4px" }}
+              style={m.role === "user" ? { borderColor: primary } : isDark ? { borderColor: `${primary}40` } : undefined}
             >
               {renderMessageContent(m.content)}
               {m.photos && m.photos.length > 0 ? (
@@ -447,7 +452,7 @@ export default function PublicChatPage() {
         ) : null}
       </div>
 
-      <div className="shrink-0 border-t border-slate-200 bg-white px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:rounded-b-2xl">
+      <div className={`shrink-0 border-t px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:rounded-b-2xl ${isDark ? "border-white/10 bg-[#0d1628]" : "border-slate-200 bg-white"}`}>
         <div className="mb-2 flex flex-wrap gap-1.5">
           {QUICK_REPLIES.map((q) => (
             <button
@@ -455,7 +460,7 @@ export default function PublicChatPage() {
               type="button"
               onClick={() => void sendUserText(q)}
               disabled={sending}
-              className="rounded-full border-2 bg-white px-3 py-1.5 text-left text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              className={`rounded-full border-2 px-3 py-2 text-left text-xs font-medium transition disabled:opacity-50 ${isDark ? "bg-white/5 text-slate-200 hover:bg-white/10" : "bg-white text-slate-700 hover:bg-slate-50"}`}
               style={{ borderColor: primary }}
             >
               {q}
@@ -479,7 +484,7 @@ export default function PublicChatPage() {
             }}
             placeholder="Type a message…"
             disabled={sending}
-            className="max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full border-2 border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-current disabled:opacity-50"
+            className={`max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full border-2 px-4 py-2.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-current disabled:opacity-50 ${isDark ? "border-white/15 bg-white/8 text-white placeholder:text-slate-500" : "border-slate-200 bg-white text-slate-900"}`}
             style={{ "--focus-color": primary } as CSSProperties}
           />
           <button
@@ -496,15 +501,10 @@ export default function PublicChatPage() {
   );
 
   return (
-    <div
-      className="relative flex min-h-[100dvh] flex-col"
-      style={{
-        background: `linear-gradient(165deg, ${primary}12 0%, #f8fafc 38%, #f1f5f9 100%)`,
-      }}
-    >
+    <div className={`flex min-h-dvh flex-col ${isDark ? "bg-[#0d1628]" : "bg-white"}`}>
       <header
-        className="shrink-0 border-b-4 bg-white px-4 py-4 sm:px-6 sm:py-5"
-        style={{ borderBottomColor: primary }}
+        className={`shrink-0 px-4 py-4 sm:px-6 sm:py-5 ${isDark ? "border-b border-white/10 bg-[#0d1628]" : "border-b-4 bg-white"}`}
+        style={isDark ? {} : { borderBottomColor: primary }}
       >
         <div className="mx-auto flex max-w-3xl items-center gap-3 sm:gap-4">
           {botLogoImage ? (
@@ -512,14 +512,14 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1 shadow-sm sm:h-14 sm:w-14"
+              className={`h-12 w-12 shrink-0 rounded-xl object-contain p-1 sm:h-14 sm:w-14 ${isDark ? "border border-white/20 bg-white/10" : "border border-slate-200 bg-white shadow-sm"}`}
             />
           ) : null}
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-semibold tracking-tight text-[#1a2744] sm:text-xl" style={getBotNameFontStyle(fontId)}>
+            <h1 className={`truncate text-lg font-semibold tracking-tight sm:text-xl ${isDark ? "text-white" : "text-[#1a2744]"}`} style={getBotNameFontStyle(fontId)}>
               {botTitle}
             </h1>
-            <p className="mt-1 flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+            <p className={`mt-1 flex items-center gap-2 text-xs font-medium sm:text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
               Online — we typically reply right away
             </p>
@@ -527,7 +527,7 @@ export default function PublicChatPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6 sm:py-12">
+      <main className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6 sm:py-12 ${isDark ? "bg-[#0d1628]" : "bg-white"}`}>
         <p className="text-center text-sm font-medium text-slate-600 sm:text-base">
           {attentionMessage}
         </p>
