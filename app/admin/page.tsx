@@ -199,42 +199,23 @@ export default function AdminPage() {
         </div>
 
         {/* Tabs */}
-        <div className="mb-4 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setTab("nurses")}
-            className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "nurses" ? "bg-teal-400 text-[#0d1628]" : "border border-white/20 bg-white/5 text-white hover:bg-white/10"}`}
-          >
-            👩‍⚕️ Nurses ({nurses.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("feedback")}
-            className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "feedback" ? "bg-teal-400 text-[#0d1628]" : "border border-white/20 bg-white/5 text-white hover:bg-white/10"}`}
-          >
-            💬 Feedback ({feedback.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("blueroom")}
-            className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "blueroom" ? "bg-teal-400 text-[#0d1628]" : "border border-white/20 bg-white/5 text-white hover:bg-white/10"}`}
-          >
-            💙 Blue Room
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("news")}
-            className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "news" ? "bg-teal-400 text-[#0d1628]" : "border border-white/20 bg-white/5 text-white hover:bg-white/10"}`}
-          >
-            🔬 Industry News
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("newsletter")}
-            className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "newsletter" ? "bg-teal-400 text-[#0d1628]" : "border border-white/20 bg-white/5 text-white hover:bg-white/10"}`}
-          >
-            📧 Newsletter
-          </button>
+        <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+          {[
+            { id: "nurses", label: `👩‍⚕️ Nurses (${nurses.length})` },
+            { id: "feedback", label: `💬 Feedback (${feedback.length})` },
+            { id: "blueroom", label: "💙 Blue Room" },
+            { id: "news", label: "🔬 Industry News" },
+            { id: "newsletter", label: "📧 Newsletter" },
+          ].map(t => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id as "nurses" | "feedback" | "blueroom" | "news" | "newsletter")}
+              className={`shrink-0 rounded-full px-5 py-2 text-sm font-semibold transition ${tab === t.id ? "bg-teal-400 text-[#0d1628]" : "border border-white/20 bg-white/5 text-white hover:bg-white/10"}`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {/* Nurses tab */}
