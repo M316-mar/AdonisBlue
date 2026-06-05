@@ -5,6 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+
+const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
 
 type Post = {
   id: string;
@@ -25,6 +28,7 @@ type Comment = {
   nurse_name: string;
   message: string;
   created_at: string;
+  media_url?: string | null;
 };
 
 const CATEGORIES = [
@@ -55,6 +59,9 @@ export default function BlueRoomPage() {
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const [commentLoading, setCommentLoading] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
+  const [commentMedia, setCommentMedia] = useState<Record<string, File | null>>({});
+  const [commentMediaPreview, setCommentMediaPreview] = useState<Record<string, string | null>>({});
   const [liked, setLiked] = useState<Record<string, boolean>>({});
   const [newPostText, setNewPostText] = useState("");
   const [newPostCategory, setNewPostCategory] = useState("general");
@@ -102,21 +109,61 @@ export default function BlueRoomPage() {
 
   const handleSubmitComment = useCallback(async (postId: string) => {
     const message = commentText[postId]?.trim();
-    if (!message) return;
+    const mediaFile = commentMedia[postId];
+    if (!message && !mediaFile) return;
     setCommentLoading(postId);
+
+    let mediaUrl: string | null = null;
+    if (mediaFile) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (token) {
+          const { createClient } = await import("@supabase/supabase-js");
+          const sbWithAuth = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            { global: { headers: { Authorization: `Bearer ${token}` } } }
+          );
+          const ext = mediaFile.name.split(".").pop();
+          const path = `comments/${nurseId}/${Date.now()}.${ext}`;
+          const { error } = await sbWithAuth.storage
+            .from("blueroom-media")
+            .upload(path, mediaFile, { contentType: mediaFile.type });
+          if (!error) {
+            const { data: urlData } = sbWithAuth.storage
+              .from("blueroom-media")
+              .getPublicUrl(path);
+            mediaUrl = urlData.publicUrl;
+          }
+        }
+      } catch (e) {
+        console.error("Comment media upload error:", e);
+      }
+    }
+
     const res = await fetch("/api/blueroom/comments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ post_id: postId, nurse_id: nurseId, nurse_name: nurseName, message }),
+      body: JSON.stringify({
+        post_id: postId,
+        nurse_id: nurseId,
+        nurse_name: nurseName,
+        message: message || "",
+        media_url: mediaUrl,
+      }),
     });
     if (res.ok) {
       const json = await res.json();
       setComments(prev => ({ ...prev, [postId]: [...(prev[postId] ?? []), json.comment] }));
       setCommentText(prev => ({ ...prev, [postId]: "" }));
+      setCommentMedia(prev => ({ ...prev, [postId]: null }));
+      setCommentMediaPreview(prev => ({ ...prev, [postId]: null }));
+      setShowEmojiPicker(null);
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, blueroom_comments: [{ count: (p.blueroom_comments?.[0]?.count ?? 0) + 1 }] } : p));
     }
     setCommentLoading(null);
-  }, [commentText, nurseId, nurseName]);
+  }, [commentText, commentMedia, nurseId, nurseName]);
 
   const handleSubmitPost = useCallback(async () => {
     if (!newPostText.trim() && !mediaFile) return;
@@ -459,6 +506,10 @@ export default function BlueRoomPage() {
                                 <div className="rounded-2xl bg-white border border-slate-200 px-3 py-2">
                                   <p className="text-xs font-bold text-[#1a2744]">{comment.nurse_name ?? "Nurse"}</p>
                                   <p className="text-xs leading-relaxed text-slate-700 mt-0.5">{comment.message}</p>
+                                  {comment.media_url && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={comment.media_url} alt="" className="mt-2 max-h-40 rounded-xl object-cover border border-slate-100" />
+                                  )}
                                 </div>
                                 <p className="mt-1 px-2 text-[10px] text-slate-400">{new Date(comment.created_at).toLocaleDateString()}</p>
                               </div>
@@ -466,26 +517,79 @@ export default function BlueRoomPage() {
                           ))
                         )}
                       </div>
-                      <div className="flex gap-2 items-center">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0d9488] text-xs font-bold text-white">
-                          {initials}
-                        </div>
-                        <div className="flex flex-1 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2">
-                          <input
-                            value={commentText[post.id] ?? ""}
-                            onChange={e => setCommentText(prev => ({ ...prev, [post.id]: e.target.value }))}
-                            onKeyDown={e => { if (e.key === "Enter") void handleSubmitComment(post.id); }}
-                            placeholder="Write a comment…"
-                            className="min-w-0 flex-1 bg-transparent text-xs outline-none text-slate-800 placeholder:text-slate-400"
-                          />
-                          <button
-                            type="button"
-                            disabled={commentLoading === post.id || !commentText[post.id]?.trim()}
-                            onClick={() => void handleSubmitComment(post.id)}
-                            className="shrink-0 text-[#0d9488] font-bold text-xs disabled:opacity-40 transition hover:text-teal-700"
-                          >
-                            Post
-                          </button>
+                      <div className="space-y-2">
+                        {/* Media preview */}
+                        {commentMediaPreview[post.id] && (
+                          <div className="relative inline-block">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={commentMediaPreview[post.id]!} alt="" className="h-20 w-20 rounded-xl object-cover border border-slate-200" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCommentMedia(prev => ({ ...prev, [post.id]: null }));
+                                setCommentMediaPreview(prev => ({ ...prev, [post.id]: null }));
+                              }}
+                              className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white text-[10px]"
+                            >✕</button>
+                          </div>
+                        )}
+
+                        {/* Emoji picker */}
+                        {showEmojiPicker === post.id && (
+                          <div className="absolute z-50">
+                            <EmojiPicker
+                              onEmojiClick={(emojiData) => {
+                                setCommentText(prev => ({ ...prev, [post.id]: (prev[post.id] ?? "") + emojiData.emoji }));
+                                setShowEmojiPicker(null);
+                              }}
+                              height={350}
+                              width={300}
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex gap-2 items-center">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0d9488] text-xs font-bold text-white">
+                            {initials}
+                          </div>
+                          <div className="flex flex-1 items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-2">
+                            <input
+                              value={commentText[post.id] ?? ""}
+                              onChange={e => setCommentText(prev => ({ ...prev, [post.id]: e.target.value }))}
+                              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void handleSubmitComment(post.id); } }}
+                              placeholder="Write a comment…"
+                              className="min-w-0 flex-1 bg-transparent text-xs outline-none text-slate-800 placeholder:text-slate-400"
+                            />
+                            {/* Emoji button */}
+                            <button
+                              type="button"
+                              onClick={() => setShowEmojiPicker(prev => prev === post.id ? null : post.id)}
+                              className="shrink-0 text-slate-400 hover:text-slate-600 transition text-sm"
+                            >😊</button>
+                            {/* Photo button */}
+                            <label className="shrink-0 cursor-pointer text-slate-400 hover:text-slate-600 transition text-sm">
+                              📸
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={e => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  setCommentMedia(prev => ({ ...prev, [post.id]: file }));
+                                  setCommentMediaPreview(prev => ({ ...prev, [post.id]: URL.createObjectURL(file) }));
+                                }}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              disabled={commentLoading === post.id || (!commentText[post.id]?.trim() && !commentMedia[post.id])}
+                              onClick={() => void handleSubmitComment(post.id)}
+                              className="shrink-0 text-[#0d9488] font-bold text-xs disabled:opacity-40 transition hover:text-teal-700"
+                            >
+                              Post
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

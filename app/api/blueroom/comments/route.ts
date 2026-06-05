@@ -27,10 +27,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { post_id, nurse_id, nurse_name, message } = await request.json();
+    const body = await request.json();
+    const { post_id, nurse_id, nurse_name, message, media_url } = body;
 
-    if (!post_id || !message) {
-      return NextResponse.json({ error: "post_id and message required" }, { status: 400 });
+    if (!post_id || (!message?.trim() && !media_url)) {
+      return NextResponse.json({ error: "post_id and message or media required" }, { status: 400 });
     }
 
     const supabase = createClient(
@@ -40,7 +41,13 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabase
       .from("blueroom_comments")
-      .insert({ post_id, nurse_id, nurse_name, message })
+      .insert({
+        post_id,
+        nurse_id,
+        nurse_name,
+        message: message ?? "",
+        media_url: media_url ?? null,
+      })
       .select()
       .single();
 
