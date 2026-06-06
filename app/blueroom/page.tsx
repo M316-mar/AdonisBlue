@@ -25,6 +25,7 @@ type Post = {
 
 type Comment = {
   id: string;
+  nurse_id: string;
   nurse_name: string;
   message: string;
   created_at: string;
@@ -64,6 +65,7 @@ export default function BlueRoomPage() {
   const [gifSearch, setGifSearch] = useState("");
   const [gifs, setGifs] = useState<{id:string;url:string;preview:string}[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
+  const [deletingComment, setDeletingComment] = useState<string | null>(null);
   const [commentReactions, setCommentReactions] = useState<Record<string, {likes: number, dislikes: number, myReaction: string | null}>>({});
   const [commentMedia, setCommentMedia] = useState<Record<string, File | null>>({});
   const [commentMediaPreview, setCommentMediaPreview] = useState<Record<string, string | null>>({});
@@ -234,6 +236,21 @@ export default function BlueRoomPage() {
     }
     setCommentLoading(null);
   }, [nurseId, nurseName]);
+
+  const handleDeleteComment = useCallback(async (postId: string, commentId: string, authorId: string) => {
+    if (authorId !== nurseId) return;
+    setDeletingComment(commentId);
+    const res = await fetch("/api/blueroom/comments", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comment_id: commentId, nurse_id: nurseId }),
+    });
+    if (res.ok) {
+      setComments(prev => ({ ...prev, [postId]: (prev[postId] ?? []).filter(c => c.id !== commentId) }));
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, blueroom_comments: [{ count: Math.max(0, (p.blueroom_comments?.[0]?.count ?? 1) - 1) }] } : p));
+    }
+    setDeletingComment(null);
+  }, [nurseId]);
 
   const handleSubmitPost = useCallback(async () => {
     if (!newPostText.trim() && !mediaFile) return;
@@ -614,6 +631,16 @@ export default function BlueRoomPage() {
                                   >
                                     👎 {commentReactions[comment.id]?.dislikes ?? 0}
                                   </button>
+                                  {comment.nurse_id === nurseId && (
+                                    <button
+                                      type="button"
+                                      disabled={deletingComment === comment.id}
+                                      onClick={() => void handleDeleteComment(post.id, comment.id, comment.nurse_id)}
+                                      className="px-2 text-[10px] text-red-400 hover:text-red-600 transition disabled:opacity-40"
+                                    >
+                                      {deletingComment === comment.id ? "Deleting…" : "Delete"}
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -652,27 +679,27 @@ export default function BlueRoomPage() {
                         )}
 
                         {showGifPicker === post.id && (
-                          <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
-                            <div className="flex gap-2 mb-3">
+                          <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-lg max-w-xs">
+                            <div className="flex gap-1.5 mb-2">
                               <input
                                 value={gifSearch}
                                 onChange={e => setGifSearch(e.target.value)}
                                 onKeyDown={e => { if (e.key === "Enter") void searchGifs(gifSearch); }}
                                 placeholder="Search GIFs…"
-                                className="flex-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs outline-none focus:border-[#0d9488]"
+                                className="flex-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs outline-none focus:border-[#0d9488]"
                               />
                               <button
                                 type="button"
                                 onClick={() => void searchGifs(gifSearch)}
-                                className="rounded-full bg-[#0d9488] px-3 py-1.5 text-xs font-bold text-white"
+                                className="rounded-full bg-[#0d9488] px-2.5 py-1 text-xs font-bold text-white"
                               >
-                                Search
+                                Go
                               </button>
                             </div>
                             {gifLoading ? (
-                              <p className="text-center text-xs text-slate-400 py-4">Loading GIFs…</p>
+                              <p className="text-center text-xs text-slate-400 py-2">Loading…</p>
                             ) : (
-                              <div className="grid grid-cols-3 gap-1.5 max-h-48 overflow-y-auto">
+                              <div className="grid grid-cols-3 gap-1 max-h-36 overflow-y-auto">
                                 {gifs.map(gif => (
                                   <button
                                     key={gif.id}
@@ -681,12 +708,12 @@ export default function BlueRoomPage() {
                                     className="overflow-hidden rounded-lg hover:opacity-80 transition"
                                   >
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={gif.preview} alt="GIF" className="w-full h-16 object-cover" />
+                                    <img src={gif.preview} alt="GIF" className="w-full h-12 object-cover" />
                                   </button>
                                 ))}
                               </div>
                             )}
-                            <p className="mt-2 text-center text-[10px] text-slate-400">Powered by GIPHY</p>
+                            <p className="mt-1 text-center text-[9px] text-slate-400">Powered by GIPHY</p>
                           </div>
                         )}
 

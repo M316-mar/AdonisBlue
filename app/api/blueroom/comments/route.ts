@@ -58,3 +58,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { comment_id, nurse_id } = await request.json();
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    await supabase.from("blueroom_comments").delete().eq("id", comment_id).eq("nurse_id", nurse_id);
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
