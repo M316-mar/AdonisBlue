@@ -686,7 +686,7 @@ export default function BlueRoomPage() {
                                 onChange={e => setGifSearch(e.target.value)}
                                 onKeyDown={e => { if (e.key === "Enter") void searchGifs(gifSearch); }}
                                 placeholder="Search GIFs…"
-                                className="flex-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs outline-none focus:border-[#0d9488]"
+                                className="flex-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-800 outline-none focus:border-[#0d9488] placeholder:text-slate-400"
                               />
                               <button
                                 type="button"
