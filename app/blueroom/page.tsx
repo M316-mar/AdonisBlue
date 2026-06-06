@@ -60,6 +60,10 @@ export default function BlueRoomPage() {
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const [commentLoading, setCommentLoading] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
+  const [showGifPicker, setShowGifPicker] = useState<string | null>(null);
+  const [gifSearch, setGifSearch] = useState("");
+  const [gifs, setGifs] = useState<{id:string;url:string;preview:string}[]>([]);
+  const [gifLoading, setGifLoading] = useState(false);
   const [commentReactions, setCommentReactions] = useState<Record<string, {likes: number, dislikes: number, myReaction: string | null}>>({});
   const [commentMedia, setCommentMedia] = useState<Record<string, File | null>>({});
   const [commentMediaPreview, setCommentMediaPreview] = useState<Record<string, string | null>>({});
@@ -188,6 +192,48 @@ export default function BlueRoomPage() {
       });
     }
   }, [nurseId]);
+
+  const searchGifs = useCallback(async (query: string) => {
+    setGifLoading(true);
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_GIPHY_API_KEY;
+      const searchTerm = query || "funny";
+      const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(searchTerm)}&limit=12&rating=g`);
+      const data = await res.json();
+      setGifs((data.data ?? []).map((g: any) => ({
+        id: g.id,
+        url: g.images.fixed_height.url,
+        preview: g.images.fixed_height_small.url,
+      })));
+    } catch (e) {
+      console.error("GIF search error:", e);
+    }
+    setGifLoading(false);
+  }, []);
+
+  const handleGifSelect = useCallback(async (postId: string, gifUrl: string) => {
+    setCommentLoading(postId);
+    const res = await fetch("/api/blueroom/comments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        post_id: postId,
+        nurse_id: nurseId,
+        nurse_name: nurseName,
+        message: "",
+        media_url: gifUrl,
+      }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      setComments(prev => ({ ...prev, [postId]: [...(prev[postId] ?? []), json.comment] }));
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, blueroom_comments: [{ count: (p.blueroom_comments?.[0]?.count ?? 0) + 1 }] } : p));
+      setShowGifPicker(null);
+      setGifs([]);
+      setGifSearch("");
+    }
+    setCommentLoading(null);
+  }, [nurseId, nurseName]);
 
   const handleSubmitPost = useCallback(async () => {
     if (!newPostText.trim() && !mediaFile) return;
@@ -605,6 +651,45 @@ export default function BlueRoomPage() {
                           </div>
                         )}
 
+                        {showGifPicker === post.id && (
+                          <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+                            <div className="flex gap-2 mb-3">
+                              <input
+                                value={gifSearch}
+                                onChange={e => setGifSearch(e.target.value)}
+                                onKeyDown={e => { if (e.key === "Enter") void searchGifs(gifSearch); }}
+                                placeholder="Search GIFs…"
+                                className="flex-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs outline-none focus:border-[#0d9488]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => void searchGifs(gifSearch)}
+                                className="rounded-full bg-[#0d9488] px-3 py-1.5 text-xs font-bold text-white"
+                              >
+                                Search
+                              </button>
+                            </div>
+                            {gifLoading ? (
+                              <p className="text-center text-xs text-slate-400 py-4">Loading GIFs…</p>
+                            ) : (
+                              <div className="grid grid-cols-3 gap-1.5 max-h-48 overflow-y-auto">
+                                {gifs.map(gif => (
+                                  <button
+                                    key={gif.id}
+                                    type="button"
+                                    onClick={() => void handleGifSelect(post.id, gif.url)}
+                                    className="overflow-hidden rounded-lg hover:opacity-80 transition"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={gif.preview} alt="GIF" className="w-full h-16 object-cover" />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            <p className="mt-2 text-center text-[10px] text-slate-400">Powered by GIPHY</p>
+                          </div>
+                        )}
+
                         <div className="flex gap-2 items-center">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0d9488] text-xs font-bold text-white">
                             {initials}
@@ -623,6 +708,16 @@ export default function BlueRoomPage() {
                               onClick={() => setShowEmojiPicker(prev => prev === post.id ? null : post.id)}
                               className="shrink-0 text-slate-400 hover:text-slate-600 transition text-sm"
                             >😊</button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowGifPicker(prev => prev === post.id ? null : post.id);
+                                if (showGifPicker !== post.id) searchGifs("funny");
+                              }}
+                              className="shrink-0 rounded border border-slate-300 px-1 py-0.5 text-[10px] font-bold text-slate-500 hover:text-slate-700 transition"
+                            >
+                              GIF
+                            </button>
                             {/* Photo button */}
                             <label className="shrink-0 cursor-pointer text-slate-400 hover:text-slate-600 transition text-sm">
                               📸
