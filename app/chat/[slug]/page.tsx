@@ -409,16 +409,14 @@ export default function PublicChatPage() {
         </button>
       </div>
 
-      <div ref={listRef} className={`min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4 ${isDark ? "bg-[#0d1628]" : "bg-slate-50"}`}>
+      <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-[#0d1628] px-3 py-4 sm:px-4">
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
               className={`max-w-[85%] text-sm leading-relaxed ${
                 m.role === "user"
-                  ? "rounded-full border-2 bg-white px-3.5 py-2 text-slate-800"
-                  : isDark
-                    ? "rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-slate-100 backdrop-blur-sm"
-                    : "rounded-2xl bg-slate-100 px-4 py-3 text-slate-800"
+                  ? "rounded-full border-2 bg-white/10 px-3.5 py-2 text-white backdrop-blur-sm"
+                  : "rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-slate-100 backdrop-blur-sm"
               }`}
               style={m.role === "user" ? { borderColor: primary } : isDark ? { borderColor: `${primary}40` } : undefined}
             >
@@ -452,7 +450,7 @@ export default function PublicChatPage() {
         ) : null}
       </div>
 
-      <div className={`shrink-0 border-t px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:rounded-b-2xl ${isDark ? "border-white/10 bg-[#0d1628]" : "border-slate-200 bg-white"}`}>
+      <div className="shrink-0 border-t border-white/10 bg-[#0d1628] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:rounded-b-2xl">
         <div className="mb-2 flex flex-wrap gap-1.5">
           {QUICK_REPLIES.map((q) => (
             <button
@@ -460,7 +458,7 @@ export default function PublicChatPage() {
               type="button"
               onClick={() => void sendUserText(q)}
               disabled={sending}
-              className={`rounded-full border-2 px-3 py-2 text-left text-xs font-medium transition disabled:opacity-50 ${isDark ? "bg-white/5 text-slate-200 hover:bg-white/10" : "bg-white text-slate-700 hover:bg-slate-50"}`}
+              className="rounded-full border-2 bg-white/5 px-3 py-2 text-left text-xs font-medium text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
               style={{ borderColor: primary }}
             >
               {q}
@@ -484,7 +482,7 @@ export default function PublicChatPage() {
             }}
             placeholder="Type a message…"
             disabled={sending}
-            className={`max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full border-2 px-4 py-2.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-current disabled:opacity-50 ${isDark ? "border-white/15 bg-white/8 text-white placeholder:text-slate-500" : "border-slate-200 bg-white text-slate-900"}`}
+            className="max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full border-2 border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-current disabled:opacity-50"
             style={{ "--focus-color": primary } as CSSProperties}
           />
           <button
@@ -503,8 +501,8 @@ export default function PublicChatPage() {
   return (
     <div className={`flex min-h-dvh flex-col ${isDark ? "bg-[#0d1628]" : "bg-white"}`}>
       <header
-        className="shrink-0 border-b-4 bg-white px-4 py-4 sm:px-6 sm:py-5"
-        style={{ borderBottomColor: primary }}
+        className="shrink-0 bg-[#0d1628] px-4 py-4 sm:px-6 sm:py-5"
+        style={{ borderBottom: `3px solid ${primary}` }}
       >
         <div className="mx-auto flex max-w-3xl items-center gap-3 sm:gap-4">
           {botLogoImage ? (
@@ -512,29 +510,32 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              className="h-14 w-14 shrink-0 rounded-2xl border border-slate-200 bg-white object-contain p-1 shadow-md sm:h-16 sm:w-16"
+              className="h-12 w-12 shrink-0 rounded-2xl border border-white/20 bg-white/10 object-contain p-1 shadow-md sm:h-14 sm:w-14"
             />
           ) : (
             <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 text-2xl font-bold text-white shadow-md sm:h-16 sm:w-16"
-              style={{ backgroundColor: primary, borderColor: primary }}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white sm:h-14 sm:w-14"
+              style={{ background: `linear-gradient(135deg, ${primary}99, ${primary})` }}
             >
               {botTitle.charAt(0).toUpperCase()}
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-semibold tracking-tight text-[#1a2744] sm:text-xl" style={getBotNameFontStyle(fontId)}>
+            <h1 className="truncate text-lg font-semibold tracking-tight text-white sm:text-xl" style={getBotNameFontStyle(fontId)}>
               {botTitle}
             </h1>
-            <p className="mt-1 flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
-              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+            <p className="mt-1 flex items-center gap-2 text-xs font-medium text-slate-300 sm:text-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
               Online — we typically reply right away
             </p>
           </div>
         </div>
       </header>
 
-      <main className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6 sm:py-12 ${isDark ? "bg-[#0d1628]" : "bg-white"}`}>
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col bg-[#0d1628] px-4 py-8 sm:px-6 sm:py-12">
         <p className="text-center text-sm font-medium text-slate-600 sm:text-base">
           {attentionMessage}
         </p>
