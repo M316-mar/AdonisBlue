@@ -539,9 +539,7 @@ export default function PublicChatPage() {
   return (
     <div className={`flex min-h-dvh flex-col ${isDark ? "bg-[#0d1628]" : "bg-white"}`}>
       <header
-        className={`shrink-0 px-4 py-4 sm:px-6 sm:py-5 ${
-          isDark ? "bg-[#1a2744]" : "border-b-4 bg-white"
-        }`}
+        className={`shrink-0 px-4 py-5 sm:px-6 sm:py-6 ${isDark ? "bg-[#1a2744]" : "border-b-4 bg-white"}`}
         style={isDark ? { borderBottom: "3px solid #0d9488" } : { borderBottomColor: primary }}
       >
         <div className="mx-auto flex max-w-3xl items-center gap-4 sm:gap-5">
@@ -550,15 +548,13 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              className={`h-20 w-20 shrink-0 rounded-2xl object-cover shadow-lg sm:h-24 sm:w-24 ${
-                isDark ? "border-2 border-white/30 bg-white" : "border border-slate-200 bg-white"
-              }`}
+              style={{ width: "80px", height: "80px", minWidth: "80px" }}
+              className="shrink-0 rounded-2xl border-2 border-white/30 bg-white object-contain p-1 shadow-lg"
             />
           ) : (
             <div
-              className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl text-3xl font-bold sm:h-24 sm:w-24 ${
-                isDark ? "border-2 border-white/30 bg-white text-[#0d9488]" : "border-2 border-slate-200 bg-white text-[#0d9488]"
-              }`}
+              style={{ width: "80px", height: "80px", minWidth: "80px", backgroundColor: primary }}
+              className="shrink-0 flex items-center justify-center rounded-2xl border-2 border-white/30 text-3xl font-bold text-white shadow-lg"
             >
               {botTitle.charAt(0).toUpperCase()}
             </div>
