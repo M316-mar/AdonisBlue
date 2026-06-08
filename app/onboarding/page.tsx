@@ -579,6 +579,8 @@ export default function OnboardingPage() {
       instagram: p.step1.instagram.trim() || null,
       services: p.step2.serviceIds,
       launched: true,
+      logo_image: p.step3.logoImage || p.step3.logoDataUrl || null,
+      logo_data_url: p.step3.logoDataUrl || p.step3.logoImage || null,
     };
 
     const res = await fetch('/api/savebot', {
@@ -963,79 +965,6 @@ export default function OnboardingPage() {
                 <p className="text-xs leading-relaxed text-slate-600">
                   Upload your own logo — from Canva, your phone, or anywhere. If you skip this we will use the AdonisBlue butterfly.
                 </p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm text-[#1a2744]">Have a custom logo or brand name image? Upload it here</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBrandUploadError(null);
-                      brandNameImageFileInputRef.current?.click();
-                    }}
-                    className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
-                  >
-                    Upload
-                  </button>
-                  <input
-                    id="onboarding-brand-name-image-upload"
-                    ref={brandNameImageFileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
-                    className="sr-only"
-                    tabIndex={-1}
-                    aria-label="Upload brand name image"
-                    onChange={(e) => {
-                      void (async () => {
-                        const file = e.target.files?.[0];
-                        e.target.value = "";
-                        setBrandUploadError(null);
-                        if (!file) return;
-                        if (file.size > MAX_UPLOAD_BYTES) {
-                          setBrandUploadError(FILE_TOO_LARGE_MSG);
-                          return;
-                        }
-                        if (!isLogoOrBrandImageFile(file)) {
-                          setBrandUploadError(LOGO_BRAND_TYPE_MSG);
-                          return;
-                        }
-                        const dataUrl = await readImageAsDataUrl(file);
-                        if (!dataUrl) {
-                          setBrandUploadError("We could not read that file. Try another image.");
-                          return;
-                        }
-                        setStep3({ brandNameImage: dataUrl });
-                      })();
-                    }}
-                  />
-                </div>
-                {brandUploadError ? <p className="text-xs font-medium text-red-600">{brandUploadError}</p> : null}
-                {s3.brandNameImage ? (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-end gap-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={s3.brandNameImage}
-                        alt=""
-                        className="max-h-16 max-w-full rounded-lg border border-slate-200 bg-white object-contain p-1 sm:max-w-xs"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBrandUploadError(null);
-                          setStep3({ brandNameImage: null });
-                        }}
-                        className="text-xs font-medium text-red-600 underline decoration-red-600/30 underline-offset-2 hover:text-red-700"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                    <p className="text-xs leading-relaxed text-slate-600">
-                      Your uploaded brand name will appear in your chat widget instead of the text name
-                    </p>
-                  </div>
-                ) : null}
-                <p className="text-xs text-slate-500">Accepted: PNG, JPG, JPEG, WEBP, SVG. Maximum file size 5 MB.</p>
               </div>
               <div>
                 <span className="mb-2 block text-sm font-medium text-[#1a2744]">What should the chat bubble say to grab attention?</span>
