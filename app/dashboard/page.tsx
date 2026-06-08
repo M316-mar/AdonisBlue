@@ -118,6 +118,7 @@ export default function NurseDashboardPage() {
   const [surveyLoading, setSurveyLoading] = useState<string | null>(null);
   const [aftercareLoading, setAftercareLoading] = useState<string | null>(null);
   const [intakesOpen, setIntakesOpen] = useState(false);
+  const [checklistOpen, setChecklistOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [showLaunchCelebration, setShowLaunchCelebration] = useState(false);
@@ -305,7 +306,7 @@ export default function NurseDashboardPage() {
                 { label: "Total Clients", value: totalClients, emoji: "💌", color: "#0d9488" },
                 { label: "Aftercare Sent", value: aftercareSent, emoji: "✅", color: "#0d9488" },
                 { label: "Reviews Requested", value: reviewsRequested, emoji: "⭐", color: "#0d9488" },
-                { label: "Reminders Queued", value: remindersScheduled, emoji: "🔔", color: "#0d9488" },
+                { label: "Auto Reminders", value: remindersScheduled, emoji: "🔔", color: "#0d9488" },
               ].map((stat) => (
                 <div
                   key={stat.label}
@@ -326,15 +327,24 @@ export default function NurseDashboardPage() {
               ))}
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-md sm:p-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Your setup checklist</h2>
-                  <p className="mt-1 text-sm text-slate-500">Complete each step when you are ready — you can revisit any time.</p>
+            <section className="rounded-2xl border border-slate-200 bg-white shadow-md">
+              <button
+                type="button"
+                onClick={() => setChecklistOpen(o => !o)}
+                className="flex w-full items-center justify-between px-4 py-4 sm:px-6"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-sm">✅</span>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-[#1a2744]">Setup checklist</p>
+                    <p className="text-xs text-slate-500">{progressPct}% complete — {CHECKLIST.length - completedCount} steps remaining</p>
+                  </div>
                 </div>
-                <p className="text-2xl font-bold tabular-nums text-[#0d9488]">{progressPct}%</p>
-              </div>
-              <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                <span className="text-slate-400 text-sm">{checklistOpen ? "▲" : "▼"}</span>
+              </button>
+              {checklistOpen && (
+              <div className="border-t border-slate-100 px-4 pb-4 pt-3 sm:px-6">
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
                 <div
                   className="h-full rounded-full bg-[#0d9488] transition-[width] duration-500 ease-out"
                   style={{ width: `${progressPct}%` }}
@@ -409,6 +419,8 @@ export default function NurseDashboardPage() {
                   );
                 })}
               </ul>
+              </div>
+              )}
             </section>
 
             {intakes.length > 0 ? (

@@ -730,7 +730,8 @@ export default function OnboardingPage() {
                   />
                 </label>
                 <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">Your Instagram username (optional)</span>
+                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">Instagram username (optional)</span>
+                  <p className="mb-1 text-xs text-slate-500">Add your username so clients can find you — e.g. @glamglow</p>
                   <input
                     value={s1.instagram}
                     onChange={(e) => setStep1({ instagram: e.target.value })}
@@ -1036,35 +1037,6 @@ export default function OnboardingPage() {
                 ) : null}
                 <p className="text-xs text-slate-500">Accepted: PNG, JPG, JPEG, WEBP, SVG. Maximum file size 5 MB.</p>
               </div>
-              <div className="my-5 flex items-center gap-3">
-                <div className="h-px min-w-0 flex-1 bg-slate-200" aria-hidden />
-                <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-500">OR choose a font below</span>
-                <div className="h-px min-w-0 flex-1 bg-slate-200" aria-hidden />
-              </div>
-              <fieldset>
-                <legend className="mb-2 text-sm font-medium text-[#1a2744]">Choose a font for your bot name</legend>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                  {BOT_FONT_CARDS.map((f) => {
-                    const selected = s3.botNameFont === f.id;
-                    const fontPreviewName = s3.botName.trim() || "Your Bot Name";
-                    return (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => setStep3({ botNameFont: f.id })}
-                        className={`rounded-xl border p-3 text-left transition sm:p-4 ${
-                          selected ? "border-[#0d9488] bg-teal-50/80 ring-1 ring-[#0d9488]/30" : "border-slate-200 bg-white hover:border-slate-300"
-                        }`}
-                      >
-                        <span className="block text-xs font-medium text-slate-600">{f.label}</span>
-                        <span className="mt-2 block truncate text-lg text-[#1a2744]" style={getBotNameFontStyle(f.id)}>
-                          {fontPreviewName}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
               <div>
                 <span className="mb-2 block text-sm font-medium text-[#1a2744]">What should the chat bubble say to grab attention?</span>
                 <div className="mb-3 flex flex-wrap gap-2">
