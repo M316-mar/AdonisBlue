@@ -384,7 +384,7 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              className="h-9 w-9 shrink-0 rounded-lg bg-white/15 object-contain p-0.5 ring-1 ring-white/30"
+              className="h-9 w-9 shrink-0 rounded-lg border border-slate-200 bg-white object-contain p-0.5 shadow-sm"
             />
           ) : null}
           <div className="min-w-0 flex-1">
@@ -409,7 +409,7 @@ export default function PublicChatPage() {
         </button>
       </div>
 
-      <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 px-3 py-4 sm:px-4">
+      <div ref={listRef} className={`min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4 ${isDark ? "bg-[#0d1628]" : "bg-slate-50"}`}>
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
@@ -417,8 +417,8 @@ export default function PublicChatPage() {
                 m.role === "user"
                   ? "rounded-full border-2 bg-white px-3.5 py-2 text-slate-800"
                   : isDark
-                    ? "rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-slate-200 backdrop-blur-sm"
-                    : "py-1 text-slate-800"
+                    ? "rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-slate-100 backdrop-blur-sm"
+                    : "rounded-2xl bg-slate-100 px-4 py-3 text-slate-800"
               }`}
               style={m.role === "user" ? { borderColor: primary } : isDark ? { borderColor: `${primary}40` } : undefined}
             >
@@ -512,9 +512,16 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              className={`h-12 w-12 shrink-0 rounded-xl object-contain p-1 sm:h-14 sm:w-14 ${isDark ? "border border-white/20 bg-white/10" : "border border-slate-200 bg-white shadow-sm"}`}
+              className={`h-14 w-14 shrink-0 rounded-2xl object-contain p-1 shadow-md sm:h-16 sm:w-16 ${isDark ? "border border-white/20 bg-white/10" : "border border-slate-200 bg-white"}`}
             />
-          ) : null}
+          ) : (
+            <div
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white shadow-md sm:h-16 sm:w-16"
+              style={{ backgroundColor: primary }}
+            >
+              {botTitle.charAt(0).toUpperCase()}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <h1 className={`truncate text-lg font-semibold tracking-tight sm:text-xl ${isDark ? "text-white" : "text-[#1a2744]"}`} style={getBotNameFontStyle(fontId)}>
               {botTitle}
