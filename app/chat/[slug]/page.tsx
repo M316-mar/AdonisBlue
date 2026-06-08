@@ -550,13 +550,13 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              className={`h-12 w-12 shrink-0 rounded-2xl object-contain p-1 shadow-lg sm:h-14 sm:w-14 ${
+              className={`h-16 w-16 shrink-0 rounded-2xl object-cover shadow-lg sm:h-20 sm:w-20 ${
                 isDark ? "border-2 border-white/30 bg-white" : "border border-slate-200 bg-white"
               }`}
             />
           ) : (
             <div
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl font-bold sm:h-14 sm:w-14 ${
+              className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold sm:h-20 sm:w-20 ${
                 isDark ? "border-2 border-white/30 bg-white text-[#0d9488]" : "border-2 border-slate-200 bg-white text-[#0d9488]"
               }`}
             >
