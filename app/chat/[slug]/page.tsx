@@ -548,12 +548,12 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              style={{ width: "80px", height: "80px", minWidth: "80px" }}
+              style={{ width: "120px", height: "120px", minWidth: "120px" }}
               className="shrink-0 rounded-2xl border-2 border-white/30 bg-white object-contain p-1 shadow-lg"
             />
           ) : (
             <div
-              style={{ width: "80px", height: "80px", minWidth: "80px", backgroundColor: primary }}
+              style={{ width: "120px", height: "120px", minWidth: "120px", backgroundColor: primary }}
               className="shrink-0 flex items-center justify-center rounded-2xl border-2 border-white/30 text-3xl font-bold text-white shadow-lg"
             >
               {botTitle.charAt(0).toUpperCase()}
