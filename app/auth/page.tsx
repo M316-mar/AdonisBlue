@@ -5,7 +5,7 @@ import type { AuthError } from "@supabase/supabase-js";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 function friendlySignupError(error: AuthError): string {
   const raw = `${error.message ?? ""} ${(error as { code?: string }).code ?? ""}`.toLowerCase();
@@ -97,6 +97,15 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("confirmed") === "1") {
+      setConfirmed(true);
+      setMode("login");
+    }
+  }, []);
 
   function switchToSignup() {
     setMode("signup");
@@ -354,6 +363,11 @@ export default function AuthPage() {
             ) : (
               <>
               <form className="mt-8 space-y-5" onSubmit={handleLoginSubmit}>
+                {confirmed && (
+                  <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-center">
+                    <p className="text-sm font-semibold text-green-700">✅ Email confirmed! Log in below to get started.</p>
+                  </div>
+                )}
                 <div>
                   <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-[#1a2744]">
                     Email address
