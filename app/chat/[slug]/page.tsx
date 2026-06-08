@@ -544,19 +544,19 @@ export default function PublicChatPage() {
         }`}
         style={isDark ? { borderBottom: "3px solid #0d9488" } : { borderBottomColor: primary }}
       >
-        <div className="mx-auto flex max-w-3xl items-center gap-3 sm:gap-4">
+        <div className="mx-auto flex max-w-3xl items-center gap-4 sm:gap-5">
           {botLogoImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={botLogoImage}
               alt=""
-              className={`h-16 w-16 shrink-0 rounded-2xl object-cover shadow-lg sm:h-20 sm:w-20 ${
+              className={`h-20 w-20 shrink-0 rounded-2xl object-cover shadow-lg sm:h-24 sm:w-24 ${
                 isDark ? "border-2 border-white/30 bg-white" : "border border-slate-200 bg-white"
               }`}
             />
           ) : (
             <div
-              className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold sm:h-20 sm:w-20 ${
+              className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl text-3xl font-bold sm:h-24 sm:w-24 ${
                 isDark ? "border-2 border-white/30 bg-white text-[#0d9488]" : "border-2 border-slate-200 bg-white text-[#0d9488]"
               }`}
             >
@@ -565,7 +565,7 @@ export default function PublicChatPage() {
           )}
           <div className="min-w-0 flex-1">
             <h1
-              className={`truncate text-lg font-semibold tracking-tight sm:text-xl ${isDark ? "text-white" : "text-[#1a2744]"}`}
+              className={`truncate text-xl font-bold tracking-tight sm:text-2xl ${isDark ? "text-white" : "text-[#1a2744]"}`}
               style={getBotNameFontStyle(fontId)}
             >
               {botTitle}
