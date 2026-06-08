@@ -384,7 +384,7 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              className="h-9 w-9 shrink-0 rounded-lg border border-slate-200 bg-white object-contain p-0.5 shadow-sm"
+              className="h-10 w-10 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1 shadow-sm"
             />
           ) : null}
           <div className="min-w-0 flex-1">
@@ -503,8 +503,8 @@ export default function PublicChatPage() {
   return (
     <div className={`flex min-h-dvh flex-col ${isDark ? "bg-[#0d1628]" : "bg-white"}`}>
       <header
-        className={`shrink-0 px-4 py-4 sm:px-6 sm:py-5 ${isDark ? "border-b border-white/10 bg-[#0d1628]" : "border-b-4 bg-white"}`}
-        style={isDark ? {} : { borderBottomColor: primary }}
+        className="shrink-0 border-b-4 bg-white px-4 py-4 sm:px-6 sm:py-5"
+        style={{ borderBottomColor: primary }}
       >
         <div className="mx-auto flex max-w-3xl items-center gap-3 sm:gap-4">
           {botLogoImage ? (
@@ -512,21 +512,21 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              className={`h-14 w-14 shrink-0 rounded-2xl object-contain p-1 shadow-md sm:h-16 sm:w-16 ${isDark ? "border border-white/20 bg-white/10" : "border border-slate-200 bg-white"}`}
+              className="h-14 w-14 shrink-0 rounded-2xl border border-slate-200 bg-white object-contain p-1 shadow-md sm:h-16 sm:w-16"
             />
           ) : (
             <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white shadow-md sm:h-16 sm:w-16"
-              style={{ backgroundColor: primary }}
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 text-2xl font-bold text-white shadow-md sm:h-16 sm:w-16"
+              style={{ backgroundColor: primary, borderColor: primary }}
             >
               {botTitle.charAt(0).toUpperCase()}
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <h1 className={`truncate text-lg font-semibold tracking-tight sm:text-xl ${isDark ? "text-white" : "text-[#1a2744]"}`} style={getBotNameFontStyle(fontId)}>
+            <h1 className="truncate text-lg font-semibold tracking-tight text-[#1a2744] sm:text-xl" style={getBotNameFontStyle(fontId)}>
               {botTitle}
             </h1>
-            <p className={`mt-1 flex items-center gap-2 text-xs font-medium sm:text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+            <p className="mt-1 flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
               Online — we typically reply right away
             </p>
