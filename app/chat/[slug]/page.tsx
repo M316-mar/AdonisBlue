@@ -510,12 +510,12 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              className="h-12 w-12 shrink-0 rounded-2xl border border-white/20 bg-white/10 object-contain p-1 shadow-md sm:h-14 sm:w-14"
+              className="h-12 w-12 shrink-0 rounded-2xl border-2 border-white/30 bg-white object-contain p-1 shadow-lg sm:h-14 sm:w-14"
             />
           ) : (
             <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white sm:h-14 sm:w-14"
-              style={{ background: `linear-gradient(135deg, ${primary}99, ${primary})` }}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-white/30 bg-white text-xl font-bold sm:h-14 sm:w-14"
+              style={{ color: primary }}
             >
               {botTitle.charAt(0).toUpperCase()}
             </div>
