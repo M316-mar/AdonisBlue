@@ -391,11 +391,17 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              className={`h-10 w-10 shrink-0 rounded-xl object-contain p-1 shadow-sm ${
-                isDark ? "border border-white/20 bg-white/10" : "border border-slate-200 bg-white"
-              }`}
+              style={{ width: "52px", height: "52px", minWidth: "52px" }}
+              className="shrink-0 rounded-xl border-2 border-white/20 bg-white object-contain p-1 shadow-md"
             />
-          ) : null}
+          ) : (
+            <div
+              style={{ width: "52px", height: "52px", minWidth: "52px", backgroundColor: primary }}
+              className="shrink-0 flex items-center justify-center rounded-xl text-xl font-bold text-white shadow-md"
+            >
+              {botTitle.charAt(0).toUpperCase()}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <p
               className={`truncate text-sm font-semibold leading-tight ${isDark ? "text-white" : "text-[#1a2744]"}`}
