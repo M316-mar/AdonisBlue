@@ -391,7 +391,7 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              style={{ width: "160px", height: "160px", minWidth: "160px", borderRadius: "50%", backgroundColor: "white", objectFit: "contain", padding: "0" }}
+              style={{ width: "100px", height: "100px", minWidth: "100px", borderRadius: "50%", backgroundColor: "white", objectFit: "cover" }}
             />
           ) : (
             <div
@@ -552,7 +552,7 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              style={{ width: "170px", height: "170px", minWidth: "170px", borderRadius: "50%", backgroundColor: "white", objectFit: "contain", padding: "0" }}
+              style={{ width: "110px", height: "110px", minWidth: "110px", borderRadius: "50%", backgroundColor: "white", objectFit: "cover" }}
             />
           ) : (
             <div
