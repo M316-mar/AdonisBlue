@@ -391,13 +391,11 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              style={{ width: "52px", height: "52px", minWidth: "52px" }}
-              className="shrink-0 rounded-xl border-2 border-white/20 bg-white object-contain p-1 shadow-md"
+              style={{ width: "48px", height: "48px", minWidth: "48px", borderRadius: "12px" }}
             />
           ) : (
             <div
-              style={{ width: "52px", height: "52px", minWidth: "52px", backgroundColor: primary }}
-              className="shrink-0 flex items-center justify-center rounded-xl text-xl font-bold text-white shadow-md"
+              style={{ width: "48px", height: "48px", minWidth: "48px", borderRadius: "12px", backgroundColor: primary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", fontWeight: "700", color: "white" }}
             >
               {botTitle.charAt(0).toUpperCase()}
             </div>
@@ -554,13 +552,11 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              style={{ width: "120px", height: "120px", minWidth: "120px" }}
-              className="shrink-0 rounded-2xl border-2 border-white/30 bg-white object-contain p-1 shadow-lg"
+              style={{ width: "64px", height: "64px", minWidth: "64px", borderRadius: "16px" }}
             />
           ) : (
             <div
-              style={{ width: "120px", height: "120px", minWidth: "120px", backgroundColor: primary }}
-              className="shrink-0 flex items-center justify-center rounded-2xl border-2 border-white/30 text-3xl font-bold text-white shadow-lg"
+              style={{ width: "64px", height: "64px", minWidth: "64px", borderRadius: "16px", backgroundColor: primary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", fontWeight: "700", color: "white" }}
             >
               {botTitle.charAt(0).toUpperCase()}
             </div>
