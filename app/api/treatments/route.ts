@@ -104,6 +104,11 @@ export async function POST(request: Request) {
             <h2 style="margin:0 0 12px;color:#0d9488;font-size:16px;font-weight:600;">📋 Your ${procedureName} Aftercare</h2>
             <p style="margin:0;color:#1a2744;font-size:15px;line-height:1.75;white-space:pre-wrap;">${aftercare}</p>
           </div>
+          <div style="background:#1a2744;border-radius:14px;padding:20px;margin:20px 0;text-align:center;">
+            <p style="margin:0 0 8px;color:#ffffff;font-size:15px;font-weight:600;">Have recovery questions? 💙</p>
+            <p style="margin:0 0 12px;color:#94a3b8;font-size:13px;">Our 24/7 recovery chat is here for you — ask anything about your healing.</p>
+            <a href="${SITE_URL}/healing/${treatment.id}" style="display:inline-block;background:#0d9488;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:50px;">💬 Open recovery chat</a>
+          </div>
           <p style="margin:0;color:#475569;font-size:14px;">Questions? Reply to this email anytime 💙</p>
         </td></tr>
         <tr><td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">

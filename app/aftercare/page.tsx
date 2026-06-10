@@ -43,7 +43,7 @@ export default function AftercarePage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [token, setToken] = useState("");
-  const [tab, setTab] = useState<"procedures" | "treatments">("procedures");
+  const [tab, setTab] = useState<"procedures" | "treatments" | "emergency">("procedures");
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [intakes, setIntakes] = useState<Intake[]>([]);
@@ -52,6 +52,9 @@ export default function AftercarePage() {
   const [newTreatment, setNewTreatment] = useState({ intake_id: "", procedure_id: "", procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "" });
   const [addingTreatment, setAddingTreatment] = useState(false);
   const [treatmentSaving, setTreatmentSaving] = useState(false);
+  const [emergencyKeywords, setEmergencyKeywords] = useState<{ id: string; keyword: string }[]>([]);
+  const [newKeyword, setNewKeyword] = useState("");
+  const [keywordSaving, setKeywordSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
@@ -63,16 +66,18 @@ export default function AftercarePage() {
       const t = data.session.access_token;
       setToken(t);
 
-      const [procRes, treatRes, intakeRes] = await Promise.all([
+      const [procRes, treatRes, intakeRes, kwRes] = await Promise.all([
         fetch("/api/procedures", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/treatments", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/intakes", { headers: { Authorization: `Bearer ${t}` } }),
+        fetch("/api/emergency-keywords", { headers: { Authorization: `Bearer ${t}` } }),
       ]);
 
       if (!cancelled) {
         if (procRes.ok) { const j = await procRes.json(); setProcedures(j.procedures ?? []); }
         if (treatRes.ok) { const j = await treatRes.json(); setTreatments(j.treatments ?? []); }
         if (intakeRes.ok) { const j = await intakeRes.json(); setIntakes(j.intakes ?? []); }
+        if (kwRes.ok) { const j = await kwRes.json(); setEmergencyKeywords(j.keywords ?? []); }
       }
       setReady(true);
     })();
@@ -188,6 +193,9 @@ export default function AftercarePage() {
           </button>
           <button type="button" onClick={() => setTab("treatments")} className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "treatments" ? "bg-[#0d9488] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
             💉 Treatment Log ({treatments.length})
+          </button>
+          <button type="button" onClick={() => setTab("emergency")} className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "emergency" ? "bg-red-500 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+            ⚠️ Emergency Keywords
           </button>
         </div>
 
@@ -338,6 +346,93 @@ export default function AftercarePage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Emergency Keywords Tab */}
+        {tab === "emergency" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-red-100 bg-red-50 p-5">
+              <h3 className="text-base font-bold text-red-700 mb-2">⚠️ Emergency Keywords</h3>
+              <p className="text-sm text-red-600 leading-relaxed">When a client mentions any of these words in their recovery chat, you will receive an immediate email alert so you can reach out right away.</p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">Built-in emergency keywords (always active)</p>
+              <div className="flex flex-wrap gap-2">
+                {["purple", "blue lips", "can't breathe", "severe pain", "fever", "infection", "allergic", "emergency", "911", "necrosis", "vascular", "blindness"].map(kw => (
+                  <span key={kw} className="rounded-full bg-red-50 border border-red-200 px-3 py-1 text-xs font-semibold text-red-600">{kw}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">Your custom keywords</p>
+              <div className="flex gap-2 mb-4">
+                <input
+                  value={newKeyword}
+                  onChange={e => setNewKeyword(e.target.value)}
+                  placeholder="Add a keyword e.g. swelling getting worse"
+                  className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-[#0d9488]"
+                  onKeyDown={e => { if (e.key === "Enter") void (async () => {
+                    if (!newKeyword.trim()) return;
+                    setKeywordSaving(true);
+                    const res = await fetch("/api/emergency-keywords", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                      body: JSON.stringify({ keyword: newKeyword.trim() }),
+                    });
+                    if (res.ok) {
+                      const j = await res.json();
+                      setEmergencyKeywords(prev => [...prev, j.keyword]);
+                      setNewKeyword("");
+                    }
+                    setKeywordSaving(false);
+                  })(); }}
+                />
+                <button
+                  type="button"
+                  disabled={keywordSaving || !newKeyword.trim()}
+                  onClick={() => void (async () => {
+                    if (!newKeyword.trim()) return;
+                    setKeywordSaving(true);
+                    const res = await fetch("/api/emergency-keywords", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                      body: JSON.stringify({ keyword: newKeyword.trim() }),
+                    });
+                    if (res.ok) {
+                      const j = await res.json();
+                      setEmergencyKeywords(prev => [...prev, j.keyword]);
+                      setNewKeyword("");
+                    }
+                    setKeywordSaving(false);
+                  })()}
+                  className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                >
+                  Add
+                </button>
+              </div>
+              {emergencyKeywords.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-4">No custom keywords yet — add words specific to your procedures.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {emergencyKeywords.map(kw => (
+                    <div key={kw.id} className="flex items-center gap-1 rounded-full bg-orange-50 border border-orange-200 px-3 py-1">
+                      <span className="text-xs font-semibold text-orange-700">{kw.keyword}</span>
+                      <button type="button" onClick={() => void (async () => {
+                        await fetch("/api/emergency-keywords", {
+                          method: "DELETE",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ id: kw.id }),
+                        });
+                        setEmergencyKeywords(prev => prev.filter(k => k.id !== kw.id));
+                      })()} className="ml-1 text-orange-400 hover:text-red-600 text-xs">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
