@@ -160,11 +160,11 @@ export default function ReferralsPage() {
               <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 shadow-sm">
                 <h3 className="mb-4 text-base font-bold text-[#1a2744]">Award loyalty points 🌟</h3>
                 <div className="space-y-3">
-                  <input value={newPoints.client_email} onChange={e => setNewPoints(p => ({ ...p, client_email: e.target.value }))} placeholder="Client email address" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#0d9488]" />
-                  <input value={newPoints.client_name} onChange={e => setNewPoints(p => ({ ...p, client_name: e.target.value }))} placeholder="Client name (optional)" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#0d9488]" />
+                  <input value={newPoints.client_email} onChange={e => setNewPoints(p => ({ ...p, client_email: e.target.value }))} placeholder="Client email address" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
+                  <input value={newPoints.client_name} onChange={e => setNewPoints(p => ({ ...p, client_name: e.target.value }))} placeholder="Client name (optional)" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
                   <div className="flex items-center gap-3">
                     <label className="text-xs font-semibold text-slate-600">Points to award:</label>
-                    <input type="number" value={newPoints.points} onChange={e => setNewPoints(p => ({ ...p, points: parseInt(e.target.value) }))} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-[#0d9488]" />
+                    <input type="number" value={newPoints.points} onChange={e => setNewPoints(p => ({ ...p, points: parseInt(e.target.value) }))} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
                   </div>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={newPoints.send_email} onChange={e => setNewPoints(p => ({ ...p, send_email: e.target.checked }))} className="rounded" />

@@ -230,11 +230,11 @@ export default function AftercarePage() {
               <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 shadow-sm">
                 <h3 className="mb-4 text-base font-bold text-[#1a2744]">{editingProcedure.id ? "Edit procedure" : "New procedure"}</h3>
                 <div className="space-y-3">
-                  <input value={editingProcedure.name ?? ""} onChange={e => setEditingProcedure(p => ({ ...p, name: e.target.value }))} placeholder="Procedure name (e.g. Lip Filler)" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#0d9488]" />
-                  <textarea value={editingProcedure.aftercare_instructions ?? ""} onChange={e => setEditingProcedure(p => ({ ...p, aftercare_instructions: e.target.value }))} placeholder="Aftercare instructions — write exactly what you want your client to receive in their email…" rows={8} className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#0d9488]" />
+                  <input value={editingProcedure.name ?? ""} onChange={e => setEditingProcedure(p => ({ ...p, name: e.target.value }))} placeholder="Procedure name (e.g. Lip Filler)" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
+                  <textarea value={editingProcedure.aftercare_instructions ?? ""} onChange={e => setEditingProcedure(p => ({ ...p, aftercare_instructions: e.target.value }))} placeholder="Aftercare instructions — write exactly what you want your client to receive in their email…" rows={8} className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
                   <div className="flex items-center gap-3">
                     <label className="text-xs font-semibold text-slate-600">Reminder after (days):</label>
-                    <input type="number" value={editingProcedure.reminder_days ?? 180} onChange={e => setEditingProcedure(p => ({ ...p, reminder_days: parseInt(e.target.value) }))} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-[#0d9488]" />
+                    <input type="number" value={editingProcedure.reminder_days ?? 180} onChange={e => setEditingProcedure(p => ({ ...p, reminder_days: parseInt(e.target.value) }))} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
                     <span className="text-xs text-slate-400">e.g. 90 for Botox, 180 for filler</span>
                   </div>
                   <div className="flex gap-2">
@@ -282,7 +282,7 @@ export default function AftercarePage() {
                 <div className="space-y-3">
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-600">Select client</label>
-                    <select value={newTreatment.intake_id} onChange={e => setNewTreatment(p => ({ ...p, intake_id: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#0d9488]">
+                    <select value={newTreatment.intake_id} onChange={e => setNewTreatment(p => ({ ...p, intake_id: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]">
                       <option value="">Choose a client…</option>
                       {intakes.map(i => (
                         <option key={i.id} value={i.id}>{i.first_name} — {i.email}</option>
@@ -291,7 +291,7 @@ export default function AftercarePage() {
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-600">Select procedure</label>
-                    <select value={newTreatment.procedure_id} onChange={e => { const p = procedures.find(p => p.id === e.target.value); setNewTreatment(prev => ({ ...prev, procedure_id: e.target.value, procedure_name: p?.name || "" })); }} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#0d9488]">
+                    <select value={newTreatment.procedure_id} onChange={e => { const p = procedures.find(p => p.id === e.target.value); setNewTreatment(prev => ({ ...prev, procedure_id: e.target.value, procedure_name: p?.name || "" })); }} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]">
                       <option value="">Choose a procedure…</option>
                       {procedures.map(p => (
                         <option key={p.id} value={p.id}>{p.name}</option>
@@ -300,11 +300,11 @@ export default function AftercarePage() {
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-600">Treatment date</label>
-                    <input type="date" value={newTreatment.treatment_date} onChange={e => setNewTreatment(p => ({ ...p, treatment_date: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#0d9488]" />
+                    <input type="date" value={newTreatment.treatment_date} onChange={e => setNewTreatment(p => ({ ...p, treatment_date: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-600">Notes (optional)</label>
-                    <textarea value={newTreatment.notes} onChange={e => setNewTreatment(p => ({ ...p, notes: e.target.value }))} placeholder="e.g. 0.5ml lip filler, 1 syringe Juvederm Ultra" rows={3} className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#0d9488]" />
+                    <textarea value={newTreatment.notes} onChange={e => setNewTreatment(p => ({ ...p, notes: e.target.value }))} placeholder="e.g. 0.5ml lip filler, 1 syringe Juvederm Ultra" rows={3} className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
                   </div>
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                     <p className="text-xs text-amber-700">💡 Logging this treatment will automatically send the aftercare email to the client if they have an email address on file.</p>
@@ -373,7 +373,7 @@ export default function AftercarePage() {
                   value={newKeyword}
                   onChange={e => setNewKeyword(e.target.value)}
                   placeholder="Add a keyword e.g. swelling getting worse"
-                  className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-[#0d9488]"
+                  className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
                   onKeyDown={e => { if (e.key === "Enter") void (async () => {
                     if (!newKeyword.trim()) return;
                     setKeywordSaving(true);
