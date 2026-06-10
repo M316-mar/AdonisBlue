@@ -476,7 +476,11 @@ export default function ReferralsPage() {
                     if (res.ok) {
                       setProgramSaved(true);
                       setSuccessMsg("Loyalty program saved! 🌟");
-                      setTimeout(() => { setProgramSaved(false); setSuccessMsg(""); }, 3000);
+                      setTimeout(() => {
+                        setProgramSaved(false);
+                        setSuccessMsg("");
+                        setTab("loyalty");
+                      }, 1500);
                     } else {
                       const err = await res.text();
                       setSuccessMsg(`Error: ${err}`);
