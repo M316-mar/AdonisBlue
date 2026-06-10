@@ -211,9 +211,9 @@ export default function ReferralsPage() {
                       }}
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
                     >
-                      <option value="">Choose from existing clients…</option>
-                      {intakes.filter(i => i.email).map(i => (
-                        <option key={i.id} value={i.id}>{i.first_name} {i.last_name || ""} — {i.email}</option>
+                      <option value="">Choose from existing clients… ({intakes.length} total)</option>
+                      {intakes.map(i => (
+                        <option key={i.id} value={i.id}>{i.first_name} {i.last_name || ""} — {i.email || "no email"}</option>
                       ))}
                     </select>
                   </div>
