@@ -28,6 +28,7 @@ export default function ReferralsPage() {
   const [token, setToken] = useState("");
   const [tab, setTab] = useState<"loyalty" | "referrals">("loyalty");
   const [loyalty, setLoyalty] = useState<LoyaltyClient[]>([]);
+  const [intakes, setIntakes] = useState<{ id: string; first_name: string; last_name: string; email: string; phone: string }[]>([]);
   const [referralData, setReferralData] = useState<ReferralData | null>(null);
   const [practiceName, setPracticeName] = useState("");
   const [addingPoints, setAddingPoints] = useState(false);
@@ -53,6 +54,8 @@ export default function ReferralsPage() {
 
       if (!cancelled) {
         if (loyaltyRes.ok) { const j = await loyaltyRes.json(); setLoyalty(j.loyalty ?? []); }
+        const intakesRes = await fetch("/api/intakes", { headers: { Authorization: `Bearer ${t}` } });
+        if (intakesRes.ok) { const j = await intakesRes.json(); setIntakes(j.intakes ?? []); }
         if (refRes.ok) { const j = await refRes.json(); setReferralData(j); }
         if (botRes.ok) { const j = await botRes.json(); setPracticeName(j.bot?.practice_name || "Your Practice"); }
       }
@@ -160,8 +163,28 @@ export default function ReferralsPage() {
               <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 shadow-sm">
                 <h3 className="mb-4 text-base font-bold text-[#1a2744]">Award loyalty points 🌟</h3>
                 <div className="space-y-3">
-                  <input value={newPoints.client_email} onChange={e => setNewPoints(p => ({ ...p, client_email: e.target.value }))} placeholder="Client email address" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
-                  <input value={newPoints.client_name} onChange={e => setNewPoints(p => ({ ...p, client_name: e.target.value }))} placeholder="Client name (optional)" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-600">Select client</label>
+                    <select
+                      onChange={e => {
+                        const selected = intakes.find(i => i.id === e.target.value);
+                        if (selected) {
+                          setNewPoints(p => ({ ...p, client_email: selected.email || "", client_name: selected.first_name + (selected.last_name ? " " + selected.last_name : "") }));
+                        }
+                      }}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                    >
+                      <option value="">Choose from existing clients…</option>
+                      {intakes.filter(i => i.email).map(i => (
+                        <option key={i.id} value={i.id}>{i.first_name} {i.last_name || ""} — {i.email}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-600">Or enter manually</label>
+                    <input value={newPoints.client_email} onChange={e => setNewPoints(p => ({ ...p, client_email: e.target.value }))} placeholder="Client email address" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
+                    <input value={newPoints.client_name} onChange={e => setNewPoints(p => ({ ...p, client_name: e.target.value }))} placeholder="Client name" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
+                  </div>
                   <div className="flex items-center gap-3">
                     <label className="text-xs font-semibold text-slate-600">Points to award:</label>
                     <input type="number" value={newPoints.points} onChange={e => setNewPoints(p => ({ ...p, points: parseInt(e.target.value) }))} className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
