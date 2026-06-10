@@ -26,6 +26,7 @@ type Treatment = {
 type Intake = {
   id: string;
   first_name: string;
+  last_name?: string;
   email: string;
   phone: string;
   service_interested: string;
@@ -49,7 +50,17 @@ export default function AftercarePage() {
   const [intakes, setIntakes] = useState<Intake[]>([]);
   const [editingProcedure, setEditingProcedure] = useState<Partial<Procedure> | null>(null);
   const [saving, setSaving] = useState(false);
-  const [newTreatment, setNewTreatment] = useState({ intake_id: "", procedure_id: "", procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "" });
+  const [newTreatment, setNewTreatment] = useState({
+    intake_id: "",
+    procedure_ids: [] as string[],
+    procedure_name: "",
+    treatment_date: new Date().toISOString().slice(0, 10),
+    notes: "",
+    is_walkin: false,
+    walkin_name: "",
+    walkin_email: "",
+    walkin_phone: "",
+  });
   const [addingTreatment, setAddingTreatment] = useState(false);
   const [treatmentSaving, setTreatmentSaving] = useState(false);
   const [emergencyKeywords, setEmergencyKeywords] = useState<{ id: string; keyword: string }[]>([]);
@@ -133,20 +144,34 @@ export default function AftercarePage() {
   }, [token]);
 
   const handleLogTreatment = useCallback(async () => {
-    if (!newTreatment.intake_id || !newTreatment.procedure_id) return;
+    if ((!newTreatment.intake_id && !newTreatment.is_walkin) || newTreatment.procedure_ids.length === 0) return;
     setTreatmentSaving(true);
-    const selectedProcedure = procedures.find(p => p.id === newTreatment.procedure_id);
+
+    const selectedProcedures = procedures.filter(p => newTreatment.procedure_ids.includes(p.id));
+    const procedureNames = selectedProcedures.map(p => p.name).join(", ");
+
     const res = await fetch("/api/treatments", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ...newTreatment, procedure_name: selectedProcedure?.name || newTreatment.procedure_name }),
+      body: JSON.stringify({
+        intake_id: newTreatment.intake_id || null,
+        procedure_id: newTreatment.procedure_ids[0],
+        procedure_ids: newTreatment.procedure_ids,
+        procedure_name: procedureNames,
+        treatment_date: newTreatment.treatment_date,
+        notes: newTreatment.notes,
+        is_walkin: newTreatment.is_walkin,
+        walkin_name: newTreatment.walkin_name,
+        walkin_email: newTreatment.walkin_email,
+        walkin_phone: newTreatment.walkin_phone,
+      }),
     });
     if (res.ok) {
       const j = await res.json();
       setTreatments(prev => [j.treatment, ...prev]);
-      setNewTreatment({ intake_id: "", procedure_id: "", procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "" });
+      setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "" });
       setAddingTreatment(false);
-      setSuccessMsg(j.aftercare_sent ? "Treatment logged and aftercare email sent! 💙" : "Treatment logged! No aftercare email sent (client email or aftercare instructions missing).");
+      setSuccessMsg(j.aftercare_sent ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
       setTimeout(() => setSuccessMsg(""), 5000);
     }
     setTreatmentSaving(false);
@@ -282,21 +307,51 @@ export default function AftercarePage() {
                 <div className="space-y-3">
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-600">Select client</label>
-                    <select value={newTreatment.intake_id} onChange={e => setNewTreatment(p => ({ ...p, intake_id: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]">
-                      <option value="">Choose a client…</option>
-                      {intakes.map(i => (
-                        <option key={i.id} value={i.id}>{i.first_name} — {i.email}</option>
-                      ))}
-                    </select>
+                    <div className="flex gap-2 mb-2">
+                      <button type="button" onClick={() => setNewTreatment(p => ({ ...p, is_walkin: false }))} className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${!newTreatment.is_walkin ? "bg-[#0d9488] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>
+                        Existing client
+                      </button>
+                      <button type="button" onClick={() => setNewTreatment(p => ({ ...p, is_walkin: true }))} className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${newTreatment.is_walkin ? "bg-[#0d9488] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>
+                        🚶 Walk-in
+                      </button>
+                    </div>
+                    {!newTreatment.is_walkin ? (
+                      <select value={newTreatment.intake_id} onChange={e => setNewTreatment(p => ({ ...p, intake_id: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]">
+                        <option value="">Choose a client…</option>
+                        {intakes.map(i => (
+                          <option key={i.id} value={i.id}>{i.first_name} {i.last_name || ""} — {i.email}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="space-y-2">
+                        <input value={newTreatment.walkin_name} onChange={e => setNewTreatment(p => ({ ...p, walkin_name: e.target.value }))} placeholder="Client name" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
+                        <input value={newTreatment.walkin_email} onChange={e => setNewTreatment(p => ({ ...p, walkin_email: e.target.value }))} placeholder="Email (for aftercare)" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
+                        <input value={newTreatment.walkin_phone} onChange={e => setNewTreatment(p => ({ ...p, walkin_phone: e.target.value }))} placeholder="Phone number (optional)" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-600">Select procedure</label>
-                    <select value={newTreatment.procedure_id} onChange={e => { const p = procedures.find(p => p.id === e.target.value); setNewTreatment(prev => ({ ...prev, procedure_id: e.target.value, procedure_name: p?.name || "" })); }} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]">
-                      <option value="">Choose a procedure…</option>
+                    <label className="mb-1 block text-xs font-semibold text-slate-600">Select procedures (can choose multiple)</label>
+                    <div className="flex flex-wrap gap-2">
                       {procedures.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setNewTreatment(prev => ({
+                            ...prev,
+                            procedure_ids: prev.procedure_ids.includes(p.id)
+                              ? prev.procedure_ids.filter(id => id !== p.id)
+                              : [...prev.procedure_ids, p.id]
+                          }))}
+                          className={`rounded-full px-4 py-2 text-xs font-semibold transition ${newTreatment.procedure_ids.includes(p.id) ? "bg-[#0d9488] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                        >
+                          {newTreatment.procedure_ids.includes(p.id) ? "✓ " : ""}{p.name}
+                        </button>
                       ))}
-                    </select>
+                    </div>
+                    {newTreatment.procedure_ids.length > 0 && (
+                      <p className="mt-2 text-xs text-teal-600 font-semibold">✅ {newTreatment.procedure_ids.length} procedure{newTreatment.procedure_ids.length > 1 ? "s" : ""} selected — aftercare for each will be sent</p>
+                    )}
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-600">Treatment date</label>
@@ -310,8 +365,8 @@ export default function AftercarePage() {
                     <p className="text-xs text-amber-700">💡 Logging this treatment will automatically send the aftercare email to the client if they have an email address on file.</p>
                   </div>
                   <div className="flex gap-2">
-                    <button type="button" disabled={treatmentSaving || !newTreatment.intake_id || !newTreatment.procedure_id} onClick={() => void handleLogTreatment()} className="rounded-full bg-[#0d9488] px-6 py-2 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50">
-                      {treatmentSaving ? "Saving…" : "Log treatment & send aftercare 💙"}
+                    <button type="button" disabled={treatmentSaving || (!newTreatment.intake_id && !newTreatment.is_walkin) || newTreatment.procedure_ids.length === 0} onClick={() => void handleLogTreatment()} className="rounded-full bg-[#0d9488] px-6 py-2 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50">
+                      {treatmentSaving ? "Saving…" : `Log treatment & send aftercare 💙`}
                     </button>
                     <button type="button" onClick={() => setAddingTreatment(false)} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600">Cancel</button>
                   </div>
