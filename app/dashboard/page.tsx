@@ -533,6 +533,12 @@ export default function NurseDashboardPage() {
                   >
                     📊 View my insights
                   </Link>
+                  <Link
+                    href="/aftercare"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                  >
+                    🩹 Aftercare Dashboard
+                  </Link>
                 </div>
               </div>
               {launched ? (
