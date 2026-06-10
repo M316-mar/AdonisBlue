@@ -461,21 +461,29 @@ export default function ReferralsPage() {
 
               <button
                 type="button"
-                onClick={() => void (async () => {
-                  const res = await fetch("/api/loyalty-program", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                    body: JSON.stringify(program),
-                  });
-                  if (res.ok) {
-                    setProgramSaved(true);
-                    setSuccessMsg("Loyalty program saved! 🌟");
-                    setTimeout(() => { setProgramSaved(false); setSuccessMsg(""); }, 3000);
-                  } else {
-                    setSuccessMsg("Failed to save — please try again.");
+                onClick={() => {
+                  if (!token) {
+                    setSuccessMsg("Session expired — please refresh the page.");
                     setTimeout(() => setSuccessMsg(""), 3000);
+                    return;
                   }
-                })()}
+                  void (async () => {
+                    const res = await fetch("/api/loyalty-program", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                      body: JSON.stringify(program),
+                    });
+                    if (res.ok) {
+                      setProgramSaved(true);
+                      setSuccessMsg("Loyalty program saved! 🌟");
+                      setTimeout(() => { setProgramSaved(false); setSuccessMsg(""); }, 3000);
+                    } else {
+                      const err = await res.text();
+                      setSuccessMsg(`Error: ${err}`);
+                      setTimeout(() => setSuccessMsg(""), 5000);
+                    }
+                  })();
+                }}
                 className="w-full rounded-full bg-[#0d9488] px-6 py-3 text-sm font-bold text-white transition hover:bg-teal-700"
               >
                 {programSaved ? "✅ Program saved!" : "Save loyalty program ⚙️"}
