@@ -26,7 +26,7 @@ export default function ReferralsPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [token, setToken] = useState("");
-  const [tab, setTab] = useState<"loyalty" | "referrals">("loyalty");
+  const [tab, setTab] = useState<"loyalty" | "referrals" | "program">("program");
   const [loyalty, setLoyalty] = useState<LoyaltyClient[]>([]);
   const [intakes, setIntakes] = useState<{ id: string; first_name: string; last_name: string; email: string; phone: string }[]>([]);
   const [referralData, setReferralData] = useState<ReferralData | null>(null);
@@ -36,6 +36,15 @@ export default function ReferralsPage() {
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [copied, setCopied] = useState(false);
+  const [program, setProgram] = useState({
+    points_per_visit: 10,
+    points_value: 100,
+    discount_value: 10,
+    expiry_days: 365,
+    enabled: false,
+    welcome_message: "",
+  });
+  const [programSaved, setProgramSaved] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,6 +150,9 @@ export default function ReferralsPage() {
           </button>
           <button type="button" onClick={() => setTab("referrals")} className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "referrals" ? "bg-[#0d9488] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
             🔗 Nurse Referrals ({referralData?.confirmed_count ?? 0})
+          </button>
+          <button type="button" onClick={() => setTab("program")} className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "program" ? "bg-[#0d9488] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+            ⚙️ Program Setup
           </button>
         </div>
 
