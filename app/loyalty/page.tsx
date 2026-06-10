@@ -64,7 +64,13 @@ export default function ReferralsPage() {
 
         if (!cancelled) {
           if (loyaltyRes.ok) { const j = await loyaltyRes.json(); setLoyalty(j.loyalty ?? []); }
-          if (intakesRes.ok) { const j = await intakesRes.json(); setIntakes(j.intakes ?? []); }
+          if (intakesRes.ok) {
+          const j = await intakesRes.json();
+          console.log("Intakes loaded:", j.intakes?.length, j.intakes);
+          setIntakes(j.intakes ?? []);
+        } else {
+          console.error("Intakes failed:", intakesRes.status, await intakesRes.text());
+        }
           if (programRes.ok) { const j = await programRes.json(); if (j.program) setProgram(prev => ({ ...prev, ...j.program })); }
         }
 
