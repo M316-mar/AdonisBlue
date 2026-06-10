@@ -65,6 +65,8 @@ export default function ReferralsPage() {
         if (loyaltyRes.ok) { const j = await loyaltyRes.json(); setLoyalty(j.loyalty ?? []); }
         const intakesRes = await fetch("/api/intakes", { headers: { Authorization: `Bearer ${t}` } });
         if (intakesRes.ok) { const j = await intakesRes.json(); setIntakes(j.intakes ?? []); }
+        const programRes = await fetch("/api/loyalty-program", { headers: { Authorization: `Bearer ${t}` } });
+        if (programRes.ok) { const j = await programRes.json(); if (j.program) setProgram(j.program); }
         if (refRes.ok) { const j = await refRes.json(); setReferralData(j); }
         if (botRes.ok) { const j = await botRes.json(); setPracticeName(j.bot?.practice_name || "Your Practice"); }
       }
@@ -298,6 +300,104 @@ export default function ReferralsPage() {
                 </div>
               ))
             )}
+          </div>
+        )}
+
+        {tab === "program" && (
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50 to-sky-50 p-5">
+              <h3 className="font-bold text-[#1a2744] mb-1">⚙️ Set up your loyalty program</h3>
+              <p className="text-sm text-slate-600">This is completely optional. Set it up once and clients will automatically know how to earn and redeem their points.</p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+              <div>
+                <label className="block text-sm font-bold text-[#1a2744] mb-1">Points per visit</label>
+                <p className="text-xs text-slate-500 mb-2">How many points does a client earn each time they visit?</p>
+                <div className="flex items-center gap-3">
+                  <input type="number" value={program.points_per_visit} onChange={e => setProgram(p => ({ ...p, points_per_visit: parseInt(e.target.value) || 0 }))} className="w-28 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
+                  <span className="text-sm text-slate-500">points per visit</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-[#1a2744] mb-1">What are points worth?</label>
+                <p className="text-xs text-slate-500 mb-2">How many points does a client need to earn a discount?</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input type="number" value={program.points_value} onChange={e => setProgram(p => ({ ...p, points_value: parseInt(e.target.value) || 0 }))} className="w-28 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
+                  <span className="text-sm text-slate-500">points =</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm text-slate-500">$</span>
+                    <input type="number" value={program.discount_value} onChange={e => setProgram(p => ({ ...p, discount_value: parseInt(e.target.value) || 0 }))} className="w-20 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
+                  </div>
+                  <span className="text-sm text-slate-500">off their next visit</span>
+                </div>
+                <p className="mt-2 text-xs text-teal-600 font-semibold">💡 Example: Client visits 10 times → earns {program.points_per_visit * 10} points → gets ${Math.floor((program.points_per_visit * 10) / program.points_value) * program.discount_value} off</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-[#1a2744] mb-1">Points expiry</label>
+                <p className="text-xs text-slate-500 mb-2">How long before unused points expire?</p>
+                <div className="flex items-center gap-3">
+                  <select value={program.expiry_days} onChange={e => setProgram(p => ({ ...p, expiry_days: parseInt(e.target.value) }))} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]">
+                    <option value={180}>6 months</option>
+                    <option value={365}>1 year</option>
+                    <option value={730}>2 years</option>
+                    <option value={9999}>Never expire</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-[#1a2744] mb-1">Welcome message to clients</label>
+                <p className="text-xs text-slate-500 mb-2">This appears in every points email so clients know how to redeem. Keep it short and exciting!</p>
+                <textarea
+                  value={program.welcome_message}
+                  onChange={e => setProgram(p => ({ ...p, welcome_message: e.target.value }))}
+                  placeholder={`🌟 Welcome to our loyalty program!\n\nEvery visit earns you ${program.points_per_visit} points. Once you reach ${program.points_value} points, you get $${program.discount_value} off your next appointment!\n\nTo redeem your points, just mention it when you book. We'll apply your discount automatically 💙`}
+                  rows={6}
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488] placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 space-y-3">
+                <p className="text-xs font-bold text-amber-800">💡 Ideas for rewards (pick what works for you):</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    "100 points = $10 off next visit",
+                    "200 points = free lip touch-up",
+                    "500 points = 50% off one treatment",
+                    "Birthday month = double points",
+                    "Refer a friend = 50 bonus points",
+                    "First visit = 20 welcome points",
+                  ].map(idea => (
+                    <button
+                      key={idea}
+                      type="button"
+                      onClick={() => setProgram(p => ({ ...p, welcome_message: p.welcome_message + (p.welcome_message ? "\n" : "") + "✨ " + idea }))}
+                      className="text-left rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800 transition hover:bg-amber-50"
+                    >
+                      + {idea}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void (async () => {
+                  const res = await fetch("/api/loyalty-program", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify(program),
+                  });
+                  if (res.ok) { setProgramSaved(true); setTimeout(() => setProgramSaved(false), 3000); }
+                })()}
+                className="w-full rounded-full bg-[#0d9488] px-6 py-3 text-sm font-bold text-white transition hover:bg-teal-700"
+              >
+                {programSaved ? "✅ Program saved!" : "Save loyalty program ⚙️"}
+              </button>
+            </div>
           </div>
         )}
       </main>
