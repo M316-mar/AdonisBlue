@@ -173,6 +173,23 @@ export default function ReferralsPage() {
               <p className="mt-2 text-xs text-slate-500">You decide what points are worth — e.g. 100 points = $10 off their next visit.</p>
             </div>
 
+            {(program as any).points_per_visit > 0 && (
+              <div className="rounded-2xl border border-teal-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">⚙️</span>
+                    <div>
+                      <p className="text-sm font-bold text-[#1a2744]">Your loyalty program is active</p>
+                      <p className="text-xs text-slate-500">{(program as any).points_per_visit} pts per visit · {(program as any).points_value} pts = ${(program as any).discount_value} off · {(program as any).reward_style === "procedure" ? "by procedure" : (program as any).reward_style === "frequency" ? "by frequency" : "by visit"}</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setTab("program")} className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 transition hover:bg-teal-100">
+                    Edit program
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end">
               <button type="button" onClick={() => setAddingPoints(true)} className="rounded-full bg-[#0d9488] px-5 py-2 text-sm font-bold text-white transition hover:bg-teal-700">
                 + Award points to client
@@ -316,6 +333,39 @@ export default function ReferralsPage() {
               <p className="text-sm text-slate-600">This is completely optional. Set it up once and clients will automatically know how to earn and redeem their points.</p>
             </div>
 
+            {(program as any).enabled !== undefined && (program as any).points_per_visit > 0 && (
+              <div className="rounded-2xl border border-teal-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-teal-600 mb-2">✅ Your active program</p>
+                    <div className="space-y-1">
+                      <p className="text-sm text-slate-700">🎯 Style: <strong>{(program as any).reward_style === "procedure" ? "By procedure" : (program as any).reward_style === "frequency" ? "By frequency" : "By visit"}</strong></p>
+                      <p className="text-sm text-slate-700">⭐ Points per visit: <strong>{(program as any).points_per_visit}</strong></p>
+                      <p className="text-sm text-slate-700">💰 Redemption: <strong>{(program as any).points_value} points = ${(program as any).discount_value} off</strong></p>
+                      <p className="text-sm text-slate-700">⏰ Expiry: <strong>{(program as any).expiry_days >= 9999 ? "Never" : `${(program as any).expiry_days} days`}</strong></p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void (async () => {
+                      const res = await fetch("/api/loyalty-program", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                      });
+                      if (res.ok) {
+                        setProgram({ points_per_visit: 10, points_value: 100, discount_value: 10, expiry_days: 365, enabled: false, welcome_message: "" });
+                        setSuccessMsg("Program deleted.");
+                        setTimeout(() => setSuccessMsg(""), 3000);
+                      }
+                    })()}
+                    className="shrink-0 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
               <div>
                 <label className="block text-sm font-bold text-[#1a2744] mb-1">How do you want to reward clients?</label>
@@ -424,18 +474,6 @@ export default function ReferralsPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-[#1a2744] mb-1">Welcome message to clients</label>
-                <p className="text-xs text-slate-500 mb-2">This appears in every points email so clients know how to redeem. Keep it short and exciting!</p>
-                <textarea
-                  value={program.welcome_message}
-                  onChange={e => setProgram(p => ({ ...p, welcome_message: e.target.value }))}
-                  placeholder={`🌟 Welcome to our loyalty program!\n\nEvery visit earns you ${program.points_per_visit} points. Once you reach ${program.points_value} points, you get $${program.discount_value} off your next appointment!\n\nTo redeem your points, just mention it when you book. We'll apply your discount automatically 💙`}
-                  rows={6}
-                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488] placeholder:text-slate-400"
-                />
-              </div>
-
               <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 space-y-3">
                 <p className="text-xs font-bold text-amber-800">💡 Ideas for rewards (pick what works for you):</p>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -457,6 +495,18 @@ export default function ReferralsPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-[#1a2744] mb-1">Welcome message to clients</label>
+                <p className="text-xs text-slate-500 mb-2">This appears in every points email so clients know how to redeem. Keep it short and exciting!</p>
+                <textarea
+                  value={program.welcome_message}
+                  onChange={e => setProgram(p => ({ ...p, welcome_message: e.target.value }))}
+                  placeholder={`🌟 Welcome to our loyalty program!\n\nEvery visit earns you ${program.points_per_visit} points. Once you reach ${program.points_value} points, you get $${program.discount_value} off your next appointment!\n\nTo redeem your points, just mention it when you book. We'll apply your discount automatically 💙`}
+                  rows={6}
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488] placeholder:text-slate-400"
+                />
               </div>
 
               <button
