@@ -55,20 +55,26 @@ export default function ReferralsPage() {
       const t = data.session.access_token;
       setToken(t);
 
-      const [loyaltyRes, refRes, botRes] = await Promise.all([
-        fetch("/api/loyalty", { headers: { Authorization: `Bearer ${t}` } }),
-        fetch("/api/referrals", { headers: { Authorization: `Bearer ${t}` } }),
-        fetch("/api/mybot", { headers: { Authorization: `Bearer ${t}` } }),
-      ]);
+      try {
+        const [loyaltyRes, intakesRes, programRes] = await Promise.all([
+          fetch("/api/loyalty", { headers: { Authorization: `Bearer ${t}` } }),
+          fetch("/api/intakes", { headers: { Authorization: `Bearer ${t}` } }),
+          fetch("/api/loyalty-program", { headers: { Authorization: `Bearer ${t}` } }),
+        ]);
 
-      if (!cancelled) {
-        if (loyaltyRes.ok) { const j = await loyaltyRes.json(); setLoyalty(j.loyalty ?? []); }
-        const intakesRes = await fetch("/api/intakes", { headers: { Authorization: `Bearer ${t}` } });
-        if (intakesRes.ok) { const j = await intakesRes.json(); setIntakes(j.intakes ?? []); }
-        const programRes = await fetch("/api/loyalty-program", { headers: { Authorization: `Bearer ${t}` } });
-        if (programRes.ok) { const j = await programRes.json(); if (j.program) setProgram(j.program); }
-        if (refRes.ok) { const j = await refRes.json(); setReferralData(j); }
-        if (botRes.ok) { const j = await botRes.json(); setPracticeName(j.bot?.practice_name || "Your Practice"); }
+        if (!cancelled) {
+          if (loyaltyRes.ok) { const j = await loyaltyRes.json(); setLoyalty(j.loyalty ?? []); }
+          if (intakesRes.ok) { const j = await intakesRes.json(); setIntakes(j.intakes ?? []); }
+          if (programRes.ok) { const j = await programRes.json(); if (j.program) setProgram(prev => ({ ...prev, ...j.program })); }
+        }
+
+        try {
+          const refRes = await fetch("/api/referrals", { headers: { Authorization: `Bearer ${t}` } });
+          if (!cancelled && refRes.ok) { const j = await refRes.json(); setReferralData(j); }
+        } catch (e) { console.error("Referrals fetch error:", e); }
+
+      } catch (e) {
+        console.error("Fetch error:", e);
       }
       setReady(true);
     })();
