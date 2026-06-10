@@ -461,7 +461,14 @@ export default function ReferralsPage() {
                     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                     body: JSON.stringify(program),
                   });
-                  if (res.ok) { setProgramSaved(true); setTimeout(() => setProgramSaved(false), 3000); }
+                  if (res.ok) {
+                    setProgramSaved(true);
+                    setSuccessMsg("Loyalty program saved! 🌟");
+                    setTimeout(() => { setProgramSaved(false); setSuccessMsg(""); }, 3000);
+                  } else {
+                    setSuccessMsg("Failed to save — please try again.");
+                    setTimeout(() => setSuccessMsg(""), 3000);
+                  }
                 })()}
                 className="w-full rounded-full bg-[#0d9488] px-6 py-3 text-sm font-bold text-white transition hover:bg-teal-700"
               >
