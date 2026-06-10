@@ -28,7 +28,7 @@ export default function ReferralsPage() {
   const [token, setToken] = useState("");
   const [tab, setTab] = useState<"loyalty" | "referrals" | "program">("program");
   const [loyalty, setLoyalty] = useState<LoyaltyClient[]>([]);
-  const [intakes, setIntakes] = useState<{ id: string; first_name: string; last_name: string; email: string; phone: string }[]>([]);
+  const [intakes, setIntakes] = useState<{ id: string; first_name: string; email: string; phone: string }[]>([]);
   const [referralData, setReferralData] = useState<ReferralData | null>(null);
   const [practiceName, setPracticeName] = useState("");
   const [addingPoints, setAddingPoints] = useState(false);
@@ -212,14 +212,14 @@ export default function ReferralsPage() {
                       onChange={e => {
                         const selected = intakes.find(i => i.id === e.target.value);
                         if (selected) {
-                          setNewPoints(p => ({ ...p, client_email: selected.email || "", client_name: selected.first_name + (selected.last_name ? " " + selected.last_name : "") }));
+                          setNewPoints(p => ({ ...p, client_email: selected.email || "", client_name: selected.first_name }));
                         }
                       }}
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
                     >
                       <option value="">Choose from existing clients… ({intakes.length} total)</option>
                       {intakes.map(i => (
-                        <option key={i.id} value={i.id}>{i.first_name} {i.last_name || ""} — {i.email || "no email"}</option>
+                        <option key={i.id} value={i.id}>{i.first_name} — {i.email || "no email"}</option>
                       ))}
                     </select>
                   </div>
