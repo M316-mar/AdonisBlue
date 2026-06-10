@@ -312,6 +312,30 @@ export default function ReferralsPage() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
               <div>
+                <label className="block text-sm font-bold text-[#1a2744] mb-1">How do you want to reward clients?</label>
+                <p className="text-xs text-slate-500 mb-3">Choose your reward style — you can always change it later.</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    { id: "visit", emoji: "📅", title: "By visit", desc: "Same points every time they come in, no matter what procedure" },
+                    { id: "procedure", emoji: "💉", title: "By procedure", desc: "Set different points per procedure — reward bigger treatments more" },
+                    { id: "frequency", emoji: "🏆", title: "By frequency", desc: "Bonus points at milestones — 5th visit, 10th visit, birthdays" },
+                  ].map(style => (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() => setProgram(p => ({ ...p, reward_style: style.id }))}
+                      className={`rounded-2xl border p-4 text-left transition ${(program as any).reward_style === style.id ? "border-[#0d9488] bg-teal-50 ring-1 ring-[#0d9488]/30" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                    >
+                      <span className="text-2xl">{style.emoji}</span>
+                      <p className="mt-2 text-sm font-bold text-[#1a2744]">{style.title}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-slate-500">{style.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {(!(program as any).reward_style || (program as any).reward_style === "visit") && (
+              <div>
                 <label className="block text-sm font-bold text-[#1a2744] mb-1">Points per visit</label>
                 <p className="text-xs text-slate-500 mb-2">How many points does a client earn each time they visit?</p>
                 <div className="flex items-center gap-3">
@@ -319,6 +343,52 @@ export default function ReferralsPage() {
                   <span className="text-sm text-slate-500">points per visit</span>
                 </div>
               </div>
+              )}
+
+              {(program as any).reward_style === "procedure" && (
+                <div>
+                  <label className="block text-sm font-bold text-[#1a2744] mb-1">Points per procedure</label>
+                  <p className="text-xs text-slate-500 mb-3">Set how many points each procedure earns. Bigger treatments can earn more!</p>
+                  <div className="space-y-2">
+                    {["Lip Filler", "Botox / Neuromodulator", "Cheek Filler", "PRP / Biostimulator", "Skin Booster"].map(proc => (
+                      <div key={proc} className="flex items-center gap-3">
+                        <span className="w-44 text-sm text-slate-700 shrink-0">{proc}</span>
+                        <input
+                          type="number"
+                          defaultValue={proc.includes("Filler") ? 20 : proc.includes("Botox") ? 15 : 10}
+                          className="w-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                        />
+                        <span className="text-xs text-slate-400">points</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(program as any).reward_style === "frequency" && (
+                <div>
+                  <label className="block text-sm font-bold text-[#1a2744] mb-1">Frequency milestones</label>
+                  <p className="text-xs text-slate-500 mb-3">Clients earn bonus points when they hit these visit milestones.</p>
+                  <div className="space-y-2">
+                    {[
+                      { visit: "5th visit", points: 50 },
+                      { visit: "10th visit", points: 100 },
+                      { visit: "Birthday month", points: 75 },
+                      { visit: "Every visit", points: 10 },
+                    ].map(milestone => (
+                      <div key={milestone.visit} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5">
+                        <span className="flex-1 text-sm font-semibold text-[#1a2744]">🏆 {milestone.visit}</span>
+                        <input
+                          type="number"
+                          defaultValue={milestone.points}
+                          className="w-20 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                        />
+                        <span className="text-xs text-slate-400">bonus points</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-bold text-[#1a2744] mb-1">What are points worth?</label>
