@@ -107,7 +107,7 @@ export default function ReferralsPage() {
         const exists = prev.find(l => l.client_email === newPoints.client_email);
         return exists ? prev.map(l => l.client_email === newPoints.client_email ? j.loyalty : l) : [j.loyalty, ...prev];
       });
-      setNewPoints({ client_email: "", client_name: "", points: 10, send_email: true });
+      setNewPoints({ client_email: "", client_name: "", points: 10, send_email: true, program: "" });
       setAddingPoints(false);
       setSuccessMsg(newPoints.send_email ? "Points added and email sent! 🌟" : "Points added!");
       setTimeout(() => setSuccessMsg(""), 3000);
