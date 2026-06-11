@@ -215,7 +215,11 @@ export default function ReferralsPage() {
                       <option value="">Choose a loyalty program…</option>
                       {(program as any).reward_style && (
                         <option value={(program as any).reward_style}>
-                          {(program as any).reward_style === "procedure" ? "💉 By Procedure" : (program as any).reward_style === "frequency" ? "🏆 By Frequency" : "📅 By Visit"} — {program.points_per_visit} pts/visit
+                          {(program as any).reward_style === "procedure"
+                            ? "💉 By Procedure"
+                            : (program as any).reward_style === "frequency"
+                            ? "🏆 By Frequency"
+                            : "📅 By Visit"} — {program.points_per_visit} pts/visit
                         </option>
                       )}
                     </select>
