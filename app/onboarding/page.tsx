@@ -102,7 +102,7 @@ type Step3Data = {
   bookingLink: string;
   cancellationPolicy: string;
   aftercare: string;
-  nummingMethod: string;
+  numbingMethod: string;
   previousWorkPolicy: string;
   touchUpPolicy: string;
   sameDayConsultation: string;
@@ -153,7 +153,7 @@ function defaultStep3(): Step3Data {
     bookingLink: "",
     cancellationPolicy: "",
     aftercare: "",
-    nummingMethod: "",
+    numbingMethod: "",
     previousWorkPolicy: "",
     touchUpPolicy: "",
     sameDayConsultation: "",
@@ -570,7 +570,7 @@ export default function OnboardingPage() {
       booking_link: p.step3.bookingLink.trim() || null,
       cancellation_policy: p.step3.cancellationPolicy.trim() || null,
       aftercare: p.step3.aftercare.trim() || null,
-      numbing_method: p.step3.nummingMethod.trim() || null,
+      numbing_method: p.step3.numbingMethod.trim() || null,
       previous_work_policy: p.step3.previousWorkPolicy.trim() || null,
       touch_up_policy: p.step3.touchUpPolicy.trim() || null,
       same_day_consultation: p.step3.sameDayConsultation.trim() || null,
@@ -1179,8 +1179,8 @@ export default function OnboardingPage() {
               <label className="block">
                 <span className="mb-1 block text-sm font-medium text-[#1a2744]">How do you numb your clients?</span>
                 <textarea
-                  value={s3.nummingMethod}
-                  onChange={(e) => setStep3({ nummingMethod: e.target.value })}
+                  value={s3.numbingMethod}
+                  onChange={(e) => setStep3({ numbingMethod: e.target.value })}
                   rows={2}
                   placeholder="e.g. We use a topical numbing cream applied 20 minutes before treatment"
                   className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
