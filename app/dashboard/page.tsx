@@ -539,12 +539,14 @@ export default function NurseDashboardPage() {
                   >
                     🩹 Aftercare Dashboard
                   </Link>
-                  <Link
-                    href="/loyalty"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-purple-200 bg-purple-50 px-4 py-2.5 text-center text-sm font-semibold text-purple-700 transition hover:bg-purple-100"
-                  >
-                    🌟 Referrals & Loyalty
-                  </Link>
+                  {process.env.NEXT_PUBLIC_SHOW_LOYALTY === "true" && (
+                    <Link
+                      href="/loyalty"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-purple-200 bg-purple-50 px-4 py-2.5 text-center text-sm font-semibold text-purple-700 transition hover:bg-purple-100"
+                    >
+                      🌟 Referrals & Loyalty
+                    </Link>
+                  )}
                 </div>
               </div>
               {launched ? (
