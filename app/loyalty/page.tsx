@@ -242,6 +242,19 @@ export default function ReferralsPage() {
                     </select>
                   </div>
                   <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-600">Select program</label>
+                    <select
+                      value={newPoints.program}
+                      onChange={e => setNewPoints(p => ({ ...p, program: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                    >
+                      <option value="">Choose a program…</option>
+                      <option value="visit">📅 By Visit</option>
+                      <option value="procedure">💉 By Procedure</option>
+                      <option value="frequency">🏆 By Frequency</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-600">Or enter manually</label>
                     <input value={newPoints.client_email} onChange={e => setNewPoints(p => ({ ...p, client_email: e.target.value }))} placeholder="Client email address" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
                     <input value={newPoints.client_name} onChange={e => setNewPoints(p => ({ ...p, client_name: e.target.value }))} placeholder="Client name" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
