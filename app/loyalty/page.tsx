@@ -179,23 +179,6 @@ export default function ReferralsPage() {
               <p className="mt-2 text-xs text-slate-500">You decide what points are worth — e.g. 100 points = $10 off their next visit.</p>
             </div>
 
-            {(program as any).points_per_visit > 0 && (
-              <div className="rounded-2xl border border-teal-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">⚙️</span>
-                    <div>
-                      <p className="text-sm font-bold text-[#1a2744]">Your loyalty program is active</p>
-                      <p className="text-xs text-slate-500">{(program as any).points_per_visit} pts per visit · {(program as any).points_value} pts = ${(program as any).discount_value} off · {(program as any).reward_style === "procedure" ? "by procedure" : (program as any).reward_style === "frequency" ? "by frequency" : "by visit"}</p>
-                    </div>
-                  </div>
-                  <button type="button" onClick={() => setTab("program")} className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 transition hover:bg-teal-100">
-                    Edit program
-                  </button>
-                </div>
-              </div>
-            )}
-
             <div className="flex justify-end">
               <button type="button" onClick={() => setAddingPoints(true)} className="rounded-full bg-[#0d9488] px-5 py-2 text-sm font-bold text-white transition hover:bg-teal-700">
                 + Award points to client
@@ -206,24 +189,6 @@ export default function ReferralsPage() {
               <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 shadow-sm">
                 <h3 className="mb-4 text-base font-bold text-[#1a2744]">Award loyalty points 🌟</h3>
                 <div className="space-y-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-600">Select program</label>
-                    <select
-                      onChange={e => setNewPoints(p => ({ ...p, program: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
-                    >
-                      <option value="">Choose a loyalty program…</option>
-                      {(program as any).reward_style && (
-                        <option value={(program as any).reward_style}>
-                          {(program as any).reward_style === "procedure"
-                            ? "💉 By Procedure"
-                            : (program as any).reward_style === "frequency"
-                            ? "🏆 By Frequency"
-                            : "📅 By Visit"} — {program.points_per_visit} pts/visit
-                        </option>
-                      )}
-                    </select>
-                  </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-600">Select client</label>
                     <select
@@ -295,6 +260,11 @@ export default function ReferralsPage() {
                     <div>
                       <p className="font-bold text-[#1a2744]">{client.client_name || "Client"}</p>
                       <p className="text-xs text-slate-500">{client.client_email} · {client.total_visits} visit{client.total_visits !== 1 ? "s" : ""}</p>
+                      {(client as any).program && (
+                        <span className="mt-1 inline-block rounded-full bg-teal-50 border border-teal-200 px-2 py-0.5 text-xs font-semibold text-teal-700">
+                          {(client as any).program === "procedure" ? "💉 By Procedure" : (client as any).program === "frequency" ? "🏆 By Frequency" : "📅 By Visit"}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -365,6 +335,27 @@ export default function ReferralsPage() {
                 )}
               </div>
             ))}
+
+            {(program as any).reward_style && (
+              <div className="rounded-2xl border border-teal-200 bg-white p-5 shadow-sm mt-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">
+                      {(program as any).reward_style === "procedure" ? "💉" : (program as any).reward_style === "frequency" ? "🏆" : "📅"}
+                    </span>
+                    <div>
+                      <p className="text-sm font-bold text-[#1a2744]">
+                        Active program: {(program as any).reward_style === "procedure" ? "By Procedure" : (program as any).reward_style === "frequency" ? "By Frequency" : "By Visit"}
+                      </p>
+                      <p className="text-xs text-slate-500">{program.points_per_visit} pts per visit · {program.points_value} pts = ${program.discount_value} off · expires in {program.expiry_days >= 9999 ? "never" : `${program.expiry_days} days`}</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setTab("program")} className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-100">
+                    Edit program
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
