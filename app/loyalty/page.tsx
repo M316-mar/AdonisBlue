@@ -286,7 +286,7 @@ export default function ReferralsPage() {
             )}
 
             {loyalty.map(client => (
-              <div key={client.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div key={client.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-50 text-lg font-bold text-teal-600">
@@ -302,6 +302,67 @@ export default function ReferralsPage() {
                     <p className="text-xs text-slate-400">points</p>
                   </div>
                 </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-2 flex-wrap pt-1 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const pts = prompt("How many points to ADD?");
+                      if (!pts || isNaN(Number(pts))) return;
+                      void fetch("/api/loyalty", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ client_email: client.client_email, client_name: client.client_name, points_to_add: Number(pts), send_email: false, practice_name: practiceName }),
+                      }).then(r => r.json()).then(j => {
+                        setLoyalty(prev => prev.map(l => l.client_email === client.client_email ? j.loyalty : l));
+                        setSuccessMsg(`✅ Added ${pts} points to ${client.client_name}`);
+                        setTimeout(() => setSuccessMsg(""), 3000);
+                      });
+                    }}
+                    className="rounded-full bg-teal-50 border border-teal-200 px-4 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-100 transition"
+                  >
+                    + Add Points
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const pts = prompt("How many points to REMOVE?");
+                      if (!pts || isNaN(Number(pts))) return;
+                      void fetch("/api/loyalty", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ client_email: client.client_email, client_name: client.client_name, points_to_add: -Number(pts), send_email: false, practice_name: practiceName }),
+                      }).then(r => r.json()).then(j => {
+                        setLoyalty(prev => prev.map(l => l.client_email === client.client_email ? j.loyalty : l));
+                        setSuccessMsg(`✅ Removed ${pts} points from ${client.client_name}`);
+                        setTimeout(() => setSuccessMsg(""), 3000);
+                      });
+                    }}
+                    className="rounded-full bg-red-50 border border-red-200 px-4 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition"
+                  >
+                    − Remove Points
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const note = prompt(`Add a note for ${client.client_name}:`);
+                      if (!note?.trim()) return;
+                      setLoyalty(prev => prev.map(l => l.client_email === client.client_email ? { ...l, note } : l));
+                      setSuccessMsg(`📝 Note saved for ${client.client_name}`);
+                      setTimeout(() => setSuccessMsg(""), 3000);
+                    }}
+                    className="rounded-full bg-amber-50 border border-amber-200 px-4 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition"
+                  >
+                    📝 Add Note
+                  </button>
+                </div>
+
+                {(client as any).note && (
+                  <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-2.5">
+                    <p className="text-xs text-amber-700">📝 <strong>Note:</strong> {(client as any).note}</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
