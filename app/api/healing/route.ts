@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
     const { data: treatment } = await supabase
       .from("treatments")
-      .select("*, intakes(first_name, email, phone), procedures(name, aftercare_instructions), bots:nurse_id(practice_name, notification_email)")
+      .select("*, intakes(first_name, email, phone), procedures(name, aftercare_instructions), bots:nurse_id(practice_name, notification_email, alert_phone)")
       .eq("id", treatment_id)
       .single();
 
@@ -76,7 +76,9 @@ export async function POST(request: Request) {
     const clientName = treatment.intakes?.first_name || "Client";
     const procedureName = (treatment.procedures as any)?.name || "procedure";
     const nurseEmail = (treatment.bots as any)?.notification_email;
+    const alertPhone = (treatment.bots as any)?.alert_phone;
     const practiceName = (treatment.bots as any)?.practice_name || "your practice";
+    const clientPhone = body.client_phone || treatment.intakes?.phone || "Not provided";
 
     // Save or update chat
     await supabase
@@ -89,6 +91,7 @@ export async function POST(request: Request) {
         flagged: flagged || false,
         flagged_message: flagged_message || null,
         updated_at: new Date().toISOString(),
+        client_phone: body.client_phone || null,
       }, { onConflict: "treatment_id" });
 
     // Send emergency alert to nurse
@@ -114,7 +117,8 @@ export async function POST(request: Request) {
           </div>
           <p style="margin:16px 0;color:#475569;font-size:14px;">Contact details:</p>
           <p style="margin:4px 0;color:#1a2744;font-size:14px;">📧 ${treatment.intakes?.email || "No email"}</p>
-          <p style="margin:4px 0;color:#1a2744;font-size:14px;">📱 ${treatment.intakes?.phone || "No phone"}</p>
+          <p style="margin:4px 0;color:#1a2744;font-size:14px;">📱 ${clientPhone}</p>
+          ${alertPhone ? `<div style="background:#fef2f2;border-radius:8px;padding:12px;margin:16px 0;text-align:center;"><p style="margin:0;color:#dc2626;font-size:13px;">📲 Your alert phone: <strong>${alertPhone}</strong></p></div>` : ""}
           <div style="text-align:center;margin:24px 0;">
             <a href="${SITE_URL}/dashboard" style="display:inline-block;background:#ef4444;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">View in dashboard</a>
           </div>

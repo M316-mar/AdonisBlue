@@ -23,6 +23,8 @@ export default function HealingChatPage({ params }: { params: Promise<{ treatmen
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [phoneCollected, setPhoneCollected] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,6 +80,7 @@ export default function HealingChatPage({ params }: { params: Promise<{ treatmen
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
           flagged: isFlagged,
           flagged_message: isFlagged ? text : null,
+          client_phone: clientPhone,
         }),
       });
 
@@ -93,7 +96,7 @@ export default function HealingChatPage({ params }: { params: Promise<{ treatmen
       console.error(e);
     }
     setSending(false);
-  }, [messages, sending, treatmentId, checkForEmergency]);
+  }, [messages, sending, treatmentId, checkForEmergency, clientPhone]);
 
   const practiceName = (treatment?.bots as any)?.practice_name || "Your Provider";
   const procedureName = treatment?.procedures?.name || treatment?.procedure_name || "your procedure";
@@ -114,6 +117,33 @@ export default function HealingChatPage({ params }: { params: Promise<{ treatmen
           <p className="text-4xl mb-4">💙</p>
           <p className="text-white font-semibold">{error}</p>
           <p className="mt-2 text-slate-400 text-sm">Please contact your provider directly.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!phoneCollected) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+        <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+          <p className="text-3xl mb-3">💙</p>
+          <h2 className="text-lg font-bold text-[#1a2744] mb-1">Recovery Check-in</h2>
+          <p className="text-sm text-slate-500 mb-6">Before we start, what's the best phone number to reach you in case of an emergency?</p>
+          <input
+            type="tel"
+            value={clientPhone}
+            onChange={e => setClientPhone(e.target.value)}
+            placeholder="+1 (555) 000-0000"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488] mb-3"
+          />
+          <button
+            type="button"
+            onClick={() => setPhoneCollected(true)}
+            className="w-full rounded-full bg-[#0d9488] py-3 text-sm font-bold text-white transition hover:bg-teal-700"
+          >
+            Continue to recovery chat →
+          </button>
+          <p className="mt-3 text-xs text-slate-400">Only shared with your nurse if you report an emergency.</p>
         </div>
       </div>
     );
