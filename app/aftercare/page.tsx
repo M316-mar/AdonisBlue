@@ -225,7 +225,7 @@ export default function AftercarePage() {
         )}
 
         {/* Tabs */}
-        <div className="mb-6 flex gap-2">
+        <div className="mb-6 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           <button type="button" onClick={() => setTab("procedures")} className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "procedures" ? "bg-[#0d9488] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
             📋 My Procedures ({procedures.length})
           </button>
