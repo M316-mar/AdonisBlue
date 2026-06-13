@@ -43,7 +43,7 @@ export default function HealingChatPage({ params }: { params: Promise<{ treatmen
       const procedureName = data.treatment?.procedures?.name || data.treatment?.procedure_name || "your procedure";
       setMessages([{
         role: "assistant",
-        content: `Hi ${clientName}! 💙 I'm here to help you with your recovery after your ${procedureName}. How are you feeling? You can ask me anything about your healing process — I'm available 24/7!`,
+        content: `Hi ${clientName}! 💙 I'm your recovery assistant after your ${procedureName}. Are you reaching out because of an emergency or concern, or do you just have a general question about your healing? I'm here 24/7 for you! 🌸`,
         id: "welcome",
       }]);
       setLoading(false);
@@ -124,26 +124,33 @@ export default function HealingChatPage({ params }: { params: Promise<{ treatmen
 
   if (!phoneCollected) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+      <div className="flex min-h-dvh items-center justify-center bg-[#0d1628] px-4">
+        <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#1a2744] p-8 shadow-sm text-center">
           <p className="text-3xl mb-3">💙</p>
-          <h2 className="text-lg font-bold text-[#1a2744] mb-1">Recovery Check-in</h2>
-          <p className="text-sm text-slate-500 mb-6">Before we start, what's the best phone number to reach you in case of an emergency?</p>
+          <h2 className="text-lg font-bold text-white mb-1">Recovery Check-in</h2>
+          <p className="text-sm text-slate-400 mb-6">Before we start, what's the best phone number to reach you in case of an emergency? This is only shared with your nurse if needed.</p>
           <input
             type="tel"
             value={clientPhone}
             onChange={e => setClientPhone(e.target.value)}
             placeholder="+1 (555) 000-0000"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488] mb-3"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-[#0d9488] mb-3 placeholder:text-slate-500"
           />
           <button
             type="button"
             onClick={() => setPhoneCollected(true)}
-            className="w-full rounded-full bg-[#0d9488] py-3 text-sm font-bold text-white transition hover:bg-teal-700"
+            className="w-full rounded-full bg-[#0d9488] py-3 text-sm font-bold text-white transition hover:bg-teal-700 mb-3"
           >
             Continue to recovery chat →
           </button>
-          <p className="mt-3 text-xs text-slate-400">Only shared with your nurse if you report an emergency.</p>
+          <button
+            type="button"
+            onClick={() => { setClientPhone("Not provided"); setPhoneCollected(true); }}
+            className="w-full rounded-full border border-white/10 py-2.5 text-xs text-slate-400 transition hover:bg-white/5"
+          >
+            Skip — I don't want to share my number
+          </button>
+          <p className="mt-3 text-xs text-slate-500">🔒 Your number is never sold or shared with anyone except your nurse.</p>
         </div>
       </div>
     );
@@ -214,18 +221,38 @@ export default function HealingChatPage({ params }: { params: Promise<{ treatmen
 
       {/* Quick questions */}
       <div className="px-4 pb-2 sm:px-6">
-        <div className="mx-auto max-w-2xl flex gap-2 overflow-x-auto pb-1">
-          {["Is this swelling normal?", "When can I wear makeup?", "Can I exercise today?", "My area feels hard", "I have bruising"].map(q => (
+        <div className="mx-auto max-w-2xl">
+          <div className="flex gap-2 mb-2">
             <button
-              key={q}
               type="button"
-              onClick={() => void sendMessage(q)}
+              onClick={() => void sendMessage("🚨 I think I am having an emergency")}
               disabled={sending}
-              className="shrink-0 rounded-full border border-teal-400/30 bg-teal-400/10 px-3 py-1.5 text-xs font-medium text-teal-300 transition hover:bg-teal-400/20 disabled:opacity-50"
+              className="flex-1 rounded-full border border-red-400/40 bg-red-400/10 px-3 py-2 text-xs font-bold text-red-300 transition hover:bg-red-400/20 disabled:opacity-50"
             >
-              {q}
+              🚨 Emergency
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => void sendMessage("💬 I have a concern about my recovery")}
+              disabled={sending}
+              className="flex-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-bold text-amber-300 transition hover:bg-amber-400/20 disabled:opacity-50"
+            >
+              💬 Concern
+            </button>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {["Is this swelling normal?", "When can I wear makeup?", "Can I exercise today?", "My area feels hard", "I have bruising"].map(q => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => void sendMessage(q)}
+                disabled={sending}
+                className="shrink-0 rounded-full border border-teal-400/30 bg-teal-400/10 px-3 py-1.5 text-xs font-medium text-teal-300 transition hover:bg-teal-400/20 disabled:opacity-50"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
