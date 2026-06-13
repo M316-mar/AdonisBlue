@@ -5,7 +5,7 @@ import type { AuthError } from "@supabase/supabase-js";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 function friendlySignupError(error: AuthError): string {
   const raw = `${error.message ?? ""} ${(error as { code?: string }).code ?? ""}`.toLowerCase();
@@ -98,12 +98,22 @@ export default function AuthPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [sessionTimedOut, setSessionTimedOut] = useState(false);
+  const redirectAfterLogin = useRef<string>("/dashboard");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("confirmed") === "1") {
       setConfirmed(true);
       setMode("login");
+    }
+    if (params.get("reason") === "timeout") {
+      setSessionTimedOut(true);
+      setMode("login");
+    }
+    const redirect = params.get("redirect");
+    if (redirect && redirect.startsWith("/")) {
+      redirectAfterLogin.current = redirect;
     }
   }, []);
 
@@ -201,7 +211,7 @@ export default function AuthPage() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(redirectAfterLogin.current);
   }
 
   return (
@@ -366,6 +376,11 @@ export default function AuthPage() {
                 {confirmed && (
                   <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-center">
                     <p className="text-sm font-semibold text-green-700">✅ Email confirmed! Log in below to get started.</p>
+                  </div>
+                )}
+                {sessionTimedOut && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
+                    <p className="text-sm font-semibold text-amber-700">⏱️ Your session expired after 30 minutes of inactivity. Please log in again.</p>
                   </div>
                 )}
                 <div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { supabase } from "@/lib/supabase";
+import { signOutCompletely, supabase } from "@/lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -188,7 +188,7 @@ export default function NurseDashboardPage() {
   );
 
   const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
+    await signOutCompletely();
     router.push("/auth");
   }, [router]);
 
@@ -203,10 +203,7 @@ export default function NurseDashboardPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-      // Clear all local storage data
-      localStorage.clear();
-      sessionStorage.clear();
-      await supabase.auth.signOut();
+      await signOutCompletely();
       router.push("/");
     } finally {
       setDeleteBusy(false);
