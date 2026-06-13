@@ -44,7 +44,10 @@ export default function AftercarePage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [token, setToken] = useState("");
-  const [tab, setTab] = useState<"procedures" | "treatments" | "emergency">("procedures");
+  const [tab, setTab] = useState<"procedures" | "treatments" | "emergency" | "alerts">("procedures");
+  const [alertEmail, setAlertEmail] = useState("");
+  const [alertPhone, setAlertPhone] = useState("");
+  const [alertSaving, setAlertSaving] = useState(false);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [intakes, setIntakes] = useState<Intake[]>([]);
@@ -60,6 +63,8 @@ export default function AftercarePage() {
     walkin_name: "",
     walkin_email: "",
     walkin_phone: "",
+    send_aftercare: true,
+    came_via_bot: false,
   });
   const [addingTreatment, setAddingTreatment] = useState(false);
   const [treatmentSaving, setTreatmentSaving] = useState(false);
@@ -77,11 +82,12 @@ export default function AftercarePage() {
       const t = data.session.access_token;
       setToken(t);
 
-      const [procRes, treatRes, intakeRes, kwRes] = await Promise.all([
+      const [procRes, treatRes, intakeRes, kwRes, alertRes] = await Promise.all([
         fetch("/api/procedures", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/treatments", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/intakes", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/emergency-keywords", { headers: { Authorization: `Bearer ${t}` } }),
+        fetch("/api/alert-settings", { headers: { Authorization: `Bearer ${t}` } }),
       ]);
 
       if (!cancelled) {
@@ -89,6 +95,11 @@ export default function AftercarePage() {
         if (treatRes.ok) { const j = await treatRes.json(); setTreatments(j.treatments ?? []); }
         if (intakeRes.ok) { const j = await intakeRes.json(); setIntakes(j.intakes ?? []); }
         if (kwRes.ok) { const j = await kwRes.json(); setEmergencyKeywords(j.keywords ?? []); }
+        if (alertRes.ok) {
+          const j = await alertRes.json();
+          setAlertEmail(j.alert_email ?? "");
+          setAlertPhone(j.alert_phone ?? "");
+        }
       }
       setReady(true);
     })();
@@ -164,12 +175,14 @@ export default function AftercarePage() {
         walkin_name: newTreatment.walkin_name,
         walkin_email: newTreatment.walkin_email,
         walkin_phone: newTreatment.walkin_phone,
+        send_aftercare: newTreatment.send_aftercare,
+        came_via_bot: newTreatment.came_via_bot,
       }),
     });
     if (res.ok) {
       const j = await res.json();
       setTreatments(prev => [j.treatment, ...prev]);
-      setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "" });
+      setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "", send_aftercare: true, came_via_bot: false });
       setAddingTreatment(false);
       setSuccessMsg(j.aftercare_sent ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
       setTimeout(() => setSuccessMsg(""), 5000);
@@ -221,6 +234,9 @@ export default function AftercarePage() {
           </button>
           <button type="button" onClick={() => setTab("emergency")} className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "emergency" ? "bg-red-500 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
             ⚠️ Emergency Keywords
+          </button>
+          <button type="button" onClick={() => setTab("alerts")} className={`rounded-full px-5 py-2 text-sm font-semibold transition ${tab === "alerts" ? "bg-[#0d9488] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+            ⚙️ Alert Settings
           </button>
         </div>
 
@@ -361,12 +377,20 @@ export default function AftercarePage() {
                     <label className="mb-1 block text-xs font-semibold text-slate-600">Notes (optional)</label>
                     <textarea value={newTreatment.notes} onChange={e => setNewTreatment(p => ({ ...p, notes: e.target.value }))} placeholder="e.g. 0.5ml lip filler, 1 syringe Juvederm Ultra" rows={3} className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]" />
                   </div>
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                    <p className="text-xs text-amber-700">💡 Logging this treatment will automatically send the aftercare email to the client if they have an email address on file.</p>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                    <p className="text-xs text-amber-700">💡 Choose whether to send aftercare email to this client.</p>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={newTreatment.send_aftercare ?? true} onChange={e => setNewTreatment(p => ({ ...p, send_aftercare: e.target.checked }))} className="rounded" />
+                      <span className="text-sm font-semibold text-amber-800">Send aftercare email to client</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={newTreatment.came_via_bot ?? false} onChange={e => setNewTreatment(p => ({ ...p, came_via_bot: e.target.checked }))} className="rounded" />
+                      <span className="text-sm font-semibold text-amber-800">Client came via AdonisBlue bot 🤖</span>
+                    </label>
                   </div>
                   <div className="flex gap-2">
                     <button type="button" disabled={treatmentSaving || (!newTreatment.intake_id && !newTreatment.is_walkin) || newTreatment.procedure_ids.length === 0} onClick={() => void handleLogTreatment()} className="rounded-full bg-[#0d9488] px-6 py-2 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50">
-                      {treatmentSaving ? "Saving…" : `Log treatment & send aftercare 💙`}
+                      {treatmentSaving ? "Saving…" : newTreatment.send_aftercare ? "Log treatment & send aftercare 💙" : "Log treatment"}
                     </button>
                     <button type="button" onClick={() => setAddingTreatment(false)} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600">Cancel</button>
                   </div>
@@ -487,6 +511,57 @@ export default function AftercarePage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {tab === "alerts" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50 to-sky-50 p-5">
+              <h3 className="font-bold text-[#1a2744] mb-1">⚙️ Emergency Alert Settings</h3>
+              <p className="text-sm text-slate-600">When a client uses an emergency keyword in their recovery chat, we'll alert you immediately at these contacts.</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-[#1a2744] mb-1">Alert email address</label>
+                <p className="text-xs text-slate-500 mb-2">We'll send you an immediate email when an emergency keyword is detected.</p>
+                <input
+                  type="email"
+                  value={alertEmail}
+                  onChange={e => setAlertEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-[#1a2744] mb-1">Alert phone number</label>
+                <p className="text-xs text-slate-500 mb-2">For faster response — we'll text you when an emergency is detected.</p>
+                <input
+                  type="tel"
+                  value={alertPhone}
+                  onChange={e => setAlertPhone(e.target.value)}
+                  placeholder="+1 (555) 000-0000"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                />
+              </div>
+              <button
+                type="button"
+                disabled={alertSaving}
+                onClick={() => void (async () => {
+                  setAlertSaving(true);
+                  await fetch("/api/alert-settings", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ alert_email: alertEmail, alert_phone: alertPhone }),
+                  });
+                  setAlertSaving(false);
+                  setSuccessMsg("Alert settings saved! ✅");
+                  setTimeout(() => setSuccessMsg(""), 3000);
+                })()}
+                className="w-full rounded-full bg-[#0d9488] px-6 py-3 text-sm font-bold text-white transition hover:bg-teal-700"
+              >
+                {alertSaving ? "Saving…" : "Save alert settings ⚙️"}
+              </button>
             </div>
           </div>
         )}

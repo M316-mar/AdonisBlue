@@ -5,6 +5,13 @@ import { NextResponse } from "next/server";
 const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
+type BotFields = {
+  practice_name: string | null;
+  booking_link: string | null;
+  instagram: string | null;
+  google_review_link: string | null;
+} | null;
+
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get("authorization");
@@ -40,11 +47,12 @@ export async function GET(request: Request) {
     let sent = 0;
 
     for (const intake of intakes) {
+      const bots = intake.bots as BotFields;
       const clientName = intake.first_name || "Beautiful";
-      const practiceName = (intake.bots as any)?.practice_name || "your provider";
-      const bookingLink = (intake.bots as any)?.booking_link || null;
-      const googleReviewLink = (intake.bots as any)?.google_review_link || null;
-      const instagram = (intake.bots as any)?.instagram || null;
+      const practiceName = bots?.practice_name || "your provider";
+      const bookingLink = bots?.booking_link || null;
+      const googleReviewLink = bots?.google_review_link || null;
+      const instagram = bots?.instagram || null;
 
       try {
         await resend.emails.send({

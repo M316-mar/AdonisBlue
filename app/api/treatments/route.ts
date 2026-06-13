@@ -95,6 +95,7 @@ export async function POST(request: Request) {
         procedure_name: body.procedure_name,
         treatment_date: body.treatment_date,
         notes: body.notes || null,
+        came_via_bot: body.came_via_bot ?? false,
       })
       .select()
       .single();
@@ -119,7 +120,7 @@ export async function POST(request: Request) {
 
     // Send combined aftercare email
     let aftercareSent = false;
-    if (clientEmail && selectedProcedures && selectedProcedures.length > 0) {
+    if (clientEmail && selectedProcedures && selectedProcedures.length > 0 && body.send_aftercare !== false) {
       const combinedAftercareHtml = selectedProcedures.map(proc => `
         <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
           <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${proc.name} Aftercare</h3>
