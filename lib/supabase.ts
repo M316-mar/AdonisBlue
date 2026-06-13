@@ -46,7 +46,8 @@ export async function signOutCompletely(): Promise<void> {
       }
     })
 
-    // Also clear the inactivity cookie
+    // Clear the proxy session marker and inactivity cookie
+    document.cookie = 'adonisblue_session=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax'
     document.cookie = 'sb_last_active=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax'
   }
 }

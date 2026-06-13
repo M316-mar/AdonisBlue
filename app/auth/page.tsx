@@ -211,6 +211,12 @@ export default function AuthPage() {
       return;
     }
 
+    // Set the session marker cookie so the proxy knows the user is logged in.
+    // (Supabase stores its own session in localStorage, not HTTP cookies, so
+    // the proxy cannot read it directly — this cookie is our lightweight signal.)
+    const isSecure = window.location.protocol === "https:";
+    document.cookie = `adonisblue_session=1; Max-Age=${60 * 60 * 24 * 7}; Path=/; SameSite=Lax${isSecure ? "; Secure" : ""}`;
+
     router.push(redirectAfterLogin.current);
   }
 
