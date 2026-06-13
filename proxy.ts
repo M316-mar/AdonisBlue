@@ -102,12 +102,14 @@ export function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   if (loggedIn) {
+    // NOT httpOnly — the ActivityTracker client component also needs to write
+    // this cookie on user interactions (clicks, keystrokes, scroll, etc.).
     response.cookies.set(LAST_ACTIVE_COOKIE, String(Date.now()), {
-      httpOnly: true,
+      httpOnly: false,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: 60 * 60 * 24, // keep cookie alive for 24h (inactivity logic handles timeout)
+      maxAge: 60 * 60 * 24, // kept alive 24h; inactivity logic enforces the 30-min window
     });
   }
 
