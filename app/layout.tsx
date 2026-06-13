@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { DM_Sans, Geist, Geist_Mono, Inter, Nunito, Playfair_Display } from "next/font/google";
+import { Suspense } from "react";
 import ActivityTracker from "@/components/ActivityTracker";
+import SessionSync from "@/components/SessionSync";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -54,6 +56,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ActivityTracker />
+        {/* SessionSync needs Suspense because it calls useSearchParams() */}
+        <Suspense fallback={null}>
+          <SessionSync />
+        </Suspense>
         {children}
       </body>
     </html>

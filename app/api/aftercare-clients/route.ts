@@ -42,17 +42,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
     }
 
-    // Optional: filter by procedure name if ?procedure= query param is provided
     const url = new URL(request.url);
-    const procedureFilter = url.searchParams.get("procedure")?.trim().toLowerCase();
+    const clients = (intakes ?? []).map((intake) => ({
+      ...intake,
+      came_via_bot: intake.came_via_bot ?? false,
+    }));
 
-    const clients = (intakes ?? []).filter((intake) => {
-      if (!procedureFilter) return true;
-      const si = (intake.service_interested ?? "").toLowerCase();
-      return si.includes(procedureFilter);
-    });
+    // Filter by procedure if query param provided
+    const procedureFilter = url.searchParams.get("procedure");
+    const filtered = procedureFilter
+      ? clients.filter(c =>
+          (c.service_interested ?? "").toLowerCase().includes(procedureFilter.toLowerCase())
+        )
+      : clients;
 
-    return NextResponse.json({ clients });
+    return NextResponse.json({ clients: filtered });
   } catch {
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }

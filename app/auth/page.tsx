@@ -211,11 +211,23 @@ export default function AuthPage() {
       return;
     }
 
-    // Set the session marker cookie so the proxy knows the user is logged in.
-    // (Supabase stores its own session in localStorage, not HTTP cookies, so
-    // the proxy cannot read it directly — this cookie is our lightweight signal.)
+    // Set the session marker cookie BEFORE navigating so the proxy sees it on
+    // the very next request. document.cookie writes are synchronous and take
+    // effect immediately — the push only fires after this line has executed.
     const isSecure = window.location.protocol === "https:";
-    document.cookie = `adonisblue_session=1; Max-Age=${60 * 60 * 24 * 7}; Path=/; SameSite=Lax${isSecure ? "; Secure" : ""}`;
+    const cookieStr = `adonisblue_session=1; Max-Age=${60 * 60 * 24 * 7}; Path=/; SameSite=Lax${isSecure ? "; Secure" : ""}`;
+    document.cookie = cookieStr;
+
+    // Confirm the write succeeded before navigating (guards against unusual
+    // browser restrictions like private-mode cookie-blocking).
+    const cookieWritten = document.cookie
+      .split(";")
+      .some((c) => c.trim().startsWith("adonisblue_session=1"));
+
+    if (!cookieWritten) {
+      // Cookie was blocked — navigate anyway; SessionSync will retry on load.
+      console.warn("[auth] session cookie could not be written; SessionSync will repair on next page load");
+    }
 
     router.push(redirectAfterLogin.current);
   }
