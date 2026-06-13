@@ -99,6 +99,8 @@ export default function AftercarePage() {
   const [addingClient, setAddingClient] = useState(false);
   const [newClient, setNewClient] = useState({ first_name: "", email: "", phone: "" });
   const [clientSaving, setClientSaving] = useState(false);
+  const [addProcedureDropdownKey, setAddProcedureDropdownKey] = useState<string | null>(null);
+  const [addProcedureLoadingKey, setAddProcedureLoadingKey] = useState<string | null>(null);
 
   // Follow-up sub-tab state
   const [selectedFollowupIds, setSelectedFollowupIds] = useState<Set<string>>(new Set());
@@ -245,6 +247,35 @@ export default function AftercarePage() {
     }
     setClientSaving(false);
   }, [newClient, token]);
+
+  const handleAddToAnotherProcedure = useCallback(async (
+    intake: Intake,
+    targetProcedure: Procedure,
+    dropdownKey: string,
+  ) => {
+    const loadingKey = `${dropdownKey}-${targetProcedure.id}`;
+    setAddProcedureLoadingKey(loadingKey);
+    const res = await fetch("/api/treatments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        intake_id: intake.id,
+        procedure_id: targetProcedure.id,
+        procedure_ids: [targetProcedure.id],
+        procedure_name: targetProcedure.name,
+        treatment_date: new Date().toISOString().slice(0, 10),
+        send_aftercare: true,
+        came_via_bot: intake.came_via_bot ?? false,
+      }),
+    });
+    if (res.ok) {
+      const j = await res.json();
+      setTreatments(prev => [j.treatment, ...prev]);
+      setAddProcedureDropdownKey(null);
+      flash(`Aftercare sent for ${targetProcedure.name}! ✅`);
+    }
+    setAddProcedureLoadingKey(null);
+  }, [token]);
 
   // ── Follow-up sender ───────────────────────────────────────────────────────
   const handleSendFollowup = useCallback(async () => {
@@ -536,6 +567,7 @@ export default function AftercarePage() {
                       setExpandedProcedureId(isExpanded ? null : procedure.id);
                       if (!isExpanded) setProcedureSubTab("aftercare");
                       setAddingClient(false);
+                      setAddProcedureDropdownKey(null);
                     }}
                     style={{ touchAction: "manipulation" }}
                     className="w-full text-left px-5 py-4 flex items-start justify-between gap-3 hover:bg-slate-50 transition active:bg-slate-100"
@@ -576,7 +608,7 @@ export default function AftercarePage() {
                           <button
                             key={st.id}
                             type="button"
-                            onClick={() => { setProcedureSubTab(st.id); setAddingClient(false); }}
+                            onClick={() => { setProcedureSubTab(st.id); setAddingClient(false); setAddProcedureDropdownKey(null); }}
                             style={{ touchAction: "manipulation" }}
                             className={`shrink-0 min-h-[44px] px-4 py-3 text-xs font-semibold border-b-2 transition ${
                               procedureSubTab === st.id
@@ -629,7 +661,10 @@ export default function AftercarePage() {
                               No clients interested in {procedure.name} yet.
                             </p>
                           )}
-                          {matchedIntakes.map(intake => (
+                          {matchedIntakes.map(intake => {
+                            const dropdownKey = `${procedure.id}-${intake.id}`;
+                            const otherProcedures = procedures.filter(p => p.id !== procedure.id);
+                            return (
                             <div key={intake.id} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
                               <div className="flex items-start justify-between gap-2 flex-wrap">
                                 <div className="min-w-0">
@@ -646,8 +681,37 @@ export default function AftercarePage() {
                                   {new Date(intake.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                                 </p>
                               </div>
+                              {otherProcedures.length > 0 && (
+                                <div className="relative mt-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => setAddProcedureDropdownKey(prev => prev === dropdownKey ? null : dropdownKey)}
+                                    style={{ touchAction: "manipulation" }}
+                                    className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-100"
+                                  >
+                                    + Add to another procedure
+                                  </button>
+                                  {addProcedureDropdownKey === dropdownKey && (
+                                    <div className="absolute left-0 top-full z-10 mt-1 min-w-[220px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                                      {otherProcedures.map(p => (
+                                        <button
+                                          key={p.id}
+                                          type="button"
+                                          disabled={addProcedureLoadingKey === `${dropdownKey}-${p.id}`}
+                                          onClick={() => void handleAddToAnotherProcedure(intake, p, dropdownKey)}
+                                          style={{ touchAction: "manipulation" }}
+                                          className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-teal-50 disabled:opacity-50"
+                                        >
+                                          {addProcedureLoadingKey === `${dropdownKey}-${p.id}` ? "Sending…" : p.name}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                          ))}
+                            );
+                          })}
 
                           {/* Add client form */}
                           {addingClient ? (
