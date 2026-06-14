@@ -4,23 +4,18 @@ import { useState } from "react";
 import Image from "next/image";
 
 const features = [
-  { emoji: "🌙", title: "Always-on front desk", description: "Cover nights and busy clinic windows without being glued to your phone." },
-  { emoji: "💬", title: "Natural plain-English replies", description: "Your clients get clear, calm answers that feel human, not robotic." },
-  { emoji: "🌎", title: "English + Spanish", description: "Support more clients in the language they are most comfortable using." },
-  { emoji: "🔀", title: "Lead-safe handoffs", description: "Anything complex gets flagged and routed so real opportunities are not lost." },
-  { emoji: "🎛️", title: "Guardrails you control", description: "You approve the answers, update services, and set clear boundaries any time." },
-  { emoji: "📊", title: "Practical insights", description: "See what people ask most so you can improve your scripts and service pages." },
+  { emoji: "🤖", title: "Capture clients automatically", description: "Your custom AI chatbot answers questions, collects intake info, and confirms bookings — while you sleep, treat, or take the weekend off." },
+  { emoji: "🩹", title: "Send the right aftercare every time", description: "Log a treatment and the correct aftercare email goes out instantly. Lip filler + Botox in the same visit? One email. Everything covered." },
+  { emoji: "🚨", title: "Never miss a healing emergency", description: "Every aftercare email includes a private healing chat. If a client types an emergency keyword, you get an immediate alert with their name and phone number." },
+  { emoji: "🔁", title: "Bring clients back automatically", description: "6 and 9 month rebooking reminders go out without you lifting a finger. Review request emails send 2–3 days after every treatment." },
+  { emoji: "📊", title: "Know your numbers", description: "See every client who came through AdonisBlue, what they asked, and your conversion rate — proof the system is working." },
+  { emoji: "🔗", title: "Works with your booking software", description: "Connects to Vagaro, Jane App, Square, Acuity, Mindbody, and more. Your booking flow stays exactly the same." },
 ];
 
 const faqItems = [
-  { q: "Will my clients know it is a bot?", a: "Usually yes, and that is fine. Most clients care about getting a fast and clear answer. You can give it your tone so it feels like your practice." },
-  { q: "What if the bot says something wrong?", a: "You stay in control. You can edit answers any time, and harder questions are sent to you so nothing critical is left to automation." },
-  { q: "Do I need a website to use AdonisBlue?", a: "No. You can start with a direct link in Instagram, text, or email. If you have a site, you can embed later." },
-  { q: "Can I change my services after setup?", a: "Yes. Update your services, wording, policies, and FAQs whenever your practice changes." },
-  { q: "Is my client information safe?", a: "AdonisBlue is a front-end chatbot. It does not go into your booking platform, records system, or backend software." },
-  { q: "What happens when the free trial ends?", a: "You get a reminder before trial ends. Then you can upgrade or stop. No hidden lock-ins." },
-  { q: "Does it work in Spanish?", a: "Yes. It supports both English and Spanish so your clients can ask naturally." },
-  { q: "How is this different from a generic chatbot?", a: "Generic bots sound generic. AdonisBlue is trained on your services and your voice, so answers match your brand and workflow." },
+  { q: "I'm not techy.", a: "If you can fill out a form and send a text, you can set up AdonisBlue. Most nurses are live in under an hour." },
+  { q: "I already use Vagaro / Jane / Square.", a: "Good. AdonisBlue connects to all of them. Your booking flow doesn't change — it just gets smarter." },
+  { q: "I have a small practice.", a: "That's exactly who this is for. Solo injectors get the most out of automation because they don't have a front desk person handling this." },
 ];
 
 function FaqAccordion() {
@@ -130,11 +125,11 @@ export default function Home() {
                 <span className="text-xs font-semibold uppercase tracking-widest text-teal-300">Built for nurse injectors</span>
               </div>
               <h1 className="text-balance text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-[3.25rem]">
-                Stop losing clients to whoever{" "}
-                <span className="bg-gradient-to-r from-teal-300 to-sky-300 bg-clip-text text-transparent">answered first.</span>
+                Your injector practice needs a{" "}
+                <span className="bg-gradient-to-r from-teal-300 to-sky-300 bg-clip-text text-transparent">24/7 AI front desk.</span>
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-300">
-                AdonisBlue is your AI front desk — built for nurse injectors. It answers client questions in your voice, 24/7, while you focus on what you do best.
+                AdonisBlue handles client intake, aftercare, emergency alerts, and rebooking automatically — so you can close your laptop and actually rest.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="#pricing" className="inline-flex min-h-[52px] items-center justify-center rounded-full bg-[#0d9488] px-8 py-3 text-base font-semibold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600">
@@ -144,6 +139,7 @@ export default function Home() {
                   See how it works
                 </a>
               </div>
+              <p className="mt-4 text-sm text-slate-400">No credit card needed · Cancel anytime · Setup in under an hour</p>
               <div className="mt-8 flex items-center gap-3">
                 <div className="flex -space-x-2">
                   {["🧑‍⚕️","👩‍⚕️","💉","🩺"].map((e,i) => (
@@ -208,6 +204,16 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── SOCIAL PROOF QUOTE ── */}
+        <section className="bg-[#0d1628] px-4 pb-10 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <blockquote className="rounded-2xl border border-teal-400/20 bg-teal-400/10 px-8 py-6">
+              <p className="text-base font-medium leading-relaxed text-white sm:text-lg">"I got two new booking inquiries through the bot on my first weekend. I didn't have to do anything."</p>
+              <footer className="mt-3 text-sm text-teal-300">— Nurse injector, early access member</footer>
+            </blockquote>
+          </div>
+        </section>
+
         {/* ── BIG STATS — Firefly style grid ── */}
         <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl">
@@ -240,6 +246,14 @@ export default function Home() {
                 Start free trial →
               </a>
             </div>
+          </div>
+        </section>
+
+        {/* ── PROBLEM SECTION ── */}
+        <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">You became a nurse injector to do the work you love. Not to answer DMs at 11pm.</h2>
+            <p className="mt-6 text-lg leading-relaxed text-slate-500">Most injectors are running their practice from their phone — answering "how long does swelling last?" for the 40th time, chasing clients who never rebooked, and worrying about missing an aftercare emergency. You don't need to hire someone. You need a system.</p>
           </div>
         </section>
 
@@ -276,7 +290,7 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Features</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Calm, premium client communication at scale</h2>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Your AI front desk, running 24/7 in the background.</h2>
               <p className="mt-4 text-base leading-relaxed text-slate-500">Designed to feel elegant on the surface and practical in real clinic life.</p>
             </div>
             <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -331,6 +345,46 @@ export default function Home() {
           </div>
           <div className="mx-auto mt-10 max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             <ROICalculator />
+          </div>
+        </section>
+
+        {/* ── VALUE STACK ── */}
+        <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-3xl">
+            <div className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">What you get</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Everything included. No add-ons.</h2>
+            </div>
+            <div className="mt-10 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              {[
+                { feature: "24/7 AI chatbot (intake + FAQ)", value: "$300/mo" },
+                { feature: "Automated aftercare emails", value: "$150/mo" },
+                { feature: "At-Home Healing Chat", value: "$200/mo" },
+                { feature: "Emergency alert system", value: "included" },
+                { feature: "Booking software integration", value: "$100/mo" },
+                { feature: "6 & 9 month rebooking reminders", value: "$100/mo" },
+                { feature: "Automated review requests", value: "$75/mo" },
+                { feature: "Conversation insights dashboard", value: "$50/mo" },
+                { feature: "Blue Room community access", value: "$30/mo" },
+              ].map((row, i) => (
+                <div key={row.feature} className={`flex items-center justify-between px-6 py-4 ${i % 2 === 0 ? "bg-white" : "bg-slate-50"}`}>
+                  <span className="flex items-center gap-2 text-sm font-medium text-[#1a2744]"><span className="text-[#0d9488]">✓</span>{row.feature}</span>
+                  <span className="text-sm font-semibold text-slate-500">{row.value}</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4">
+                <span className="text-sm font-bold text-[#1a2744]">Total value</span>
+                <span className="text-sm font-bold text-slate-500 line-through">$1,005/mo</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-teal-200 bg-teal-50 px-6 py-4">
+                <span className="text-sm font-bold text-[#1a2744]">AdonisBlue Starter</span>
+                <span className="text-sm font-bold text-[#0d9488]">$85/mo</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-teal-200 bg-teal-50 px-6 py-5">
+                <span className="text-base font-bold text-[#1a2744]">AdonisBlue Pro</span>
+                <span className="text-base font-bold text-[#0d9488]">$150/mo</span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -417,6 +471,25 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── RISK REVERSAL ── */}
+        <section className="bg-white px-4 pb-16 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-4xl">
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                { emoji: "🔓", title: "Full access", sub: "Every feature, free for 14 days" },
+                { emoji: "🚫", title: "No setup fee", sub: "Live in under an hour" },
+                { emoji: "✌️", title: "No lock-in", sub: "Cancel anytime, no questions asked" },
+              ].map(item => (
+                <div key={item.title} className="flex flex-col items-center rounded-2xl border border-slate-100 bg-slate-50 p-6 text-center">
+                  <span className="text-3xl">{item.emoji}</span>
+                  <p className="mt-3 text-base font-bold text-[#1a2744]">{item.title}</p>
+                  <p className="mt-1 text-sm text-slate-500">{item.sub}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* ── FAQ ── */}
         <section id="faq" className="bg-slate-50 px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-6xl">
@@ -435,16 +508,17 @@ export default function Home() {
             <div className="absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-400/10 blur-[80px]" />
           </div>
           <div className="relative mx-auto max-w-3xl text-center">
-            <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Ready to never miss a client again?</h2>
-            <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-slate-300">Set up your AI chatbot in 5 minutes. No credit card. No tech skills needed.</p>
+            <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Your clients are reaching out right now. AdonisBlue is there to answer.</h2>
+            <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-slate-300">Start your 14-day free trial and have your AI front desk running today.</p>
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
               <a href="/auth" className="inline-flex min-h-[52px] w-full min-w-[200px] items-center justify-center rounded-full bg-[#0d9488] px-8 py-3.5 text-base font-bold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600 sm:w-auto">
-                Build my free chatbot
+                Get started free →
               </a>
               <a href="/auth" className="inline-flex min-h-[52px] w-full min-w-[200px] items-center justify-center rounded-full border border-white/25 bg-white/8 px-8 py-3.5 text-base font-semibold text-white transition hover:border-white/50 hover:bg-white/15 sm:w-auto">
                 Log in
               </a>
             </div>
+            <p className="mt-5 text-sm text-slate-400">No credit card · Cancel anytime · Setup in under an hour</p>
           </div>
         </section>
 

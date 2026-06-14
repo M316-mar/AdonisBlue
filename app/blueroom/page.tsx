@@ -9,6 +9,20 @@ import dynamic from "next/dynamic";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
 
+const REACTIONS = ["👍", "❤️", "🔥", "💉"] as const;
+type Reaction = (typeof REACTIONS)[number];
+type PostReactions = Record<string, number>; // emoji -> count
+
+type Notification = {
+  id: string;
+  type: string;
+  post_id: string | null;
+  post_title: string | null;
+  actor_name: string | null;
+  is_read: boolean;
+  created_at: string;
+};
+
 type Post = {
   id: string;
   title: string;
@@ -21,6 +35,8 @@ type Post = {
   media_url?: string | null;
   media_type?: string | null;
   blueroom_comments: { count: number }[];
+  is_pinned?: boolean;
+  view_count?: number;
 };
 
 type Comment = {
@@ -49,6 +65,12 @@ const CATEGORY_COLORS: Record<string, string> = {
   general: "bg-teal-100 text-teal-700",
 };
 
+interface ReactionResult {
+  postId: string;
+  reactions: PostReactions;
+  myReaction: Reaction | null;
+}
+
 export default function BlueRoomPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -69,7 +91,6 @@ export default function BlueRoomPage() {
   const [commentReactions, setCommentReactions] = useState<Record<string, {likes: number, dislikes: number, myReaction: string | null}>>({});
   const [commentMedia, setCommentMedia] = useState<Record<string, File | null>>({});
   const [commentMediaPreview, setCommentMediaPreview] = useState<Record<string, string | null>>({});
-  const [liked, setLiked] = useState<Record<string, boolean>>({});
   const [newPostText, setNewPostText] = useState("");
   const [newPostCategory, setNewPostCategory] = useState("general");
   const [postBoxOpen, setPostBoxOpen] = useState(false);
@@ -78,6 +99,14 @@ export default function BlueRoomPage() {
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+
+  // New state
+  const [postReactions, setPostReactions] = useState<Record<string, PostReactions>>({});
+  const [myPostReaction, setMyPostReaction] = useState<Record<string, Reaction | null>>({});
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [reactionPickerOpen, setReactionPickerOpen] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,19 +120,57 @@ export default function BlueRoomPage() {
       setNurseName(name);
       const res = await fetch("/api/blueroom/posts");
       if (!cancelled && res.ok) {
-        const json = await res.json();
+        const json = await res.json() as { posts?: Post[] };
         setPosts(json.posts ?? []);
+
+        // Fetch reactions for all posts
+        const reactionFetches = (json.posts ?? []).map(async (p: Post): Promise<ReactionResult | null> => {
+          const r = await fetch(`/api/blueroom/post-reactions?post_id=${p.id}&nurse_id=${user.id}`);
+          if (r.ok) {
+            const rj = await r.json() as { reactions: PostReactions; my_reaction: Reaction | null };
+            return { postId: p.id, reactions: rj.reactions, myReaction: rj.my_reaction };
+          }
+          return null;
+        });
+        const reactionResults = await Promise.all(reactionFetches);
+        const reactionsMap: Record<string, PostReactions> = {};
+        const myReactionsMap: Record<string, Reaction | null> = {};
+        reactionResults.forEach(r => {
+          if (r) {
+            reactionsMap[r.postId] = r.reactions;
+            myReactionsMap[r.postId] = r.myReaction;
+          }
+        });
+        setPostReactions(reactionsMap);
+        setMyPostReaction(myReactionsMap);
       }
+
+      // Fetch notifications
+      const notifRes = await fetch(`/api/blueroom/notifications?nurse_id=${user.id}`);
+      if (notifRes.ok) {
+        const notifJson = await notifRes.json() as { notifications?: Notification[]; unread_count?: number };
+        setNotifications(notifJson.notifications ?? []);
+        setUnreadCount(notifJson.unread_count ?? 0);
+      }
+
       setReady(true);
     })();
     return () => { cancelled = true; };
   }, [router]);
 
+  // Close notification dropdown on outside click
+  useEffect(() => {
+    if (!showNotifications) return;
+    function handleClick() { setShowNotifications(false); }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showNotifications]);
+
   const loadComments = useCallback(async (postId: string) => {
     if (comments[postId]) return;
     const res = await fetch(`/api/blueroom/comments?post_id=${postId}`);
     if (res.ok) {
-      const json = await res.json();
+      const json = await res.json() as { comments?: Comment[] };
       setComments(prev => ({ ...prev, [postId]: json.comments ?? [] }));
     }
   }, [comments]);
@@ -112,7 +179,52 @@ export default function BlueRoomPage() {
     if (expandedPost === postId) { setExpandedPost(null); return; }
     setExpandedPost(postId);
     await loadComments(postId);
-  }, [expandedPost, loadComments]);
+    void fetch("/api/blueroom/views", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ post_id: postId, nurse_id: nurseId }),
+    });
+  }, [expandedPost, loadComments, nurseId]);
+
+  const handlePostReaction = useCallback(async (postId: string, reaction: Reaction) => {
+    const res = await fetch("/api/blueroom/post-reactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ post_id: postId, nurse_id: nurseId, reaction }),
+    });
+    if (res.ok) {
+      const json = await res.json() as { action: "added" | "removed" | "updated"; reaction: string };
+      setMyPostReaction(prev => ({ ...prev, [postId]: json.action === "removed" ? null : reaction }));
+      setPostReactions(prev => {
+        const current = prev[postId] ?? {};
+        const prevCount = current[reaction] ?? 0;
+        if (json.action === "removed") {
+          return { ...prev, [postId]: { ...current, [reaction]: Math.max(0, prevCount - 1) } };
+        }
+        if (json.action === "updated") {
+          const oldReaction = myPostReaction[postId];
+          const updated: PostReactions = { ...current, [reaction]: prevCount + 1 };
+          if (oldReaction && oldReaction !== reaction) {
+            updated[oldReaction] = Math.max(0, (current[oldReaction] ?? 0) - 1);
+          }
+          return { ...prev, [postId]: updated };
+        }
+        return { ...prev, [postId]: { ...current, [reaction]: prevCount + 1 } };
+      });
+    }
+    setReactionPickerOpen(null);
+  }, [nurseId, myPostReaction]);
+
+  const handleMarkNotificationsRead = useCallback(async () => {
+    setShowNotifications(true);
+    setUnreadCount(0);
+    await fetch("/api/blueroom/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nurse_id: nurseId }),
+    });
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+  }, [nurseId]);
 
   const handleSubmitComment = useCallback(async (postId: string) => {
     const message = commentText[postId]?.trim();
@@ -161,7 +273,7 @@ export default function BlueRoomPage() {
       }),
     });
     if (res.ok) {
-      const json = await res.json();
+      const json = await res.json() as { comment: Comment };
       setComments(prev => ({ ...prev, [postId]: [...(prev[postId] ?? []), json.comment] }));
       setCommentText(prev => ({ ...prev, [postId]: "" }));
       setCommentMedia(prev => ({ ...prev, [postId]: null }));
@@ -179,7 +291,7 @@ export default function BlueRoomPage() {
       body: JSON.stringify({ comment_id: commentId, nurse_id: nurseId, reaction }),
     });
     if (res.ok) {
-      const json = await res.json();
+      const json = await res.json() as { action: "added" | "removed" | "updated" };
       setCommentReactions(prev => {
         const current = prev[commentId] ?? { likes: 0, dislikes: 0, myReaction: null };
         const wasLike = current.myReaction === "like";
@@ -201,8 +313,8 @@ export default function BlueRoomPage() {
       const apiKey = process.env.NEXT_PUBLIC_GIPHY_API_KEY;
       const searchTerm = query || "funny";
       const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(searchTerm)}&limit=12&rating=g`);
-      const data = await res.json();
-      setGifs((data.data ?? []).map((g: any) => ({
+      const data = await res.json() as { data?: Array<{ id: string; images: { fixed_height: { url: string }; fixed_height_small: { url: string } } }> };
+      setGifs((data.data ?? []).map(g => ({
         id: g.id,
         url: g.images.fixed_height.url,
         preview: g.images.fixed_height_small.url,
@@ -227,7 +339,7 @@ export default function BlueRoomPage() {
       }),
     });
     if (res.ok) {
-      const json = await res.json();
+      const json = await res.json() as { comment: Comment };
       setComments(prev => ({ ...prev, [postId]: [...(prev[postId] ?? []), json.comment] }));
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, blueroom_comments: [{ count: (p.blueroom_comments?.[0]?.count ?? 0) + 1 }] } : p));
       setShowGifPicker(null);
@@ -266,6 +378,7 @@ export default function BlueRoomPage() {
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         );
+        void sb; // referenced for side-effects only
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
         if (token) {
@@ -308,7 +421,7 @@ export default function BlueRoomPage() {
       }),
     });
     if (res.ok) {
-      const json = await res.json();
+      const json = await res.json() as { post: Post };
       setPosts(prev => [{ ...json.post, blueroom_comments: [{ count: 0 }] }, ...prev]);
       setNewPostText("");
       setMediaFile(null);
@@ -368,8 +481,52 @@ export default function BlueRoomPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0d9488] text-xs font-bold text-white">
-              {initials}
+            {/* Notification bell */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => void handleMarkNotificationsRead()}
+                className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
+              >
+                🔔
+                {unreadCount > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+              {/* Notification dropdown */}
+              {showNotifications && (
+                <div className="absolute right-0 top-11 z-50 w-72 rounded-2xl border border-slate-200 bg-white shadow-xl">
+                  <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                    <p className="text-sm font-bold text-[#1a2744]">Notifications</p>
+                    <button type="button" onClick={() => setShowNotifications(false)} className="text-xs text-slate-400 hover:text-slate-600">✕</button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <p className="p-4 text-center text-xs text-slate-400">No notifications yet 🔔</p>
+                    ) : (
+                      notifications.map(n => (
+                        <div key={n.id} className={`border-b border-slate-50 px-4 py-3 ${!n.is_read ? "bg-blue-50" : ""}`}>
+                          <p className="text-xs text-slate-700">
+                            <span className="font-semibold">{n.actor_name ?? "Someone"}</span>{" "}
+                            {n.type === "comment" ? "commented on" : "liked"}{" "}
+                            <span className="font-semibold">&quot;{n.post_title ?? "your post"}&quot;</span>
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-slate-400">{new Date(n.created_at).toLocaleDateString()}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Avatar with online dot */}
+            <div className="relative">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0d9488] text-xs font-bold text-white">
+                {initials}
+              </div>
+              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-green-400" />
             </div>
             <span className="hidden text-sm font-semibold text-[#1a2744] sm:block">{firstName}</span>
             <Link href="/dashboard" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
@@ -542,6 +699,9 @@ export default function BlueRoomPage() {
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${CATEGORY_COLORS[post.category] ?? "bg-teal-100 text-teal-700"}`}>
                           {CATEGORIES.find(c => c.id === post.category)?.label ?? post.category}
                         </span>
+                        {post.is_pinned && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">📌 Pinned</span>
+                        )}
                       </div>
                       <p className="text-xs text-slate-400">{new Date(post.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
                     </div>
@@ -565,30 +725,63 @@ export default function BlueRoomPage() {
                     </div>
                   )}
 
-                  {/* Like + comment count */}
-                  <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2 sm:px-5">
-                    <div className="flex items-center gap-1">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#0d9488] text-[10px] text-white">💙</span>
-                      <span className="text-xs text-slate-500">{liked[post.id] ? "You liked this" : ""}</span>
+                  {/* Reaction counts bar */}
+                  <div className="flex items-center justify-between border-t border-slate-100 px-4 py-1.5">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {REACTIONS.map(emoji => {
+                        const count = (postReactions[post.id] ?? {})[emoji] ?? 0;
+                        if (count === 0) return null;
+                        return (
+                          <span key={emoji} className="flex items-center gap-0.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px]">
+                            {emoji} <span className="text-slate-600 font-medium">{count}</span>
+                          </span>
+                        );
+                      })}
                     </div>
-                    <button type="button" onClick={() => void handleExpandPost(post.id)} className="text-xs text-slate-500 hover:underline">
-                      {post.blueroom_comments?.[0]?.count ?? 0} comment{(post.blueroom_comments?.[0]?.count ?? 0) !== 1 ? "s" : ""}
-                    </button>
+                    <div className="flex items-center gap-3">
+                      {(post.view_count ?? 0) > 0 && (
+                        <span className="text-[10px] text-slate-400">👁 {post.view_count} view{post.view_count !== 1 ? "s" : ""}</span>
+                      )}
+                      <button type="button" onClick={() => void handleExpandPost(post.id)} className="text-[10px] text-slate-400 hover:underline">
+                        {post.blueroom_comments?.[0]?.count ?? 0} comment{(post.blueroom_comments?.[0]?.count ?? 0) !== 1 ? "s" : ""}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Action buttons */}
-                  <div className="flex border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={() => setLiked(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
-                      className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition hover:bg-slate-50 sm:text-sm sm:gap-2 ${liked[post.id] ? "text-[#0d9488]" : "text-slate-500"}`}
-                    >
-                      <span>{liked[post.id] ? "💙" : "🤍"}</span> Like
-                    </button>
+                  <div className="relative flex border-t border-slate-100">
+                    {/* React button with picker */}
+                    <div className="relative flex-1">
+                      <button
+                        type="button"
+                        onClick={() => setReactionPickerOpen(prev => prev === post.id ? null : post.id)}
+                        className={`flex w-full min-h-[44px] items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition hover:bg-slate-50 sm:text-sm sm:gap-2 ${myPostReaction[post.id] ? "text-[#0d9488]" : "text-slate-500"}`}
+                        style={{ touchAction: "manipulation" }}
+                      >
+                        <span>{myPostReaction[post.id] ?? "👍"}</span>
+                        <span>{myPostReaction[post.id] ? "Liked" : "Like"}</span>
+                      </button>
+                      {reactionPickerOpen === post.id && (
+                        <div className="absolute bottom-full left-0 z-50 mb-1 flex gap-1 rounded-full border border-slate-200 bg-white px-2 py-1.5 shadow-xl">
+                          {REACTIONS.map(emoji => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => void handlePostReaction(post.id, emoji)}
+                              className="flex h-9 w-9 items-center justify-center rounded-full text-xl transition hover:scale-125 hover:bg-slate-100 active:scale-95"
+                              style={{ touchAction: "manipulation" }}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => void handleExpandPost(post.id)}
-                      className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 sm:text-sm sm:gap-2"
+                      className="flex flex-1 min-h-[44px] items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 sm:text-sm sm:gap-2"
+                      style={{ touchAction: "manipulation" }}
                     >
                       <span>💬</span> Comment
                     </button>
@@ -739,7 +932,7 @@ export default function BlueRoomPage() {
                               type="button"
                               onClick={() => {
                                 setShowGifPicker(prev => prev === post.id ? null : post.id);
-                                if (showGifPicker !== post.id) searchGifs("funny");
+                                if (showGifPicker !== post.id) void searchGifs("funny");
                               }}
                               className="shrink-0 rounded border border-slate-300 px-1 py-0.5 text-[10px] font-bold text-slate-500 hover:text-slate-700 transition"
                             >

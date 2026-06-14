@@ -20,18 +20,23 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: true });
 
     return NextResponse.json({ comments: comments ?? [] });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
+}
+
+interface PostRow {
+  author_id: string | null;
+  title: string;
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = await request.json() as { post_id?: string; nurse_id?: string; nurse_name?: string; message?: string; media_url?: string | null };
     const { post_id, nurse_id, nurse_name, message, media_url } = body;
 
     if (!post_id || (!message?.trim() && !media_url)) {
-      return NextResponse.json({ error: "post_id and message or media required" }, { status: 400 });
+      return NextResponse.json({ error: "Something went wrong" }, { status: 400 });
     }
 
     const supabase = createClient(
@@ -51,11 +56,32 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+
+    // Insert notification for post author (skip if self-comment)
+    try {
+      const { data: post } = await supabase
+        .from("blueroom_posts")
+        .select("author_id, title")
+        .eq("id", post_id)
+        .single();
+      const postRow = post as PostRow | null;
+      if (postRow?.author_id && postRow.author_id !== nurse_id) {
+        await supabase.from("blueroom_notifications").insert({
+          nurse_id: postRow.author_id,
+          type: "comment",
+          post_id,
+          post_title: postRow.title,
+          actor_name: nurse_name ?? "Someone",
+        });
+      }
+    } catch {
+      // Notification failure should not block response
+    }
 
     return NextResponse.json({ comment: data });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }
 
@@ -68,7 +94,7 @@ export async function DELETE(request: Request) {
     );
     await supabase.from("blueroom_comments").delete().eq("id", comment_id).eq("nurse_id", nurse_id);
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

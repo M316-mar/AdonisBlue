@@ -30,6 +30,7 @@ export async function GET() {
     let { data: posts } = await supabase
       .from("blueroom_posts")
       .select("*, blueroom_comments(count)")
+      .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false });
 
     if (!posts?.length) {
@@ -42,8 +43,39 @@ export async function GET() {
     }
 
     return NextResponse.json({ posts: posts ?? [] });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json() as { post_id?: string; is_pinned?: boolean; admin_secret?: string };
+    const { post_id, is_pinned, admin_secret } = body;
+
+    if (!post_id || typeof is_pinned !== "boolean") {
+      return NextResponse.json({ error: "Something went wrong" }, { status: 400 });
+    }
+
+    if (admin_secret !== process.env.BLUEROOM_ADMIN_SECRET) {
+      return NextResponse.json({ error: "Something went wrong" }, { status: 403 });
+    }
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { error } = await supabase
+      .from("blueroom_posts")
+      .update({ is_pinned })
+      .eq("id", post_id);
+
+    if (error) return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }
 
@@ -71,10 +103,10 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
 
     return NextResponse.json({ post: data });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }
