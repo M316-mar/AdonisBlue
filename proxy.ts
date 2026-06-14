@@ -139,20 +139,36 @@ export function proxy(request: NextRequest) {
 }
 
 // ── Matcher ────────────────────────────────────────────────────────────────
-// This regex is the FIRST line of defence — the proxy function is never
-// even invoked for paths that match the negative lookahead.
+// ALLOWLIST — the proxy only runs on the paths listed here.
+// Every route NOT in this list (all /api/* routes, /healing/*, /chat/*,
+// public pages, static assets, etc.) never reaches this function at all.
 //
-// Excluded (proxy never runs):
-//   api/           — ALL API routes, including /api/booking-webhook,
-//                    /api/chat, /api/bot, /api/intake, /api/healing, etc.
-//   _next/static   — Next.js static chunks
-//   _next/image    — image optimisation
-//   favicon.ico    — browser favicon
-//   robots.txt     — SEO
-//   sitemap.xml    — SEO
-//   *.png/jpg/...  — static assets
+// This is intentionally an allowlist, not a denylist.  A denylist regex
+// that tries to exclude /api/ can have edge-case failures in the runtime;
+// an allowlist is unambiguous — if a path isn't listed, the proxy is silent.
+//
+// Routes the proxy guards:
+//   /dashboard, /aftercare, /loyalty, /insights,
+//   /blueroom, /onboarding, /booking-connect  — protected (need session cookie)
+//   /auth and sub-paths                        — safe-pass-through (handled
+//                                                by isAlwaysPublic guard above)
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|api/|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|otf|css|js)$).*)",
+    "/dashboard/:path*",
+    "/aftercare/:path*",
+    "/loyalty/:path*",
+    "/insights/:path*",
+    "/blueroom/:path*",
+    "/onboarding/:path*",
+    "/booking-connect/:path*",
+    "/dashboard",
+    "/aftercare",
+    "/loyalty",
+    "/insights",
+    "/blueroom",
+    "/onboarding",
+    "/booking-connect",
+    "/auth/:path*",
+    "/auth",
   ],
 };
