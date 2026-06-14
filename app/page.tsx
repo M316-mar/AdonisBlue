@@ -204,16 +204,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── SOCIAL PROOF QUOTE ── */}
-        <section className="bg-[#0d1628] px-4 pb-10 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <blockquote className="rounded-2xl border border-teal-400/20 bg-teal-400/10 px-8 py-6">
-              <p className="text-base font-medium leading-relaxed text-white sm:text-lg">"I got two new booking inquiries through the bot on my first weekend. I didn't have to do anything."</p>
-              <footer className="mt-3 text-sm text-teal-300">— Nurse injector, early access member</footer>
-            </blockquote>
-          </div>
-        </section>
-
         {/* ── BIG STATS — Firefly style grid ── */}
         <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl">
