@@ -915,6 +915,29 @@ export default function AftercarePage() {
               </button>
             </div>
 
+            <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50 to-sky-50 p-5">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">🔁</span>
+                <div>
+                  <p className="text-sm font-bold text-[#1a2744] mb-1">Rebooking reminders run automatically</p>
+                  <p className="text-sm text-slate-600 leading-relaxed">When you log a treatment, AdonisBlue schedules a rebooking reminder based on the procedure. Your client gets a &quot;time to refresh?&quot; email automatically — you don&apos;t have to do anything.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {[
+                      { proc: "Botox", days: "90 days" },
+                      { proc: "Lip Filler", days: "180 days" },
+                      { proc: "Cheek Filler", days: "180 days" },
+                      { proc: "Skin Booster", days: "28 days" },
+                      { proc: "PRP", days: "120 days" },
+                    ].map(item => (
+                      <span key={item.proc} className="rounded-full bg-white border border-teal-200 px-3 py-1 text-xs font-semibold text-teal-700">
+                        {item.proc} → {item.days}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Log treatment form */}
             {addingTreatment && (
               <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 shadow-sm">
