@@ -212,6 +212,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false }, { status: 401 });
     }
 
+    console.log("Bot found:", bot);
+
     const botRow = bot as BotRow;
 
     // Parse body
@@ -224,6 +226,7 @@ export async function POST(request: Request) {
     }
 
     const normalized = normalizeBody(source, rawBody);
+    console.log("Normalized:", normalized);
 
     // Validate client_name (required)
     const clientName = normalized.client_name.trim().slice(0, 100);
@@ -310,6 +313,8 @@ export async function POST(request: Request) {
       intakeId = newIntake?.id ?? null;
     }
 
+    console.log("Intake ID:", intakeId);
+
     // Insert treatment record if we have intake_id and appointment_date
     if (intakeId && appointmentDate) {
       await supabase.from("treatments").insert({
@@ -322,7 +327,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ ok: false }, { status: 500 });
+  } catch (e) {
+    console.error("Booking webhook error:", e);
+    return NextResponse.json({ ok: false, debug: String(e) }, { status: 500 });
   }
 }
