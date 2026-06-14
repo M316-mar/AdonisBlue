@@ -38,6 +38,10 @@ type BotRow = {
   cancellation_policy?: string | null;
   aftercare?: string | null;
   launched?: boolean | null;
+  frozen?: boolean | null;
+  plan?: string | null;
+  trial_ends_at?: string | null;
+  subscription_status?: string | null;
 };
 
 type IntakeRow = {
@@ -123,6 +127,12 @@ export default function NurseDashboardPage() {
   const [feedbackText, setFeedbackText] = useState("");
   const [showLaunchCelebration, setShowLaunchCelebration] = useState(false);
   const [justLaunched, setJustLaunched] = useState(false);
+  const [freezeLoading, setFreezeLoading] = useState(false);
+  const [showEmailNotice, setShowEmailNotice] = useState(false);
+
+  useEffect(() => {
+    setShowEmailNotice(!localStorage.getItem("emailNoticesDismissed"));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,6 +242,26 @@ export default function NurseDashboardPage() {
     setAftercareLoading(null);
   }, []);
 
+  const handleFreezeToggle = useCallback(async () => {
+    if (!bot) return;
+    const nextFrozen = !bot.frozen;
+    setFreezeLoading(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (token) {
+        await fetch("/api/my-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ frozen: nextFrozen }),
+        });
+        setBot(prev => prev ? { ...prev, frozen: nextFrozen } : prev);
+      }
+    } finally {
+      setFreezeLoading(false);
+    }
+  }, [bot]);
+
   const handleDeleteIntake = useCallback(async (id: string) => {
     await fetch("/api/delete-intake", {
       method: "POST",
@@ -280,6 +310,21 @@ export default function NurseDashboardPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+        {showEmailNotice && (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start justify-between gap-3">
+            <p className="text-xs text-amber-800">📬 <strong>Heads up:</strong> The first email from AdonisBlue may land in your client&apos;s spam folder. Ask them to mark it as &quot;Not Spam&quot; so future emails go straight to their inbox!</p>
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.setItem("emailNoticesDismissed", "true");
+                setShowEmailNotice(false);
+              }}
+              className="shrink-0 text-amber-400 hover:text-amber-600 text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <div className="grid gap-6 lg:grid-cols-12 lg:gap-8 lg:items-start">
           <div className="space-y-6 lg:col-span-8">
             <section className="relative overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 shadow-lg sm:px-6 sm:py-8">
@@ -552,6 +597,70 @@ export default function NurseDashboardPage() {
                   )}
                 </div>
               </div>
+              {/* ── My Plan ── */}
+              {(() => {
+                const plan = (bot?.plan ?? "trial").toLowerCase();
+                const trialEndsAt = bot?.trial_ends_at
+                  ? new Date(bot.trial_ends_at)
+                  : null;
+                const daysLeft = trialEndsAt
+                  ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                  : null;
+                const expired = plan === "trial" && trialEndsAt !== null && trialEndsAt.getTime() < Date.now();
+                const planLabel = plan === "pro" ? "⭐ Pro" : plan === "starter" ? "💳 Starter" : "🆓 Trial";
+                const planColor = plan === "pro"
+                  ? "text-teal-600 bg-teal-50 border-teal-200"
+                  : plan === "starter"
+                  ? "text-sky-600 bg-sky-50 border-sky-200"
+                  : expired
+                  ? "text-red-600 bg-red-50 border-red-200"
+                  : "text-amber-600 bg-amber-50 border-amber-200";
+                return (
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
+                    <h3 className="text-base font-semibold text-[#1a2744]">My Plan</h3>
+                    <div className="mt-3 flex items-center gap-3">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-sm font-bold ${planColor}`}>{planLabel}</span>
+                      {expired && <span className="text-xs font-semibold text-red-500">Trial expired</span>}
+                    </div>
+                    {plan === "trial" && !expired && daysLeft !== null && (
+                      <p className="mt-2 text-xs text-slate-500">
+                        <span className="font-semibold text-amber-600">{daysLeft} day{daysLeft !== 1 ? "s" : ""}</span> left in your free trial
+                      </p>
+                    )}
+                    {expired && (
+                      <p className="mt-2 text-xs text-red-500">Your trial has ended. Upgrade to keep your bot running.</p>
+                    )}
+                    <a
+                      href="/#pricing"
+                      className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                    >
+                      {plan === "trial" ? "Upgrade plan →" : "Manage plan →"}
+                    </a>
+                    <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
+                      <button
+                        type="button"
+                        disabled={freezeLoading}
+                        onClick={() => void handleFreezeToggle()}
+                        className={`inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold transition disabled:opacity-50 ${
+                          bot?.frozen
+                            ? "border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {freezeLoading ? "Saving…" : bot?.frozen ? "❄️ Unfreeze my account" : "❄️ Freeze my account"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteDialogOpen(true)}
+                        className="inline-flex w-full items-center justify-center rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
+                      >
+                        Cancel membership
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {launched ? (
                 <>
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">

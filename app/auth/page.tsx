@@ -275,6 +275,9 @@ export default function AuthPage() {
                   <p className="text-4xl">🦋</p>
                   <h2 className="mt-4 text-xl font-semibold text-[#1a2744]">You&apos;re in!</h2>
                   <p className="mt-3 text-sm leading-relaxed text-[#0d9488]">{signupSuccessMessage}</p>
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <p className="text-xs font-semibold text-amber-800">📬 Can&apos;t find the email? Check your spam or junk folder and mark it as &quot;Not Spam&quot; so future emails go straight to your inbox!</p>
+                  </div>
                   <p className="mt-4 text-sm text-slate-600">Check your email and click the confirmation link to get started.</p>
                   <button
                     type="button"
