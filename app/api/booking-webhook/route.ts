@@ -68,57 +68,67 @@ function normalizeBody(source: string, body: Record<string, any>): NormalizedBoo
       const svc = body.service ?? {};
       const appt = body.appointment ?? {};
       return {
-        client_name: `${safeString(c.first_name)} ${safeString(c.last_name)}`.trim(),
-        client_email: safeString(c.email) || null,
-        client_phone: safeString(c.phone) || null,
-        service_name: safeString(svc.name) || null,
-        appointment_date: parseDate(appt.start_time),
+        client_name:
+          `${safeString(c.first_name || body.first_name)} ${safeString(c.last_name || body.last_name)}`.trim() ||
+          safeString(body.client_name || body.name),
+        client_email: safeString(c.email || body.email || body.client_email) || null,
+        client_phone: safeString(c.phone || body.phone || body.client_phone) || null,
+        service_name: safeString(svc.name || body.service_name || body.service) || null,
+        appointment_date: parseDate(appt.start_time || body.appointment_date || body.date || body.start_at),
       };
     }
     case "jane": {
       const p = body.patient ?? {};
       return {
-        client_name: `${safeString(p.first_name)} ${safeString(p.last_name)}`.trim(),
-        client_email: safeString(p.email) || null,
-        client_phone: safeString(p.phone) || null,
-        service_name: safeString(body.treatment_name) || null,
-        appointment_date: parseDate(body.start_at),
+        client_name:
+          `${safeString(p.first_name || body.first_name)} ${safeString(p.last_name || body.last_name)}`.trim() ||
+          safeString(body.client_name || body.name),
+        client_email: safeString(p.email || body.email || body.client_email) || null,
+        client_phone: safeString(p.phone || body.phone || body.client_phone) || null,
+        service_name: safeString(body.treatment_name || body.service_name || body.service) || null,
+        appointment_date: parseDate(body.start_at || body.appointment_date || body.date),
       };
     }
     case "square": {
       const c2 = body.customer ?? {};
       const appt2 = body.appointment ?? {};
       const svcName =
-        safeString(appt2.service_name) ||
+        safeString(appt2.service_name || body.service_name || body.service) ||
         (Array.isArray(appt2.segment_types) && appt2.segment_types.length > 0
           ? safeString(appt2.segment_types[0]?.service_variation_data?.name ?? appt2.segment_types[0]?.name)
           : null) ||
         null;
       return {
-        client_name: `${safeString(c2.given_name)} ${safeString(c2.family_name)}`.trim(),
-        client_email: safeString(c2.email_address) || null,
-        client_phone: safeString(c2.phone_number) || null,
+        client_name:
+          `${safeString(c2.given_name || body.first_name)} ${safeString(c2.family_name || body.last_name)}`.trim() ||
+          safeString(body.client_name || body.name),
+        client_email: safeString(c2.email_address || body.email || body.client_email) || null,
+        client_phone: safeString(c2.phone_number || body.phone || body.client_phone) || null,
         service_name: svcName,
-        appointment_date: parseDate(appt2.start_at),
+        appointment_date: parseDate(appt2.start_at || body.appointment_date || body.date || body.start_at),
       };
     }
     case "acuity": {
       return {
-        client_name: `${safeString(body.firstName)} ${safeString(body.lastName)}`.trim(),
-        client_email: safeString(body.email) || null,
-        client_phone: safeString(body.phone) || null,
-        service_name: safeString(body.type) || null,
-        appointment_date: parseDate(body.datetime),
+        client_name:
+          `${safeString(body.firstName || body.first_name)} ${safeString(body.lastName || body.last_name)}`.trim() ||
+          safeString(body.client_name || body.name),
+        client_email: safeString(body.email || body.client_email) || null,
+        client_phone: safeString(body.phone || body.client_phone) || null,
+        service_name: safeString(body.type || body.service_name || body.service) || null,
+        appointment_date: parseDate(body.datetime || body.appointment_date || body.date || body.start_at),
       };
     }
     case "mindbody": {
       const c3 = body.Client ?? {};
       return {
-        client_name: `${safeString(c3.FirstName)} ${safeString(c3.LastName)}`.trim(),
-        client_email: safeString(c3.Email) || null,
-        client_phone: safeString(c3.MobilePhone) || null,
-        service_name: safeString(body.Name) || null,
-        appointment_date: parseDate(body.StartDateTime),
+        client_name:
+          `${safeString(c3.FirstName || body.first_name)} ${safeString(c3.LastName || body.last_name)}`.trim() ||
+          safeString(body.client_name || body.name),
+        client_email: safeString(c3.Email || body.email || body.client_email) || null,
+        client_phone: safeString(c3.MobilePhone || body.phone || body.client_phone) || null,
+        service_name: safeString(body.Name || body.service_name || body.service) || null,
+        appointment_date: parseDate(body.StartDateTime || body.appointment_date || body.date || body.start_at),
       };
     }
     default: {
