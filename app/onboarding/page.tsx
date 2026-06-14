@@ -346,126 +346,158 @@ export default function OnboardingPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // ── 1. Verify session ─────────────────────────────────────────────────
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
       if (!data.session) {
         router.replace("/auth");
         return;
       }
+
       const currentUserId = data.session.user.id;
+      const token = data.session.access_token;
       const fromAccount = displayNameFromUser(data.session.user);
       const searchParams = new URLSearchParams(window.location.search);
+
+      // Force a fresh start when ?new=1 is in the URL
       if (searchParams.get("new") === "1") {
         localStorage.removeItem(STORAGE_KEY);
       }
 
-      // ── Security: always clear localStorage if it belongs to a different user
-      //    or has no userId stamp (could be from a previous session on this device).
-      const loaded = loadPersisted();
-      const storedUserId = loaded.userId ?? "";
-      if (!storedUserId || storedUserId !== currentUserId) {
+      // ── 2. Validate localStorage: wipe if it belongs to a different user ──
+      //    We keep it only to preserve draft step-navigation state (currentStep).
+      const cached = loadPersisted();
+      const cachedUserId = cached.userId ?? "";
+      const cacheIsOwn = cachedUserId === currentUserId;
+      if (!cacheIsOwn) {
+        // Wipe stale data that belongs to another user (or has no owner stamp)
         const fresh = defaultPersisted();
         fresh.userId = currentUserId;
         savePersisted(fresh);
-        setPersisted(fresh);
-        // Fall through to DB fetch below
-      } else {
-        loaded.userId = currentUserId;
-        savePersisted(loaded);
-        if (fromAccount && !loaded.step1.fullName.trim()) {
-          loaded.step1.fullName = fromAccount;
-          savePersisted(loaded);
-        }
-        const stepRaw = searchParams.get("step");
-        const stepNumRaw = stepRaw ? Number.parseInt(stepRaw, 10) : NaN;
-        let stepNum = stepNumRaw;
-        if (stepNum === 5) stepNum = 4;
-        if (Number.isFinite(stepNum) && stepNum >= 1 && stepNum <= TOTAL_STEPS) {
-          loaded.currentStep = stepNum;
-          savePersisted(loaded);
-        }
-        setPersisted(loaded);
-        setReady(true);
-        return;
       }
 
-      // ── Fetch saved bot data from DB for this nurse and pre-populate ──────
+      // ── 3. ALWAYS fetch from the server — server is the source of truth ──
+      //    localStorage is only trusted for the currentStep draft preference.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let serverBot: Record<string, any> | null = null;
       try {
-        const token = data.session.access_token;
-        const res = await fetch("/api/mybot", { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
+        const res = await fetch("/api/mybot", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled && res.ok) {
           const json = await res.json();
-          const bot = json?.bot;
-          if (bot && bot.nurse_id === currentUserId) {
-            // Map DB fields → onboarding state
-            setPersisted(prev => {
-              const next: OnboardingPersisted = {
-                ...prev,
-                userId: currentUserId,
-                launched: bot.launched === true,
-                step1: {
-                  fullName: fromAccount || prev.step1.fullName,
-                  practiceName: bot.practice_name ?? "",
-                  city: bot.city ?? "",
-                  state: bot.state ?? "",
-                  instagram: bot.instagram ?? "",
-                  notificationEmail: bot.notification_email ?? "",
-                  facebook: bot.facebook ?? "",
-                  tiktok: bot.tiktok ?? "",
-                  website: bot.website ?? "",
-                  otherSocial: bot.other_social ?? "",
-                },
-                step2: {
-                  serviceIds: Array.isArray(bot.services) ? bot.services : [],
-                  customServices: prev.step2.customServices,
-                },
-                step3: {
-                  ...prev.step3,
-                  botName: bot.bot_name ?? "",
-                  greeting: bot.greeting ?? prev.step3.greeting,
-                  tone: (TONES.includes(bot.tone) ? bot.tone : prev.step3.tone) as typeof TONES[number],
-                  chatTheme: (bot.chat_theme === "light" || bot.chat_theme === "dark") ? bot.chat_theme : prev.step3.chatTheme,
-                  primaryColor: bot.primary_color ?? prev.step3.primaryColor,
-                  bookingLink: bot.booking_link ?? "",
-                  cancellationPolicy: bot.cancellation_policy ?? "",
-                  aftercare: bot.aftercare ?? "",
-                  numbingMethod: bot.numbing_method ?? "",
-                  previousWorkPolicy: bot.previous_work_policy ?? "",
-                  touchUpPolicy: bot.touch_up_policy ?? "",
-                  sameDayConsultation: bot.same_day_consultation ?? "",
-                  depositInfo: bot.deposit_info ?? "",
-                  forwardQuestions: bot.forward_questions ?? "",
-                  logoImage: bot.logo_image ?? prev.step3.logoImage,
-                  logoDataUrl: bot.logo_data_url ?? prev.step3.logoDataUrl,
-                  botNameFont: (BOT_NAME_FONT_IDS.includes(bot.bot_name_font) ? bot.bot_name_font : prev.step3.botNameFont) as BotNameFontId,
-                  bubbleAttentionMessage: bot.bubble_attention_message ?? prev.step3.bubbleAttentionMessage,
-                },
-              };
-              savePersisted(next);
-              return next;
-            });
+          const b = json?.bot;
+          // Double-check the returned row truly belongs to the current user
+          if (b && b.nurse_id === currentUserId) {
+            serverBot = b;
           }
         }
       } catch {
-        // Best-effort — continue with empty form
+        // Best-effort; continue with empty form if fetch fails
       }
 
-      const stepRaw2 = searchParams.get("step");
-      const stepNumRaw2 = stepRaw2 ? Number.parseInt(stepRaw2, 10) : NaN;
-      let stepNum2 = stepNumRaw2;
-      if (stepNum2 === 5) stepNum2 = 4;
-      if (Number.isFinite(stepNum2) && stepNum2 >= 1 && stepNum2 <= TOTAL_STEPS) {
+      if (cancelled) return;
+
+      // ── 4. Build state from server data (authoritative) ───────────────────
+      if (serverBot) {
+        const defaults = defaultPersisted();
+        // Preserve the draft step the nurse was on, if the cache was theirs
+        const stepFromCache = cacheIsOwn ? cached.currentStep : 1;
+
+        const toneRaw = serverBot.tone as string;
+        const validTone: Tone = TONES.includes(toneRaw as Tone)
+          ? (toneRaw as Tone)
+          : defaults.step3.tone;
+
+        const fontRaw = serverBot.bot_name_font as string;
+        const validFont: BotNameFontId = BOT_NAME_FONT_IDS.includes(fontRaw as BotNameFontId)
+          ? (fontRaw as BotNameFontId)
+          : defaults.step3.botNameFont;
+
+        const next: OnboardingPersisted = {
+          userId: currentUserId,
+          launched: serverBot.launched === true,
+          currentStep: stepFromCache,
+          step1: {
+            fullName: fromAccount || "",
+            practiceName: serverBot.practice_name ?? "",
+            city: serverBot.city ?? "",
+            state: serverBot.state ?? "",
+            instagram: serverBot.instagram ?? "",
+            notificationEmail: serverBot.notification_email ?? "",
+            facebook: serverBot.facebook ?? "",
+            tiktok: serverBot.tiktok ?? "",
+            website: serverBot.website ?? "",
+            otherSocial: serverBot.other_social ?? "",
+          },
+          step2: {
+            serviceIds: Array.isArray(serverBot.services) ? (serverBot.services as string[]) : [],
+            // customServices aren't persisted to the DB, keep from cache if own
+            customServices: cacheIsOwn ? cached.step2.customServices : [],
+          },
+          step3: {
+            botName: serverBot.bot_name ?? "",
+            logoImage: (serverBot.logo_image as string | null) ?? null,
+            logoDataUrl: (serverBot.logo_data_url as string | null) ?? null,
+            brandNameImage: (serverBot.brand_name_image as string | null) ?? null,
+            botNameFont: validFont,
+            bubbleAttentionMessage:
+              (serverBot.bubble_attention_message as string) ??
+              defaults.step3.bubbleAttentionMessage,
+            greeting: (serverBot.greeting as string) ?? defaults.step3.greeting,
+            tone: validTone,
+            chatTheme:
+              serverBot.chat_theme === "light" || serverBot.chat_theme === "dark"
+                ? (serverBot.chat_theme as "light" | "dark")
+                : defaults.step3.chatTheme,
+            primaryColor:
+              (serverBot.primary_color as string) ?? defaults.step3.primaryColor,
+            forwardQuestions: (serverBot.forward_questions as string) ?? "",
+            bookingLink: (serverBot.booking_link as string) ?? "",
+            cancellationPolicy: (serverBot.cancellation_policy as string) ?? "",
+            aftercare: (serverBot.aftercare as string) ?? "",
+            numbingMethod: (serverBot.numbing_method as string) ?? "",
+            previousWorkPolicy: (serverBot.previous_work_policy as string) ?? "",
+            touchUpPolicy: (serverBot.touch_up_policy as string) ?? "",
+            sameDayConsultation: (serverBot.same_day_consultation as string) ?? "",
+            depositInfo: (serverBot.deposit_info as string) ?? "",
+          },
+        };
+        savePersisted(next);
+        setPersisted(next);
+      } else if (cacheIsOwn) {
+        // No server data yet; use localStorage draft (belongs to this user)
+        cached.userId = currentUserId;
+        if (fromAccount && !cached.step1.fullName.trim()) {
+          cached.step1.fullName = fromAccount;
+        }
+        savePersisted(cached);
+        setPersisted(cached);
+      } else {
+        // Brand-new nurse, no server data, no matching cache — start completely empty
+        const fresh = defaultPersisted();
+        fresh.userId = currentUserId;
+        fresh.step1.fullName = fromAccount;
+        savePersisted(fresh);
+        setPersisted(fresh);
+      }
+
+      // ── 5. Apply ?step= URL param ─────────────────────────────────────────
+      const stepRaw = searchParams.get("step");
+      const stepNumRaw = stepRaw ? Number.parseInt(stepRaw, 10) : NaN;
+      let stepNum = stepNumRaw;
+      if (stepNum === 5) stepNum = 4;
+      if (Number.isFinite(stepNum) && stepNum >= 1 && stepNum <= TOTAL_STEPS) {
         setPersisted(prev => {
-          const next = { ...prev, currentStep: stepNum2 };
+          const next = { ...prev, currentStep: stepNum };
           savePersisted(next);
           return next;
         });
       }
+
       setReady(true);
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [router]);
 
   const updatePersisted = useCallback((patch: Partial<OnboardingPersisted>) => {
