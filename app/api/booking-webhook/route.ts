@@ -162,11 +162,29 @@ function checkRateLimit(secret: string): boolean {
   return true;
 }
 
+// GET — lets curl / browser verify the endpoint is alive without a secret.
+// Returns a 200 so it's clear the route is reachable and not being redirected.
+export function GET() {
+  return NextResponse.json({
+    ok: true,
+    endpoint: "booking-webhook",
+    method_required: "POST",
+    note: "Send a POST request with ?secret=YOUR_SECRET&source=vagaro|jane|square|acuity|mindbody|generic",
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const url = new URL(request.url);
     const secret = url.searchParams.get("secret") ?? "";
     const source = url.searchParams.get("source") ?? "generic";
+
+    // ── Ping / connectivity test ───────────────────────────────────────────
+    // Hit ?ping=1 to confirm the route is reached and no middleware is
+    // intercepting it. Safe to call without a real secret.
+    if (url.searchParams.get("ping") === "1") {
+      return NextResponse.json({ ok: true, source: "webhook", reached: true });
+    }
 
     // Validate secret
     if (!secret || secret.length > 200) {
