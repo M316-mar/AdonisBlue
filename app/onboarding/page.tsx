@@ -352,37 +352,115 @@ export default function OnboardingPage() {
         router.replace("/auth");
         return;
       }
+      const currentUserId = data.session.user.id;
       const fromAccount = displayNameFromUser(data.session.user);
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get("new") === "1") {
         localStorage.removeItem(STORAGE_KEY);
       }
+
+      // ── Security: always clear localStorage if it belongs to a different user
+      //    or has no userId stamp (could be from a previous session on this device).
       const loaded = loadPersisted();
-      // Clear localStorage if it belongs to a different user
-      const storedUserId = loaded.userId;
-      if (storedUserId && storedUserId !== data.session.user.id) {
+      const storedUserId = loaded.userId ?? "";
+      if (!storedUserId || storedUserId !== currentUserId) {
         const fresh = defaultPersisted();
-        fresh.userId = data.session.user.id;
+        fresh.userId = currentUserId;
         savePersisted(fresh);
         setPersisted(fresh);
+        // Fall through to DB fetch below
+      } else {
+        loaded.userId = currentUserId;
+        savePersisted(loaded);
+        if (fromAccount && !loaded.step1.fullName.trim()) {
+          loaded.step1.fullName = fromAccount;
+          savePersisted(loaded);
+        }
+        const stepRaw = searchParams.get("step");
+        const stepNumRaw = stepRaw ? Number.parseInt(stepRaw, 10) : NaN;
+        let stepNum = stepNumRaw;
+        if (stepNum === 5) stepNum = 4;
+        if (Number.isFinite(stepNum) && stepNum >= 1 && stepNum <= TOTAL_STEPS) {
+          loaded.currentStep = stepNum;
+          savePersisted(loaded);
+        }
+        setPersisted(loaded);
         setReady(true);
         return;
       }
-      loaded.userId = data.session.user.id;
-      savePersisted(loaded);
-      if (fromAccount && !loaded.step1.fullName.trim()) {
-        loaded.step1.fullName = fromAccount;
-        savePersisted(loaded);
+
+      // ── Fetch saved bot data from DB for this nurse and pre-populate ──────
+      try {
+        const token = data.session.access_token;
+        const res = await fetch("/api/mybot", { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const json = await res.json();
+          const bot = json?.bot;
+          if (bot && bot.nurse_id === currentUserId) {
+            // Map DB fields → onboarding state
+            setPersisted(prev => {
+              const next: OnboardingPersisted = {
+                ...prev,
+                userId: currentUserId,
+                launched: bot.launched === true,
+                step1: {
+                  fullName: fromAccount || prev.step1.fullName,
+                  practiceName: bot.practice_name ?? "",
+                  city: bot.city ?? "",
+                  state: bot.state ?? "",
+                  instagram: bot.instagram ?? "",
+                  notificationEmail: bot.notification_email ?? "",
+                  facebook: bot.facebook ?? "",
+                  tiktok: bot.tiktok ?? "",
+                  website: bot.website ?? "",
+                  otherSocial: bot.other_social ?? "",
+                },
+                step2: {
+                  serviceIds: Array.isArray(bot.services) ? bot.services : [],
+                  customServices: prev.step2.customServices,
+                },
+                step3: {
+                  ...prev.step3,
+                  botName: bot.bot_name ?? "",
+                  greeting: bot.greeting ?? prev.step3.greeting,
+                  tone: (TONES.includes(bot.tone) ? bot.tone : prev.step3.tone) as typeof TONES[number],
+                  chatTheme: (bot.chat_theme === "light" || bot.chat_theme === "dark") ? bot.chat_theme : prev.step3.chatTheme,
+                  primaryColor: bot.primary_color ?? prev.step3.primaryColor,
+                  bookingLink: bot.booking_link ?? "",
+                  cancellationPolicy: bot.cancellation_policy ?? "",
+                  aftercare: bot.aftercare ?? "",
+                  numbingMethod: bot.numbing_method ?? "",
+                  previousWorkPolicy: bot.previous_work_policy ?? "",
+                  touchUpPolicy: bot.touch_up_policy ?? "",
+                  sameDayConsultation: bot.same_day_consultation ?? "",
+                  depositInfo: bot.deposit_info ?? "",
+                  forwardQuestions: bot.forward_questions ?? "",
+                  logoImage: bot.logo_image ?? prev.step3.logoImage,
+                  logoDataUrl: bot.logo_data_url ?? prev.step3.logoDataUrl,
+                  botNameFont: (BOT_NAME_FONT_IDS.includes(bot.bot_name_font) ? bot.bot_name_font : prev.step3.botNameFont) as BotNameFontId,
+                  bubbleAttentionMessage: bot.bubble_attention_message ?? prev.step3.bubbleAttentionMessage,
+                },
+              };
+              savePersisted(next);
+              return next;
+            });
+          }
+        }
+      } catch {
+        // Best-effort — continue with empty form
       }
-      const stepRaw = searchParams.get("step");
-      const stepNumRaw = stepRaw ? Number.parseInt(stepRaw, 10) : NaN;
-      let stepNum = stepNumRaw;
-      if (stepNum === 5) stepNum = 4;
-      if (Number.isFinite(stepNum) && stepNum >= 1 && stepNum <= TOTAL_STEPS) {
-        loaded.currentStep = stepNum;
-        savePersisted(loaded);
+
+      const stepRaw2 = searchParams.get("step");
+      const stepNumRaw2 = stepRaw2 ? Number.parseInt(stepRaw2, 10) : NaN;
+      let stepNum2 = stepNumRaw2;
+      if (stepNum2 === 5) stepNum2 = 4;
+      if (Number.isFinite(stepNum2) && stepNum2 >= 1 && stepNum2 <= TOTAL_STEPS) {
+        setPersisted(prev => {
+          const next = { ...prev, currentStep: stepNum2 };
+          savePersisted(next);
+          return next;
+        });
       }
-      setPersisted(loaded);
       setReady(true);
     })();
     return () => {
@@ -541,11 +619,12 @@ export default function OnboardingPage() {
   }
 
   const handleLaunch = useCallback(async () => {
-    const authKey = Object.keys(localStorage).find(k => k.includes('auth-token'));
-    const authData = authKey ? JSON.parse(localStorage.getItem(authKey) || '{}') : {};
-    const userId = authData?.user?.id;
+    // Always get nurse_id from the verified Supabase session — never from localStorage.
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id;
+    const token = sessionData.session?.access_token;
 
-    if (!userId) {
+    if (!userId || !token) {
       setLaunchError("Please log in to save your bot");
       return;
     }
@@ -585,7 +664,7 @@ export default function OnboardingPage() {
 
     const res = await fetch('/api/savebot', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(row),
     });
 
