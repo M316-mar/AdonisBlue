@@ -536,6 +536,12 @@ export default function NurseDashboardPage() {
                   >
                     🩹 Aftercare Dashboard
                   </Link>
+                  <Link
+                    href="/booking-connect"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-center text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                  >
+                    🔗 Connect Booking Software
+                  </Link>
                   {process.env.NEXT_PUBLIC_SHOW_LOYALTY === "true" && (
                     <Link
                       href="/loyalty"
