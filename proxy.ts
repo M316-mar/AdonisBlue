@@ -22,7 +22,43 @@ const SESSION_COOKIE = "adonisblue_session";
 const LAST_ACTIVE_COOKIE = "sb_last_active";
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
-// Routes that require a logged-in session
+// ── Route classification ───────────────────────────────────────────────────
+
+/**
+ * Routes the proxy NEVER touches — always NextResponse.next().
+ *
+ * /api/*              — ALL API routes handle their own auth server-side.
+ *                       This explicitly includes (but is not limited to):
+ *                         /api/booking-webhook  — receives unauthenticated
+ *                           POST requests from external booking software
+ *                           (Vagaro, Jane, Square, Acuity, Mindbody, etc.)
+ *                         /api/chat             — public bot chat endpoint
+ *                         /api/bot              — public bot config endpoint
+ *                         /api/intake           — public lead-capture endpoint
+ *                         /api/healing          — public client healing chat
+ *                       None of these should ever be blocked by this proxy.
+ *                       The matcher already excludes api/ entirely (see below)
+ *                       but we also guard in-function for absolute safety.
+ *
+ * /auth/*             — login, callback, confirm, reset-password — nurses must
+ *                       always be able to reach the login page.
+ *
+ * /healing/*          — public client-facing recovery chat pages
+ * /chat/*             — public bot chat pages
+ * /ref/*              — public referral pages
+ * /survey/*           — public survey pages
+ * /                   — landing page
+ */
+const ALWAYS_PUBLIC_PREFIXES = [
+  "/api/",
+  "/auth",
+  "/healing",
+  "/chat",
+  "/ref",
+  "/survey",
+];
+
+// Routes that require a valid `adonisblue_session` cookie
 const PROTECTED_PREFIXES = [
   "/dashboard",
   "/aftercare",
@@ -30,9 +66,16 @@ const PROTECTED_PREFIXES = [
   "/insights",
   "/blueroom",
   "/onboarding",
+  "/booking-connect",
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+function isAlwaysPublic(pathname: string): boolean {
+  return ALWAYS_PUBLIC_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p)
+  );
+}
 
 function isLoggedIn(request: NextRequest): boolean {
   return request.cookies.get(SESSION_COOKIE)?.value === "1";
@@ -56,18 +99,22 @@ function matchesPrefix(pathname: string, prefixes: string[]): boolean {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ── Safety gate ────────────────────────────────────────────────────────
-  // /auth and every sub-path (/auth/callback, /auth/confirm, /auth/reset-password)
-  // always pass through unconditionally — no matter what, nurses can always
-  // reach the login page. This must be the very first check.
-  if (pathname === "/auth" || pathname.startsWith("/auth/")) {
+  // ── Gate 1: Always-public routes — pass through unconditionally ────────
+  // This is the definitive list of routes this proxy will NEVER block.
+  // /api/* is excluded by the matcher below too, so API routes get a
+  // double guarantee: the proxy function is never even called for them,
+  // and even if it were, this guard fires first.
+  if (isAlwaysPublic(pathname)) {
     return NextResponse.next();
   }
 
   const protected_ = matchesPrefix(pathname, PROTECTED_PREFIXES);
   const loggedIn = isLoggedIn(request);
 
-  // 1. Inactivity timeout — only fires on protected pages for logged-in users
+  // ── Gate 2: Inactivity timeout ─────────────────────────────────────────
+  // Only fires on protected pages for logged-in users who haven't interacted
+  // with the app for 30 minutes. ActivityTracker resets sb_last_active on
+  // every click/keypress/scroll so active nurses are never timed out.
   if (loggedIn && protected_ && isInactive(request)) {
     const url = new URL("/auth", request.url);
     url.searchParams.set("reason", "timeout");
@@ -77,23 +124,33 @@ export function proxy(request: NextRequest) {
     return res;
   }
 
-  // 2. Unauthenticated user hitting a protected page → send to /auth
-  //    The SessionSync client component will repair a missing cookie if Supabase
-  //    actually has a valid session; the user is then redirected to /dashboard
-  //    client-side without ever seeing the login form.
+  // ── Gate 3: Unauthenticated access to protected page ──────────────────
+  // SessionSync (client component) will repair a missing cookie if Supabase
+  // has a live session in localStorage — the user is then redirected to their
+  // original destination without seeing the login form.
   if (!loggedIn && protected_) {
     const url = new URL("/auth", request.url);
     url.searchParams.set("redirect", pathname);
     return NextResponse.redirect(url);
   }
 
-  // 3. All other requests (public pages, /healing, /chat, etc.) pass through
+  // ── All other requests pass through ────────────────────────────────────
   return NextResponse.next();
 }
 
 // ── Matcher ────────────────────────────────────────────────────────────────
-// Narrow matcher — never runs on API routes, static files, or asset paths so
-// Supabase auth callbacks and all fetch requests are never intercepted.
+// This regex is the FIRST line of defence — the proxy function is never
+// even invoked for paths that match the negative lookahead.
+//
+// Excluded (proxy never runs):
+//   api/           — ALL API routes, including /api/booking-webhook,
+//                    /api/chat, /api/bot, /api/intake, /api/healing, etc.
+//   _next/static   — Next.js static chunks
+//   _next/image    — image optimisation
+//   favicon.ico    — browser favicon
+//   robots.txt     — SEO
+//   sitemap.xml    — SEO
+//   *.png/jpg/...  — static assets
 export const config = {
   matcher: [
     "/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|api/|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|otf|css|js)$).*)",
