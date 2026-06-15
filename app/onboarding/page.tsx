@@ -843,12 +843,12 @@ export default function OnboardingPage() {
                   />
                 </label>
                 <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">Instagram username (optional)</span>
-                  <p className="mb-1 text-xs text-slate-500">Add your username so clients can find you — e.g. @glamglow</p>
+                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">Instagram profile URL (optional)</span>
+                  <p className="mb-1 text-xs text-slate-500">Paste your full profile URL</p>
                   <input
                     value={s1.instagram}
                     onChange={(e) => setStep1({ instagram: e.target.value })}
-                    placeholder="@yourusername"
+                    placeholder="https://www.instagram.com/yourhandle"
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
                   />
                 </label>
@@ -863,27 +863,27 @@ export default function OnboardingPage() {
                   />
                 </label>
                 <div className="block sm:col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">Facebook (optional)</label>
+                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">Facebook page URL (optional)</label>
                   <input
                     type="text"
-                    placeholder="https://facebook.com/yourpage"
+                    placeholder="https://www.facebook.com/yourpage"
                     value={s1.facebook}
                     onChange={(e) => setStep1({ facebook: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
                   />
                 </div>
                 <div className="block sm:col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">TikTok (optional)</label>
+                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">TikTok profile URL (optional)</label>
                   <input
                     type="text"
-                    placeholder="@yourtiktok"
+                    placeholder="https://www.tiktok.com/@yourhandle"
                     value={s1.tiktok}
                     onChange={(e) => setStep1({ tiktok: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
                   />
                 </div>
                 <div className="block sm:col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">Website (optional)</label>
+                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">Website URL (optional)</label>
                   <input
                     type="text"
                     placeholder="https://yourwebsite.com"
@@ -893,10 +893,10 @@ export default function OnboardingPage() {
                   />
                 </div>
                 <div className="block sm:col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">Other social link (optional)</label>
+                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">Other social media URL (optional)</label>
                   <input
                     type="text"
-                    placeholder="Any other link you want to share"
+                    placeholder="https://..."
                     value={s1.otherSocial}
                     onChange={(e) => setStep1({ otherSocial: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
