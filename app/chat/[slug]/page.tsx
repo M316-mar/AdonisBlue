@@ -23,6 +23,7 @@ type BotRow = {
   same_day_consultation?: string | null;
   deposit_info?: string | null;
   bot_name: string | null;
+  logo_url?: string | null;
   logo_image?: string | null;
   logo_data_url?: string | null;
   brand_name_image?: string | null;
@@ -390,8 +391,8 @@ export default function PublicChatPage() {
   }
 
   const fontId = (bot.bot_name_font as BotNameFontId | undefined) ?? "dm-sans";
-  const botTitle = (bot.bot_name || "").trim() || (bot.practice_name || "").trim() || "Chat";
-  const botLogoImage = bot.logo_image || bot.logo_data_url;
+  const botTitle = (bot.practice_name || "").trim() || "Chat";
+  const botLogoImage = bot.logo_url || bot.logo_image || bot.logo_data_url;
 
   const ChatPanel = (
     <div
@@ -417,13 +418,13 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              style={{ width: 44, height: 44, minWidth: 44, borderRadius: "50%", objectFit: "cover", backgroundColor: "white", boxShadow: "0 1px 3px rgba(0,0,0,.12)", display: "block" }}
+              style={{ width: 48, height: 48, minWidth: 48, borderRadius: "50%", objectFit: "contain", backgroundColor: "white", padding: "2px", boxShadow: "0 1px 3px rgba(0,0,0,.12)", display: "block" }}
             />
           ) : (
             <div
               style={{ width: 44, height: 44, minWidth: 44, borderRadius: "50%", backgroundColor: brand, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: "white", boxShadow: "0 1px 3px rgba(0,0,0,.12)" }}
             >
-              {botTitle.charAt(0).toUpperCase()}
+              {(bot.practice_name || "").trim().charAt(0).toUpperCase() || "?"}
             </div>
           )}
           <div className="min-w-0 flex-1">

@@ -194,17 +194,17 @@ function newId() {
 }
 
 function ChatPreview({
-  botName,
+  practiceName,
   greeting,
   brandColor,
   logoUrl,
 }: {
-  botName: string;
+  practiceName: string;
   greeting: string;
   brandColor: string;
   logoUrl?: string;
 }) {
-  const title = botName.trim() || "Your Bot";
+  const title = practiceName.trim() || "Your Practice";
   const greetingText =
     greeting.trim() || "Hi there! 👋 How can I help you today?";
   const brand = brandColor || "#0d9488";
@@ -634,44 +634,32 @@ function StepCustomize({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[#1a2744]">Bot name <span className="font-normal text-slate-400">(optional)</span></label>
-          <input
-            className={field}
-            placeholder="Bella, Luna, Glamour AI…"
-            value={draft.botName}
-            onChange={(e) => onChange({ botName: e.target.value })}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[#1a2744]">
-            Brand color
-          </label>
-          <div className="flex flex-wrap items-center gap-2">
-            {COLOR_PRESETS.map((c) => (
-              <button
-                key={c.value}
-                type="button"
-                title={`${c.emoji} ${c.label}`}
-                onClick={() => onChange({ brandColor: c.value })}
-                className={`h-9 w-9 rounded-full border-2 transition ${
-                  draft.brandColor === c.value
-                    ? "scale-110 border-[#1a2744] shadow-sm"
-                    : "border-transparent hover:scale-105"
-                }`}
-                style={{ backgroundColor: c.value }}
-              />
-            ))}
-            <input
-              type="color"
-              value={draft.brandColor}
-              onChange={(e) => onChange({ brandColor: e.target.value })}
-              className="h-9 w-9 cursor-pointer rounded-full border border-slate-200 p-0.5"
-              title="Custom color"
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-[#1a2744]">
+          Brand color
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          {COLOR_PRESETS.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              title={`${c.emoji} ${c.label}`}
+              onClick={() => onChange({ brandColor: c.value })}
+              className={`h-9 w-9 rounded-full border-2 transition ${
+                draft.brandColor === c.value
+                  ? "scale-110 border-[#1a2744] shadow-sm"
+                  : "border-transparent hover:scale-105"
+              }`}
+              style={{ backgroundColor: c.value }}
             />
-          </div>
+          ))}
+          <input
+            type="color"
+            value={draft.brandColor}
+            onChange={(e) => onChange({ brandColor: e.target.value })}
+            className="h-9 w-9 cursor-pointer rounded-full border border-slate-200 p-0.5"
+            title="Custom color"
+          />
         </div>
       </div>
 
@@ -1149,7 +1137,7 @@ function OnboardingInner() {
                 </p>
                 <div className="h-[480px]">
                   <ChatPreview
-                    botName={draft.botName || draft.practiceName}
+                    practiceName={draft.practiceName}
                     greeting={draft.greeting}
                     brandColor={draft.brandColor}
                     logoUrl={draft.logoUrl}
@@ -1175,7 +1163,7 @@ function OnboardingInner() {
               </p>
               <div className="h-[380px]">
                 <ChatPreview
-                  botName={draft.botName || draft.practiceName}
+                  practiceName={draft.practiceName}
                   greeting={draft.greeting}
                   brandColor={draft.brandColor}
                   logoUrl={draft.logoUrl}
