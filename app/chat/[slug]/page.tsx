@@ -28,8 +28,7 @@ type BotRow = {
   brand_name_image?: string | null;
   greeting: string | null;
   tone: string | null;
-  chat_theme?: string | null;
-  primary_color: string | null;
+  brand_color: string | null;
   services: string[] | null;
   booking_link: string | null;
   forward_questions: string | null;
@@ -71,6 +70,9 @@ function botShareSlug(bot: Pick<BotRow, "bot_name" | "practice_name">): string {
   const raw = (bot.bot_name || "").trim() || (bot.practice_name || "").trim() || "my-bot";
   return slugify(raw);
 }
+
+// Suppress unused warning — kept for potential external use
+void botShareSlug;
 
 function safeHex(color: string | null | undefined, fallback: string): string {
   if (!color) return fallback;
@@ -171,7 +173,7 @@ export default function PublicChatPage() {
   const [sending, setSending] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const primary = useMemo(() => safeHex(bot?.primary_color, "#0d9488"), [bot?.primary_color]);
+  const brand = useMemo(() => safeHex(bot?.brand_color, "#0d9488"), [bot?.brand_color]);
 
   const nurseDisplayName = useMemo(() => {
     if (!bot) return "your provider";
@@ -200,8 +202,8 @@ export default function PublicChatPage() {
         setBot(null);
         return;
       }
-      const bot = await res.json();
-      const found = bot as BotRow;
+      const botData = await res.json();
+      const found = botData as BotRow;
       setBot(found);
       const greeting = (found.greeting || "").trim() || "Hello! How can we help you today?";
       setMessages([{ id: newId(), role: "assistant", content: greeting }]);
@@ -363,14 +365,10 @@ export default function PublicChatPage() {
   const fontId = (bot.bot_name_font as BotNameFontId | undefined) ?? "dm-sans";
   const botTitle = (bot.bot_name || "").trim() || (bot.practice_name || "").trim() || "Chat";
   const botLogoImage = bot.logo_image || bot.logo_data_url;
-  const chatTheme = bot.chat_theme || "light";
-  const isDark = chatTheme === "dark";
 
   const ChatPanel = (
     <div
-      className={`fixed z-50 flex flex-col shadow-2xl transition-[transform,opacity] duration-300 ease-out md:rounded-2xl md:border-2 ${
-        isDark ? "md:border-white/10" : "bg-white md:border-slate-100"
-      } ${
+      className={`fixed z-50 flex flex-col bg-white shadow-2xl transition-[transform,opacity] duration-300 ease-out md:rounded-2xl md:border-2 md:border-slate-100 ${
         chatOpen
           ? "inset-0 translate-y-0 opacity-100 md:inset-auto md:bottom-6 md:right-6 md:h-[min(36rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:w-[min(100%,24rem)]"
           : "pointer-events-none inset-0 translate-y-full opacity-0 md:inset-auto md:bottom-6 md:right-6 md:h-[min(36rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:w-[min(100%,24rem)] md:translate-y-8 md:opacity-0"
@@ -378,12 +376,13 @@ export default function PublicChatPage() {
       style={{ visibility: chatOpen ? "visible" : "hidden" }}
       aria-hidden={!chatOpen}
     >
-      <div className="h-1 w-full bg-[#0d9488] md:rounded-t-2xl" />
+      {/* Top brand stripe */}
+      <div className="h-1 w-full shrink-0 md:rounded-t-2xl" style={{ backgroundColor: brand }} />
+
+      {/* Header */}
       <div
-        className={`flex shrink-0 items-center justify-between gap-2 px-4 py-3 md:rounded-t-2xl ${
-          isDark ? "border-b border-[#0d9488]/40 bg-[#1a2744]" : "border-b-4 bg-white"
-        }`}
-        style={isDark ? undefined : { borderBottomColor: primary }}
+        className="flex shrink-0 items-center justify-between gap-2 border-b-4 bg-white px-4 py-3 md:rounded-t-2xl"
+        style={{ borderBottomColor: brand }}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {botLogoImage ? (
@@ -391,23 +390,23 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              style={{ width: "72px", height: "72px", minWidth: "72px", borderRadius: "50%", backgroundColor: "white", objectFit: "cover", display: "block" }}
+              style={{ width: 44, height: 44, minWidth: 44, borderRadius: "50%", objectFit: "cover", backgroundColor: "white", boxShadow: "0 1px 3px rgba(0,0,0,.12)", display: "block" }}
             />
           ) : (
             <div
-              style={{ width: "48px", height: "48px", minWidth: "48px", borderRadius: "12px", backgroundColor: primary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", fontWeight: "700", color: "white" }}
+              style={{ width: 44, height: 44, minWidth: 44, borderRadius: "50%", backgroundColor: brand, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: "white", boxShadow: "0 1px 3px rgba(0,0,0,.12)" }}
             >
               {botTitle.charAt(0).toUpperCase()}
             </div>
           )}
           <div className="min-w-0 flex-1">
             <p
-              className={`truncate text-sm font-semibold leading-tight ${isDark ? "text-white" : "text-[#1a2744]"}`}
-              style={getBotNameFontStyle(fontId)}
+              className="truncate text-sm font-semibold leading-tight"
+              style={{ ...getBotNameFontStyle(fontId), color: brand }}
             >
               {botTitle}
             </p>
-            <p className={`mt-0.5 flex items-center gap-1.5 text-[11px] font-medium ${isDark ? "text-slate-300" : "text-slate-500"}`}>
+            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
               Online
             </p>
@@ -416,33 +415,26 @@ export default function PublicChatPage() {
         <button
           type="button"
           onClick={() => setChatOpen(false)}
-          className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-            isDark
-              ? "border-white/20 bg-white/10 text-slate-200 hover:bg-white/15"
-              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-          }`}
+          className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
         >
           Close
         </button>
       </div>
 
+      {/* Message list */}
       <div
         ref={listRef}
-        className={`min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4 ${isDark ? "bg-[#0d1628]" : "bg-slate-50"}`}
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 px-3 py-4 sm:px-4"
       >
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
               className={`max-w-[85%] text-sm leading-relaxed ${
                 m.role === "user"
-                  ? isDark
-                    ? "rounded-2xl rounded-br-sm border border-[#38bdf8]/30 bg-[#38bdf8]/15 px-4 py-3 text-white"
-                    : "rounded-full border-2 bg-white px-3.5 py-2 text-slate-800"
-                  : isDark
-                    ? "rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-slate-200 backdrop-blur-sm"
-                    : "py-1 text-slate-800"
+                  ? "rounded-full border-2 bg-white px-3.5 py-2 text-slate-800"
+                  : "py-1 text-slate-800"
               }`}
-              style={!isDark && m.role === "user" ? { borderColor: primary } : undefined}
+              style={m.role === "user" ? { borderColor: brand } : undefined}
             >
               {renderMessageContent(m.content)}
               {m.photos && m.photos.length > 0 ? (
@@ -453,9 +445,7 @@ export default function PublicChatPage() {
                       key={`${m.id}-p-${i}`}
                       src={src}
                       alt=""
-                      className={`aspect-square w-full rounded-lg object-cover ${
-                        isDark ? "border border-white/20" : "border border-slate-200"
-                      }`}
+                      className="aspect-square w-full rounded-lg border border-slate-200 object-cover"
                     />
                   ))}
                 </div>
@@ -465,13 +455,7 @@ export default function PublicChatPage() {
         ))}
         {sending ? (
           <div className="flex justify-start">
-            <div
-              className={`rounded-2xl rounded-bl-sm px-4 py-3 text-sm ${
-                isDark
-                  ? "border border-white/15 bg-white/10 text-slate-400"
-                  : "bg-white text-slate-400 ring-1 ring-slate-100 shadow-sm"
-              }`}
-            >
+            <div className="rounded-2xl rounded-bl-sm bg-white px-4 py-3 text-sm text-slate-400 shadow-sm ring-1 ring-slate-100">
               <span className="inline-flex gap-1">
                 <span className="animate-bounce">●</span>
                 <span className="animate-bounce [animation-delay:120ms]">●</span>
@@ -482,11 +466,8 @@ export default function PublicChatPage() {
         ) : null}
       </div>
 
-      <div
-        className={`shrink-0 border-t px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:rounded-b-2xl ${
-          isDark ? "border-sky-100/15 bg-[#1a2744]/90" : "border-slate-200 bg-white"
-        }`}
-      >
+      {/* Input area */}
+      <div className="shrink-0 border-t border-slate-200 bg-white px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:rounded-b-2xl">
         <div className="mb-2 flex flex-wrap gap-1.5">
           {QUICK_REPLIES.map((q) => (
             <button
@@ -494,12 +475,8 @@ export default function PublicChatPage() {
               type="button"
               onClick={() => void sendUserText(q)}
               disabled={sending}
-              className={
-                isDark
-                  ? "rounded-full border border-teal-400/30 bg-teal-400/10 px-3 py-2 text-left text-xs font-medium text-teal-300 transition hover:bg-teal-400/20 disabled:opacity-50"
-                  : "rounded-full border-2 bg-white px-3 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-              }
-              style={!isDark ? { borderColor: primary } : undefined}
+              className="rounded-full border-2 bg-white px-3 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              style={{ borderColor: brand }}
             >
               {q}
             </button>
@@ -522,16 +499,13 @@ export default function PublicChatPage() {
             }}
             placeholder="Type a message…"
             disabled={sending}
-            className={
-              isDark
-                ? "max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full border border-sky-100/20 bg-white/5 px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-sky-100/40 disabled:opacity-50"
-                : "max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full border-2 border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-300 disabled:opacity-50"
-            }
+            className="max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full border-2 border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-300 disabled:opacity-50"
           />
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ backgroundColor: brand }}
           >
             Send
           </button>
@@ -541,10 +515,10 @@ export default function PublicChatPage() {
   );
 
   return (
-    <div className={`flex min-h-dvh flex-col ${isDark ? "bg-[#0d1628]" : "bg-white"}`}>
+    <div className="flex min-h-dvh flex-col bg-white">
       <header
-        className={`shrink-0 px-4 py-5 sm:px-6 sm:py-6 ${isDark ? "bg-[#1a2744]" : "border-b-4 bg-white"}`}
-        style={isDark ? { borderBottom: "3px solid #0d9488" } : { borderBottomColor: primary }}
+        className="shrink-0 border-b-4 bg-white px-4 py-5 sm:px-6 sm:py-6"
+        style={{ borderBottomColor: brand }}
       >
         <div className="mx-auto flex max-w-3xl items-center gap-4 sm:gap-5">
           {botLogoImage ? (
@@ -552,44 +526,35 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              style={{ width: "80px", height: "80px", minWidth: "80px", borderRadius: "50%", backgroundColor: "white", objectFit: "cover", display: "block" }}
+              style={{ width: 56, height: 56, minWidth: 56, borderRadius: "50%", objectFit: "cover", backgroundColor: "white", boxShadow: "0 1px 3px rgba(0,0,0,.12)", display: "block" }}
             />
           ) : (
             <div
-              style={{ width: "64px", height: "64px", minWidth: "64px", borderRadius: "16px", backgroundColor: primary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", fontWeight: "700", color: "white" }}
+              style={{ width: 56, height: 56, minWidth: 56, borderRadius: "50%", backgroundColor: brand, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, color: "white", boxShadow: "0 1px 3px rgba(0,0,0,.12)" }}
             >
               {botTitle.charAt(0).toUpperCase()}
             </div>
           )}
           <div className="min-w-0 flex-1">
             <h1
-              className={`truncate text-xl font-bold tracking-tight sm:text-2xl ${isDark ? "text-white" : "text-[#1a2744]"}`}
-              style={getBotNameFontStyle(fontId)}
+              className="truncate text-xl font-bold tracking-tight sm:text-2xl"
+              style={{ ...getBotNameFontStyle(fontId), color: brand }}
             >
               {botTitle}
             </h1>
-            <p className={`mt-1 flex items-center gap-2 text-xs font-medium sm:text-sm ${isDark ? "text-slate-300" : "text-slate-500"}`}>
-              <span className="relative flex h-2 w-2">
-                {isDark ? (
-                  <>
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                  </>
-                ) : (
-                  <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                )}
-              </span>
+            <p className="mt-1 flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+              <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               Online — we typically reply right away
             </p>
           </div>
         </div>
       </header>
 
-      <main className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6 sm:py-12 ${isDark ? "bg-[#0d1628]" : "bg-white"}`}>
-        <p className={`text-center text-sm font-medium sm:text-base ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col bg-white px-4 py-8 sm:px-6 sm:py-12">
+        <p className="text-center text-sm font-medium text-slate-600 sm:text-base">
           {attentionMessage}
         </p>
-        <p className={`mx-auto mt-6 max-w-md text-center text-xs leading-relaxed sm:text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+        <p className="mx-auto mt-6 max-w-md text-center text-xs leading-relaxed text-slate-500 sm:text-sm">
           Tap the chat button to ask about services, booking, and more. We keep things simple and friendly — no jargon.
         </p>
       </main>
@@ -598,7 +563,8 @@ export default function PublicChatPage() {
         <button
           type="button"
           onClick={() => setChatOpen(true)}
-          className="fixed bottom-5 right-4 z-40 flex max-w-[min(calc(100vw-2rem),20rem)] items-center gap-3 rounded-2xl bg-[#0d9488] px-4 py-3 text-left text-sm font-semibold text-white shadow-xl shadow-slate-900/20 ring-2 ring-white/25 transition hover:bg-teal-700 active:scale-[0.98] sm:bottom-8 sm:right-8"
+          className="fixed bottom-5 right-4 z-40 flex max-w-[min(calc(100vw-2rem),20rem)] items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold text-white shadow-xl shadow-slate-900/20 ring-2 ring-white/25 transition hover:opacity-90 active:scale-[0.98] sm:bottom-8 sm:right-8"
+          style={{ backgroundColor: brand }}
         >
           <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20">
             <span className="text-lg" aria-hidden>

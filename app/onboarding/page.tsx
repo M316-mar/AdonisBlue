@@ -92,11 +92,14 @@ const PROCEDURES = [
 type Procedure = (typeof PROCEDURES)[number];
 
 const COLOR_PRESETS = [
-  { label: "Teal", value: "#0d9488" },
-  { label: "Navy", value: "#1a2744" },
-  { label: "Rose", value: "#e11d48" },
-  { label: "Purple", value: "#7c3aed" },
-  { label: "Gold", value: "#d97706" },
+  { label: "Teal",        value: "#0d9488", emoji: "🩵" },
+  { label: "Navy",        value: "#1a2744", emoji: "💙" },
+  { label: "Rose",        value: "#f43f5e", emoji: "🌸" },
+  { label: "Purple",      value: "#8b5cf6", emoji: "💜" },
+  { label: "Soft Pink",   value: "#fb7185", emoji: "🤍" },
+  { label: "Warm Orange", value: "#f97316", emoji: "🧡" },
+  { label: "Charcoal",    value: "#374151", emoji: "🖤" },
+  { label: "Gold",        value: "#d97706", emoji: "✨" },
 ] as const;
 
 const DRAFT_KEY = "adonisblue-onboarding-v2";
@@ -123,8 +126,7 @@ type Draft = {
   // Step 4
   botName: string;
   greeting: string;
-  chatTheme: "light" | "dark";
-  primaryColor: string;
+  brandColor: string;
 };
 
 function emptyDraft(userId: string): Draft {
@@ -144,8 +146,7 @@ function emptyDraft(userId: string): Draft {
     notificationEmail: "",
     botName: "",
     greeting: "",
-    chatTheme: "light",
-    primaryColor: "#0d9488",
+    brandColor: "#0d9488",
   };
 }
 
@@ -193,19 +194,16 @@ function newId() {
 function ChatPreview({
   botName,
   greeting,
-  chatTheme,
-  primaryColor,
+  brandColor,
 }: {
   botName: string;
   greeting: string;
-  chatTheme: "light" | "dark";
-  primaryColor: string;
+  brandColor: string;
 }) {
-  const isDark = chatTheme === "dark";
   const title = botName.trim() || "Your Bot";
   const greetingText =
     greeting.trim() || "Hi there! 👋 How can I help you today?";
-  const primary = primaryColor || "#0d9488";
+  const brand = brandColor || "#0d9488";
 
   const DEMO_MSGS: PreviewMsg[] = [
     { id: "1", role: "assistant", content: greetingText },
@@ -219,42 +217,29 @@ function ChatPreview({
   ];
 
   return (
-    <div
-      className={`flex h-full flex-col overflow-hidden rounded-2xl border-2 shadow-xl ${
-        isDark ? "border-white/10 bg-[#0d1628]" : "border-slate-100 bg-white"
-      }`}
-    >
-      {/* teal top stripe */}
-      <div className="h-1 w-full shrink-0" style={{ backgroundColor: primary }} />
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border-2 border-slate-100 bg-white shadow-xl">
+      {/* brand top stripe */}
+      <div className="h-1 w-full shrink-0" style={{ backgroundColor: brand }} />
 
       {/* header */}
       <div
-        className={`flex shrink-0 items-center gap-2.5 px-3 py-2.5 ${
-          isDark
-            ? "border-b border-[#0d9488]/40 bg-[#1a2744]"
-            : "border-b-4 bg-white"
-        }`}
-        style={isDark ? undefined : { borderBottomColor: primary }}
+        className="flex shrink-0 items-center gap-2.5 border-b-4 bg-white px-3 py-2.5"
+        style={{ borderBottomColor: brand }}
       >
         <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
-          style={{ backgroundColor: primary }}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+          style={{ backgroundColor: brand, boxShadow: "0 1px 3px rgba(0,0,0,.12)" }}
         >
           {title.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
           <p
-            className={`truncate text-xs font-semibold leading-tight ${
-              isDark ? "text-white" : "text-[#1a2744]"
-            }`}
+            className="truncate text-xs font-semibold leading-tight"
+            style={{ color: brand }}
           >
             {title}
           </p>
-          <p
-            className={`flex items-center gap-1 text-[10px] font-medium ${
-              isDark ? "text-slate-300" : "text-slate-500"
-            }`}
-          >
+          <p className="flex items-center gap-1 text-[10px] font-medium text-slate-500">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
             Online
           </p>
@@ -262,11 +247,7 @@ function ChatPreview({
       </div>
 
       {/* messages */}
-      <div
-        className={`flex-1 space-y-2.5 overflow-y-auto px-2.5 py-3 ${
-          isDark ? "bg-[#0d1628]" : "bg-slate-50"
-        }`}
-      >
+      <div className="flex-1 space-y-2.5 overflow-y-auto bg-slate-50 px-2.5 py-3">
         {DEMO_MSGS.map((m) => (
           <div
             key={m.id}
@@ -275,16 +256,10 @@ function ChatPreview({
             <div
               className={`max-w-[85%] text-[11px] leading-relaxed ${
                 m.role === "user"
-                  ? isDark
-                    ? "rounded-2xl rounded-br-sm border border-[#38bdf8]/30 bg-[#38bdf8]/15 px-3 py-2 text-white"
-                    : "rounded-full border-2 bg-white px-3 py-2 text-slate-800"
-                  : isDark
-                    ? "rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-slate-200"
-                    : "py-0.5 text-slate-800"
+                  ? "rounded-full border-2 bg-white px-3 py-2 text-slate-800"
+                  : "py-0.5 text-slate-800"
               }`}
-              style={
-                !isDark && m.role === "user" ? { borderColor: primary } : undefined
-              }
+              style={m.role === "user" ? { borderColor: brand } : undefined}
             >
               {m.content}
             </div>
@@ -293,22 +268,12 @@ function ChatPreview({
       </div>
 
       {/* input bar */}
-      <div
-        className={`shrink-0 border-t px-2.5 pb-2.5 pt-2 ${
-          isDark ? "border-sky-100/15 bg-[#1a2744]/90" : "border-slate-200 bg-white"
-        }`}
-      >
-        <div
-          className={`flex items-center gap-2 rounded-full border px-3 py-2 text-[11px] ${
-            isDark
-              ? "border-sky-100/20 bg-white/5 text-slate-400"
-              : "border-slate-200 bg-white text-slate-400"
-          }`}
-        >
+      <div className="shrink-0 border-t border-slate-200 bg-white px-2.5 pb-2.5 pt-2">
+        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-400">
           <span className="flex-1">Type a message…</span>
           <span
             className="rounded-full px-2.5 py-1 text-[10px] font-semibold text-white"
-            style={{ backgroundColor: primary }}
+            style={{ backgroundColor: brand }}
           >
             Send
           </span>
@@ -596,17 +561,17 @@ function StepCustomize({
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-[#1a2744]">
-            Bot color
+            Brand color
           </label>
           <div className="flex flex-wrap items-center gap-2">
             {COLOR_PRESETS.map((c) => (
               <button
                 key={c.value}
                 type="button"
-                title={c.label}
-                onClick={() => onChange({ primaryColor: c.value })}
+                title={`${c.emoji} ${c.label}`}
+                onClick={() => onChange({ brandColor: c.value })}
                 className={`h-9 w-9 rounded-full border-2 transition ${
-                  draft.primaryColor === c.value
+                  draft.brandColor === c.value
                     ? "scale-110 border-[#1a2744] shadow-sm"
                     : "border-transparent hover:scale-105"
                 }`}
@@ -615,8 +580,8 @@ function StepCustomize({
             ))}
             <input
               type="color"
-              value={draft.primaryColor}
-              onChange={(e) => onChange({ primaryColor: e.target.value })}
+              value={draft.brandColor}
+              onChange={(e) => onChange({ brandColor: e.target.value })}
               className="h-9 w-9 cursor-pointer rounded-full border border-slate-200 p-0.5"
               title="Custom color"
             />
@@ -635,41 +600,6 @@ function StepCustomize({
           value={draft.greeting}
           onChange={(e) => onChange({ greeting: e.target.value })}
         />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-[#1a2744]">Chat theme</label>
-        <div className="grid grid-cols-2 gap-3">
-          {(["light", "dark"] as const).map((theme) => {
-            const selected = draft.chatTheme === theme;
-            return (
-              <button
-                key={theme}
-                type="button"
-                onClick={() => onChange({ chatTheme: theme })}
-                className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-4 text-sm font-semibold transition ${
-                  selected
-                    ? "border-[#0d9488] bg-teal-50 text-[#0d9488]"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                }`}
-              >
-                <span className="text-2xl">
-                  {theme === "light" ? "☀️" : "🌙"}
-                </span>
-                <span>
-                  {theme === "light"
-                    ? "Light — clean white"
-                    : "Dark — elegant glass"}
-                </span>
-                {selected && (
-                  <span className="text-xs font-normal text-[#0d9488]">
-                    ✓ Selected
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
       </div>
     </div>
   );
@@ -838,10 +768,8 @@ export default function OnboardingPage() {
                 (bot.notification_email as string | null) ?? "",
               botName: (bot.bot_name as string | null) ?? "",
               greeting: (bot.greeting as string | null) ?? "",
-              chatTheme:
-                (bot.chat_theme as "light" | "dark" | null) ?? "light",
-              primaryColor:
-                (bot.primary_color as string | null) ?? "#0d9488",
+              brandColor:
+                (bot.brand_color as string | null) ?? "#0d9488",
               procedures: Array.isArray(bot.services)
                 ? (bot.services as string[])
                 : [],
@@ -924,8 +852,7 @@ export default function OnboardingPage() {
         greeting:
           draft.greeting.trim() ||
           `Hi there! 👋 I'm here to help with bookings, answer questions, and more.`,
-        chat_theme: draft.chatTheme,
-        primary_color: draft.primaryColor,
+        brand_color: draft.brandColor,
         booking_link: draft.bookingLink.trim() || null,
         services: draft.procedures,
         launched: true,
@@ -1046,8 +973,7 @@ export default function OnboardingPage() {
                   <ChatPreview
                     botName={draft.botName || draft.practiceName}
                     greeting={draft.greeting}
-                    chatTheme={draft.chatTheme}
-                    primaryColor={draft.primaryColor}
+                    brandColor={draft.brandColor}
                   />
                 </div>
               </div>
@@ -1072,8 +998,7 @@ export default function OnboardingPage() {
                 <ChatPreview
                   botName={draft.botName || draft.practiceName}
                   greeting={draft.greeting}
-                  chatTheme={draft.chatTheme}
-                  primaryColor={draft.primaryColor}
+                  brandColor={draft.brandColor}
                 />
               </div>
             </div>
