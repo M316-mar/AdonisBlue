@@ -318,107 +318,6 @@ export default function NurseDashboardPage() {
             </button>
           </div>
         )}
-        {/* ── SETUP CHECKLIST — always at the very top ── */}
-        {progressPct < 100 ? (
-          <section className="mb-6 overflow-hidden rounded-2xl border-2 border-[#0d9488] bg-white shadow-lg">
-            {/* Header */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-[#1a2744] to-[#0d4f6b] px-5 py-4 sm:px-6">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_100%_0%,rgba(13,148,136,0.3),transparent)]" aria-hidden />
-              <div className="relative flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-teal-300">Get your bot live</p>
-                  <h2 className="mt-0.5 text-lg font-bold text-white sm:text-xl">
-                    Setup checklist — {progressPct}% complete
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-300">
-                    {CHECKLIST.length - completedCount} step{CHECKLIST.length - completedCount !== 1 ? "s" : ""} remaining before your AI front desk is live
-                  </p>
-                </div>
-                <div className="shrink-0 hidden sm:flex flex-col items-center">
-                  <div className="relative flex h-16 w-16 items-center justify-center">
-                    <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 36 36">
-                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#ffffff18" strokeWidth="3" />
-                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#0d9488" strokeWidth="3"
-                        strokeDasharray={`${progressPct} ${100 - progressPct}`} strokeLinecap="round" />
-                    </svg>
-                    <span className="text-sm font-bold text-white">{progressPct}%</span>
-                  </div>
-                </div>
-              </div>
-              {/* Progress bar */}
-              <div className="relative mt-3 h-2 w-full overflow-hidden rounded-full bg-white/20">
-                <div
-                  className="h-full rounded-full bg-teal-400 transition-[width] duration-500 ease-out"
-                  style={{ width: `${progressPct}%` }}
-                  role="progressbar"
-                  aria-valuenow={progressPct}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label="Setup progress"
-                />
-              </div>
-            </div>
-            {/* Steps */}
-            <ul className="divide-y divide-slate-100">
-              {CHECKLIST.map((item) => {
-                const isDone = done[item.id];
-                const isActiveBotStep = item.id === "share" && launched;
-                const label = isActiveBotStep ? "Bot is active ✅" : item.label;
-                const onboardingHref = onboardingHrefForChecklist(item.id);
-                return (
-                  <li
-                    key={item.id}
-                    className={`relative flex items-center justify-between gap-4 px-5 py-3.5 sm:px-6 ${isDone ? "bg-slate-50/60" : "bg-white"}`}
-                  >
-                    {!isActiveBotStep && !item.alwaysDone ? (
-                      <Link
-                        href={onboardingHref}
-                        className="absolute inset-0 z-[1] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0d9488]"
-                        aria-label={`Continue setup: ${item.label}`}
-                      />
-                    ) : null}
-                    <div className="relative z-[2] flex min-w-0 flex-1 items-center gap-3 pointer-events-none">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center text-base" aria-hidden>
-                        {isDone
-                          ? <span className="select-none text-lg">✅</span>
-                          : <span className="block h-6 w-6 rounded-full border-2 border-slate-300 bg-white" />}
-                      </span>
-                      <span className={`text-sm font-medium leading-snug ${isDone && !isActiveBotStep ? "text-slate-400 line-through decoration-slate-300" : "text-[#1a2744]"}`}>
-                        {label}
-                      </span>
-                    </div>
-                    <div className="relative z-[2] shrink-0">
-                      {isActiveBotStep ? (
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Active</span>
-                          <Link href={`/chat/${botChatSlug}`} className="inline-flex items-center rounded-full bg-[#0d9488] px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-700">View bot</Link>
-                        </div>
-                      ) : item.alwaysDone ? (
-                        <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-[#0d9488]">Done</span>
-                      ) : (
-                        <Link href={onboardingHref} tabIndex={-1} className="inline-flex items-center rounded-full bg-[#0d9488] px-4 py-1.5 text-xs font-bold text-white transition hover:bg-teal-700">
-                          {isDone ? "Edit" : "Start →"}
-                        </Link>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ) : (
-          <div className="mb-6 flex items-center gap-4 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-sky-50 px-5 py-4 shadow-sm">
-            <span className="text-3xl">🎉</span>
-            <div>
-              <p className="text-base font-bold text-[#1a2744]">You&apos;re all set!</p>
-              <p className="text-sm text-slate-600">Your bot is live and your practice is fully set up. Share your link and start getting clients.</p>
-            </div>
-            <Link href={`/chat/${botChatSlug}`} className="ml-auto shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700">
-              View my bot →
-            </Link>
-          </div>
-        )}
-
         <div className="grid gap-6 lg:grid-cols-12 lg:gap-8 lg:items-start">
           <div className="space-y-6 lg:col-span-8">
             <section className="relative overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 shadow-lg sm:px-6 sm:py-8">
@@ -462,6 +361,109 @@ export default function NurseDashboardPage() {
                 </div>
               ))}
             </section>
+
+            {/* ── SETUP CHECKLIST — below stats, above clients ── */}
+            {progressPct < 100 ? (
+              <section className="overflow-hidden rounded-2xl border-2 border-[#0d9488] bg-white shadow-lg">
+                {/* Header */}
+                <div className="relative overflow-hidden bg-gradient-to-r from-[#1a2744] to-[#0d4f6b] px-5 py-4 sm:px-6">
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_100%_0%,rgba(13,148,136,0.3),transparent)]" aria-hidden />
+                  <div className="relative flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-teal-300">Get your bot live</p>
+                      <h2 className="mt-0.5 text-lg font-bold text-white sm:text-xl">
+                        Setup checklist — {progressPct}% complete
+                      </h2>
+                      <p className="mt-1 text-sm text-slate-300">
+                        {CHECKLIST.length - completedCount} step{CHECKLIST.length - completedCount !== 1 ? "s" : ""} remaining before your AI front desk is live
+                      </p>
+                    </div>
+                    <div className="hidden shrink-0 flex-col items-center sm:flex">
+                      <div className="relative flex h-16 w-16 items-center justify-center">
+                        <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 36 36">
+                          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#ffffff18" strokeWidth="3" />
+                          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#0d9488" strokeWidth="3"
+                            strokeDasharray={`${progressPct} ${100 - progressPct}`} strokeLinecap="round" />
+                        </svg>
+                        <span className="text-sm font-bold text-white">{progressPct}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="relative mt-3 h-2 w-full overflow-hidden rounded-full bg-white/20">
+                    <div
+                      className="h-full rounded-full bg-teal-400 transition-[width] duration-500 ease-out"
+                      style={{ width: `${progressPct}%` }}
+                      role="progressbar"
+                      aria-valuenow={progressPct}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label="Setup progress"
+                    />
+                  </div>
+                </div>
+                {/* Steps */}
+                <ul className="divide-y divide-slate-100">
+                  {CHECKLIST.map((item) => {
+                    const isDone = done[item.id];
+                    const isActiveBotStep = item.id === "share" && launched;
+                    const label = isActiveBotStep ? "Bot is active ✅" : item.label;
+                    const onboardingHref = onboardingHrefForChecklist(item.id);
+                    return (
+                      <li
+                        key={item.id}
+                        className={`relative flex items-center justify-between gap-4 px-5 py-3.5 sm:px-6 transition-colors ${
+                          isDone ? "bg-slate-50/60" : "bg-white hover:bg-slate-50 cursor-pointer"
+                        }`}
+                      >
+                        {!isActiveBotStep && !item.alwaysDone ? (
+                          <Link
+                            href={onboardingHref}
+                            className="absolute inset-0 z-[1] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0d9488]"
+                            aria-label={`Continue setup: ${item.label}`}
+                          />
+                        ) : null}
+                        <div className="relative z-[2] flex min-w-0 flex-1 items-center gap-3 pointer-events-none">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center text-base" aria-hidden>
+                            {isDone
+                              ? <span className="select-none text-lg">✅</span>
+                              : <span className="block h-6 w-6 rounded-full border-2 border-slate-300 bg-white" />}
+                          </span>
+                          <span className={`text-sm font-medium leading-snug ${isDone && !isActiveBotStep ? "text-slate-400 line-through decoration-slate-300" : "text-[#1a2744]"}`}>
+                            {label}
+                          </span>
+                        </div>
+                        <div className="relative z-[2] shrink-0">
+                          {isActiveBotStep ? (
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Active</span>
+                              <Link href={`/chat/${botChatSlug}`} className="inline-flex items-center rounded-full bg-[#0d9488] px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-700">View bot</Link>
+                            </div>
+                          ) : item.alwaysDone ? (
+                            <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-[#0d9488]">Done</span>
+                          ) : (
+                            <Link href={onboardingHref} tabIndex={-1} className="inline-flex items-center rounded-full bg-[#0d9488] px-4 py-1.5 text-xs font-bold text-white transition hover:bg-teal-700">
+                              {isDone ? "Edit" : "Start →"}
+                            </Link>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : (
+              <div className="flex items-center gap-4 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-sky-50 px-5 py-4 shadow-sm">
+                <span className="text-3xl">🎉</span>
+                <div>
+                  <p className="text-base font-bold text-[#1a2744]">You&apos;re all set!</p>
+                  <p className="text-sm text-slate-600">Your bot is live and your practice is fully set up. Share your link and start getting clients.</p>
+                </div>
+                <Link href={`/chat/${botChatSlug}`} className="ml-auto shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700">
+                  View my bot →
+                </Link>
+              </div>
+            )}
 
             {intakes.length > 0 ? (
               <section className="rounded-2xl border border-slate-200 bg-white shadow-md">
