@@ -298,7 +298,7 @@ export default function OffersPage() {
     );
   }
 
-  const inputCls = "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2";
+  const inputCls = "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2";
 
   return (
     <div className="min-h-dvh bg-slate-50">
@@ -337,13 +337,13 @@ export default function OffersPage() {
         {/* ── Holiday quick-start ───────────────────────────────────────── */}
         <section>
           <h2 className="mb-3 text-sm font-semibold text-[#1a2744]">⚡ Quick-start templates — tap to pre-fill</h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {TEMPLATES.map((t) => (
               <button
                 key={t.label}
                 type="button"
                 onClick={() => applyTemplate(t)}
-                className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-[#0d9488] hover:bg-teal-50 hover:text-[#0d9488]"
+                className="flex w-full items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-[#0d9488] hover:bg-teal-50 hover:text-[#0d9488] min-h-[44px]"
               >
                 <span>{t.emoji}</span>
                 <span>{t.label}</span>

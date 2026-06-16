@@ -609,7 +609,7 @@ export default function BlueRoomPage() {
                   }}
                   placeholder={`What's on your mind, ${firstName}? Share a tip, question, or update with the community 💙`}
                   rows={4}
-                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20 placeholder:text-slate-400"
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-800 outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20 placeholder:text-slate-400"
                   autoFocus
                 />
                 {mediaPreview && (

@@ -527,7 +527,7 @@ export default function PublicChatPage() {
             }}
             placeholder="Type a message…"
             disabled={sending}
-            className="max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full border-2 border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-300 disabled:opacity-50"
+            className="max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full border-2 border-slate-200 bg-white px-4 py-2.5 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-300 disabled:opacity-50"
           />
           <button
             type="submit"
@@ -602,7 +602,7 @@ export default function PublicChatPage() {
           <button
             type="button"
             onClick={() => setChatOpen(true)}
-            className="relative flex h-14 w-14 items-center justify-center rounded-full shadow-xl shadow-slate-900/20 ring-2 ring-white/25 transition hover:opacity-90 active:scale-[0.98]"
+            className="relative flex h-16 w-16 items-center justify-center rounded-full shadow-xl shadow-slate-900/20 ring-2 ring-white/25 transition hover:opacity-90 active:scale-[0.98] md:h-14 md:w-14"
             style={{ backgroundColor: brand }}
             aria-label="Open chat"
           >

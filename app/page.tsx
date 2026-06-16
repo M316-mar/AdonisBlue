@@ -56,7 +56,7 @@ function ROICalculator() {
           <label className="text-sm font-semibold text-[#1a2744]">Clients per month</label>
           <span className="text-2xl font-bold text-[#0d9488]">{clients}</span>
         </div>
-        <input type="range" min={5} max={200} value={clients} onChange={e => setClients(Number(e.target.value))} className="w-full accent-[#0d9488]" />
+        <input type="range" min={5} max={200} value={clients} onChange={e => setClients(Number(e.target.value))} className="w-full accent-[#0d9488] text-base" />
         <div className="flex justify-between text-xs text-slate-400 mt-1"><span>5</span><span>200</span></div>
       </div>
       <div className="grid grid-cols-3 gap-4 text-center">

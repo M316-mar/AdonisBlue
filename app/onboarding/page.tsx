@@ -301,7 +301,7 @@ function StepWelcome({
   onChange: (patch: Partial<Draft>) => void;
 }) {
   const field =
-    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]";
+    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]";
 
   return (
     <div className="flex flex-col gap-5">
@@ -430,7 +430,7 @@ function StepProcedures({
           <span className="font-normal text-slate-400">(optional)</span>
         </label>
         <input
-          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]"
+          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]"
           placeholder="https://your-booking-link.com"
           value={draft.bookingLink}
           onChange={(e) => onChange({ bookingLink: e.target.value })}
@@ -451,7 +451,7 @@ function StepGetFound({
   onChange: (patch: Partial<Draft>) => void;
 }) {
   const field =
-    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]";
+    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]";
 
   return (
     <div className="flex flex-col gap-5">
@@ -555,7 +555,7 @@ function StepCustomize({
   const [generating, setGenerating] = useState(false);
 
   const field =
-    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]";
+    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]";
 
   return (
     <div className="flex flex-col gap-5">
@@ -669,7 +669,7 @@ function StepCustomize({
         </label>
         <textarea
           rows={2}
-          className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+          className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
           placeholder="Hi there! 👋 I'm here to help with bookings, answer questions, and more."
           value={draft.greeting}
           onChange={(e) => onChange({ greeting: e.target.value })}
@@ -832,6 +832,7 @@ function OnboardingInner() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [botSlug, setBotSlug] = useState("");
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const tokenRef = useRef<string>("");
 
   // ── Auth + hydrate draft ─────────────────────────────────────────────────
@@ -1127,11 +1128,11 @@ function OnboardingInner() {
         <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
           {showPreview ? (
             // Step 4: two-column layout with live preview
-            <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+            <div className="grid gap-8 md:grid-cols-[1fr_320px]">
               <div>
                 <StepCustomize draft={draft} onChange={setDraft} />
               </div>
-              <div className="hidden lg:block">
+              <div className="hidden md:block">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Live preview
                 </p>
@@ -1155,19 +1156,46 @@ function OnboardingInner() {
             <StepLive draft={draft} botSlug={botSlug} />
           )}
 
-          {/* Mobile preview for step 4 */}
+          {/* Mobile preview button for step 4 */}
           {showPreview && (
-            <div className="mt-6 lg:hidden">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Live preview
-              </p>
-              <div className="h-[380px]">
-                <ChatPreview
-                  practiceName={draft.practiceName}
-                  greeting={draft.greeting}
-                  brandColor={draft.brandColor}
-                  logoUrl={draft.logoUrl}
-                />
+            <div className="mt-4 md:hidden">
+              <button
+                type="button"
+                onClick={() => setShowPreviewModal(true)}
+                className="w-full min-h-[44px] rounded-full border-2 border-[#0d9488] px-6 py-2.5 text-sm font-semibold text-[#0d9488] transition hover:bg-teal-50"
+              >
+                👁 Preview my bot
+              </button>
+            </div>
+          )}
+
+          {/* Preview modal (mobile only) */}
+          {showPreviewModal && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:hidden" role="dialog" aria-modal="true">
+              <div
+                className="absolute inset-0 bg-black/60"
+                onClick={() => setShowPreviewModal(false)}
+              />
+              <div className="relative z-[201] w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowPreviewModal(false)}
+                  className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+                  aria-label="Close preview"
+                >
+                  ✕
+                </button>
+                <p className="px-5 pb-2 pt-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Live preview
+                </p>
+                <div className="h-[420px] px-4 pb-4">
+                  <ChatPreview
+                    practiceName={draft.practiceName}
+                    greeting={draft.greeting}
+                    brandColor={draft.brandColor}
+                    logoUrl={draft.logoUrl}
+                  />
+                </div>
               </div>
             </div>
           )}

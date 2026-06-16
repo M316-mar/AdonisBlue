@@ -300,7 +300,7 @@ export default function AuthPage() {
                       autoComplete="name"
                       value={signupName}
                       onChange={(e) => setSignupName(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
                       placeholder="Jane Doe"
                     />
                   </div>
@@ -315,7 +315,7 @@ export default function AuthPage() {
                       autoComplete="email"
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
                       placeholder="you@practice.com"
                     />
                   </div>
@@ -331,7 +331,7 @@ export default function AuthPage() {
                         autoComplete="new-password"
                         value={signupPassword}
                         onChange={(e) => setSignupPassword(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-base text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
                         placeholder="Create a strong password"
                       />
                       <PasswordToggleButton visible={showPassword} onToggle={() => setShowPassword((p) => !p)} />
@@ -349,7 +349,7 @@ export default function AuthPage() {
                         autoComplete="new-password"
                         value={signupConfirm}
                         onChange={(e) => setSignupConfirm(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-base text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
                         placeholder="Confirm your password"
                       />
                       <PasswordToggleButton visible={showConfirm} onToggle={() => setShowConfirm((p) => !p)} />
@@ -415,7 +415,7 @@ export default function AuthPage() {
                     autoComplete="email"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
                     placeholder="you@practice.com"
                   />
                 </div>
@@ -445,7 +445,7 @@ export default function AuthPage() {
                       autoComplete="current-password"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-base text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
                       placeholder="Your password"
                     />
                     <PasswordToggleButton visible={showLoginPassword} onToggle={() => setShowLoginPassword((p) => !p)} />
@@ -486,7 +486,7 @@ export default function AuthPage() {
                     autoComplete="email"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-[#1a2744] outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
                     placeholder="you@practice.com"
                   />
                   <button
