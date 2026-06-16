@@ -1,8 +1,8 @@
 "use client";
 
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 // ─── Confetti ─────────────────────────────────────────────────────────────────
 
@@ -830,8 +830,9 @@ function StepLive({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export default function OnboardingPage() {
+function OnboardingInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [ready, setReady] = useState(false);
   const [draft, setDraftState] = useState<Draft>(emptyDraft(""));
   const [saving, setSaving] = useState(false);
@@ -841,6 +842,13 @@ export default function OnboardingPage() {
 
   // ── Auth + hydrate draft ─────────────────────────────────────────────────
   useEffect(() => {
+    // Read ?step= from URL — highest priority source for initial step
+    const stepParam = searchParams ? Number(searchParams.get("step")) : NaN;
+    const urlStep =
+      !isNaN(stepParam) && stepParam >= 1 && stepParam <= TOTAL_STEPS
+        ? stepParam
+        : null;
+
     let cancelled = false;
     (async () => {
       const { data } = await supabase.auth.getSession();
@@ -852,7 +860,12 @@ export default function OnboardingPage() {
       const userId = data.session.user.id;
       tokenRef.current = data.session.access_token;
 
-      // Always fetch server state first — both mybot and procedures in parallel
+      // Derive first name from auth metadata as best-effort fallback
+      const metaFullName =
+        (data.session.user.user_metadata?.full_name as string | undefined) ?? "";
+      const metaFirstName = metaFullName.trim().split(" ")[0] ?? "";
+
+      // Always fetch server state first — mybot and procedures in parallel
       let serverDraft: Partial<Draft> = {};
       try {
         const authHeader = { Authorization: `Bearer ${data.session.access_token}` };
@@ -862,21 +875,22 @@ export default function OnboardingPage() {
         ]);
         if (cancelled) return;
 
-        // ── Bot row — all fields ───────────────────────────────────────────────
+        // ── Bot row — all fields ──────────────────────────────────────────
+        let botLaunched = false;
         if (botRes.ok) {
           const { bot } = (await botRes.json()) as { bot?: Record<string, unknown> | null };
           if (bot && bot.nurse_id === userId) {
-            // ── Pre-fill ALL fields from the server — never lose existing data ──
+            botLaunched = bot.launched === true;
+
+            // ── Pre-fill ALL fields — never overwrite server data with empty ──
             serverDraft = {
-              // Step 1
-              // Note: first_name is not a DB column; keep whatever the nurse typed
-              // locally — defaults to empty so the field stays editable.
-              firstName: (bot.first_name as string | null) ?? "",
+              // Step 1 — first_name has no DB column; use auth metadata or local draft
+              firstName: metaFirstName,
               practiceName: (bot.practice_name as string | null) ?? "",
               city: (bot.city as string | null) ?? "",
               state: (bot.state as string | null) ?? "",
-              // Step 2 — procedures come from the services array on bots table
-              procedures: Array.isArray(bot.services)
+              // Step 2 — procedures come from services[] on bots table
+              procedures: Array.isArray(bot.services) && bot.services.length > 0
                 ? (bot.services as string[])
                 : [],
               bookingLink: (bot.booking_link as string | null) ?? "",
@@ -888,36 +902,46 @@ export default function OnboardingPage() {
               notificationEmail: (bot.notification_email as string | null) ?? "",
               // Step 4
               botName: (bot.bot_name as string | null) ?? "",
-              // "greeting" is the DB column name for the welcome message
               greeting: (bot.greeting as string | null) ?? "",
-              // brand_color — now included in mybot select string
               brandColor: (bot.brand_color as string | null) ?? "#0d9488",
               logoUrl: (bot.logo_url as string | null) ?? "",
             };
 
-            // Also merge procedure names from the procedures table as a fallback —
-            // if services array is empty but procedures table has rows, use those.
-            if ((serverDraft.procedures ?? []).length === 0 && procRes.ok) {
+            // Fallback: if services[] is empty, pull names from procedures table
+            if (serverDraft.procedures!.length === 0 && procRes.ok) {
               const { procedures } = (await procRes.json()) as {
                 procedures?: Array<{ name?: string }> | null;
               };
               if (Array.isArray(procedures) && procedures.length > 0) {
-                serverDraft.procedures = procedures
-                  .map((p) => p.name ?? "")
-                  .filter(Boolean);
+                serverDraft.procedures = procedures.map((p) => p.name ?? "").filter(Boolean);
               }
             }
 
-            // If bot is already launched, jump straight to the success step
-            if (bot.launched === true) {
-              const slug = slugify(
-                (bot.bot_name as string | null) ??
-                  (bot.practice_name as string | null) ??
-                  ""
+            // Track slug for step-5 share link
+            if (botLaunched) {
+              setBotSlug(
+                slugify((bot.bot_name as string | null) ?? (bot.practice_name as string | null) ?? "")
               );
-              setBotSlug(slug);
             }
           }
+        }
+
+        // If procedures table was fetched independently (no bot row yet), still use it
+        if ((serverDraft.procedures ?? []).length === 0 && procRes.ok) {
+          try {
+            const { procedures } = (await procRes.json()) as {
+              procedures?: Array<{ name?: string }> | null;
+            };
+            if (Array.isArray(procedures) && procedures.length > 0) {
+              serverDraft.procedures = procedures.map((p) => p.name ?? "").filter(Boolean);
+            }
+          } catch { /* ignore */ }
+        }
+
+        // Restore firstName from local draft if auth metadata didn't have it
+        if (!serverDraft.firstName) {
+          const localPeek = loadDraft(userId);
+          if (localPeek.firstName) serverDraft.firstName = localPeek.firstName;
         }
       } catch {
         // Network error — fall back to localStorage draft
@@ -925,12 +949,25 @@ export default function OnboardingPage() {
       if (cancelled) return;
 
       const localDraft = loadDraft(userId);
-      // Merge: server wins for DB fields, localStorage wins for step position
+
+      // ── Determine initial step ────────────────────────────────────────
+      // Priority: ?step= URL param > localStorage > 1
+      // Exception: if ?step= is present, NEVER auto-jump to step 5 (success),
+      // even if the bot is already launched — the nurse is editing.
+      let initialStep: number;
+      if (urlStep !== null) {
+        initialStep = urlStep;
+      } else if (localDraft.step > 1) {
+        initialStep = localDraft.step;
+      } else {
+        initialStep = 1;
+      }
+
       const merged: Draft = {
         ...emptyDraft(userId),
         ...serverDraft,
         userId,
-        step: localDraft.step > 1 ? localDraft.step : 1,
+        step: initialStep,
       };
       setDraftState(merged);
       saveDraft(merged);
@@ -939,7 +976,7 @@ export default function OnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, searchParams]);
 
   const setDraft = useCallback((patch: Partial<Draft>) => {
     setDraftState((prev) => {
@@ -1187,5 +1224,19 @@ export default function OnboardingPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-[#0d9488]" />
+        </div>
+      }
+    >
+      <OnboardingInner />
+    </Suspense>
   );
 }
