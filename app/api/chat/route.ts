@@ -11,6 +11,43 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Configuration error" }, { status: 500 });
     }
 
+    // ── Fetch active offers for this nurse ────────────────────────────────
+    let activeOffersBlock = "";
+    if (botConfig.nurse_id) {
+      try {
+        const db = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        const now = new Date().toISOString();
+        const { data: offerRows } = await db
+          .from("offers")
+          .select("title, description, discount_type, discount_value, expires_at")
+          .eq("nurse_id", botConfig.nurse_id)
+          .eq("active", true)
+          .or(`starts_at.is.null,starts_at.lte.${now}`)
+          .or(`expires_at.is.null,expires_at.gte.${now}`);
+
+        if (offerRows && offerRows.length > 0) {
+          const lines = offerRows.map((o: Record<string, unknown>) => {
+            const disc =
+              o.discount_type === "addon"
+                ? "Free add-on"
+                : o.discount_type === "percentage"
+                  ? `${String(o.discount_value ?? "")}% off`
+                  : `$${String(o.discount_value ?? "")} off`;
+            const expiry = o.expires_at
+              ? `valid until ${new Date(o.expires_at as string).toLocaleDateString("en-US", { month: "long", day: "numeric" })}`
+              : "ongoing";
+            return `- ${String(o.title)}: ${String(o.description ?? "")} (${disc}, ${expiry})`;
+          });
+          activeOffersBlock = `\n\nCURRENT ACTIVE OFFERS:\n${lines.join("\n")}\nWhen clients ask about pricing, services, or bookings, naturally mention these offers. Don't force it — only bring it up when relevant.`;
+        }
+      } catch {
+        // Non-fatal — proceed without offers
+      }
+    }
+
     const systemPrompt = `You are a warm, friendly assistant for ${botConfig.practice_name || "this aesthetic practice"} located in ${botConfig.city || "your area"}.
 
 Your role is a sales-psychology driven customer service assistant. You are NOT pushy. You guide people warmly toward booking.
@@ -92,7 +129,7 @@ If asked something you cannot answer, say: "That's a great question! Let me have
 
 Always speak in plain simple English. No medical terms. Be the warm voice that makes someone feel safe enough to take the next step.
 
-FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisks for bold (**text**), no bullet points (- item or * item), no headers (#). Write in plain conversational sentences only. Emojis are fine and encouraged.`;
+FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisks for bold (**text**), no bullet points (- item or * item), no headers (#). Write in plain conversational sentences only. Emojis are fine and encouraged.${activeOffersBlock}`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

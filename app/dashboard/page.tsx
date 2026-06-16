@@ -587,6 +587,12 @@ export default function NurseDashboardPage() {
                     🩹 Aftercare Dashboard
                   </Link>
                   <Link
+                    href="/offers"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2.5 text-center text-sm font-semibold text-orange-700 transition hover:bg-orange-100"
+                  >
+                    🎉 Offers &amp; Specials
+                  </Link>
+                  <Link
                     href="/booking-connect"
                     className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-center text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
                   >

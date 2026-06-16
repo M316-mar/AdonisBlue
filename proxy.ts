@@ -67,6 +67,7 @@ const PROTECTED_PREFIXES = [
   "/blueroom",
   "/onboarding",
   "/booking-connect",
+  "/offers",
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -168,6 +169,8 @@ export const config = {
     "/blueroom",
     "/onboarding",
     "/booking-connect",
+    "/offers/:path*",
+    "/offers",
     "/auth/:path*",
     "/auth",
   ],
