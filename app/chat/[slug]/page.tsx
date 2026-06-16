@@ -172,6 +172,8 @@ export default function PublicChatPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const [msgIdx, setMsgIdx] = useState(0);
+  const [showAttn, setShowAttn] = useState(false);
 
   const brand = useMemo(() => safeHex(bot?.brand_color, "#0d9488"), [bot?.brand_color]);
 
@@ -185,6 +187,31 @@ export default function PublicChatPage() {
     if (typeof raw === "string" && raw.trim()) return raw.trim();
     return DEFAULT_ATTENTION;
   }, [bot?.bubble_attention_message]);
+
+  const PSYCH_MESSAGES = [
+    "✨ Curious about lip filler?",
+    "💉 What would you change first?",
+    "💕 Ready to look refreshed?",
+    "👄 What's holding you back?",
+    "✨ Ask me anything — I'm here!",
+  ];
+
+  // Show rotating attention messages when chat is closed
+  useEffect(() => {
+    if (chatOpen) {
+      setShowAttn(false);
+      return;
+    }
+    const showTimer = setTimeout(() => setShowAttn(true), 3000);
+    const rotateInterval = setInterval(() => {
+      setMsgIdx((i) => (i + 1) % PSYCH_MESSAGES.length);
+    }, 5000);
+    return () => {
+      clearTimeout(showTimer);
+      clearInterval(rotateInterval);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatOpen]);
 
   useEffect(() => {
     if (!slug) {
@@ -560,20 +587,31 @@ export default function PublicChatPage() {
       </main>
 
       {!chatOpen ? (
-        <button
-          type="button"
-          onClick={() => setChatOpen(true)}
-          className="fixed bottom-5 right-4 z-40 flex max-w-[min(calc(100vw-2rem),20rem)] items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold text-white shadow-xl shadow-slate-900/20 ring-2 ring-white/25 transition hover:opacity-90 active:scale-[0.98] sm:bottom-8 sm:right-8"
-          style={{ backgroundColor: brand }}
-        >
-          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20">
-            <span className="text-lg" aria-hidden>
-              💬
-            </span>
-            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-400" />
-          </span>
-          <span className="line-clamp-2 min-w-0 flex-1 leading-snug">{attentionMessage}</span>
-        </button>
+        <div className="fixed bottom-5 right-4 z-40 flex flex-col items-end gap-2 sm:bottom-8 sm:right-8">
+          {showAttn && (
+            <button
+              type="button"
+              onClick={() => setChatOpen(true)}
+              className="animate-bounce-in max-w-[min(calc(100vw-5rem),16rem)] rounded-2xl px-4 py-2.5 text-left text-sm font-semibold text-white shadow-xl shadow-slate-900/20 ring-2 ring-white/25 transition hover:opacity-90 active:scale-[0.98]"
+              style={{ backgroundColor: brand }}
+            >
+              <span className="line-clamp-2 leading-snug">{PSYCH_MESSAGES[msgIdx]}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setChatOpen(true)}
+            className="relative flex h-14 w-14 items-center justify-center rounded-full shadow-xl shadow-slate-900/20 ring-2 ring-white/25 transition hover:opacity-90 active:scale-[0.98]"
+            style={{ backgroundColor: brand }}
+            aria-label="Open chat"
+          >
+            <span className="text-2xl" aria-hidden>💬</span>
+            <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-400" />
+            {showAttn && (
+              <span className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ backgroundColor: brand }} />
+            )}
+          </button>
+        </div>
       ) : null}
 
       {chatOpen ? <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-[2px] md:bg-transparent md:backdrop-blur-0" aria-hidden onClick={() => setChatOpen(false)} /> : null}

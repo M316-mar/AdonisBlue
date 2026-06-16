@@ -197,10 +197,12 @@ function ChatPreview({
   botName,
   greeting,
   brandColor,
+  logoUrl,
 }: {
   botName: string;
   greeting: string;
   brandColor: string;
+  logoUrl?: string;
 }) {
   const title = botName.trim() || "Your Bot";
   const greetingText =
@@ -229,10 +231,14 @@ function ChatPreview({
         style={{ borderBottomColor: brand }}
       >
         <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-          style={{ backgroundColor: brand, boxShadow: "0 1px 3px rgba(0,0,0,.12)" }}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white overflow-hidden"
+          style={!logoUrl ? { backgroundColor: brand, boxShadow: "0 1px 3px rgba(0,0,0,.12)" } : { boxShadow: "0 1px 3px rgba(0,0,0,.12)" }}
         >
-          {title.charAt(0).toUpperCase()}
+          {logoUrl ? (
+            <img src={logoUrl} alt="logo" className="h-full w-full object-cover" />
+          ) : (
+            title.charAt(0).toUpperCase()
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <p
@@ -630,7 +636,7 @@ function StepCustomize({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[#1a2744]">Bot name</label>
+          <label className="text-sm font-medium text-[#1a2744]">Bot name <span className="font-normal text-slate-400">(optional)</span></label>
           <input
             className={field}
             placeholder="Bella, Luna, Glamour AI…"
@@ -1146,6 +1152,7 @@ function OnboardingInner() {
                     botName={draft.botName || draft.practiceName}
                     greeting={draft.greeting}
                     brandColor={draft.brandColor}
+                    logoUrl={draft.logoUrl}
                   />
                 </div>
               </div>
@@ -1171,6 +1178,7 @@ function OnboardingInner() {
                   botName={draft.botName || draft.practiceName}
                   greeting={draft.greeting}
                   brandColor={draft.brandColor}
+                  logoUrl={draft.logoUrl}
                 />
               </div>
             </div>
