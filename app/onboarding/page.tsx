@@ -1,1623 +1,1127 @@
 "use client";
 
 import { supabase } from "@/lib/supabase";
-import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { CSSProperties } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-const STORAGE_KEY = "adonisblue-onboarding";
-const TOTAL_STEPS = 4;
-/** Max size for logo and brand image (5 MB). */
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-const FILE_TOO_LARGE_MSG = "This file is larger than 5 MB. Please choose a smaller image.";
-const LOGO_BRAND_TYPE_MSG = "Please choose a PNG, JPG, JPEG, WEBP, or SVG image.";
+// ─── Confetti ─────────────────────────────────────────────────────────────────
 
-const STEP_LABELS = ["Practice", "Services", "Personality", "Launch"] as const;
+function Confetti() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-const SERVICES: { id: string; label: string; description: string }[] = [
-  { id: "lip-filler", label: "Lip Filler", description: "Shape, volume, and symmetry for natural-looking lips." },
-  { id: "botox", label: "Botox", description: "Smooth fine lines and soften expression lines with neuromodulators." },
-  { id: "cheek-fillers", label: "Cheek Fillers", description: "Restore mid-face volume and contour for a lifted look." },
-  { id: "under-eye-filler", label: "Under-Eye Filler", description: "Improve hollowing and shadows for a fresher, rested appearance." },
-  { id: "iv-therapy", label: "IV Therapy", description: "Hydration and vitamin support tailored to how your clients feel." },
-  { id: "microneedling", label: "Microneedling", description: "Collagen stimulation for texture, pores, and overall skin quality." },
-  { id: "chemical-peels", label: "Chemical Peels", description: "Controlled exfoliation for tone, clarity, and renewal." },
-  { id: "skin-boosters", label: "Skin Boosters", description: "Deep hydration and glow for tired or dehydrated skin." },
-  { id: "pdo-threads", label: "PDO Threads", description: "Supportive lifting and tightening where clients want definition." },
-  { id: "kybella", label: "Kybella", description: "Targeted improvement for submental fullness when it fits your practice." },
-  { id: "prp", label: "PRP", description: "Platelet-rich treatments for rejuvenation and natural regeneration." },
-  { id: "consultations", label: "Consultations", description: "First visits, education, and personalized treatment planning." },
-];
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-const OTHER_SERVICE_ID = "other";
+    const resize = () => {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
 
-const OTHER_SERVICE_META = {
-  id: OTHER_SERVICE_ID,
-  label: "Other",
-  description: "Add your own services if they are not listed above.",
-} as const;
+    const COLORS = ["#0d9488", "#1a2744", "#f0abfc", "#fbbf24", "#34d399", "#60a5fa", "#f87171"];
+    const pieces = Array.from({ length: 110 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * -canvas.height,
+      r: Math.random() * 6 + 3,
+      d: Math.random() * 2 + 1,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      tilt: Math.random() * 10 - 5,
+      tiltSpeed: Math.random() * 0.1 + 0.05,
+      angle: Math.random() * Math.PI * 2,
+    }));
 
-const GREETING_GENERATOR_TONES: { id: string; title: string; tagline: string }[] = [
-  { id: "warm", title: "Warm & Welcoming", tagline: "Feel like a warm hug the moment they say hello" },
-  { id: "polished", title: "Professional & Polished", tagline: "Elegant, confident and reassuring" },
-  { id: "fun", title: "Fun & Bubbly", tagline: "Bright, energetic and full of personality" },
-  { id: "calm", title: "Calm & Reassuring", tagline: "Gentle, safe and trustworthy" },
-];
+    let frame: number;
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      pieces.forEach((p) => {
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, p.r, p.r * 0.45, p.angle, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
 
-const TONES = ["Warm & friendly", "Professional & polished", "Fun & bubbly", "Calm & reassuring"] as const;
+        p.y += p.d;
+        p.angle += p.tiltSpeed;
+        p.tilt += Math.sin(p.angle) * 0.5;
+        p.x += Math.sin(p.angle) * 1.5;
 
-type Tone = (typeof TONES)[number];
+        if (p.y > canvas.height) {
+          p.y = -10;
+          p.x = Math.random() * canvas.width;
+        }
+      });
+      frame = requestAnimationFrame(draw);
+    };
+    draw();
 
-type BotNameFontId = "dm-sans" | "playfair" | "inter-bold" | "nunito" | "georgia";
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
 
-const BOT_NAME_FONT_IDS: BotNameFontId[] = ["dm-sans", "playfair", "inter-bold", "nunito", "georgia"];
+  return (
+    <canvas
+      ref={canvasRef}
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      aria-hidden
+    />
+  );
+}
 
-const BOT_FONT_CARDS: { id: BotNameFontId; label: string }[] = [
-  { id: "dm-sans", label: "Modern & Clean (DM Sans)" },
-  { id: "playfair", label: "Elegant & Serif (Playfair Display)" },
-  { id: "inter-bold", label: "Bold & Strong (Inter Bold)" },
-  { id: "nunito", label: "Soft & Friendly (Nunito)" },
-  { id: "georgia", label: "Classic (Georgia)" },
-];
+// ─── Constants ───────────────────────────────────────────────────────────────
 
-const ATTENTION_CHIP_TEXTS = [
-  "Need help? Click here! 💬",
-  "Need any assistance? ✨",
-  "Have a question? I am here! 👋",
-  "Hi! How can I help you today? 💙",
+const TOTAL_STEPS = 5;
+
+const PROCEDURES = [
+  "Lip Filler",
+  "Botox / Neuromodulator",
+  "Cheek Filler",
+  "Tear Trough",
+  "Jawline Filler",
+  "Nose Filler",
+  "PRP / Biostimulator",
+  "Skin Booster",
+  "Microneedling",
+  "Other",
 ] as const;
 
-type Step1Data = {
-  fullName: string;
+type Procedure = (typeof PROCEDURES)[number];
+
+const COLOR_PRESETS = [
+  { label: "Teal", value: "#0d9488" },
+  { label: "Navy", value: "#1a2744" },
+  { label: "Rose", value: "#e11d48" },
+  { label: "Purple", value: "#7c3aed" },
+  { label: "Gold", value: "#d97706" },
+] as const;
+
+const DRAFT_KEY = "adonisblue-onboarding-v2";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Draft = {
+  userId: string;
+  step: number;
+  // Step 1
+  firstName: string;
   practiceName: string;
   city: string;
   state: string;
-  instagram: string;
-  notificationEmail: string;
-  facebook: string;
-  tiktok: string;
-  website: string;
-  otherSocial: string;
-};
-
-type Step2Data = {
-  serviceIds: string[];
-  customServices: { name: string; description: string }[];
-};
-
-type Step3Data = {
-  botName: string;
-  logoImage: string | null;
-  logoDataUrl: string | null;
-  brandNameImage: string | null;
-  botNameFont: BotNameFontId;
-  bubbleAttentionMessage: string;
-  greeting: string;
-  tone: Tone;
-  chatTheme: "dark" | "light";
-  primaryColor: string;
-  forwardQuestions: string;
+  // Step 2
+  procedures: string[];
   bookingLink: string;
-  cancellationPolicy: string;
-  aftercare: string;
-  numbingMethod: string;
-  previousWorkPolicy: string;
-  touchUpPolicy: string;
-  sameDayConsultation: string;
-  depositInfo: string;
+  // Step 3
+  instagram: string;
+  tiktok: string;
+  facebook: string;
+  website: string;
+  notificationEmail: string;
+  // Step 4
+  botName: string;
+  greeting: string;
+  chatTheme: "light" | "dark";
+  primaryColor: string;
 };
 
-type OnboardingPersisted = {
-  userId?: string;
-  currentStep: number;
-  step1: Step1Data;
-  step2: Step2Data;
-  step3: Step3Data;
-  launched: boolean;
-};
-
-function defaultStep1(): Step1Data {
+function emptyDraft(userId: string): Draft {
   return {
-    fullName: "",
+    userId,
+    step: 1,
+    firstName: "",
     practiceName: "",
     city: "",
     state: "",
+    procedures: [],
+    bookingLink: "",
     instagram: "",
-    notificationEmail: "",
-    facebook: "",
     tiktok: "",
+    facebook: "",
     website: "",
-    otherSocial: "",
-  };
-}
-
-function defaultStep2(): Step2Data {
-  return { serviceIds: [], customServices: [] };
-}
-
-function defaultStep3(): Step3Data {
-  return {
+    notificationEmail: "",
     botName: "",
-    logoImage: null,
-    logoDataUrl: null,
-    brandNameImage: null,
-    botNameFont: "dm-sans",
-    bubbleAttentionMessage: "",
     greeting: "",
-    tone: "Warm & friendly",
     chatTheme: "light",
     primaryColor: "#0d9488",
-    forwardQuestions: "",
-    bookingLink: "",
-    cancellationPolicy: "",
-    aftercare: "",
-    numbingMethod: "",
-    previousWorkPolicy: "",
-    touchUpPolicy: "",
-    sameDayConsultation: "",
-    depositInfo: "",
   };
 }
 
-function defaultPersisted(): OnboardingPersisted {
-  return {
-    userId: "",
-    currentStep: 1,
-    step1: defaultStep1(),
-    step2: defaultStep2(),
-    step3: defaultStep3(),
-    launched: false,
-  };
-}
-
-function displayNameFromUser(user: { user_metadata?: { full_name?: string }; email?: string } | null): string {
-  if (!user) return "";
-  const fromMeta = user.user_metadata?.full_name;
-  if (typeof fromMeta === "string" && fromMeta.trim()) return fromMeta.trim();
-  const email = user.email;
-  if (email) return email.split("@")[0] ?? "";
-  return "";
-}
-
-function slugify(input: string): string {
-  const s = input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return s || "my-practice";
-}
-
-function isLogoOrBrandImageFile(file: File): boolean {
-  const type = file.type.toLowerCase();
-  if (
-    type === "image/png" ||
-    type === "image/jpeg" ||
-    type === "image/jpg" ||
-    type === "image/webp" ||
-    type === "image/svg+xml"
-  ) {
-    return true;
-  }
-  return /\.(png|jpe?g|webp|svg)$/i.test(file.name);
-}
-
-function readImageAsDataUrl(file: File): Promise<string | null> {
-  return new Promise((resolve) => {
-    if (file.size > MAX_UPLOAD_BYTES) {
-      resolve(null);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null);
-    reader.onerror = () => resolve(null);
-    reader.readAsDataURL(file);
-  });
-}
-
-function getBotNameFontStyle(id: BotNameFontId): CSSProperties {
-  switch (id) {
-    case "dm-sans":
-      return { fontFamily: "var(--font-bot-dm-sans), system-ui, sans-serif" };
-    case "playfair":
-      return { fontFamily: "var(--font-bot-playfair), Georgia, serif" };
-    case "inter-bold":
-      return { fontFamily: "var(--font-bot-inter), system-ui, sans-serif", fontWeight: 700 };
-    case "nunito":
-      return { fontFamily: "var(--font-bot-nunito), system-ui, sans-serif" };
-    case "georgia":
-    default:
-      return { fontFamily: "Georgia, Palatino, serif" };
-  }
-}
-
-function loadPersisted(): OnboardingPersisted {
-  if (typeof window === "undefined") return defaultPersisted();
+function loadDraft(userId: string): Draft {
+  if (typeof window === "undefined") return emptyDraft(userId);
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultPersisted();
-    const parsed = JSON.parse(raw) as Partial<OnboardingPersisted>;
-    const base = defaultPersisted();
-    const toneRaw = parsed.step3?.tone;
-    const tone: Tone = TONES.includes(toneRaw as Tone) ? (toneRaw as Tone) : base.step3.tone;
-    const fontRaw = parsed.step3?.botNameFont;
-    const botNameFont: BotNameFontId = BOT_NAME_FONT_IDS.includes(fontRaw as BotNameFontId) ? (fontRaw as BotNameFontId) : base.step3.botNameFont;
-    const logoImageRaw = parsed.step3?.logoImage;
-    const logoRaw = parsed.step3?.logoDataUrl;
-    const logoDataUrl =
-      typeof logoRaw === "string" || logoRaw === null ? (logoRaw as string | null) : base.step3.logoDataUrl;
-    const logoImage =
-      typeof logoImageRaw === "string" || logoImageRaw === null
-        ? (logoImageRaw as string | null)
-        : logoDataUrl;
-    const brandImgRaw = parsed.step3?.brandNameImage;
-    const brandNameImage =
-      typeof brandImgRaw === "string" || brandImgRaw === null
-        ? (brandImgRaw as string | null)
-        : base.step3.brandNameImage;
-    const bubbleRaw = parsed.step3?.bubbleAttentionMessage;
-    const bubbleAttentionMessage = typeof bubbleRaw === "string" ? bubbleRaw : base.step3.bubbleAttentionMessage;
-    let currentStep =
-      typeof parsed.currentStep === "number" && parsed.currentStep >= 1 ? parsed.currentStep : base.currentStep;
-    if (currentStep > TOTAL_STEPS) currentStep = TOTAL_STEPS;
-    return {
-      currentStep,
-      step1: { ...base.step1, ...parsed.step1 },
-      step2: {
-        serviceIds: Array.isArray(parsed.step2?.serviceIds) ? parsed.step2!.serviceIds : base.step2.serviceIds,
-        customServices: (() => {
-          const raw = parsed.step2?.customServices;
-          if (!Array.isArray(raw)) return base.step2.customServices;
-          const cleaned = raw
-            .filter((x) => x !== null && typeof x === "object")
-            .map((x) => {
-              const o = x as Record<string, unknown>;
-              return {
-                name: typeof o.name === "string" ? o.name : "",
-                description: typeof o.description === "string" ? o.description : "",
-              };
-            })
-            .slice(0, 3);
-          return cleaned;
-        })(),
-      },
-      step3: {
-        ...base.step3,
-        ...parsed.step3,
-        tone,
-        botNameFont,
-        logoImage,
-        logoDataUrl,
-        brandNameImage,
-        bubbleAttentionMessage,
-      },
-      launched: parsed.launched === true,
-    };
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return emptyDraft(userId);
+    const parsed = JSON.parse(raw) as Partial<Draft>;
+    if (parsed.userId !== userId) return emptyDraft(userId);
+    return { ...emptyDraft(userId), ...parsed };
   } catch {
-    return defaultPersisted();
+    return emptyDraft(userId);
   }
 }
 
-function savePersisted(data: OnboardingPersisted) {
+function saveDraft(draft: Draft) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
   } catch {
-    // quota or private mode — still allow UX in memory
+    // quota or private mode — ignore
   }
 }
 
-function friendlyBotSaveError(message: string): string {
-  const m = message.toLowerCase();
-  if (m.includes("jwt") || m.includes("session")) {
-    return "Your session may have expired. Please sign in again and try launching once more.";
-  }
-  if (m.includes("row-level security") || m.includes("permission denied") || m.includes("policy")) {
-    return "We couldn't save your bot due to a permissions issue. Please try again or contact support if this keeps happening.";
-  }
-  if (m.includes("does not exist") || m.includes("relation")) {
-    return "We couldn't reach the bot database. Please try again in a moment.";
-  }
-  if (m.includes("value too long") || m.includes("payload")) {
-    return "Some of your data (often photos) is too large to save. Try removing a few photos or using smaller images.";
-  }
-  return "Something went wrong while saving your bot. Please check your connection and try again.";
+function slugify(s: string): string {
+  return (
+    s
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "my-bot"
+  );
 }
+
+// ─── Mini chat preview (mirrors /chat/[slug] exactly) ────────────────────────
+
+type PreviewMsg = { id: string; role: "user" | "assistant"; content: string };
+
+function newId() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function ChatPreview({
+  botName,
+  greeting,
+  chatTheme,
+  primaryColor,
+}: {
+  botName: string;
+  greeting: string;
+  chatTheme: "light" | "dark";
+  primaryColor: string;
+}) {
+  const isDark = chatTheme === "dark";
+  const title = botName.trim() || "Your Bot";
+  const greetingText =
+    greeting.trim() || "Hi there! 👋 How can I help you today?";
+  const primary = primaryColor || "#0d9488";
+
+  const DEMO_MSGS: PreviewMsg[] = [
+    { id: "1", role: "assistant", content: greetingText },
+    { id: "2", role: "user", content: "What services do you offer?" },
+    {
+      id: "3",
+      role: "assistant",
+      content:
+        "We offer Lip Filler, Botox, Cheek Filler, and more! ✨ Would you like to book a consultation?",
+    },
+  ];
+
+  return (
+    <div
+      className={`flex h-full flex-col overflow-hidden rounded-2xl border-2 shadow-xl ${
+        isDark ? "border-white/10 bg-[#0d1628]" : "border-slate-100 bg-white"
+      }`}
+    >
+      {/* teal top stripe */}
+      <div className="h-1 w-full shrink-0" style={{ backgroundColor: primary }} />
+
+      {/* header */}
+      <div
+        className={`flex shrink-0 items-center gap-2.5 px-3 py-2.5 ${
+          isDark
+            ? "border-b border-[#0d9488]/40 bg-[#1a2744]"
+            : "border-b-4 bg-white"
+        }`}
+        style={isDark ? undefined : { borderBottomColor: primary }}
+      >
+        <div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
+          style={{ backgroundColor: primary }}
+        >
+          {title.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p
+            className={`truncate text-xs font-semibold leading-tight ${
+              isDark ? "text-white" : "text-[#1a2744]"
+            }`}
+          >
+            {title}
+          </p>
+          <p
+            className={`flex items-center gap-1 text-[10px] font-medium ${
+              isDark ? "text-slate-300" : "text-slate-500"
+            }`}
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            Online
+          </p>
+        </div>
+      </div>
+
+      {/* messages */}
+      <div
+        className={`flex-1 space-y-2.5 overflow-y-auto px-2.5 py-3 ${
+          isDark ? "bg-[#0d1628]" : "bg-slate-50"
+        }`}
+      >
+        {DEMO_MSGS.map((m) => (
+          <div
+            key={m.id}
+            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[85%] text-[11px] leading-relaxed ${
+                m.role === "user"
+                  ? isDark
+                    ? "rounded-2xl rounded-br-sm border border-[#38bdf8]/30 bg-[#38bdf8]/15 px-3 py-2 text-white"
+                    : "rounded-full border-2 bg-white px-3 py-2 text-slate-800"
+                  : isDark
+                    ? "rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-slate-200"
+                    : "py-0.5 text-slate-800"
+              }`}
+              style={
+                !isDark && m.role === "user" ? { borderColor: primary } : undefined
+              }
+            >
+              {m.content}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* input bar */}
+      <div
+        className={`shrink-0 border-t px-2.5 pb-2.5 pt-2 ${
+          isDark ? "border-sky-100/15 bg-[#1a2744]/90" : "border-slate-200 bg-white"
+        }`}
+      >
+        <div
+          className={`flex items-center gap-2 rounded-full border px-3 py-2 text-[11px] ${
+            isDark
+              ? "border-sky-100/20 bg-white/5 text-slate-400"
+              : "border-slate-200 bg-white text-slate-400"
+          }`}
+        >
+          <span className="flex-1">Type a message…</span>
+          <span
+            className="rounded-full px-2.5 py-1 text-[10px] font-semibold text-white"
+            style={{ backgroundColor: primary }}
+          >
+            Send
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step components ──────────────────────────────────────────────────────────
+
+function StepWelcome({
+  draft,
+  onChange,
+}: {
+  draft: Draft;
+  onChange: (patch: Partial<Draft>) => void;
+}) {
+  const field =
+    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]";
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
+          Let&apos;s set up your AI front desk 🦋
+        </h1>
+        <p className="mt-2 text-sm text-slate-500 sm:text-base">
+          Takes less than 5 minutes. We&apos;ll guide you through everything.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">
+            Your first name
+          </label>
+          <input
+            className={field}
+            placeholder="e.g. Maria"
+            value={draft.firstName}
+            onChange={(e) => onChange({ firstName: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">
+            Practice name
+          </label>
+          <input
+            className={field}
+            placeholder="e.g. Glow Aesthetics"
+            value={draft.practiceName}
+            onChange={(e) => onChange({ practiceName: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">City</label>
+          <input
+            className={field}
+            placeholder="e.g. Miami"
+            value={draft.city}
+            onChange={(e) => onChange({ city: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">State</label>
+          <input
+            className={field}
+            placeholder="e.g. FL"
+            value={draft.state}
+            onChange={(e) => onChange({ state: e.target.value })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepProcedures({
+  draft,
+  onChange,
+}: {
+  draft: Draft;
+  onChange: (patch: Partial<Draft>) => void;
+}) {
+  const toggle = useCallback(
+    (p: string) => {
+      onChange({
+        procedures: draft.procedures.includes(p)
+          ? draft.procedures.filter((x) => x !== p)
+          : [...draft.procedures, p],
+      });
+    },
+    [draft.procedures, onChange]
+  );
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
+          What procedures do you offer? 💉
+        </h1>
+        <p className="mt-2 text-sm text-slate-500 sm:text-base">
+          Tap everything that applies — you can always add more later.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2.5">
+        {PROCEDURES.map((p) => {
+          const selected = draft.procedures.includes(p);
+          return (
+            <button
+              key={p}
+              type="button"
+              onClick={() => toggle(p)}
+              className={`flex min-h-[48px] items-center gap-2 rounded-full border-2 px-4 py-2.5 text-sm font-semibold transition ${
+                selected
+                  ? "border-[#0d9488] bg-[#0d9488] text-white shadow-sm"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-[#0d9488]/40 hover:bg-slate-50"
+              }`}
+            >
+              {selected && (
+                <svg
+                  className="h-4 w-4 shrink-0"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                >
+                  <path
+                    d="M3 8l3.5 3.5L13 5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+              {p}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-[#1a2744]">
+          Booking link{" "}
+          <span className="font-normal text-slate-400">(optional)</span>
+        </label>
+        <input
+          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]"
+          placeholder="https://your-booking-link.com"
+          value={draft.bookingLink}
+          onChange={(e) => onChange({ bookingLink: e.target.value })}
+        />
+        <p className="text-xs text-slate-400">
+          Calendly, Acuity, Jane, Vagaro — any link works
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function StepGetFound({
+  draft,
+  onChange,
+}: {
+  draft: Draft;
+  onChange: (patch: Partial<Draft>) => void;
+}) {
+  const field =
+    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]";
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
+          Where do your clients find you? 📱
+        </h1>
+        <p className="mt-2 text-sm text-slate-500 sm:text-base">
+          Paste your full profile URLs — these help clients connect with you.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">
+            Instagram URL{" "}
+            <span className="font-normal text-slate-400">(optional)</span>
+          </label>
+          <input
+            className={field}
+            placeholder="https://www.instagram.com/yourhandle"
+            value={draft.instagram}
+            onChange={(e) => onChange({ instagram: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">
+            TikTok URL{" "}
+            <span className="font-normal text-slate-400">(optional)</span>
+          </label>
+          <input
+            className={field}
+            placeholder="https://www.tiktok.com/@yourhandle"
+            value={draft.tiktok}
+            onChange={(e) => onChange({ tiktok: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">
+            Facebook URL{" "}
+            <span className="font-normal text-slate-400">(optional)</span>
+          </label>
+          <input
+            className={field}
+            placeholder="https://www.facebook.com/yourpage"
+            value={draft.facebook}
+            onChange={(e) => onChange({ facebook: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">
+            Website{" "}
+            <span className="font-normal text-slate-400">(optional)</span>
+          </label>
+          <input
+            className={field}
+            placeholder="https://yourwebsite.com"
+            value={draft.website}
+            onChange={(e) => onChange({ website: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-[#1a2744]">
+          Notification email{" "}
+          <span className="font-normal text-slate-400">(optional)</span>
+        </label>
+        <input
+          type="email"
+          className={field}
+          placeholder="Where should we send client alerts?"
+          value={draft.notificationEmail}
+          onChange={(e) => onChange({ notificationEmail: e.target.value })}
+        />
+        <p className="text-xs text-slate-400">
+          We&apos;ll notify you when a new client fills out your intake form.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function StepCustomize({
+  draft,
+  onChange,
+}: {
+  draft: Draft;
+  onChange: (patch: Partial<Draft>) => void;
+}) {
+  const field =
+    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]";
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
+          Customize your AI assistant 🤖
+        </h1>
+        <p className="mt-2 text-sm text-slate-500 sm:text-base">
+          This is what your clients will see.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">Bot name</label>
+          <input
+            className={field}
+            placeholder="Bella, Luna, Glamour AI…"
+            value={draft.botName}
+            onChange={(e) => onChange({ botName: e.target.value })}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">
+            Bot color
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            {COLOR_PRESETS.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                title={c.label}
+                onClick={() => onChange({ primaryColor: c.value })}
+                className={`h-9 w-9 rounded-full border-2 transition ${
+                  draft.primaryColor === c.value
+                    ? "scale-110 border-[#1a2744] shadow-sm"
+                    : "border-transparent hover:scale-105"
+                }`}
+                style={{ backgroundColor: c.value }}
+              />
+            ))}
+            <input
+              type="color"
+              value={draft.primaryColor}
+              onChange={(e) => onChange({ primaryColor: e.target.value })}
+              className="h-9 w-9 cursor-pointer rounded-full border border-slate-200 p-0.5"
+              title="Custom color"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-[#1a2744]">
+          Welcome message
+        </label>
+        <textarea
+          rows={2}
+          className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2"
+          placeholder="Hi there! 👋 I'm here to help with bookings, answer questions, and more."
+          value={draft.greeting}
+          onChange={(e) => onChange({ greeting: e.target.value })}
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-medium text-[#1a2744]">Chat theme</label>
+        <div className="grid grid-cols-2 gap-3">
+          {(["light", "dark"] as const).map((theme) => {
+            const selected = draft.chatTheme === theme;
+            return (
+              <button
+                key={theme}
+                type="button"
+                onClick={() => onChange({ chatTheme: theme })}
+                className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-4 text-sm font-semibold transition ${
+                  selected
+                    ? "border-[#0d9488] bg-teal-50 text-[#0d9488]"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                <span className="text-2xl">
+                  {theme === "light" ? "☀️" : "🌙"}
+                </span>
+                <span>
+                  {theme === "light"
+                    ? "Light — clean white"
+                    : "Dark — elegant glass"}
+                </span>
+                {selected && (
+                  <span className="text-xs font-normal text-[#0d9488]">
+                    ✓ Selected
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepLive({
+  draft,
+  botSlug,
+}: {
+  draft: Draft;
+  botSlug: string;
+}) {
+  const shareUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/chat/${botSlug}`
+      : `/chat/${botSlug}`;
+
+  const embedCode = `<script src="https://adonisblue.com/widget.js" data-bot="${botSlug}" defer></script>`;
+
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedEmbed, setCopiedEmbed] = useState(false);
+
+  const copy = useCallback((text: string, which: "link" | "embed") => {
+    void navigator.clipboard.writeText(text).then(() => {
+      if (which === "link") {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2000);
+      } else {
+        setCopiedEmbed(true);
+        setTimeout(() => setCopiedEmbed(false), 2000);
+      }
+    });
+  }, []);
+
+  const NEXT_STEPS = [
+    "✅ Clients can now message your bot 24/7",
+    "✅ New intake forms land in your dashboard automatically",
+    "✅ Your bot answers FAQs, books appointments, and sends clients to your booking link",
+    "✅ You get notified by email when a new lead comes in",
+    "✅ Review & upgrade your plan any time from the dashboard",
+  ];
+
+  return (
+    <div className="relative flex flex-col items-center gap-6 overflow-hidden rounded-3xl text-center">
+      <Confetti />
+      <div className="relative z-10 flex flex-col items-center gap-6 pt-4">
+      <div className="text-6xl animate-bounce">🎉</div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
+          Your AI front desk is ready!
+        </h1>
+        <p className="mt-2 text-sm text-slate-500 sm:text-base">
+          Welcome to AdonisBlue,{" "}
+          {draft.firstName.trim() || "friend"}. Your bot is live right now.
+        </p>
+      </div>
+
+      <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-slate-50 p-4 text-left">
+        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
+          Your bot link
+        </p>
+        <div className="flex items-center gap-2">
+          <p className="flex-1 truncate rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-[#0d9488]">
+            {shareUrl}
+          </p>
+          <button
+            type="button"
+            onClick={() => copy(shareUrl, "link")}
+            className="shrink-0 rounded-xl bg-[#0d9488] px-3 py-2 text-xs font-semibold text-white transition hover:bg-teal-700"
+          >
+            {copiedLink ? "Copied!" : "Copy"}
+          </button>
+        </div>
+      </div>
+
+      <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-slate-50 p-4 text-left">
+        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
+          Embed on your website
+        </p>
+        <div className="flex items-start gap-2">
+          <code className="flex-1 overflow-x-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 whitespace-pre">
+            {embedCode}
+          </code>
+          <button
+            type="button"
+            onClick={() => copy(embedCode, "embed")}
+            className="mt-0.5 shrink-0 rounded-xl bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#243552]"
+          >
+            {copiedEmbed ? "Copied!" : "Copy"}
+          </button>
+        </div>
+      </div>
+
+      <div className="w-full max-w-md rounded-2xl border border-teal-100 bg-teal-50 p-4 text-left">
+        <p className="mb-3 text-sm font-semibold text-[#1a2744]">
+          What happens next:
+        </p>
+        <ul className="flex flex-col gap-2">
+          {NEXT_STEPS.map((s) => (
+            <li key={s} className="text-sm text-slate-700">
+              {s}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-3 pb-4">
+        <a
+          href={shareUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-[48px] items-center rounded-full border-2 border-[#0d9488] px-6 text-sm font-semibold text-[#0d9488] transition hover:bg-teal-50"
+        >
+          View my bot →
+        </a>
+      </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
-  const [persisted, setPersisted] = useState<OnboardingPersisted>(defaultPersisted);
-  const logoFileInputRef = useRef<HTMLInputElement>(null);
-  const brandNameImageFileInputRef = useRef<HTMLInputElement>(null);
-  const [chatInput, setChatInput] = useState("");
-  const [launchSaving, setLaunchSaving] = useState(false);
-  const [launchError, setLaunchError] = useState<string | null>(null);
-  const [launchSuccess, setLaunchSuccess] = useState<string | null>(null);
-  const [greetingPanelOpen, setGreetingPanelOpen] = useState(false);
-  const [greetingPanelToneId, setGreetingPanelToneId] = useState("warm");
-  const [greetingGenerating, setGreetingGenerating] = useState(false);
-  const [greetingGenError, setGreetingGenError] = useState<string | null>(null);
-  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
-  const [brandUploadError, setBrandUploadError] = useState<string | null>(null);
-  const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [draft, setDraftState] = useState<Draft>(emptyDraft(""));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [botSlug, setBotSlug] = useState("");
+  const tokenRef = useRef<string>("");
 
+  // ── Auth + hydrate draft ─────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // ── 1. Verify session ─────────────────────────────────────────────────
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
       if (!data.session) {
         router.replace("/auth");
         return;
       }
+      const userId = data.session.user.id;
+      tokenRef.current = data.session.access_token;
 
-      const currentUserId = data.session.user.id;
-      const token = data.session.access_token;
-      const fromAccount = displayNameFromUser(data.session.user);
-      const searchParams = new URLSearchParams(window.location.search);
-
-      // Force a fresh start when ?new=1 is in the URL
-      if (searchParams.get("new") === "1") {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-
-      // ── 2. Validate localStorage: wipe if it belongs to a different user ──
-      //    We keep it only to preserve draft step-navigation state (currentStep).
-      const cached = loadPersisted();
-      const cachedUserId = cached.userId ?? "";
-      const cacheIsOwn = cachedUserId === currentUserId;
-      if (!cacheIsOwn) {
-        // Wipe stale data that belongs to another user (or has no owner stamp)
-        const fresh = defaultPersisted();
-        fresh.userId = currentUserId;
-        savePersisted(fresh);
-      }
-
-      // ── 3. ALWAYS fetch from the server — server is the source of truth ──
-      //    localStorage is only trusted for the currentStep draft preference.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let serverBot: Record<string, any> | null = null;
+      // Always fetch server state first
+      let serverDraft: Partial<Draft> = {};
       try {
         const res = await fetch("/api/mybot", {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
         });
         if (!cancelled && res.ok) {
-          const json = await res.json();
-          const b = json?.bot;
-          // Double-check the returned row truly belongs to the current user
-          if (b && b.nurse_id === currentUserId) {
-            serverBot = b;
+          const { bot } = (await res.json()) as { bot?: Record<string, unknown> | null };
+          if (bot && bot.nurse_id === userId) {
+            serverDraft = {
+              firstName: (bot.first_name as string | null) ?? "",
+              practiceName: (bot.practice_name as string | null) ?? "",
+              city: (bot.city as string | null) ?? "",
+              state: (bot.state as string | null) ?? "",
+              bookingLink: (bot.booking_link as string | null) ?? "",
+              instagram: (bot.instagram as string | null) ?? "",
+              tiktok: (bot.tiktok as string | null) ?? "",
+              facebook: (bot.facebook as string | null) ?? "",
+              website: (bot.website as string | null) ?? "",
+              notificationEmail:
+                (bot.notification_email as string | null) ?? "",
+              botName: (bot.bot_name as string | null) ?? "",
+              greeting: (bot.greeting as string | null) ?? "",
+              chatTheme:
+                (bot.chat_theme as "light" | "dark" | null) ?? "light",
+              primaryColor:
+                (bot.primary_color as string | null) ?? "#0d9488",
+              procedures: Array.isArray(bot.services)
+                ? (bot.services as string[])
+                : [],
+            };
+            // If bot is already launched, skip to step 5
+            if (bot.launched === true) {
+              const slug = slugify(
+                (bot.bot_name as string | null) ??
+                  (bot.practice_name as string | null) ??
+                  ""
+              );
+              setBotSlug(slug);
+            }
           }
         }
       } catch {
-        // Best-effort; continue with empty form if fetch fails
+        // Network error — fall back to localStorage
       }
-
       if (cancelled) return;
 
-      // ── 4. Build state from server data (authoritative) ───────────────────
-      if (serverBot) {
-        const defaults = defaultPersisted();
-        // Preserve the draft step the nurse was on, if the cache was theirs
-        const stepFromCache = cacheIsOwn ? cached.currentStep : 1;
-
-        const toneRaw = serverBot.tone as string;
-        const validTone: Tone = TONES.includes(toneRaw as Tone)
-          ? (toneRaw as Tone)
-          : defaults.step3.tone;
-
-        const fontRaw = serverBot.bot_name_font as string;
-        const validFont: BotNameFontId = BOT_NAME_FONT_IDS.includes(fontRaw as BotNameFontId)
-          ? (fontRaw as BotNameFontId)
-          : defaults.step3.botNameFont;
-
-        const next: OnboardingPersisted = {
-          userId: currentUserId,
-          launched: serverBot.launched === true,
-          currentStep: stepFromCache,
-          step1: {
-            fullName: fromAccount || "",
-            practiceName: serverBot.practice_name ?? "",
-            city: serverBot.city ?? "",
-            state: serverBot.state ?? "",
-            instagram: serverBot.instagram ?? "",
-            notificationEmail: serverBot.notification_email ?? "",
-            facebook: serverBot.facebook ?? "",
-            tiktok: serverBot.tiktok ?? "",
-            website: serverBot.website ?? "",
-            otherSocial: serverBot.other_social ?? "",
-          },
-          step2: {
-            serviceIds: Array.isArray(serverBot.services) ? (serverBot.services as string[]) : [],
-            // customServices aren't persisted to the DB, keep from cache if own
-            customServices: cacheIsOwn ? cached.step2.customServices : [],
-          },
-          step3: {
-            botName: serverBot.bot_name ?? "",
-            logoImage: (serverBot.logo_image as string | null) ?? null,
-            logoDataUrl: (serverBot.logo_data_url as string | null) ?? null,
-            brandNameImage: (serverBot.brand_name_image as string | null) ?? null,
-            botNameFont: validFont,
-            bubbleAttentionMessage:
-              (serverBot.bubble_attention_message as string) ??
-              defaults.step3.bubbleAttentionMessage,
-            greeting: (serverBot.greeting as string) ?? defaults.step3.greeting,
-            tone: validTone,
-            chatTheme:
-              serverBot.chat_theme === "light" || serverBot.chat_theme === "dark"
-                ? (serverBot.chat_theme as "light" | "dark")
-                : defaults.step3.chatTheme,
-            primaryColor:
-              (serverBot.primary_color as string) ?? defaults.step3.primaryColor,
-            forwardQuestions: (serverBot.forward_questions as string) ?? "",
-            bookingLink: (serverBot.booking_link as string) ?? "",
-            cancellationPolicy: (serverBot.cancellation_policy as string) ?? "",
-            aftercare: (serverBot.aftercare as string) ?? "",
-            numbingMethod: (serverBot.numbing_method as string) ?? "",
-            previousWorkPolicy: (serverBot.previous_work_policy as string) ?? "",
-            touchUpPolicy: (serverBot.touch_up_policy as string) ?? "",
-            sameDayConsultation: (serverBot.same_day_consultation as string) ?? "",
-            depositInfo: (serverBot.deposit_info as string) ?? "",
-          },
-        };
-        savePersisted(next);
-        setPersisted(next);
-      } else if (cacheIsOwn) {
-        // No server data yet; use localStorage draft (belongs to this user)
-        cached.userId = currentUserId;
-        if (fromAccount && !cached.step1.fullName.trim()) {
-          cached.step1.fullName = fromAccount;
-        }
-        savePersisted(cached);
-        setPersisted(cached);
-      } else {
-        // Brand-new nurse, no server data, no matching cache — start completely empty
-        const fresh = defaultPersisted();
-        fresh.userId = currentUserId;
-        fresh.step1.fullName = fromAccount;
-        savePersisted(fresh);
-        setPersisted(fresh);
-      }
-
-      // ── 5. Apply ?step= URL param ─────────────────────────────────────────
-      const stepRaw = searchParams.get("step");
-      const stepNumRaw = stepRaw ? Number.parseInt(stepRaw, 10) : NaN;
-      let stepNum = stepNumRaw;
-      if (stepNum === 5) stepNum = 4;
-      if (Number.isFinite(stepNum) && stepNum >= 1 && stepNum <= TOTAL_STEPS) {
-        setPersisted(prev => {
-          const next = { ...prev, currentStep: stepNum };
-          savePersisted(next);
-          return next;
-        });
-      }
-
+      const localDraft = loadDraft(userId);
+      // Merge: server wins for DB fields, localStorage wins for step position
+      const merged: Draft = {
+        ...emptyDraft(userId),
+        ...serverDraft,
+        userId,
+        step: localDraft.step > 1 ? localDraft.step : 1,
+      };
+      setDraftState(merged);
+      saveDraft(merged);
       setReady(true);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
-  const updatePersisted = useCallback((patch: Partial<OnboardingPersisted>) => {
-    setPersisted((prev) => {
+  const setDraft = useCallback((patch: Partial<Draft>) => {
+    setDraftState((prev) => {
       const next = { ...prev, ...patch };
-      savePersisted(next);
+      saveDraft(next);
       return next;
     });
   }, []);
 
-  const setStep1 = useCallback(
-    (patch: Partial<Step1Data>) => {
-      setPersisted((prev) => {
-        const next = { ...prev, step1: { ...prev.step1, ...patch } };
-        savePersisted(next);
-        return next;
-      });
-    },
-    []
-  );
+  // ── Navigation ────────────────────────────────────────────────────────────
+  const canAdvance = useCallback((): boolean => {
+    if (draft.step === 1)
+      return Boolean(draft.firstName.trim() && draft.practiceName.trim());
+    if (draft.step === 2) return draft.procedures.length > 0;
+    return true;
+  }, [draft]);
 
-  const setStep2 = useCallback((patch: Partial<Step2Data>) => {
-    setPersisted((prev) => {
-      const next = { ...prev, step2: { ...prev.step2, ...patch } };
-      savePersisted(next);
-      return next;
-    });
-  }, []);
+  const goNext = useCallback(async () => {
+    if (!canAdvance()) return;
+    setError(null);
 
-  const setStep3 = useCallback((patch: Partial<Step3Data>) => {
-    setPersisted((prev) => {
-      const next = { ...prev, step3: { ...prev.step3, ...patch } };
-      savePersisted(next);
-      return next;
-    });
-  }, []);
-
-  const progressPct = useMemo(() => (persisted.currentStep / TOTAL_STEPS) * 100, [persisted.currentStep]);
-
-  const slug = useMemo(() => {
-    const raw = persisted.step3.botName.trim() || persisted.step1.practiceName.trim() || "my-bot";
-    return slugify(raw);
-  }, [persisted.step1.practiceName, persisted.step3.botName]);
-
-  const shareOrigin = typeof window !== "undefined" ? window.location.origin : "https://adonisblue.com";
-
-  function getStepValidationErrors(step: number): string[] {
-    const { step1, step2, step3 } = persisted;
-    const errors: string[] = [];
-    if (step === 1) {
-      if (!step1.fullName.trim()) errors.push("Please add your full name");
-      if (!step1.practiceName.trim()) errors.push("Please add your practice name");
-      if (!step1.city.trim()) errors.push("Please add your city");
-      if (!step1.state.trim()) errors.push("Please add your state");
-      return errors;
-    }
-    if (step === 2) {
-      const nonOther = step2.serviceIds.filter((id) => id !== OTHER_SERVICE_ID);
-      const hasOther = step2.serviceIds.includes(OTHER_SERVICE_ID);
-      const hasCustomName = step2.customServices.some((c) => c.name.trim().length > 0);
-      if (nonOther.length === 0 && (!hasOther || !hasCustomName)) errors.push("Please select at least one service you offer");
-      return errors;
-    }
-    if (step === 3) {
-      if (!step3.greeting.trim()) errors.push("Please add a greeting message for your clients");
-      return errors;
-    }
-    return errors;
-  }
-
-  function validateStep(step: number): boolean {
-    return getStepValidationErrors(step).length === 0;
-  }
-
-  function goNext() {
-    if (!validateStep(persisted.currentStep)) {
-      setShowValidationErrors(true);
-      setTimeout(() => {
-        document.getElementById("validation-errors")?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 50);
-      return;
-    }
-    setShowValidationErrors(false);
-    if (persisted.currentStep < TOTAL_STEPS) {
-      savePersisted(persisted);
-      updatePersisted({ currentStep: persisted.currentStep + 1 });
-    }
-  }
-
-  function goBack() {
-    if (persisted.currentStep > 1) {
-      updatePersisted({ currentStep: persisted.currentStep - 1 });
-    }
-  }
-
-  function updateCustomService(index: number, patch: Partial<{ name: string; description: string }>) {
-    setPersisted((prev) => {
-      const nextCs = [...prev.step2.customServices];
-      if (!nextCs[index]) return prev;
-      nextCs[index] = { ...nextCs[index], ...patch };
-      const next = { ...prev, step2: { ...prev.step2, customServices: nextCs } };
-      savePersisted(next);
-      return next;
-    });
-  }
-
-  function addCustomServiceRow() {
-    setPersisted((prev) => {
-      if (prev.step2.customServices.length >= 3) return prev;
-      const next = {
-        ...prev,
-        step2: {
-          ...prev.step2,
-          customServices: [...prev.step2.customServices, { name: "", description: "" }],
-        },
-      };
-      savePersisted(next);
-      return next;
-    });
-  }
-
-  function removeCustomServiceRow(index: number) {
-    setPersisted((prev) => {
-      const cs = prev.step2.customServices.filter((_, i) => i !== index);
-      const nextCs = cs.length > 0 ? cs : [{ name: "", description: "" }];
-      const next = { ...prev, step2: { ...prev.step2, customServices: nextCs } };
-      savePersisted(next);
-      return next;
-    });
-  }
-
-  function toggleService(id: string) {
-    setPersisted((prev) => {
-      const set = new Set(prev.step2.serviceIds);
-      let customServices = prev.step2.customServices;
-      if (set.has(id)) {
-        set.delete(id);
-        if (id === OTHER_SERVICE_ID) {
-          customServices = [];
-        }
-      } else {
-        set.add(id);
-        if (id === OTHER_SERVICE_ID && customServices.length === 0) {
-          customServices = [{ name: "", description: "" }];
-        }
-      }
-      const next = { ...prev, step2: { ...prev.step2, serviceIds: [...set], customServices } };
-      savePersisted(next);
-      return next;
-    });
-  }
-
-  const handleLaunch = useCallback(async () => {
-    // Always get nurse_id from the verified Supabase session — never from localStorage.
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData.session?.user?.id;
-    const token = sessionData.session?.access_token;
-
-    if (!userId || !token) {
-      setLaunchError("Please log in to save your bot");
+    if (draft.step < TOTAL_STEPS - 1) {
+      setDraft({ step: draft.step + 1 });
       return;
     }
 
-    const p = persisted;
-    const row = {
-      nurse_id: userId,
-      practice_name: p.step1.practiceName.trim(),
-      city: p.step1.city.trim(),
-      state: p.step1.state.trim(),
-      notification_email: p.step1.notificationEmail.trim() || null,
-      facebook: p.step1.facebook.trim() || null,
-      tiktok: p.step1.tiktok.trim() || null,
-      website: p.step1.website.trim() || null,
-      other_social: p.step1.otherSocial.trim() || null,
-      bot_name: p.step1.practiceName.trim(),
-      slug: slugify(p.step1.practiceName.trim() || "my-bot"),
-      greeting: p.step3.greeting.trim(),
-      tone: p.step3.tone,
-      chat_theme: p.step3.chatTheme,
-      primary_color: p.step3.primaryColor,
-      booking_link: p.step3.bookingLink.trim() || null,
-      cancellation_policy: p.step3.cancellationPolicy.trim() || null,
-      aftercare: p.step3.aftercare.trim() || null,
-      numbing_method: p.step3.numbingMethod.trim() || null,
-      previous_work_policy: p.step3.previousWorkPolicy.trim() || null,
-      touch_up_policy: p.step3.touchUpPolicy.trim() || null,
-      same_day_consultation: p.step3.sameDayConsultation.trim() || null,
-      deposit_info: p.step3.depositInfo.trim() || null,
-      forward_questions: p.step3.forwardQuestions.trim() || null,
-      instagram: p.step1.instagram.trim() || null,
-      services: p.step2.serviceIds,
-      launched: true,
-      logo_image: p.step3.logoImage || p.step3.logoDataUrl || null,
-      logo_data_url: p.step3.logoDataUrl || p.step3.logoImage || null,
-    };
-
-    const res = await fetch('/api/savebot', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(row),
-    });
-
-    const result = await res.json();
-    if (!res.ok) {
-      setLaunchError(result.error || 'Could not save. Please try again.');
-      return;
-    }
-
-    updatePersisted({ launched: true });
-    setLaunchSuccess('🎉 Your bot is live! Share your link below.');
-  }, [persisted, updatePersisted]);
-
-  const handleGenerateGreeting = useCallback(async () => {
-    setGreetingGenError(null);
-    setGreetingGenerating(true);
+    // Step 4 → save & launch
+    setSaving(true);
     try {
-      const toneCard = GREETING_GENERATOR_TONES.find((t) => t.id === greetingPanelToneId) ?? GREETING_GENERATOR_TONES[0];
-      const serviceLabels = [
-        ...persisted.step2.serviceIds
-          .filter((id) => id !== OTHER_SERVICE_ID)
-          .map((id) => SERVICES.find((s) => s.id === id)?.label)
-          .filter((label): label is string => Boolean(label)),
-        ...persisted.step2.customServices.filter((c) => c.name.trim()).map((c) => c.name.trim()),
-      ];
-      const tone = `${toneCard.title} — ${toneCard.tagline}. Bot personality (tone step): ${persisted.step3.tone}.`;
-      const res = await fetch("/api/generate-greeting", {
+      const token = tokenRef.current;
+      const slug = slugify(draft.botName.trim() || draft.practiceName.trim());
+
+      const botPayload = {
+        practice_name: draft.practiceName.trim(),
+        city: draft.city.trim(),
+        state: draft.state.trim(),
+        notification_email: draft.notificationEmail.trim() || null,
+        facebook: draft.facebook.trim() || null,
+        tiktok: draft.tiktok.trim() || null,
+        instagram: draft.instagram.trim() || null,
+        website: draft.website.trim() || null,
+        bot_name: draft.botName.trim() || draft.practiceName.trim(),
+        slug,
+        greeting:
+          draft.greeting.trim() ||
+          `Hi there! 👋 I'm here to help with bookings, answer questions, and more.`,
+        chat_theme: draft.chatTheme,
+        primary_color: draft.primaryColor,
+        booking_link: draft.bookingLink.trim() || null,
+        services: draft.procedures,
+        launched: true,
+      };
+
+      console.log("[savebot] sending payload:", botPayload);
+      console.log("[savebot] token present:", Boolean(token));
+
+      const res = await fetch("/api/savebot", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          practiceName: persisted.step1.practiceName.trim(),
-          services: serviceLabels,
-          tone,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(botPayload),
       });
-      const data = (await res.json()) as { greeting?: string; error?: string };
+
+      const result = (await res.json()) as { error?: string };
+      console.log("[savebot] response status:", res.status, "body:", result);
+
       if (!res.ok) {
-        setGreetingGenError(typeof data.error === "string" ? data.error : "Something went wrong. Please try again.");
+        setError(result.error ?? "Could not save. Please try again.");
+        setSaving(false);
         return;
       }
-      if (typeof data.greeting === "string" && data.greeting.trim()) {
-        setStep3({ greeting: data.greeting.trim() });
-      } else {
-        setGreetingGenError("Something went wrong. Please try again.");
-      }
-    } catch {
-      setGreetingGenError("Something went wrong. Please try again.");
-    } finally {
-      setGreetingGenerating(false);
-    }
-  }, [greetingPanelToneId, persisted.step1.practiceName, persisted.step2.customServices, persisted.step2.serviceIds, persisted.step3.tone, setStep3]);
 
+      // Seed procedures
+      if (draft.procedures.length > 0) {
+        await Promise.allSettled(
+          draft.procedures.map((name) =>
+            fetch("/api/procedures", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ name, description: "" }),
+            })
+          )
+        );
+      }
+
+      console.log("[savebot] success — bot saved, redirecting to dashboard");
+      setBotSlug(slug);
+      setDraft({ step: TOTAL_STEPS });
+    } catch (e) {
+      console.error("[savebot] unexpected error:", e);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }, [canAdvance, draft, setDraft]);
+
+  const goBack = useCallback(() => {
+    if (draft.step > 1) setDraft({ step: draft.step - 1 });
+  }, [draft.step, setDraft]);
+
+  // ── Loading ───────────────────────────────────────────────────────────────
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <p className="text-sm font-medium text-[#1a2744]/80">Loading onboarding…</p>
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-[#0d9488]" />
       </div>
     );
   }
 
-  const s1 = persisted.step1;
-  const s2 = persisted.step2;
-  const s3 = persisted.step3;
-  const previewLogoImage = s3.logoImage || s3.logoDataUrl;
-  const currentValidationErrors = showValidationErrors ? getStepValidationErrors(persisted.currentStep) : [];
+  const pct = Math.round(((draft.step - 1) / (TOTAL_STEPS - 1)) * 100);
+  const isLastContentStep = draft.step === TOTAL_STEPS - 1;
+  const isDone = draft.step === TOTAL_STEPS;
+  const showPreview = draft.step === 4;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
-      <header className="border-b border-sky-100 bg-white shadow-sm shadow-sky-100/60">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:max-w-4xl lg:px-8">
-          <Link href="/" className="flex min-w-0 items-center gap-2">
-            <Image src="/Alona.png" alt="AdonisBlue" width={48} height={48} className="h-10 w-10 shrink-0 sm:h-12 sm:w-12" />
-            <span className="truncate text-base font-semibold tracking-tight text-[#1a2744] sm:text-lg">AdonisBlue</span>
-          </Link>
-          <Link href="/dashboard" className="text-sm font-semibold text-[#0d9488] hover:text-teal-700">
-            Dashboard
-          </Link>
+    <div className="flex min-h-dvh flex-col bg-slate-50">
+      {/* ── Top bar ──────────────────────────────────────────────────────── */}
+      <header className="shrink-0 bg-white border-b border-slate-100 px-4 py-4 sm:px-6">
+        <div className="mx-auto max-w-4xl">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-[#1a2744]">
+              AdonisBlue
+            </span>
+            <span className="text-xs font-medium text-slate-400">
+              Step {draft.step} of {TOTAL_STEPS}
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-[#0d9488] transition-all duration-500"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="mt-2 flex gap-1.5">
+            {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
+                  i < draft.step ? "bg-[#0d9488]" : "bg-slate-200"
+                }`}
+              />
+            ))}
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:max-w-4xl lg:px-8 lg:py-10">
-        <div className="mb-6 sm:mb-8">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[#0d9488]">Set up your chatbot</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#1a2744] sm:text-3xl">Onboarding</h1>
-          <p className="mt-2 text-sm text-slate-600 sm:text-base">Step {persisted.currentStep} of {TOTAL_STEPS}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {STEP_LABELS.map((label, i) => {
-              const n = i + 1;
-              const active = persisted.currentStep === n;
-              const done = persisted.currentStep > n;
-              return (
-                <span
-                  key={label}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${
-                    active ? "bg-[#0d9488] text-white" : done ? "bg-teal-100 text-[#0d9488]" : "bg-slate-100 text-slate-500"
-                  }`}
-                >
-                  {n}. {label}
-                </span>
-              );
-            })}
-          </div>
-          <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-200">
-            <div className="h-full rounded-full bg-[#0d9488] transition-[width] duration-300 ease-out" style={{ width: `${progressPct}%` }} />
-          </div>
+      {/* ── Content ──────────────────────────────────────────────────────── */}
+      <main className="flex flex-1 flex-col">
+        <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+          {showPreview ? (
+            // Step 4: two-column layout with live preview
+            <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+              <div>
+                <StepCustomize draft={draft} onChange={setDraft} />
+              </div>
+              <div className="hidden lg:block">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Live preview
+                </p>
+                <div className="h-[480px]">
+                  <ChatPreview
+                    botName={draft.botName || draft.practiceName}
+                    greeting={draft.greeting}
+                    chatTheme={draft.chatTheme}
+                    primaryColor={draft.primaryColor}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : draft.step === 1 ? (
+            <StepWelcome draft={draft} onChange={setDraft} />
+          ) : draft.step === 2 ? (
+            <StepProcedures draft={draft} onChange={setDraft} />
+          ) : draft.step === 3 ? (
+            <StepGetFound draft={draft} onChange={setDraft} />
+          ) : (
+            <StepLive draft={draft} botSlug={botSlug} />
+          )}
+
+          {/* Mobile preview for step 4 */}
+          {showPreview && (
+            <div className="mt-6 lg:hidden">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Live preview
+              </p>
+              <div className="h-[380px]">
+                <ChatPreview
+                  botName={draft.botName || draft.practiceName}
+                  greeting={draft.greeting}
+                  chatTheme={draft.chatTheme}
+                  primaryColor={draft.primaryColor}
+                />
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
         </div>
 
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-md shadow-slate-900/5 sm:p-6 lg:p-8">
-          {persisted.currentStep === 1 ? (
-            <div className="space-y-5">
-              <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">About your practice</h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">Full name</span>
-                  <input
-                    value={s1.fullName}
-                    onChange={(e) => setStep1({ fullName: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </label>
-                <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">Practice name</span>
-                  <input
-                    value={s1.practiceName}
-                    onChange={(e) => setStep1({ practiceName: e.target.value })}
-                    placeholder="e.g. Glow by Jessica"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">City</span>
-                  <input
-                    value={s1.city}
-                    onChange={(e) => setStep1({ city: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">State</span>
-                  <input
-                    value={s1.state}
-                    onChange={(e) => setStep1({ state: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </label>
-                <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">Instagram profile URL (optional)</span>
-                  <p className="mb-1 text-xs text-slate-500">Paste your full profile URL</p>
-                  <input
-                    value={s1.instagram}
-                    onChange={(e) => setStep1({ instagram: e.target.value })}
-                    placeholder="https://www.instagram.com/yourhandle"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-[#1a2744]">Notification email (optional)</span>
-                  <input
-                    type="email"
-                    value={s1.notificationEmail}
-                    onChange={(e) => setStep1({ notificationEmail: e.target.value })}
-                    placeholder="Where should we send client intake notifications?"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </label>
-                <div className="block sm:col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">Facebook page URL (optional)</label>
-                  <input
-                    type="text"
-                    placeholder="https://www.facebook.com/yourpage"
-                    value={s1.facebook}
-                    onChange={(e) => setStep1({ facebook: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </div>
-                <div className="block sm:col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">TikTok profile URL (optional)</label>
-                  <input
-                    type="text"
-                    placeholder="https://www.tiktok.com/@yourhandle"
-                    value={s1.tiktok}
-                    onChange={(e) => setStep1({ tiktok: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </div>
-                <div className="block sm:col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">Website URL (optional)</label>
-                  <input
-                    type="text"
-                    placeholder="https://yourwebsite.com"
-                    value={s1.website}
-                    onChange={(e) => setStep1({ website: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </div>
-                <div className="block sm:col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-[#1a2744]">Other social media URL (optional)</label>
-                  <input
-                    type="text"
-                    placeholder="https://..."
-                    value={s1.otherSocial}
-                    onChange={(e) => setStep1({ otherSocial: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {persisted.currentStep === 2 ? (
-            <div className="space-y-5">
-              <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Your services</h2>
-              <p className="text-sm text-slate-600">Select all that apply.</p>
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {SERVICES.map((svc) => {
-                  const checked = s2.serviceIds.includes(svc.id);
-                  return (
-                    <li key={svc.id}>
-                      <label
-                        className={`flex cursor-pointer flex-col gap-1 rounded-xl border p-4 transition sm:min-h-[7.5rem] ${
-                          checked ? "border-[#0d9488] bg-teal-50/60 ring-1 ring-[#0d9488]/30" : "border-slate-200 hover:border-slate-300"
-                        }`}
-                      >
-                        <span className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleService(svc.id)}
-                            className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-[#0d9488] focus:ring-[#0d9488]"
-                          />
-                          <span className="font-semibold text-[#1a2744]">{svc.label}</span>
-                        </span>
-                        <span className="pl-7 text-xs leading-relaxed text-slate-600 sm:text-sm">{svc.description}</span>
-                      </label>
-                    </li>
-                  );
-                })}
-                <li key={OTHER_SERVICE_ID}>
-                  <label
-                    className={`flex cursor-pointer flex-col gap-1 rounded-xl border p-4 transition sm:min-h-[7.5rem] ${
-                      s2.serviceIds.includes(OTHER_SERVICE_ID)
-                        ? "border-[#0d9488] bg-teal-50/60 ring-1 ring-[#0d9488]/30"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <span className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={s2.serviceIds.includes(OTHER_SERVICE_ID)}
-                        onChange={() => toggleService(OTHER_SERVICE_ID)}
-                        className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-[#0d9488] focus:ring-[#0d9488]"
-                      />
-                      <span className="font-semibold text-[#1a2744]">{OTHER_SERVICE_META.label}</span>
-                    </span>
-                    <span className="pl-7 text-xs leading-relaxed text-slate-600 sm:text-sm">{OTHER_SERVICE_META.description}</span>
-                  </label>
-                </li>
-              </ul>
-              {s2.serviceIds.includes(OTHER_SERVICE_ID) ? (
-                <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
-                  <p className="text-sm font-medium text-[#1a2744]">Custom services (up to 3)</p>
-                  {s2.customServices.map((row, index) => (
-                    <div key={index} className="space-y-2 rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Service {index + 1}</span>
-                        {s2.customServices.length > 1 ? (
-                          <button
-                            type="button"
-                            onClick={() => removeCustomServiceRow(index)}
-                            className="text-xs font-medium text-red-600 hover:text-red-700"
-                          >
-                            Remove
-                          </button>
-                        ) : null}
-                      </div>
-                      <label className="block">
-                        <span className="mb-1 block text-xs font-medium text-[#1a2744]">Service name</span>
-                        <input
-                          value={row.name}
-                          onChange={(e) => updateCustomService(index, { name: e.target.value })}
-                          placeholder="e.g. Body contouring"
-                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-[#0d9488]/30 focus:border-[#0d9488] focus:ring-2"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="mb-1 block text-xs font-medium text-[#1a2744]">Description</span>
-                        <textarea
-                          value={row.description}
-                          onChange={(e) => updateCustomService(index, { description: e.target.value })}
-                          rows={2}
-                          placeholder="Brief description for your clients"
-                          className="w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-[#0d9488]/30 focus:border-[#0d9488] focus:ring-2"
-                        />
-                      </label>
-                    </div>
-                  ))}
-                  {s2.customServices.length < 3 ? (
-                    <button
-                      type="button"
-                      onClick={addCustomServiceRow}
-                      className="text-sm font-semibold text-[#0d9488] hover:text-teal-700"
-                    >
-                      + Add another custom service
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {persisted.currentStep === 3 ? (
-            <div className="space-y-5">
-              <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Bot personality and settings</h2>
-              <div className="space-y-2">
-                <span className="block text-sm font-medium text-[#1a2744]">Your logo (optional)</span>
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLogoUploadError(null);
-                      logoFileInputRef.current?.click();
-                    }}
-                    className="inline-flex rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50"
-                  >
-                    Upload logo
-                  </button>
-                  <input
-                    id="onboarding-logo-upload"
-                    ref={logoFileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
-                    className="sr-only"
-                    tabIndex={-1}
-                    aria-label="Upload logo image"
-                    onChange={(e) => {
-                      void (async () => {
-                        const file = e.target.files?.[0];
-                        e.target.value = "";
-                        setLogoUploadError(null);
-                        if (!file) return;
-                        if (file.size > MAX_UPLOAD_BYTES) {
-                          setLogoUploadError(FILE_TOO_LARGE_MSG);
-                          return;
-                        }
-                        if (!isLogoOrBrandImageFile(file)) {
-                          setLogoUploadError(LOGO_BRAND_TYPE_MSG);
-                          return;
-                        }
-                        const dataUrl = await readImageAsDataUrl(file);
-                        if (!dataUrl) {
-                          setLogoUploadError("We could not read that file. Try another image.");
-                          return;
-                        }
-                        setStep3({ logoImage: dataUrl, logoDataUrl: dataUrl });
-                      })();
-                    }}
-                  />
-                </div>
-                {logoUploadError ? <p className="text-xs font-medium text-red-600">{logoUploadError}</p> : null}
-                {previewLogoImage ? (
-                  <div className="flex flex-wrap items-end gap-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={previewLogoImage} alt="" className="h-16 w-16 rounded-lg border border-slate-200 bg-white object-contain p-1" />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLogoUploadError(null);
-                        setStep3({ logoImage: null, logoDataUrl: null });
-                      }}
-                      className="text-xs font-medium text-red-600 underline decoration-red-600/30 underline-offset-2 hover:text-red-700"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : null}
-                <p className="text-xs text-slate-500">Accepted: PNG, JPG, JPEG, WEBP, SVG. Maximum file size 5 MB.</p>
-                <p className="text-xs leading-relaxed text-slate-600">
-                  Upload your own logo — from Canva, your phone, or anywhere. If you skip this we will use the AdonisBlue butterfly.
-                </p>
-              </div>
-              <div>
-                <span className="mb-2 block text-sm font-medium text-[#1a2744]">What should the chat bubble say to grab attention?</span>
-                <div className="mb-3 flex flex-wrap gap-2">
-                  {ATTENTION_CHIP_TEXTS.map((chip) => {
-                    const selected = s3.bubbleAttentionMessage === chip;
-                    return (
-                      <button
-                        key={chip}
-                        type="button"
-                        onClick={() => setStep3({ bubbleAttentionMessage: chip })}
-                        className={`rounded-full border px-3 py-1.5 text-left text-xs font-medium transition sm:text-sm ${
-                          selected ? "border-[#0d9488] bg-teal-50 text-[#0d9488]" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-                        }`}
-                      >
-                        {chip}
-                      </button>
-                    );
-                  })}
-                </div>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-slate-600">Or type your own message</span>
-                  <input
-                    type="text"
-                    value={s3.bubbleAttentionMessage}
-                    onChange={(e) => setStep3({ bubbleAttentionMessage: e.target.value })}
-                    placeholder="Your custom attention message"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                  />
-                </label>
-              </div>
-              <div className="block">
-                <label htmlFor="bot-greeting" className="mb-1 block text-sm font-medium text-[#1a2744]">
-                  Bot greeting message
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGreetingPanelOpen(true);
-                    setGreetingGenError(null);
-                  }}
-                  className="mb-2 text-left text-sm font-semibold text-[#0d9488] transition hover:text-teal-700"
-                >
-                  ✨ Click here to generate your greeting
-                </button>
-                {greetingPanelOpen ? (
-                  <div className="mb-3 space-y-4 rounded-xl border border-slate-200 bg-slate-50/90 p-4 sm:p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-base font-semibold leading-snug text-[#1a2744] sm:text-lg">Let us create your perfect greeting</h3>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setGreetingPanelOpen(false);
-                          setGreetingGenError(null);
-                        }}
-                        className="shrink-0 text-xs font-medium text-slate-500 transition hover:text-slate-700"
-                      >
-                        Close
-                      </button>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {GREETING_GENERATOR_TONES.map((tone) => {
-                        const selected = greetingPanelToneId === tone.id;
-                        return (
-                          <button
-                            key={tone.id}
-                            type="button"
-                            onClick={() => setGreetingPanelToneId(tone.id)}
-                            className={`rounded-xl border p-3 text-left text-sm transition sm:p-4 ${
-                              selected ? "border-[#0d9488] bg-teal-50/80 ring-1 ring-[#0d9488]/30" : "border-slate-200 bg-white hover:border-slate-300"
-                            }`}
-                          >
-                            <span className="font-semibold text-[#1a2744]">{tone.title}</span>
-                            <span className="mt-1 block text-xs leading-relaxed text-slate-600">— {tone.tagline}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {greetingGenerating ? (
-                      <p className="text-sm font-medium text-[#0d9488]">Creating your perfect greeting...</p>
-                    ) : null}
-                    {greetingGenError ? <p className="text-sm text-red-600">{greetingGenError}</p> : null}
-                    <button
-                      type="button"
-                      disabled={greetingGenerating}
-                      onClick={() => void handleGenerateGreeting()}
-                      className="w-full rounded-full bg-[#0d9488] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-900/10 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                    >
-                      Generate my greeting
-                    </button>
-                    <p className="text-xs text-slate-500">You can edit this anytime</p>
-                  </div>
-                ) : null}
-                <textarea
-                  id="bot-greeting"
-                  value={s3.greeting}
-                  onChange={(e) => setStep3({ greeting: e.target.value })}
-                  rows={3}
-                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                />
-              </div>
-              <fieldset>
-                <legend className="mb-2 text-sm font-medium text-[#1a2744]">Tone</legend>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {TONES.map((tone) => (
-                    <label
-                      key={tone}
-                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 text-sm font-medium transition ${
-                        s3.tone === tone ? "border-[#0d9488] bg-teal-50 text-[#1a2744]" : "border-slate-200 hover:border-slate-300"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="tone"
-                        value={tone}
-                        checked={s3.tone === tone}
-                        onChange={() => setStep3({ tone })}
-                        className="h-4 w-4 border-slate-300 text-[#0d9488] focus:ring-[#0d9488]"
-                      />
-                      {tone}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <div className="space-y-3">
-                <label className="block text-sm font-semibold text-[#1a2744]">Chat theme</label>
-                <p className="text-xs text-slate-500">Choose how your chat looks to clients. You can change this any time.</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep3({ chatTheme: "light" })}
-                    className={`relative overflow-hidden rounded-2xl border-2 p-4 text-left transition ${s3.chatTheme === "light" ? "border-[#0d9488] bg-teal-50" : "border-slate-200 bg-white hover:border-slate-300"}`}
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#1a2744]">☀️ Light</span>
-                      {s3.chatTheme === "light" && <span className="rounded-full bg-[#0d9488] px-2 py-0.5 text-[10px] font-bold text-white">Selected</span>}
-                    </div>
-                    <div className="rounded-xl border border-slate-200 bg-white p-2">
-                      <div className="mb-1.5 h-2 w-3/4 rounded-full bg-slate-200" />
-                      <div className="mb-1.5 h-2 w-1/2 rounded-full bg-slate-100" />
-                      <div className="ml-auto h-2 w-2/3 rounded-full border border-[#0d9488]" style={{ borderColor: s3.primaryColor }} />
-                    </div>
-                    <p className="mt-2 text-[10px] text-slate-500">Clean white, color as accent</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStep3({ chatTheme: "dark" })}
-                    className={`relative overflow-hidden rounded-2xl border-2 p-4 text-left transition ${s3.chatTheme === "dark" ? "border-[#0d9488] bg-teal-50" : "border-slate-200 bg-white hover:border-slate-300"}`}
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#1a2744]">🌙 Dark</span>
-                      {s3.chatTheme === "dark" && <span className="rounded-full bg-[#0d9488] px-2 py-0.5 text-[10px] font-bold text-white">Selected</span>}
-                    </div>
-                    <div className="rounded-xl bg-[#0d1628] p-2">
-                      <div className="mb-1.5 h-2 w-3/4 rounded-full bg-white/20" />
-                      <div className="mb-1.5 h-2 w-1/2 rounded-full bg-white/10" />
-                      <div className="ml-auto h-2 w-2/3 rounded-full" style={{ backgroundColor: s3.primaryColor + "60" }} />
-                    </div>
-                    <p className="mt-2 text-[10px] text-slate-500">Elegant dark glass style</p>
-                  </button>
-                </div>
-              </div>
-              <label className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <span className="text-sm font-medium text-[#1a2744] sm:min-w-[10rem]">Primary chat bubble color</span>
-                <div className="flex flex-wrap items-center gap-3">
-                  <input
-                    type="color"
-                    value={s3.primaryColor}
-                    onChange={(e) => setStep3({ primaryColor: e.target.value })}
-                    className="h-11 w-16 cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white p-0"
-                  />
-                  <span className="text-xs font-mono text-slate-500">{s3.primaryColor}</span>
-                </div>
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-[#1a2744]">What questions should always be forwarded directly to you?</span>
-                <textarea
-                  value={s3.forwardQuestions}
-                  onChange={(e) => setStep3({ forwardQuestions: e.target.value })}
-                  rows={3}
-                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Your booking link</span>
-                <input
-                  type="url"
-                  value={s3.bookingLink}
-                  onChange={(e) => setStep3({ bookingLink: e.target.value })}
-                  placeholder="https://"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Your cancellation policy</span>
-                <textarea
-                  value={s3.cancellationPolicy}
-                  onChange={(e) => setStep3({ cancellationPolicy: e.target.value })}
-                  rows={3}
-                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Your aftercare instructions</span>
-                <textarea
-                  value={s3.aftercare}
-                  onChange={(e) => setStep3({ aftercare: e.target.value })}
-                  rows={3}
-                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-[#1a2744]">How do you numb your clients?</span>
-                <textarea
-                  value={s3.numbingMethod}
-                  onChange={(e) => setStep3({ numbingMethod: e.target.value })}
-                  rows={2}
-                  placeholder="e.g. We use a topical numbing cream applied 20 minutes before treatment"
-                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Do you accept clients with previous filler work?</span>
-                <textarea
-                  value={s3.previousWorkPolicy}
-                  onChange={(e) => setStep3({ previousWorkPolicy: e.target.value })}
-                  rows={2}
-                  placeholder="e.g. Yes, but I require photos first. I also offer dissolving services if needed."
-                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Do you do touch ups on other nurses&apos; work? If yes, what is your policy?</span>
-                <textarea
-                  value={s3.touchUpPolicy}
-                  onChange={(e) => setStep3({ touchUpPolicy: e.target.value })}
-                  rows={2}
-                  placeholder="e.g. Yes I do touch ups! I require photos first and a consultation to assess the previous work."
-                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Do you do same day procedures during consultation? If yes, how does it work?</span>
-                <textarea
-                  value={s3.sameDayConsultation}
-                  onChange={(e) => setStep3({ sameDayConsultation: e.target.value })}
-                  rows={2}
-                  placeholder="e.g. Yes! If we both agree during the consultation, we can do the procedure the same day. Deposit goes toward your service."
-                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-[#1a2744]">Your deposit policy (in your own words)</span>
-                <textarea
-                  value={s3.depositInfo}
-                  onChange={(e) => setStep3({ depositInfo: e.target.value })}
-                  rows={2}
-                  placeholder="e.g. I require a $50 deposit to hold your appointment, which goes toward your treatment"
-                  className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none ring-[#0d9488]/30 transition focus:border-[#0d9488] focus:ring-2"
-                />
-              </label>
-            </div>
-          ) : null}
-
-          {persisted.currentStep === 4 ? (
-            <div className="space-y-8">
-              <div>
-                <h2 className="text-lg font-semibold text-[#1a2744] sm:text-xl">Preview and launch</h2>
-                <p className="mt-1 text-sm text-slate-600">Review your setup, try the preview, then launch when you are ready.</p>
-              </div>
-
-              <section className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-[#0d9488]">Summary</h3>
-                <dl className="mt-3 space-y-2 text-sm">
-                  <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                    <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Your name</dt>
-                    <dd className="text-slate-700">{s1.fullName || "—"}</dd>
-                  </div>
-                  <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                    <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Practice</dt>
-                    <dd className="text-slate-700">{s1.practiceName || "—"}</dd>
-                  </div>
-                  <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                    <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Location</dt>
-                    <dd className="text-slate-700">
-                      {s1.city || "—"}, {s1.state || "—"}
-                    </dd>
-                  </div>
-                  {s1.instagram ? (
-                    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                      <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Instagram</dt>
-                      <dd className="text-slate-700">{s1.instagram}</dd>
-                    </div>
-                  ) : null}
-                  <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                    <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Services</dt>
-                    <dd className="text-slate-700">
-                      {(() => {
-                        const parts = [
-                          ...s2.serviceIds
-                            .filter((id) => id !== OTHER_SERVICE_ID)
-                            .map((id) => SERVICES.find((x) => x.id === id)?.label ?? id),
-                          ...s2.customServices
-                            .filter((c) => c.name.trim())
-                            .map((c) => (c.description.trim() ? `${c.name.trim()} (${c.description.trim()})` : c.name.trim())),
-                        ];
-                        return parts.length ? parts.join(", ") : "—";
-                      })()}
-                    </dd>
-                  </div>
-                  <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                    <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Bot</dt>
-                    <dd className="text-slate-700">
-                      {s3.botName} · {s3.tone}
-                    </dd>
-                  </div>
-                  <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                    <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Greeting</dt>
-                    <dd className="whitespace-pre-wrap text-slate-700">{s3.greeting || "—"}</dd>
-                  </div>
-                  <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                    <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Bubble color</dt>
-                    <dd className="flex items-center gap-2 text-slate-700">
-                      <span className="inline-block h-4 w-4 rounded border border-slate-200" style={{ backgroundColor: s3.primaryColor }} aria-hidden />
-                      <span className="font-mono text-xs">{s3.primaryColor}</span>
-                    </dd>
-                  </div>
-                  {s3.forwardQuestions.trim() ? (
-                    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                      <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Forward to you</dt>
-                      <dd className="whitespace-pre-wrap text-slate-700">{s3.forwardQuestions}</dd>
-                    </div>
-                  ) : null}
-                  {s3.bookingLink ? (
-                    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                      <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Booking</dt>
-                      <dd className="break-all text-slate-700">{s3.bookingLink}</dd>
-                    </div>
-                  ) : null}
-                  {s3.cancellationPolicy.trim() ? (
-                    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                      <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Cancellation</dt>
-                      <dd className="whitespace-pre-wrap text-slate-700">{s3.cancellationPolicy}</dd>
-                    </div>
-                  ) : null}
-                  {s3.aftercare.trim() ? (
-                    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                      <dt className="font-medium text-[#1a2744] sm:min-w-[8rem]">Aftercare</dt>
-                      <dd className="whitespace-pre-wrap text-slate-700">{s3.aftercare}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-              </section>
-
-              <section>
-                <h3 className="mb-3 text-sm font-semibold text-[#1a2744]">Live chat preview</h3>
-                <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-900/5">
-                  <div className="h-1 w-full shrink-0" style={{ backgroundColor: s3.primaryColor }} aria-hidden />
-                  <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 bg-white px-4 py-3">
-                    {previewLogoImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={previewLogoImage}
-                        alt=""
-                        className="h-9 w-9 shrink-0 rounded-lg object-contain ring-1 ring-slate-100"
-                      />
-                    ) : null}
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className="truncate text-sm font-semibold leading-tight text-[#1a2744]"
-                        style={getBotNameFontStyle(s3.botNameFont)}
-                      >
-                        {s1.practiceName.trim() || s3.botName.trim() || "Your practice"}
-                      </p>
-                      <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
-                        <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
-                        Online
-                      </p>
-                    </div>
-                  </div>
-                  <div className="min-h-[12rem] space-y-3 bg-slate-50 px-3 py-4 sm:px-4">
-                    <div className="flex justify-start">
-                      <p className="max-w-[85%] whitespace-pre-wrap py-1 text-sm leading-relaxed text-slate-800">
-                        {s3.greeting || "Your greeting will appear here."}
-                      </p>
-                    </div>
-                    {chatInput.trim() ? (
-                      <div className="flex justify-end">
-                        <div
-                          className="max-w-[85%] rounded-full border-2 bg-white px-3.5 py-2 text-sm leading-relaxed text-slate-800"
-                          style={{ borderColor: s3.primaryColor }}
-                        >
-                          {chatInput}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex justify-end">
-                        <div
-                          className="max-w-[85%] rounded-full border-2 bg-white px-3.5 py-2 text-sm leading-relaxed text-slate-800"
-                          style={{ borderColor: s3.primaryColor }}
-                        >
-                          What services do you offer?
-                        </div>
-                      </div>
-                    )}
-                    <div className="flex justify-start">
-                      <div className="py-1 text-sm text-slate-400">
-                        <span className="inline-flex gap-1">
-                          <span className="animate-bounce">●</span>
-                          <span className="animate-bounce [animation-delay:120ms]">●</span>
-                          <span className="animate-bounce [animation-delay:240ms]">●</span>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-3 sm:px-4">
-                    <div className="mb-2 flex flex-wrap gap-1.5">
-                      {["What services do you offer?", "How do I book?", "Does it hurt?"].map((chip) => (
-                        <span
-                          key={chip}
-                          className="rounded-full border-2 bg-white px-3 py-1.5 text-xs font-medium text-slate-700"
-                          style={{ borderColor: s3.primaryColor }}
-                        >
-                          {chip}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex items-end gap-2">
-                      <input
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        placeholder="Type a test message…"
-                        className="min-w-0 flex-1 rounded-full border-2 border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-300"
-                      />
-                      <button
-                        type="button"
-                        className="shrink-0 rounded-full border-2 bg-white px-4 py-2 text-sm font-semibold transition hover:bg-slate-50"
-                        style={{ borderColor: s3.primaryColor, color: s3.primaryColor }}
-                      >
-                        Send
-                      </button>
-                    </div>
-                    <p className="mt-2 text-center text-xs text-slate-500">Preview only — messages are not saved.</p>
-                  </div>
-                </div>
-              </section>
-
-              <div className="space-y-3">
-                {launchError ? (
-                  <p className="rounded-lg border border-red-200 bg-red-50/90 px-3 py-2.5 text-sm leading-relaxed text-red-800">{launchError}</p>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={launchSaving}
-                  onClick={() => void handleLaunch()}
-                  className="w-full rounded-full bg-[#0d9488] py-4 text-base font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 sm:py-3.5"
-                >
-                  {launchSaving ? "Saving your bot…" : persisted.launched ? "Update & Relaunch" : "Launch my bot"}
-                </button>
-              </div>
-
-              {persisted.launched ? (
-                <section className="space-y-4 rounded-xl border border-teal-200 bg-teal-50/50 p-4 sm:p-6">
-                  {launchSuccess ? (
-                    <p className="text-sm font-medium text-[#0d9488]">{launchSuccess}</p>
-                  ) : null}
-                  <h3 className="text-lg font-semibold text-[#1a2744]">You are live</h3>
-                  <p className="text-sm text-slate-700">Share this link or embed the widget on your site.</p>
-                  <div>
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#0d9488]">Direct share link</p>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <code className="block flex-1 break-all rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-[#1a2744] sm:text-sm">
-                        {`${shareOrigin}/chat/${slug}`}
-                      </code>
-                      <button
-                        type="button"
-                        onClick={() => void navigator.clipboard.writeText(`${shareOrigin}/chat/${slug}`)}
-                        className="shrink-0 rounded-full border border-[#0d9488] bg-white px-4 py-2 text-sm font-semibold text-[#0d9488] hover:bg-teal-50"
-                      >
-                        Copy link
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#0d9488]">Embed code</p>
-                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-slate-200 bg-[#1a2744] p-3 text-xs text-teal-100 sm:text-sm">
-{`<script async src="${shareOrigin}/embed.js" data-bot-slug="${slug}"></script>`}
-                    </pre>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void navigator.clipboard.writeText(
-                          `<script async src="${shareOrigin}/embed.js" data-bot-slug="${slug}"></script>`
-                        )
-                      }
-                      className="mt-2 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
-                    >
-                      Copy embed code
-                    </button>
-                  </div>
-                </section>
-              ) : null}
-            </div>
-          ) : null}
-
-          {currentValidationErrors.length > 0 ? (
-            <div id="validation-errors" className="mt-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800">
-              <p className="font-semibold">Please finish these before continuing:</p>
-              <ul className="mt-2 list-disc space-y-1 pl-5">
-                {currentValidationErrors.map((error) => (
-                  <li key={error}>{error}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          <div className="mt-8 flex flex-col-reverse gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:justify-between">
-            <button
-              type="button"
-              onClick={goBack}
-              disabled={persisted.currentStep <= 1}
-              className="rounded-full border border-slate-200 px-5 py-3 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Back
-            </button>
-            {persisted.currentStep < TOTAL_STEPS ? (
+        {/* ── Bottom nav ───────────────────────────────────────────────── */}
+        <div className="shrink-0 border-t border-slate-100 bg-white px-4 py-4 sm:px-6">
+          <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
+            {!isDone && draft.step > 1 ? (
               <button
                 type="button"
-                onClick={goNext}
-                className="rounded-full bg-[#0d9488] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-teal-900/10 transition hover:bg-teal-700"
+                onClick={goBack}
+                className="min-h-[48px] rounded-full border-2 border-slate-200 px-6 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
               >
-                Save & Next
+                ← Back
               </button>
-            ) : persisted.launched ? (
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center justify-center rounded-full bg-[#1a2744] px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-[#243552]"
-              >
-                Go to dashboard
-              </Link>
             ) : (
-              <span className="text-center text-sm text-slate-500 sm:self-center">Use Launch my bot above when you are ready.</span>
+              <div />
+            )}
+
+            {isDone ? (
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard")}
+                className="min-h-[48px] rounded-full bg-[#1a2744] px-8 text-sm font-semibold text-white shadow-sm transition hover:bg-[#243552]"
+              >
+                Go to dashboard →
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void goNext()}
+                disabled={!canAdvance() || saving}
+                className="min-h-[48px] rounded-full bg-[#0d9488] px-8 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving
+                  ? "Saving…"
+                  : isLastContentStep
+                    ? "Launch my bot 🚀"
+                    : "Next →"}
+              </button>
             )}
           </div>
         </div>
