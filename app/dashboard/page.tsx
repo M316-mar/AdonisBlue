@@ -443,7 +443,7 @@ export default function NurseDashboardPage() {
                             <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-[#0d9488]">Done</span>
                           ) : (
                             <Link href={onboardingHref} tabIndex={-1} className="inline-flex items-center rounded-full bg-[#0d9488] px-4 py-1.5 text-xs font-bold text-white transition hover:bg-teal-700">
-                              {isDone ? "Edit" : "Start →"}
+                              {isDone ? "Edit →" : "Start →"}
                             </Link>
                           )}
                         </div>
@@ -459,9 +459,14 @@ export default function NurseDashboardPage() {
                   <p className="text-base font-bold text-[#1a2744]">You&apos;re all set!</p>
                   <p className="text-sm text-slate-600">Your bot is live and your practice is fully set up. Share your link and start getting clients.</p>
                 </div>
-                <Link href={`/chat/${botChatSlug}`} className="ml-auto shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700">
-                  View my bot →
-                </Link>
+                <div className="ml-auto flex shrink-0 gap-2">
+                  <Link href="/onboarding?step=1" className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50">
+                    Edit my bot
+                  </Link>
+                  <Link href={`/chat/${botChatSlug}`} className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700">
+                    View my bot →
+                  </Link>
+                </div>
               </div>
             )}
 
