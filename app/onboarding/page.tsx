@@ -106,16 +106,46 @@ const DRAFT_KEY = "adonisblue-onboarding-v2";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+const US_STATES = [
+  { abbr: "AL", name: "Alabama" }, { abbr: "AK", name: "Alaska" },
+  { abbr: "AZ", name: "Arizona" }, { abbr: "AR", name: "Arkansas" },
+  { abbr: "CA", name: "California" }, { abbr: "CO", name: "Colorado" },
+  { abbr: "CT", name: "Connecticut" }, { abbr: "DE", name: "Delaware" },
+  { abbr: "FL", name: "Florida" }, { abbr: "GA", name: "Georgia" },
+  { abbr: "HI", name: "Hawaii" }, { abbr: "ID", name: "Idaho" },
+  { abbr: "IL", name: "Illinois" }, { abbr: "IN", name: "Indiana" },
+  { abbr: "IA", name: "Iowa" }, { abbr: "KS", name: "Kansas" },
+  { abbr: "KY", name: "Kentucky" }, { abbr: "LA", name: "Louisiana" },
+  { abbr: "ME", name: "Maine" }, { abbr: "MD", name: "Maryland" },
+  { abbr: "MA", name: "Massachusetts" }, { abbr: "MI", name: "Michigan" },
+  { abbr: "MN", name: "Minnesota" }, { abbr: "MS", name: "Mississippi" },
+  { abbr: "MO", name: "Missouri" }, { abbr: "MT", name: "Montana" },
+  { abbr: "NE", name: "Nebraska" }, { abbr: "NV", name: "Nevada" },
+  { abbr: "NH", name: "New Hampshire" }, { abbr: "NJ", name: "New Jersey" },
+  { abbr: "NM", name: "New Mexico" }, { abbr: "NY", name: "New York" },
+  { abbr: "NC", name: "North Carolina" }, { abbr: "ND", name: "North Dakota" },
+  { abbr: "OH", name: "Ohio" }, { abbr: "OK", name: "Oklahoma" },
+  { abbr: "OR", name: "Oregon" }, { abbr: "PA", name: "Pennsylvania" },
+  { abbr: "RI", name: "Rhode Island" }, { abbr: "SC", name: "South Carolina" },
+  { abbr: "SD", name: "South Dakota" }, { abbr: "TN", name: "Tennessee" },
+  { abbr: "TX", name: "Texas" }, { abbr: "UT", name: "Utah" },
+  { abbr: "VT", name: "Vermont" }, { abbr: "VA", name: "Virginia" },
+  { abbr: "WA", name: "Washington" }, { abbr: "WV", name: "West Virginia" },
+  { abbr: "WI", name: "Wisconsin" }, { abbr: "WY", name: "Wyoming" },
+] as const;
+
 type Draft = {
   userId: string;
   step: number;
   // Step 1
-  firstName: string;
   practiceName: string;
   city: string;
   state: string;
   // Step 2
   procedures: string[];
+  customProcedures: string;
+  numbingMethod: string;
+  cancellationPolicy: string;
   bookingLink: string;
   // Step 3
   instagram: string;
@@ -134,11 +164,13 @@ function emptyDraft(userId: string): Draft {
   return {
     userId,
     step: 1,
-    firstName: "",
     practiceName: "",
     city: "",
     state: "",
     procedures: [],
+    customProcedures: "",
+    numbingMethod: "",
+    cancellationPolicy: "",
     bookingLink: "",
     instagram: "",
     tiktok: "",
@@ -230,16 +262,20 @@ function ChatPreview({
         className="flex shrink-0 items-center gap-2.5 border-b-4 bg-white px-3 py-2.5"
         style={{ borderBottomColor: brand }}
       >
-        <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white overflow-hidden"
-          style={!logoUrl ? { backgroundColor: brand, boxShadow: "0 1px 3px rgba(0,0,0,.12)" } : { boxShadow: "0 1px 3px rgba(0,0,0,.12)" }}
-        >
-          {logoUrl ? (
-            <img src={logoUrl} alt="logo" className="h-full w-full object-cover" />
-          ) : (
-            title.charAt(0).toUpperCase()
-          )}
-        </div>
+        {logoUrl ? (
+          <img
+            src={logoUrl}
+            alt="Logo"
+            className="h-14 w-14 rounded-full object-contain bg-white border border-slate-100 shadow-sm p-1 shrink-0"
+          />
+        ) : (
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white"
+            style={{ backgroundColor: brand, boxShadow: "0 1px 3px rgba(0,0,0,.12)" }}
+          >
+            {title.charAt(0).toUpperCase()}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <p
             className="truncate text-xs font-semibold leading-tight"
@@ -315,18 +351,7 @@ function StepWelcome({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[#1a2744]">
-            Your first name
-          </label>
-          <input
-            className={field}
-            placeholder="e.g. Maria"
-            value={draft.firstName}
-            onChange={(e) => onChange({ firstName: e.target.value })}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 sm:col-span-2">
           <label className="text-sm font-medium text-[#1a2744]">
             Practice name
           </label>
@@ -342,18 +367,23 @@ function StepWelcome({
           <input
             className={field}
             placeholder="e.g. Miami"
+            autoComplete="address-level2"
             value={draft.city}
             onChange={(e) => onChange({ city: e.target.value })}
           />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-[#1a2744]">State</label>
-          <input
-            className={field}
-            placeholder="e.g. FL"
+          <select
+            className={`${field} text-base`}
             value={draft.state}
             onChange={(e) => onChange({ state: e.target.value })}
-          />
+          >
+            <option value="">Select state...</option>
+            {US_STATES.map((s) => (
+              <option key={s.abbr} value={s.abbr}>{s.name}</option>
+            ))}
+          </select>
         </div>
       </div>
     </div>
@@ -424,6 +454,46 @@ function StepProcedures({
         })}
       </div>
 
+      {draft.procedures.includes("Other") && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">Custom services</label>
+          <input
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]"
+            placeholder="e.g. Microdermabrasion, Chemical Peel, Laser..."
+            value={draft.customProcedures}
+            onChange={(e) => onChange({ customProcedures: e.target.value })}
+          />
+          <p className="text-xs text-slate-400">Separate multiple services with commas</p>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-medium text-[#1a2744]">
+          What numbing method do you use? <span className="font-normal text-slate-400">(optional)</span>
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { value: "Topical numbing cream", label: "💊 Topical cream" },
+            { value: "Numbing in the needle", label: "💉 In the needle" },
+            { value: "Both topical and needle numbing", label: "🔢 Both methods" },
+            { value: "I don't use numbing", label: "❌ No numbing" },
+          ].map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onChange({ numbingMethod: draft.numbingMethod === opt.value ? "" : opt.value })}
+              className={`rounded-xl border-2 px-3 py-3 text-sm font-medium transition min-h-[44px] ${
+                draft.numbingMethod === opt.value
+                  ? "border-[#0d9488] bg-teal-50 text-[#0d9488]"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-[#1a2744]">
           Booking link{" "}
@@ -438,6 +508,20 @@ function StepProcedures({
         <p className="text-xs text-slate-400">
           Calendly, Acuity, Jane, Vagaro — any link works
         </p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-[#1a2744]">
+          Cancellation policy <span className="font-normal text-slate-400">(optional)</span>
+        </label>
+        <textarea
+          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px] min-h-[80px] resize-none"
+          placeholder="e.g. Cancellations must be made 24 hours in advance. Late cancellations may be subject to a fee."
+          value={draft.cancellationPolicy}
+          onChange={(e) => onChange({ cancellationPolicy: e.target.value })}
+          rows={3}
+        />
+        <p className="text-xs text-slate-400">Your AI bot will share this with clients before they book.</p>
       </div>
     </div>
   );
@@ -753,8 +837,7 @@ function StepLive({
           Your AI front desk is ready!
         </h1>
         <p className="mt-2 text-sm text-slate-500 sm:text-base">
-          Welcome to AdonisBlue,{" "}
-          {draft.firstName.trim() || "friend"}. Your bot is live right now.
+          Welcome to AdonisBlue! Your bot is live right now.
         </p>
       </div>
 
@@ -855,11 +938,6 @@ function OnboardingInner() {
       const userId = data.session.user.id;
       tokenRef.current = data.session.access_token;
 
-      // Derive first name from auth metadata as best-effort fallback
-      const metaFullName =
-        (data.session.user.user_metadata?.full_name as string | undefined) ?? "";
-      const metaFirstName = metaFullName.trim().split(" ")[0] ?? "";
-
       // Always fetch server state first — mybot and procedures in parallel
       let serverDraft: Partial<Draft> = {};
       try {
@@ -879,8 +957,7 @@ function OnboardingInner() {
 
             // ── Pre-fill ALL fields — never overwrite server data with empty ──
             serverDraft = {
-              // Step 1 — first_name has no DB column; use auth metadata or local draft
-              firstName: metaFirstName,
+              // Step 1
               practiceName: (bot.practice_name as string | null) ?? "",
               city: (bot.city as string | null) ?? "",
               state: (bot.state as string | null) ?? "",
@@ -888,6 +965,9 @@ function OnboardingInner() {
               procedures: Array.isArray(bot.services) && bot.services.length > 0
                 ? (bot.services as string[])
                 : [],
+              customProcedures: "",
+              numbingMethod: (bot.numbing_method as string | null) ?? "",
+              cancellationPolicy: (bot.cancellation_policy as string | null) ?? "",
               bookingLink: (bot.booking_link as string | null) ?? "",
               // Step 3
               instagram: (bot.instagram as string | null) ?? "",
@@ -933,11 +1013,6 @@ function OnboardingInner() {
           } catch { /* ignore */ }
         }
 
-        // Restore firstName from local draft if auth metadata didn't have it
-        if (!serverDraft.firstName) {
-          const localPeek = loadDraft(userId);
-          if (localPeek.firstName) serverDraft.firstName = localPeek.firstName;
-        }
       } catch {
         // Network error — fall back to localStorage draft
       }
@@ -984,7 +1059,7 @@ function OnboardingInner() {
   // ── Navigation ────────────────────────────────────────────────────────────
   const canAdvance = useCallback((): boolean => {
     if (draft.step === 1)
-      return Boolean(draft.firstName.trim() && draft.practiceName.trim());
+      return Boolean(draft.practiceName.trim() && draft.city.trim());
     if (draft.step === 2) return draft.procedures.length > 0;
     return true;
   }, [draft]);
@@ -1004,6 +1079,10 @@ function OnboardingInner() {
       const token = tokenRef.current;
       const slug = slugify(draft.botName.trim() || draft.practiceName.trim());
 
+      const baseServices = draft.procedures.filter((p) => p !== "Other");
+      const customList = draft.customProcedures.split(",").map((s) => s.trim()).filter(Boolean);
+      const services = [...baseServices, ...customList];
+
       const botPayload = {
         practice_name: draft.practiceName.trim(),
         city: draft.city.trim(),
@@ -1020,8 +1099,10 @@ function OnboardingInner() {
           `Hi there! 👋 I'm here to help with bookings, answer questions, and more.`,
         brand_color: draft.brandColor,
         booking_link: draft.bookingLink.trim() || null,
-        services: draft.procedures,
+        services,
         logo_url: draft.logoUrl || null,
+        numbing_method: draft.numbingMethod || null,
+        cancellation_policy: draft.cancellationPolicy || null,
         launched: true,
       };
 
@@ -1047,9 +1128,9 @@ function OnboardingInner() {
       }
 
       // Seed procedures
-      if (draft.procedures.length > 0) {
+      if (services.length > 0) {
         await Promise.allSettled(
-          draft.procedures.map((name) =>
+          services.map((name) =>
             fetch("/api/procedures", {
               method: "POST",
               headers: {

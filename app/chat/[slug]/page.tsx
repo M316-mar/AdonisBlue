@@ -418,11 +418,11 @@ export default function PublicChatPage() {
             <img
               src={botLogoImage}
               alt=""
-              style={{ width: 48, height: 48, minWidth: 48, borderRadius: "50%", objectFit: "contain", backgroundColor: "white", padding: "2px", boxShadow: "0 1px 3px rgba(0,0,0,.12)", display: "block" }}
+              style={{ width: 56, height: 56, minWidth: 56, borderRadius: "50%", objectFit: "contain", backgroundColor: "white", padding: "2px", boxShadow: "0 1px 3px rgba(0,0,0,.12)", display: "block" }}
             />
           ) : (
             <div
-              style={{ width: 44, height: 44, minWidth: 44, borderRadius: "50%", backgroundColor: brand, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: "white", boxShadow: "0 1px 3px rgba(0,0,0,.12)" }}
+              style={{ width: 56, height: 56, minWidth: 56, borderRadius: "50%", backgroundColor: brand, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: "white", boxShadow: "0 1px 3px rgba(0,0,0,.12)" }}
             >
               {(bot.practice_name || "").trim().charAt(0).toUpperCase() || "?"}
             </div>

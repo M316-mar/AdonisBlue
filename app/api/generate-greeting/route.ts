@@ -5,13 +5,14 @@ Write a short AI chatbot welcome message for an aesthetic nurse injector's pract
 
 Rules:
 - 2-3 sentences ONLY — no more
-- Use the EXACT practice name given
+- Use the EXACT practice name given as the business name — never use a personal name
 - Apply these psychological principles: warmth, curiosity, social proof, and a soft sense of urgency
 - Sound human, not corporate — like a friendly expert who genuinely cares
 - Include 1-2 tasteful emojis
 - End with an open question that invites the visitor to start the conversation
 - NEVER use jargon like "neural pathways" or "synergistic"
-- Output ONLY the greeting text — no preamble, no "Here is a greeting:", nothing extra`;
+- Output ONLY the greeting text — no preamble, no "Here is a greeting:", nothing extra
+- Every message you generate must be completely unique. Vary the opening word, the tone, the sentence structure, and the emoji placement. Never start two messages the same way. Think of 10 different ways to open a welcome message and pick one at random.`;
 
 export async function POST(request: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
     `Bot/assistant name: ${botName || "(not set)"}`,
     `Procedures offered: ${procedures.length > 0 ? procedures.join(", ") : "(not specified — keep it generic)"}`,
     "",
-    "Write a compelling, unique welcome message following the rules above.",
+    `Seed: ${Math.random().toString(36).slice(2)}. Generate a completely different welcome message from any you've generated before.`,
   ].join("\n");
 
   let anthropicRes: Response;
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: "claude-opus-4-5",
         max_tokens: 200,
+        temperature: 1,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userMessage }],
       }),
