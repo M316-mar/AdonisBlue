@@ -127,6 +127,7 @@ type Draft = {
   botName: string;
   greeting: string;
   brandColor: string;
+  logoUrl: string;
 };
 
 function emptyDraft(userId: string): Draft {
@@ -147,6 +148,7 @@ function emptyDraft(userId: string): Draft {
     botName: "",
     greeting: "",
     brandColor: "#0d9488",
+    logoUrl: "",
   };
 }
 
@@ -504,6 +506,16 @@ function StepGetFound({
             value={draft.website}
             onChange={(e) => onChange({ website: e.target.value })}
           />
+          {draft.website && (
+            <div className="rounded-xl border border-teal-100 bg-teal-50 p-4 mt-2">
+              <p className="text-xs font-semibold text-teal-700 mb-1">💡 Website tip</p>
+              <p className="text-xs text-slate-600">
+                When you add your bot to your website, visitors will see a chat bubble that says:{" "}
+                <strong>&ldquo;Have questions? I&apos;m here to help! 💙&rdquo;</strong>{" "}
+                — this captures attention and turns website visitors into clients automatically.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -534,6 +546,8 @@ function StepCustomize({
   draft: Draft;
   onChange: (patch: Partial<Draft>) => void;
 }) {
+  const [generating, setGenerating] = useState(false);
+
   const field =
     "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]";
 
@@ -546,6 +560,72 @@ function StepCustomize({
         <p className="mt-2 text-sm text-slate-500 sm:text-base">
           This is what your clients will see.
         </p>
+      </div>
+
+      {/* ── Give your assistant an identity ─────────────────────────────── */}
+      <div>
+        <p className="text-sm font-semibold text-[#1a2744] mb-1">Give your assistant an identity</p>
+        <p className="text-xs text-slate-500 mb-3">
+          Don&apos;t have a logo? No worries — we&apos;ll use your practice initial in a colored circle.
+        </p>
+        <div className="flex items-center gap-4">
+          {draft.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={draft.logoUrl}
+              alt="Logo"
+              className="h-16 w-16 rounded-full object-cover border-2 border-slate-200 shadow-sm shrink-0"
+            />
+          ) : (
+            <div
+              className="h-16 w-16 shrink-0 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center text-lg font-bold text-white select-none shadow-sm"
+              style={{ backgroundColor: draft.brandColor || "#0d9488" }}
+            >
+              {(draft.practiceName || draft.botName || "A").charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <p className="text-xs font-medium text-slate-500 mb-2">
+              {draft.logoUrl ? "Option A: Your logo ✓" : "Option A: Upload your logo"}
+            </p>
+            <label className="cursor-pointer rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition inline-block">
+              Upload logo
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 2 * 1024 * 1024) {
+                    alert("File is too large. Please choose an image under 2 MB.");
+                    return;
+                  }
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    onChange({ logoUrl: reader.result as string });
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </label>
+            {draft.logoUrl && (
+              <button
+                type="button"
+                onClick={() => onChange({ logoUrl: "" })}
+                className="ml-2 text-xs text-red-400 hover:text-red-600 transition"
+              >
+                Remove
+              </button>
+            )}
+            <p className="text-xs text-slate-400 mt-1">PNG, JPG up to 2 MB</p>
+            {!draft.logoUrl && (
+              <p className="text-xs text-slate-400 mt-1">
+                Option B: Practice initial (shown above) — no upload needed.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -600,6 +680,33 @@ function StepCustomize({
           value={draft.greeting}
           onChange={(e) => onChange({ greeting: e.target.value })}
         />
+        <button
+          type="button"
+          disabled={generating}
+          onClick={async () => {
+            setGenerating(true);
+            try {
+              const res = await fetch("/api/generate-greeting", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  practice_name: draft.practiceName,
+                  procedures: draft.procedures,
+                  bot_name: draft.botName,
+                }),
+              });
+              const j = (await res.json()) as { greeting?: string };
+              if (j.greeting) onChange({ greeting: j.greeting });
+            } catch {
+              // silently fail — nurse can type manually
+            } finally {
+              setGenerating(false);
+            }
+          }}
+          className="mt-2 self-start rounded-full border border-teal-200 bg-teal-50 px-4 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {generating ? "Generating…" : "✨ Generate AI welcome message"}
+        </button>
       </div>
     </div>
   );
@@ -745,36 +852,63 @@ export default function OnboardingPage() {
       const userId = data.session.user.id;
       tokenRef.current = data.session.access_token;
 
-      // Always fetch server state first
+      // Always fetch server state first — both mybot and procedures in parallel
       let serverDraft: Partial<Draft> = {};
       try {
-        const res = await fetch("/api/mybot", {
-          headers: { Authorization: `Bearer ${data.session.access_token}` },
-        });
-        if (!cancelled && res.ok) {
-          const { bot } = (await res.json()) as { bot?: Record<string, unknown> | null };
+        const authHeader = { Authorization: `Bearer ${data.session.access_token}` };
+        const [botRes, procRes] = await Promise.all([
+          fetch("/api/mybot", { headers: authHeader }),
+          fetch("/api/procedures", { headers: authHeader }),
+        ]);
+        if (cancelled) return;
+
+        // ── Bot row — all fields ───────────────────────────────────────────────
+        if (botRes.ok) {
+          const { bot } = (await botRes.json()) as { bot?: Record<string, unknown> | null };
           if (bot && bot.nurse_id === userId) {
+            // ── Pre-fill ALL fields from the server — never lose existing data ──
             serverDraft = {
+              // Step 1
+              // Note: first_name is not a DB column; keep whatever the nurse typed
+              // locally — defaults to empty so the field stays editable.
               firstName: (bot.first_name as string | null) ?? "",
               practiceName: (bot.practice_name as string | null) ?? "",
               city: (bot.city as string | null) ?? "",
               state: (bot.state as string | null) ?? "",
+              // Step 2 — procedures come from the services array on bots table
+              procedures: Array.isArray(bot.services)
+                ? (bot.services as string[])
+                : [],
               bookingLink: (bot.booking_link as string | null) ?? "",
+              // Step 3
               instagram: (bot.instagram as string | null) ?? "",
               tiktok: (bot.tiktok as string | null) ?? "",
               facebook: (bot.facebook as string | null) ?? "",
               website: (bot.website as string | null) ?? "",
-              notificationEmail:
-                (bot.notification_email as string | null) ?? "",
+              notificationEmail: (bot.notification_email as string | null) ?? "",
+              // Step 4
               botName: (bot.bot_name as string | null) ?? "",
+              // "greeting" is the DB column name for the welcome message
               greeting: (bot.greeting as string | null) ?? "",
-              brandColor:
-                (bot.brand_color as string | null) ?? "#0d9488",
-              procedures: Array.isArray(bot.services)
-                ? (bot.services as string[])
-                : [],
+              // brand_color — now included in mybot select string
+              brandColor: (bot.brand_color as string | null) ?? "#0d9488",
+              logoUrl: (bot.logo_url as string | null) ?? "",
             };
-            // If bot is already launched, skip to step 5
+
+            // Also merge procedure names from the procedures table as a fallback —
+            // if services array is empty but procedures table has rows, use those.
+            if ((serverDraft.procedures ?? []).length === 0 && procRes.ok) {
+              const { procedures } = (await procRes.json()) as {
+                procedures?: Array<{ name?: string }> | null;
+              };
+              if (Array.isArray(procedures) && procedures.length > 0) {
+                serverDraft.procedures = procedures
+                  .map((p) => p.name ?? "")
+                  .filter(Boolean);
+              }
+            }
+
+            // If bot is already launched, jump straight to the success step
             if (bot.launched === true) {
               const slug = slugify(
                 (bot.bot_name as string | null) ??
@@ -786,7 +920,7 @@ export default function OnboardingPage() {
           }
         }
       } catch {
-        // Network error — fall back to localStorage
+        // Network error — fall back to localStorage draft
       }
       if (cancelled) return;
 
@@ -855,6 +989,7 @@ export default function OnboardingPage() {
         brand_color: draft.brandColor,
         booking_link: draft.bookingLink.trim() || null,
         services: draft.procedures,
+        logo_url: draft.logoUrl || null,
         launched: true,
       };
 

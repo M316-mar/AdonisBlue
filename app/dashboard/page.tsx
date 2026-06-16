@@ -69,22 +69,15 @@ function slugify(input: string): string {
 
 function onboardingHrefForChecklist(id: ChecklistId): string {
   switch (id) {
-    case "practice":
-      return "/onboarding?step=1";
-    case "services":
-      return "/onboarding?step=2";
-    case "booking":
-      return "/onboarding?step=3";
-    case "photos":
-      return "/onboarding?step=4";
-    case "botStyle":
-      return "/onboarding?step=3";
-    case "policies":
-      return "/onboarding?step=3";
-    case "preview":
-      return "/onboarding?step=5";
-    default:
-      return "/onboarding";
+    case "practice":   return "/onboarding?step=1";
+    case "services":   return "/onboarding?step=2";
+    case "booking":    return "/onboarding?step=2";
+    case "photos":     return "/onboarding?step=4";
+    case "botStyle":   return "/onboarding?step=4";
+    case "policies":   return "/onboarding?step=3";
+    case "preview":    return "/onboarding?step=4";
+    case "share":      return "/dashboard#embed";
+    default:           return "/onboarding";
   }
 }
 
