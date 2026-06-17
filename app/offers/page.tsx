@@ -28,6 +28,7 @@ type FormState = {
   discount_type: DiscountType;
   discount_value: string;
   service_name: string;
+  ongoing: boolean;
   starts_at: string;
   expires_at: string;
 };
