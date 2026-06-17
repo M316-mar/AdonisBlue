@@ -231,8 +231,8 @@ export default function OffersPage() {
           active: true,
         }),
       });
-      const j = await res.json() as { offer?: Offer; error?: string };
-      if (!res.ok) { setError(j.error ?? "Could not save offer."); return; }
+      const j = await res.json() as { offer?: Offer; error?: string; hint?: string; details?: string; code?: string };
+      if (!res.ok) { setError((j.error ?? "Could not save offer.") + (j.hint ? ` (${j.hint})` : "") + (j.details ? ` — ${j.details}` : "") + (j.code ? ` [${j.code}]` : "")); return; }
       if (j.offer) setOffers(prev => [j.offer!, ...prev]);
       setForm(emptyForm());
       setShowForm(false);
