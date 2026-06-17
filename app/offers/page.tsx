@@ -349,6 +349,16 @@ export default function OffersPage() {
                 <span>{t.label}</span>
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                setForm(emptyForm());
+                setShowForm(true);
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-dashed border-teal-300 bg-white px-4 py-2 text-xs font-semibold text-teal-600 hover:bg-teal-50 transition min-h-[44px]"
+            >
+              ✏️ Create your own
+            </button>
           </div>
         </section>
 

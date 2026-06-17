@@ -392,7 +392,8 @@ export default function PublicChatPage() {
 
   const fontId = (bot.bot_name_font as BotNameFontId | undefined) ?? "dm-sans";
   const botTitle = (bot.practice_name || "").trim() || "Chat";
-  const botLogoImage = bot.logo_url || bot.logo_image || bot.logo_data_url;
+  const botLogoImage = (bot.logo_url || bot.logo_image || bot.logo_data_url) || null;
+  const hasLogo = Boolean(botLogoImage && botLogoImage.trim());
 
   const ChatPanel = (
     <div
@@ -413,10 +414,10 @@ export default function PublicChatPage() {
         style={{ borderBottomColor: brand }}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          {botLogoImage ? (
+          {hasLogo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={botLogoImage}
+              src={botLogoImage!}
               alt=""
               style={{ width: 56, height: 56, minWidth: 56, borderRadius: "50%", objectFit: "contain", backgroundColor: "white", padding: "2px", boxShadow: "0 1px 3px rgba(0,0,0,.12)", display: "block" }}
             />
@@ -549,10 +550,10 @@ export default function PublicChatPage() {
         style={{ borderBottomColor: brand }}
       >
         <div className="mx-auto flex max-w-3xl items-center gap-4 sm:gap-5">
-          {botLogoImage ? (
+          {hasLogo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={botLogoImage}
+              src={botLogoImage!}
               alt=""
               style={{ width: 56, height: 56, minWidth: 56, borderRadius: "50%", objectFit: "cover", backgroundColor: "white", boxShadow: "0 1px 3px rgba(0,0,0,.12)", display: "block" }}
             />
