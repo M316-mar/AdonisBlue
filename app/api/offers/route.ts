@@ -36,10 +36,12 @@ export async function GET(request: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Auto-set active = false for expired or not-yet-started offers
+    // Auto-set active = false for expired or not-yet-started offers.
+    // Ongoing offers have no expiry — they stay active as long as active=true.
     const offers = (data ?? []).map((o: Record<string, unknown>) => {
-      const expired = o.expires_at && (o.expires_at as string) < now;
-      const notStarted = o.starts_at && (o.starts_at as string) > now;
+      const ongoing = o.ongoing === true;
+      const expired = !ongoing && o.expires_at && (o.expires_at as string) < now;
+      const notStarted = !ongoing && o.starts_at && (o.starts_at as string) > now;
       const active = o.active === true && !expired && !notStarted;
       return { ...o, active };
     });
@@ -68,8 +70,9 @@ export async function POST(request: Request) {
         discount_type: body.discount_type ?? "percentage",
         discount_value: body.discount_value ?? null,
         service_name: body.service_name ?? null,
-        starts_at: body.starts_at ?? null,
-        expires_at: body.expires_at ?? null,
+        ongoing: body.ongoing ?? false,
+        starts_at: body.ongoing ? null : (body.starts_at ?? null),
+        expires_at: body.ongoing ? null : (body.expires_at ?? null),
         active: body.active ?? true,
       })
       .select()

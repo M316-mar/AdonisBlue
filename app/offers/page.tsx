@@ -16,6 +16,7 @@ type Offer = {
   discount_type: DiscountType;
   discount_value: number | null;
   service_name: string | null;
+  ongoing: boolean;
   starts_at: string | null;
   expires_at: string | null;
   active: boolean;
@@ -141,14 +142,14 @@ function discountLabel(offer: Offer): string {
 
 function offerStatus(offer: Offer): { label: string; color: string } {
   const now = new Date();
-  if (offer.expires_at && new Date(offer.expires_at) < now) {
+  if (!offer.ongoing && offer.expires_at && new Date(offer.expires_at) < now) {
     return { label: "Expired", color: "bg-slate-100 text-slate-500" };
   }
-  if (offer.starts_at && new Date(offer.starts_at) > now) {
+  if (!offer.ongoing && offer.starts_at && new Date(offer.starts_at) > now) {
     return { label: `Starts ${formatDate(offer.starts_at)}`, color: "bg-blue-50 text-blue-600" };
   }
   if (offer.active) {
-    return { label: "Active now", color: "bg-green-50 text-green-700" };
+    return { label: offer.ongoing ? "Always active" : "Active now", color: "bg-green-50 text-green-700" };
   }
   return { label: "Paused", color: "bg-amber-50 text-amber-700" };
 }
@@ -156,7 +157,7 @@ function offerStatus(offer: Offer): { label: string; color: string } {
 function emptyForm(): FormState {
   return {
     title: "", description: "", discount_type: "percentage",
-    discount_value: "", service_name: "", starts_at: "", expires_at: "",
+    discount_value: "", service_name: "", ongoing: false, starts_at: "", expires_at: "",
   };
 }
 
@@ -224,8 +225,9 @@ export default function OffersPage() {
           discount_type: form.discount_type,
           discount_value: form.discount_value ? parseFloat(form.discount_value) : null,
           service_name: form.service_name || null,
-          starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
-          expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null,
+          ongoing: form.ongoing,
+          starts_at: form.ongoing ? null : (form.starts_at ? new Date(form.starts_at).toISOString() : null),
+          expires_at: form.ongoing ? null : (form.expires_at ? new Date(form.expires_at).toISOString() : null),
           active: true,
         }),
       });
@@ -280,6 +282,7 @@ export default function OffersPage() {
       discount_type: t.discount_type,
       discount_value: t.discount_value,
       service_name: "",
+      ongoing: false,
       starts_at: t.starts_at,
       expires_at: t.expires_at,
     });
@@ -521,31 +524,52 @@ export default function OffersPage() {
                 </div>
               )}
 
-              {/* Dates */}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-[#1a2744]">Start date</label>
-                  <input
-                    type="date"
-                    className={inputCls}
-                    value={form.starts_at}
-                    onChange={e => setF({ starts_at: e.target.value })}
-                  />
+              {/* Dates / ongoing toggle */}
+              <div className="rounded-xl border border-teal-100 bg-teal-50 p-4">
+                <p className="mb-3 text-sm font-semibold text-[#1a2744]">When is this offer available?</p>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setF({ ongoing: true, starts_at: "", expires_at: "" })}
+                    className={`flex-1 rounded-full py-2.5 text-sm font-semibold transition ${form.ongoing ? "bg-[#0d9488] text-white" : "border border-slate-200 bg-white text-slate-600"}`}
+                  >
+                    🔄 Always active
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setF({ ongoing: false })}
+                    className={`flex-1 rounded-full py-2.5 text-sm font-semibold transition ${!form.ongoing ? "bg-[#0d9488] text-white" : "border border-slate-200 bg-white text-slate-600"}`}
+                  >
+                    📅 Set dates
+                  </button>
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-[#1a2744]">End date</label>
-                  <input
-                    type="date"
-                    className={inputCls}
-                    value={form.expires_at}
-                    onChange={e => setF({ expires_at: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {/* Helper */}
-              <div className="rounded-xl border border-teal-100 bg-teal-50 px-4 py-3 text-xs text-teal-700">
-                💡 Your AI bot will automatically mention this offer to clients between these dates — you don&apos;t need to do anything else!
+                {!form.ongoing && (
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-600">Start date</label>
+                      <input
+                        type="date"
+                        value={form.starts_at}
+                        onChange={e => setF({ starts_at: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#0d9488]"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-600">End date</label>
+                      <input
+                        type="date"
+                        value={form.expires_at}
+                        onChange={e => setF({ expires_at: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#0d9488]"
+                      />
+                    </div>
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-slate-500">
+                  {form.ongoing
+                    ? "Your AI bot will mention this offer to every new client — no expiry date."
+                    : "Your AI bot will only mention this offer between the dates you set."}
+                </p>
               </div>
 
               {error && (
