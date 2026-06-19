@@ -68,6 +68,7 @@ const PROTECTED_PREFIXES = [
   "/onboarding",
   "/booking-connect",
   "/offers",
+  "/upgrade",
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -171,6 +172,8 @@ export const config = {
     "/booking-connect",
     "/offers/:path*",
     "/offers",
+    "/upgrade/:path*",
+    "/upgrade",
     "/auth/:path*",
     "/auth",
   ],

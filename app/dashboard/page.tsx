@@ -641,12 +641,12 @@ export default function NurseDashboardPage() {
                     {expired && (
                       <p className="mt-2 text-xs text-red-500">Your trial has ended. Upgrade to keep your bot running.</p>
                     )}
-                    <a
-                      href="/#pricing"
+                    <Link
+                      href={plan === "trial" || plan === "starter" ? "/upgrade" : "/#pricing"}
                       className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
                     >
-                      {plan === "trial" ? "Upgrade plan →" : "Manage plan →"}
-                    </a>
+                      {plan === "trial" ? "Upgrade plan →" : plan === "starter" ? "Upgrade to Pro →" : "Manage plan →"}
+                    </Link>
                     <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
                       <button
                         type="button"
