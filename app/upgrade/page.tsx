@@ -13,15 +13,15 @@ const PLANS = [
     color: "border-sky-200 bg-sky-50",
     badgeColor: "bg-sky-100 text-sky-700",
     btnColor: "bg-sky-600 hover:bg-sky-700",
-    monthlyPrice: 47,
-    annualPrice: 37,
+    monthlyPrice: 85,
+    annualPrice: 850,
     features: [
-      "AI chat bot on your website",
-      "Intake form collection",
-      "Booking link integration",
-      "Email lead notifications",
-      "Basic analytics",
-      "Up to 300 conversations/month",
+      "Everything in free trial",
+      "Unlimited conversations",
+      "Embed chat on your website",
+      "Booking link built into bot",
+      "Questions flagged and sent to you",
+      "Weekly summary of top questions",
     ],
   },
   {
@@ -31,18 +31,16 @@ const PLANS = [
     color: "border-teal-300 bg-teal-50 ring-2 ring-teal-400",
     badgeColor: "bg-teal-100 text-teal-700",
     btnColor: "bg-[#0d9488] hover:bg-teal-700",
-    monthlyPrice: 97,
-    annualPrice: 77,
+    monthlyPrice: 150,
+    annualPrice: 1500,
     features: [
       "Everything in Starter",
-      "Unlimited conversations",
-      "Deals & Offers (AI mentions them automatically)",
-      "Aftercare dashboard",
-      "Healing chat for post-treatment clients",
-      "Blue Room community access",
-      "Loyalty program",
-      "Advanced insights & analytics",
-      "Priority support",
+      "Custom bot name and colors",
+      "Guided setup for every client question",
+      "Monthly check-in to improve answers",
+      "Conversation insights dashboard",
+      "Multiple locations or specialties",
+      "VIP 4-hour response for fixes",
     ],
     badge: "Most Popular",
   },
@@ -80,8 +78,9 @@ export default function UpgradePage() {
     }
   };
 
+  // annualPrice is the full yearly charge; compare to 12 × monthly to get savings %
   const annualSavings = (plan: typeof PLANS[number]) =>
-    Math.round(((plan.monthlyPrice - plan.annualPrice) / plan.monthlyPrice) * 100);
+    Math.round(((plan.monthlyPrice * 12 - plan.annualPrice) / (plan.monthlyPrice * 12)) * 100);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20 font-sans antialiased">
@@ -123,7 +122,6 @@ export default function UpgradePage() {
         {/* Plan cards */}
         <div className="mt-8 grid gap-5 sm:grid-cols-2">
           {PLANS.map((plan) => {
-            const price = billing === "annual" ? plan.annualPrice : plan.monthlyPrice;
             const isLoading = loading === plan.id;
             return (
               <div
@@ -142,12 +140,19 @@ export default function UpgradePage() {
                 </div>
 
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-[#1a2744]">${price}</span>
-                  <span className="ml-1 text-sm text-slate-500">/month</span>
-                  {billing === "annual" && (
-                    <p className="mt-0.5 text-xs text-teal-600 font-semibold">
-                      Save {annualSavings(plan)}% vs monthly · billed ${price * 12}/year
-                    </p>
+                  {billing === "monthly" ? (
+                    <>
+                      <span className="text-4xl font-bold text-[#1a2744]">${plan.monthlyPrice}</span>
+                      <span className="ml-1 text-sm text-slate-500">/month</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-4xl font-bold text-[#1a2744]">${plan.annualPrice.toLocaleString()}</span>
+                      <span className="ml-1 text-sm text-slate-500">/year</span>
+                      <p className="mt-0.5 text-xs font-semibold text-teal-600">
+                        Save {annualSavings(plan)}% vs monthly billing
+                      </p>
+                    </>
                   )}
                 </div>
 
