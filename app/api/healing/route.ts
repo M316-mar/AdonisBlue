@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import twilio from "twilio";
 import { NextResponse } from "next/server";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -207,13 +208,35 @@ export async function POST(request: Request) {
       { onConflict: "treatment_id" }
     );
 
-    // Send emergency alert email — only when the server independently confirmed the flag
-    if (isFlagged && nurseEmail) {
-      await resend.emails.send({
-        from: "AdonisBlue <hello@adonisblue.io>",
-        to: nurseEmail,
-        subject: `⚠️ URGENT: ${clientName} needs attention after ${procedureName}`,
-        html: `<!DOCTYPE html>
+    // ── Emergency alerts — email + SMS ────────────────────────────────────
+    if (isFlagged) {
+      // ── Part 2: Email fallback ───────────────────────────────────────────
+      // If the nurse hasn't set a notification_email in Alert Settings,
+      // fall back to their Supabase auth account email so no alert is ever silently dropped.
+      let alertEmailAddress = nurseEmail?.trim() || null;
+      if (!alertEmailAddress) {
+        try {
+          const { data: authUser } = await supabase.auth.admin.getUserById(treatment.nurse_id);
+          alertEmailAddress = authUser?.user?.email ?? null;
+          if (alertEmailAddress) {
+            console.log(`[emergency] notification_email not set — falling back to auth email: ${alertEmailAddress}`);
+          } else {
+            console.warn(`[emergency] No email found for nurse ${treatment.nurse_id} — alert email skipped`);
+          }
+        } catch (err) {
+          console.error("[emergency] Failed to fetch auth fallback email:", err);
+        }
+      } else {
+        console.log(`[emergency] Sending alert email to configured notification_email: ${alertEmailAddress}`);
+      }
+
+      // Send email if we have any address
+      if (alertEmailAddress) {
+        await resend.emails.send({
+          from: "AdonisBlue <hello@adonisblue.io>",
+          to: alertEmailAddress,
+          subject: `⚠️ URGENT: ${clientName} needs attention after ${procedureName}`,
+          html: `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#fef2f2;font-family:-apple-system,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;padding:32px 16px;">
@@ -231,7 +254,6 @@ export async function POST(request: Request) {
           <p style="margin:16px 0;color:#475569;font-size:14px;">Contact details:</p>
           <p style="margin:4px 0;color:#1a2744;font-size:14px;">📧 ${escapeHtml(treatment.intakes?.email || "No email")}</p>
           <p style="margin:4px 0;color:#1a2744;font-size:14px;">📱 ${escapeHtml(clientPhone)}</p>
-          ${alertPhone ? `<div style="background:#fef2f2;border-radius:8px;padding:12px;margin:16px 0;text-align:center;"><p style="margin:0;color:#dc2626;font-size:13px;">📲 Your alert phone: <strong>${escapeHtml(alertPhone)}</strong></p></div>` : ""}
           <div style="text-align:center;margin:24px 0;">
             <a href="${SITE_URL}/dashboard" style="display:inline-block;background:#ef4444;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">View in dashboard</a>
           </div>
@@ -240,7 +262,38 @@ export async function POST(request: Request) {
     </td></tr>
   </table>
 </body></html>`,
-      });
+        });
+      }
+
+      // ── Part 1: SMS via Twilio ───────────────────────────────────────────
+      // Only fires if the nurse has set bots.alert_phone in Alert Settings.
+      // A failure here must never block the email or the AI response.
+      if (alertPhone?.trim()) {
+        try {
+          const accountSid = process.env.TWILIO_ACCOUNT_SID;
+          const authToken  = process.env.TWILIO_AUTH_TOKEN;
+          const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+
+          if (!accountSid || !authToken || !fromNumber) {
+            console.warn("[emergency] Twilio env vars not configured — SMS skipped");
+          } else {
+            const twilioClient = twilio(accountSid, authToken);
+            // Keep message under 160 chars to avoid multi-segment SMS charges
+            const smsBody = `AdonisBlue Alert: ${clientName} needs attention after ${procedureName}. Check your dashboard or email for details.`;
+            await twilioClient.messages.create({
+              body: smsBody.slice(0, 160),
+              from: fromNumber,
+              to: alertPhone.trim(),
+            });
+            console.log(`[emergency] SMS sent successfully to ${alertPhone.trim()}`);
+          }
+        } catch (smsErr) {
+          // Non-fatal — log and continue. Email already sent above.
+          console.error("[emergency] SMS send failed (non-fatal):", smsErr);
+        }
+      } else {
+        console.log("[emergency] alert_phone not set — SMS skipped");
+      }
     }
 
     // Get AI response
