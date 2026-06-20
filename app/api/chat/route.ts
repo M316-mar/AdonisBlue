@@ -314,9 +314,9 @@ export async function POST(request: Request) {
     // ── Inject emergency awareness into system prompt when flagged ─────────
     const emergencyInstruction = isFlagged
       ? `\n\nEMERGENCY DETECTED — CRITICAL OVERRIDE: The client just used language that may indicate a medical emergency. Your ONLY job right now is to:
-1. Acknowledge their concern warmly and tell them their nurse has been alerted
-2. ${hasContact ? "You already have their contact info — no need to ask again. Encourage them to call 911 or go to the ER if symptoms are severe." : "Gently ask for their full name and the best phone number to reach them right now, explaining: 'I want to make sure your nurse can reach you right away — can you share your name and best phone number?' Keep it brief and caring."}
-3. Tell them to call 911 or go to the nearest emergency room if symptoms feel severe
+1. Acknowledge their concern warmly and with genuine care — lead with empathy, not with "your nurse has been alerted"
+2. ${hasContact ? "You already have their contact info — no need to ask again. Reassure them that their nurse has already been notified and will follow up. Tell them to call 911 or go to the nearest emergency room immediately if symptoms feel severe." : "Ask for their full name and the best phone number to reach them — frame it as wanting to make sure their nurse can contact them directly. THEN, as a secondary reassurance, mention that you've already let their nurse know so she's aware. Finally, advise them to call 911 or go to the nearest emergency room immediately if symptoms feel severe."}
+3. Do NOT open with \"your nurse has been alerted\" — contact info collection (when needed) comes first, the alert confirmation comes second
 Do NOT continue normal intake or booking conversation until this is addressed.`
       : "";
 
