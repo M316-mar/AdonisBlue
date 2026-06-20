@@ -401,10 +401,11 @@ export default function PublicChatPage() {
 
   const ChatPanel = (
     /*
-     * Outer shell: handles ONLY position + open/close animation (translate + opacity).
-     * backdrop-filter is intentionally NOT here — opacity/transition on the same element
-     * creates a new backdrop root in Firefox and cuts off the blur from the page behind.
-     * The blur lives on the inner non-animated child below.
+     * Outer shell: animation only (translate + opacity for open/close).
+     * No backdrop-filter here — any transform or opacity on a parent creates a
+     * "backdrop root" in Firefox (per CSS spec), which clips the blur to that element
+     * rather than letting it reach the page behind. The glass layer is a DOM SIBLING
+     * (rendered separately in the return statement below), not a child.
      */
     <div
       className={`fixed z-50 flex flex-col transition-[transform,opacity] duration-300 ease-out md:rounded-2xl ${
@@ -415,29 +416,10 @@ export default function PublicChatPage() {
       style={{ visibility: chatOpen ? "visible" : "hidden" }}
       aria-hidden={!chatOpen}
     >
-      {/*
-       * Inner blur layer: absolutely fills the outer shell.
-       * No opacity property, no transform — this is what actually blurs the page behind.
-       * Separated from the animation shell so backdrop-filter works correctly in Firefox.
-       */}
-      <div
-        className="pointer-events-none absolute inset-0 md:rounded-2xl"
-        style={{
-          background: "rgba(255,255,255,0.55)",
-          backdropFilter: "blur(24px) saturate(1.9)",
-          WebkitBackdropFilter: "blur(24px) saturate(1.9)",
-          border: "1px solid rgba(255,255,255,0.85)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.9)",
-          zIndex: 0,
-        }}
-      />
-      {/* Header — position:relative + z-index:1 keeps it above the blur layer */}
+      {/* Header */}
       <div
         className="flex shrink-0 items-center justify-between gap-2 px-4 py-3 md:rounded-t-2xl"
-        style={{
-          position: "relative", zIndex: 1,
-          borderBottom: "1px solid rgba(0,0,0,0.06)",
-        }}
+        style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
           {hasLogo ? (
@@ -513,7 +495,7 @@ export default function PublicChatPage() {
       <div
         ref={listRef}
         className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4"
-        style={{ background: "rgba(248,250,252,0.5)", position: "relative", zIndex: 1 }}
+        style={{ background: "rgba(248,250,252,0.5)" }}
       >
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -562,7 +544,7 @@ export default function PublicChatPage() {
       {/* Input area */}
       <div
         className="shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:rounded-b-2xl"
-        style={{ background: "rgba(255,255,255,0.6)", borderTop: "1px solid rgba(0,0,0,0.06)", position: "relative", zIndex: 1 }}
+        style={{ background: "rgba(255,255,255,0.6)", borderTop: "1px solid rgba(0,0,0,0.06)" }}
       >
         <div className="mb-2 flex flex-wrap gap-1.5">
           {QUICK_REPLIES.map((q) => (
@@ -744,12 +726,11 @@ export default function PublicChatPage() {
           <button
             type="button"
             onClick={() => setChatOpen(true)}
-            className="relative flex items-center justify-center rounded-full shadow-xl transition hover:opacity-90 active:scale-[0.98]"
+            className="relative flex items-center justify-center rounded-full shadow-2xl transition hover:opacity-90 active:scale-[0.97]"
             style={{
               backgroundColor: "#1a2744",
-              width: hasLogo ? 72 : 64,
-              height: hasLogo ? 72 : 64,
-              padding: hasLogo ? 0 : undefined,
+              width: hasLogo ? 88 : 64,
+              height: hasLogo ? 88 : 64,
             }}
             aria-label="Open chat"
           >
@@ -759,18 +740,18 @@ export default function PublicChatPage() {
                 src={botLogoImage!}
                 alt=""
                 style={{
-                  width: 60,
-                  height: 60,
+                  width: 76,
+                  height: 76,
                   objectFit: "cover",
                   borderRadius: "50%",
-                  border: "2px solid rgba(255,255,255,0.85)",
-                  boxShadow: "0 0 0 2px rgba(255,255,255,0.3)",
+                  border: "3px solid rgba(255,255,255,0.9)",
+                  boxShadow: "0 0 0 2px rgba(255,255,255,0.25)",
                 }}
               />
             ) : (
               <span className="text-2xl" aria-hidden>💬</span>
             )}
-            <span className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-400" />
+            <span className="absolute -right-1 -top-1 h-4 w-4 rounded-full border-2 border-white bg-emerald-400" />
             {showAttn && (
               <span className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ backgroundColor: "rgba(26,39,68,0.4)" }} />
             )}
@@ -779,6 +760,31 @@ export default function PublicChatPage() {
       ) : null}
 
       {chatOpen ? <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-[2px] md:bg-transparent md:backdrop-blur-0" aria-hidden onClick={() => setChatOpen(false)} /> : null}
+
+      {/*
+       * Glass blur layer — rendered as a DOM SIBLING of ChatPanel, never a child.
+       *
+       * Why sibling: backdrop-filter only blurs through to the page when no ancestor
+       * establishes a "backdrop root". A backdrop root is created by any ancestor with
+       * transform (including translateY(0)), opacity < 1, or an active opacity/transform
+       * transition. ChatPanel's outer div has all three for its open/close animation.
+       * Placing the blur here — outside that div entirely — means no ancestor interferes.
+       *
+       * Why display:none (not opacity:0): opacity or transform on THIS element would
+       * immediately create a new backdrop root itself, defeating the purpose.
+       */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed z-[49] md:rounded-2xl inset-0 md:inset-auto md:bottom-6 md:right-6 md:h-[min(36rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:w-[min(100%,24rem)]"
+        style={{
+          display: chatOpen ? undefined : "none",
+          background: "rgba(255,255,255,0.52)",
+          backdropFilter: "blur(28px) saturate(2)",
+          WebkitBackdropFilter: "blur(28px) saturate(2)",
+          border: "1px solid rgba(255,255,255,0.85)",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.9)",
+        }}
+      />
 
       {ChatPanel}
     </div>
