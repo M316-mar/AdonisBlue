@@ -720,35 +720,6 @@ function StepCustomize({
 
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-[#1a2744]">
-          Brand color
-        </label>
-        <div className="flex flex-wrap items-center gap-2">
-          {COLOR_PRESETS.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              title={`${c.emoji} ${c.label}`}
-              onClick={() => onChange({ brandColor: c.value })}
-              className={`h-9 w-9 rounded-full border-2 transition ${
-                draft.brandColor === c.value
-                  ? "scale-110 border-[#1a2744] shadow-sm"
-                  : "border-transparent hover:scale-105"
-              }`}
-              style={{ backgroundColor: c.value }}
-            />
-          ))}
-          <input
-            type="color"
-            value={draft.brandColor}
-            onChange={(e) => onChange({ brandColor: e.target.value })}
-            className="h-9 w-9 cursor-pointer rounded-full border border-slate-200 p-0.5"
-            title="Custom color"
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-[#1a2744]">
           Welcome message
         </label>
         <textarea
@@ -1097,7 +1068,6 @@ function OnboardingInner() {
         greeting:
           draft.greeting.trim() ||
           `Hi there! 👋 I'm here to help with bookings, answer questions, and more.`,
-        brand_color: draft.brandColor,
         booking_link: draft.bookingLink.trim() || null,
         services,
         logo_url: draft.logoUrl || null,
