@@ -141,7 +141,7 @@ export async function POST(request: Request) {
     const { data: treatment } = await supabase
       .from("treatments")
       .select(
-        "*, intakes(first_name, email, phone), procedures(name, aftercare_instructions), bots:nurse_id(practice_name, notification_email, alert_phone)"
+        "*, intakes(first_name, email, phone), procedures(name, aftercare_instructions)"
       )
       .eq("id", treatment_id)
       .single();
@@ -150,18 +150,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Treatment not found" }, { status: 404 });
     }
 
+    // Fetch bots separately — no FK constraint exists between treatments.nurse_id
+    // and bots, so PostgREST join syntax fails. A plain .eq() query always works.
+    const { data: botRow } = await supabase
+      .from("bots")
+      .select("practice_name, notification_email, alert_phone")
+      .eq("nurse_id", treatment.nurse_id)
+      .single();
+
     const clientName = treatment.intakes?.first_name || "Client";
     const procedureName =
       (treatment.procedures as { name?: string } | null)?.name || "procedure";
-    const nurseEmail = (
-      treatment.bots as { notification_email?: string } | null
-    )?.notification_email;
-    const alertPhone = (
-      treatment.bots as { alert_phone?: string } | null
-    )?.alert_phone;
+    const nurseEmail = (botRow as { notification_email?: string } | null)?.notification_email;
+    const alertPhone = (botRow as { alert_phone?: string } | null)?.alert_phone;
     const practiceName =
-      (treatment.bots as { practice_name?: string } | null)?.practice_name ||
-      "your practice";
+      (botRow as { practice_name?: string } | null)?.practice_name || "your practice";
     const aftercareInstructions =
       (
         treatment.procedures as { aftercare_instructions?: string } | null
