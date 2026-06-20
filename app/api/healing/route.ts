@@ -258,7 +258,7 @@ export async function POST(request: Request) {
           <p style="margin:4px 0;color:#1a2744;font-size:14px;">📧 ${escapeHtml(treatment.intakes?.email || "No email")}</p>
           <p style="margin:4px 0;color:#1a2744;font-size:14px;">📱 ${escapeHtml(clientPhone)}</p>
           <div style="text-align:center;margin:24px 0;">
-            <a href="${SITE_URL}/dashboard" style="display:inline-block;background:#ef4444;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">View in dashboard</a>
+            <a href="https://www.adonisblue.io/dashboard" style="display:inline-block;background:#ef4444;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">View in dashboard</a>
           </div>
         </td></tr>
       </table>
@@ -302,6 +302,16 @@ export async function POST(request: Request) {
     // Get AI response
     const apiKey = process.env.ANTHROPIC_API_KEY;
 
+    // When an emergency is detected, override the AI's next reply to reassure the client
+    // that their nurse has been alerted — mirrors the pattern in /api/chat/route.ts
+    const emergencyInstruction = isFlagged
+      ? `\n\nEMERGENCY DETECTED — CRITICAL OVERRIDE: The client just described a symptom that may need urgent attention. Your ONLY job right now is to:
+1. Acknowledge their concern warmly and with genuine care
+2. Clearly tell them their nurse has been notified and will reach out as soon as possible
+3. Advise them to call 911 or go to the nearest emergency room immediately if symptoms feel severe
+Keep it brief, warm, and reassuring. Do NOT continue normal aftercare Q&A until this is addressed.`
+      : "";
+
     const systemPrompt = `You are a warm, caring post-procedure recovery assistant for ${practiceName}. The client just had a ${procedureName} procedure.
 
 AFTERCARE INSTRUCTIONS FOR THIS PROCEDURE:
@@ -315,9 +325,7 @@ YOUR ROLE:
 - Never diagnose or give medical advice beyond the aftercare instructions
 - If something sounds concerning, acknowledge it warmly and say the nurse has been notified and will reach out soon
 - Never use markdown, no bullet points, no bold text — plain conversational sentences only
-- Emojis are fine and encouraged
-
-IMPORTANT: If the client mentions ${DEFAULT_EMERGENCY_KEYWORDS.slice(0, 5).join(", ")} or anything that sounds like a medical emergency, tell them the nurse has been alerted and to seek immediate medical attention if symptoms are severe.`;
+- Emojis are fine and encouraged${emergencyInstruction}`;
 
     const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

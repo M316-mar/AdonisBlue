@@ -197,8 +197,8 @@ export async function POST(request: Request) {
 
           const practiceName = botRow?.practice_name || botConfig.practice_name || "your practice";
           const safeMsg = escapeHtml(lastUserMessage.slice(0, 500));
-          const safeClient = escapeHtml(clientName || "Unknown");
-          const safePhone = escapeHtml(clientPhone || "Not provided");
+          const safeClient = clientName?.trim() ? escapeHtml(clientName.trim()) : null;
+          const safePhone = clientPhone?.trim() ? escapeHtml(clientPhone.trim()) : null;
 
           const subjectPrefix = isFollowUp
             ? "⚠️ FOLLOW-UP — Contact info now available"
@@ -233,15 +233,22 @@ export async function POST(request: Request) {
         <tr><td style="padding:32px;">
           ${followUpNote}
           ${contactWarning}
+          <!-- Contact box — most important info, shown prominently near the top -->
+          <div style="background:#f8fafc;border:2px solid #1a2744;border-radius:12px;padding:20px;margin:0 0 20px;">
+            <p style="margin:0 0 12px;color:#1a2744;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Client contact info</p>
+            <p style="margin:0 0 8px;color:#1a2744;font-size:17px;font-weight:700;">
+              👤 ${safeClient ?? '<em style="color:#94a3b8;font-weight:400;font-size:15px;">Name not provided</em>'}
+            </p>
+            <p style="margin:0;color:#1a2744;font-size:17px;font-weight:700;">
+              📱 ${safePhone ?? '<em style="color:#94a3b8;font-weight:400;font-size:15px;">Phone number not provided</em>'}
+            </p>
+          </div>
           <p style="margin:0 0 8px;color:#1a2744;font-size:15px;">A client typed an emergency keyword in your AI chat bot:</p>
           <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:8px;padding:16px;margin:12px 0;">
             <p style="margin:0;color:#dc2626;font-size:15px;font-weight:600;">&ldquo;${safeMsg}&rdquo;</p>
           </div>
-          <p style="margin:16px 0 4px;color:#475569;font-size:14px;font-weight:600;">Client contact info:</p>
-          <p style="margin:4px 0;color:#1a2744;font-size:14px;">👤 Name: ${safeClient}</p>
-          <p style="margin:4px 0;color:#1a2744;font-size:14px;">📱 Phone: ${safePhone}</p>
           <div style="text-align:center;margin:24px 0;">
-            <a href="${SITE_URL}/dashboard" style="display:inline-block;background:#ef4444;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">View dashboard</a>
+            <a href="https://www.adonisblue.io/dashboard" style="display:inline-block;background:#ef4444;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">View dashboard</a>
           </div>
           <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;">This alert was sent by AdonisBlue. The client is using your AI chat bot — not the healing chat.</p>
         </td></tr>
