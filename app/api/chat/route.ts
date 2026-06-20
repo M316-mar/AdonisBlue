@@ -1,5 +1,74 @@
 import { createClient } from "@supabase/supabase-js";
+import { Resend } from "resend";
+import twilio from "twilio";
 import { NextResponse } from "next/server";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io";
+
+// ── Emergency keyword list — single source of truth shared with /api/healing ──
+// IMPORTANT: Keep this list in sync with /api/healing/route.ts
+const DEFAULT_EMERGENCY_KEYWORDS = [
+  "purple", "blue lips", "can't breathe", "cannot breathe", "severe pain",
+  "extreme pain", "fever", "infection", "allergic", "anaphylaxis", "swelling won't stop",
+  "getting worse", "emergency", "hospital", "911", "help me", "scared",
+  "numb", "vision", "blindness", "vascular", "necrosis",
+];
+
+/** Server-side keyword check — never trust the client's flagged value. */
+function detectEmergency(text: string): boolean {
+  const lower = text.toLowerCase();
+  return DEFAULT_EMERGENCY_KEYWORDS.some((kw) => lower.includes(kw.toLowerCase()));
+}
+
+/** Escape HTML special chars to prevent XSS in email bodies. */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/**
+ * Scan conversation history for client name and phone.
+ * Returns { name, phone } — either may be null if not found.
+ * Looks for patterns common in the bot's intake flow.
+ */
+function extractContactFromHistory(
+  messages: { role: string; content: string }[]
+): { name: string | null; phone: string | null } {
+  const userMessages = messages
+    .filter((m) => m.role === "user")
+    .map((m) => m.content)
+    .join("\n");
+
+  // Phone: match common formats (10+ digits, with optional spaces/dashes/parens/+)
+  const phoneMatch = userMessages.match(/(?:\+?1[\s\-.]?)?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}/);
+  const phone = phoneMatch ? phoneMatch[0].trim() : null;
+
+  // Name: look for lines that are 2–4 words, likely in response to "your full name" / "your name"
+  // Check assistant messages for the name-asking turn, then take the next user reply
+  let name: string | null = null;
+  for (let i = 0; i < messages.length - 1; i++) {
+    const msg = messages[i];
+    if (
+      msg.role === "assistant" &&
+      (msg.content.toLowerCase().includes("full name") ||
+        msg.content.toLowerCase().includes("your name"))
+    ) {
+      const nextUser = messages[i + 1];
+      if (nextUser?.role === "user") {
+        const candidate = nextUser.content.trim();
+        // A name response is typically short (1–5 words) and not a question
+        if (candidate.length < 60 && candidate.split(/\s+/).length <= 5 && !candidate.includes("?")) {
+          name = candidate;
+          break;
+        }
+      }
+    }
+  }
+
+  return { name, phone };
+}
 
 export async function POST(request: Request) {
   try {
@@ -47,6 +116,202 @@ export async function POST(request: Request) {
         // Non-fatal — proceed without offers
       }
     }
+
+    // ── Emergency keyword detection — server-side, before AI call ─────────
+    // Check the latest user message only (the one that just arrived)
+    const lastUserMessage =
+      [...(messages as { role: string; content: string }[])]
+        .reverse()
+        .find((m) => m.role === "user")?.content ?? "";
+
+    const isFlagged = detectEmergency(lastUserMessage);
+
+    // Deduplication flags passed from client state
+    const alreadyAlerted = botConfig.emergencyAlertedThisSession === true;
+    const alreadyAlertedWithoutContact = botConfig.emergencyAlertedWithoutContact === true;
+
+    // Response flags to send back to client for state update
+    let responseEmergencyAlerted = alreadyAlerted;
+    let responseAlertedWithoutContact = alreadyAlertedWithoutContact;
+
+    // ── Determine if we should fire an alert ──────────────────────────────
+    // Extract contact info already given in this conversation
+    const { name: clientName, phone: clientPhone } = extractContactFromHistory(
+      messages as { role: string; content: string }[]
+    );
+    const hasContact = Boolean(clientName || clientPhone);
+
+    const shouldAlert =
+      isFlagged &&
+      botConfig.nurse_id &&
+      (
+        // Case A: not alerted at all yet
+        !alreadyAlerted ||
+        // Case B: previously alerted without contact, now have contact — send follow-up
+        (alreadyAlertedWithoutContact && hasContact)
+      );
+
+    if (isFlagged) {
+      console.log(`[chat-emergency] Keyword detected in message: "${lastUserMessage.slice(0, 80)}"`);
+      console.log(`[chat-emergency] hasContact=${hasContact} (name="${clientName}", phone="${clientPhone}")`);
+      console.log(`[chat-emergency] alreadyAlerted=${alreadyAlerted}, alreadyAlertedWithoutContact=${alreadyAlertedWithoutContact}`);
+      console.log(`[chat-emergency] shouldAlert=${shouldAlert}`);
+    }
+
+    if (shouldAlert) {
+      // Non-blocking — alerts must never stall the chat response
+      void (async () => {
+        try {
+          const db = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          );
+
+          // Fetch nurse alert settings from bots table
+          const { data: botRow } = await db
+            .from("bots")
+            .select("notification_email, alert_phone, practice_name")
+            .eq("nurse_id", botConfig.nurse_id)
+            .single();
+
+          const isFollowUp = alreadyAlerted && alreadyAlertedWithoutContact && hasContact;
+          const noContact = !hasContact;
+
+          // ── Resolve alert email (with auth fallback) ──────────────────
+          let alertEmail = botRow?.notification_email?.trim() || null;
+          if (!alertEmail) {
+            try {
+              const { data: authUser } = await db.auth.admin.getUserById(botConfig.nurse_id);
+              alertEmail = authUser?.user?.email ?? null;
+              if (alertEmail) {
+                console.log(`[chat-emergency] notification_email not set — falling back to auth email: ${alertEmail}`);
+              } else {
+                console.warn(`[chat-emergency] No email found for nurse ${botConfig.nurse_id} — email skipped`);
+              }
+            } catch (err) {
+              console.error("[chat-emergency] Failed to fetch auth fallback email:", err);
+            }
+          } else {
+            console.log(`[chat-emergency] Sending alert to notification_email: ${alertEmail}`);
+          }
+
+          const practiceName = botRow?.practice_name || botConfig.practice_name || "your practice";
+          const safeMsg = escapeHtml(lastUserMessage.slice(0, 500));
+          const safeClient = escapeHtml(clientName || "Unknown");
+          const safePhone = escapeHtml(clientPhone || "Not provided");
+
+          const subjectPrefix = isFollowUp
+            ? "⚠️ FOLLOW-UP — Contact info now available"
+            : noContact
+              ? "⚠️ URGENT: Emergency keyword detected — no contact info yet"
+              : `⚠️ URGENT: Client needs attention`;
+
+          const subject = `${subjectPrefix} — ${practiceName} AI bot`;
+
+          const contactWarning = noContact
+            ? `<div style="background:#fff7ed;border:2px solid #f97316;border-radius:8px;padding:12px;margin:16px 0;">
+                <p style="margin:0;color:#c2410c;font-size:14px;font-weight:700;">⚠️ Name/phone not yet provided — review chat transcript below</p>
+              </div>`
+            : "";
+
+          const followUpNote = isFollowUp
+            ? `<div style="background:#f0fdf4;border:2px solid #22c55e;border-radius:8px;padding:12px;margin:16px 0;">
+                <p style="margin:0;color:#15803d;font-size:14px;font-weight:700;">✅ Contact info now available — client provided details after initial alert</p>
+              </div>`
+            : "";
+
+          const emailHtml = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#fef2f2;font-family:-apple-system,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:20px;overflow:hidden;border:2px solid #ef4444;">
+        <tr><td style="background:#ef4444;padding:24px 32px;text-align:center;">
+          <p style="margin:0;color:#fff;font-size:18px;font-weight:700;">⚠️ Emergency Keyword — AI Chat Bot</p>
+          <p style="margin:6px 0 0;color:#fecaca;font-size:13px;">${escapeHtml(practiceName)}</p>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          ${followUpNote}
+          ${contactWarning}
+          <p style="margin:0 0 8px;color:#1a2744;font-size:15px;">A client typed an emergency keyword in your AI chat bot:</p>
+          <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:8px;padding:16px;margin:12px 0;">
+            <p style="margin:0;color:#dc2626;font-size:15px;font-weight:600;">&ldquo;${safeMsg}&rdquo;</p>
+          </div>
+          <p style="margin:16px 0 4px;color:#475569;font-size:14px;font-weight:600;">Client contact info:</p>
+          <p style="margin:4px 0;color:#1a2744;font-size:14px;">👤 Name: ${safeClient}</p>
+          <p style="margin:4px 0;color:#1a2744;font-size:14px;">📱 Phone: ${safePhone}</p>
+          <div style="text-align:center;margin:24px 0;">
+            <a href="${SITE_URL}/dashboard" style="display:inline-block;background:#ef4444;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">View dashboard</a>
+          </div>
+          <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;">This alert was sent by AdonisBlue. The client is using your AI chat bot — not the healing chat.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+          // Send email
+          if (alertEmail) {
+            await resend.emails.send({
+              from: "AdonisBlue <hello@adonisblue.io>",
+              to: alertEmail,
+              subject,
+              html: emailHtml,
+            });
+            console.log(`[chat-emergency] Alert email sent to ${alertEmail}`);
+          }
+
+          // ── SMS via Twilio ────────────────────────────────────────────
+          const alertPhone = botRow?.alert_phone?.trim() || null;
+          if (alertPhone) {
+            try {
+              const accountSid = process.env.TWILIO_ACCOUNT_SID;
+              const authToken  = process.env.TWILIO_AUTH_TOKEN;
+              const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+
+              if (!accountSid || !authToken || !fromNumber) {
+                console.warn("[chat-emergency] Twilio env vars not configured — SMS skipped");
+              } else {
+                const twilioClient = twilio(accountSid, authToken);
+                const smsBody = noContact
+                  ? `AdonisBlue Alert: Emergency keyword in AI bot — no contact info yet. Check your email & dashboard.`
+                  : `AdonisBlue Alert: ${clientName || "Client"} (${clientPhone || "no phone"}) needs attention. Check your email & dashboard.`;
+                await twilioClient.messages.create({
+                  body: smsBody.slice(0, 160),
+                  from: fromNumber,
+                  to: alertPhone,
+                });
+                console.log(`[chat-emergency] SMS sent to ${alertPhone}`);
+              }
+            } catch (smsErr) {
+              console.error("[chat-emergency] SMS failed (non-fatal):", smsErr);
+            }
+          } else {
+            console.log("[chat-emergency] alert_phone not set — SMS skipped");
+          }
+        } catch (alertErr) {
+          // Non-fatal — never let alert failure break the chat response
+          console.error("[chat-emergency] Alert send failed (non-fatal):", alertErr);
+        }
+      })();
+
+      // Update response flags
+      responseEmergencyAlerted = true;
+      responseAlertedWithoutContact = !hasContact;
+
+      console.log(`[chat-emergency] Alert fired. hasContact=${hasContact}, isFollowUp=${alreadyAlertedWithoutContact && hasContact}`);
+    } else if (isFlagged && alreadyAlerted) {
+      console.log("[chat-emergency] Keyword detected but alert already sent this session — skipping duplicate");
+    }
+
+    // ── Inject emergency awareness into system prompt when flagged ─────────
+    const emergencyInstruction = isFlagged
+      ? `\n\nEMERGENCY DETECTED — CRITICAL OVERRIDE: The client just used language that may indicate a medical emergency. Your ONLY job right now is to:
+1. Acknowledge their concern warmly and tell them their nurse has been alerted
+2. ${hasContact ? "You already have their contact info — no need to ask again. Encourage them to call 911 or go to the ER if symptoms are severe." : "Gently ask for their full name and the best phone number to reach them right now, explaining: 'I want to make sure your nurse can reach you right away — can you share your name and best phone number?' Keep it brief and caring."}
+3. Tell them to call 911 or go to the nearest emergency room if symptoms feel severe
+Do NOT continue normal intake or booking conversation until this is addressed.`
+      : "";
 
     const systemPrompt = `You are a warm, friendly assistant for ${botConfig.practice_name || "this aesthetic practice"} located in ${botConfig.city || "your area"}.
 
@@ -129,7 +394,7 @@ If asked something you cannot answer, say: "That's a great question! Let me have
 
 Always speak in plain simple English. No medical terms. Be the warm voice that makes someone feel safe enough to take the next step.
 
-FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisks for bold (**text**), no bullet points (- item or * item), no headers (#). Write in plain conversational sentences only. Emojis are fine and encouraged.${activeOffersBlock}`;
+FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisks for bold (**text**), no bullet points (- item or * item), no headers (#). Write in plain conversational sentences only. Emojis are fine and encouraged.${activeOffersBlock}${emergencyInstruction}`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -195,7 +460,12 @@ FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisk
       }).catch(console.error);
     }
 
-    return NextResponse.json({ reply });
+    return NextResponse.json({
+      reply,
+      // Return updated deduplication flags for client state
+      emergencyAlerted: responseEmergencyAlerted,
+      emergencyAlertedWithoutContact: responseAlertedWithoutContact,
+    });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

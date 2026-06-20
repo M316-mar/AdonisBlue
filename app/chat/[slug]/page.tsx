@@ -175,6 +175,9 @@ export default function PublicChatPage() {
   const listRef = useRef<HTMLDivElement>(null);
   const [msgIdx, setMsgIdx] = useState(0);
   const [showAttn, setShowAttn] = useState(false);
+  // Emergency alert deduplication — tracked per browser session
+  const [emergencyAlertedThisSession, setEmergencyAlertedThisSession] = useState(false);
+  const [emergencyAlertedWithoutContact, setEmergencyAlertedWithoutContact] = useState(false);
 
   const brand = useMemo(() => safeHex(bot?.brand_color, "#0d9488"), [bot?.brand_color]);
 
@@ -288,6 +291,9 @@ export default function PublicChatPage() {
         aftercare: bot.aftercare,
         forward_questions: bot.forward_questions,
         photos: bot.photos ?? [],
+        // Emergency alert deduplication flags — set by client after first alert fires
+        emergencyAlertedThisSession,
+        emergencyAlertedWithoutContact,
       };
 
       try {
@@ -313,9 +319,17 @@ export default function PublicChatPage() {
         const raw = await res.text();
         let reply = "";
         try {
-          const parsed = JSON.parse(raw) as { reply?: string; message?: string; error?: string };
+          const parsed = JSON.parse(raw) as {
+            reply?: string; message?: string; error?: string;
+            emergencyAlerted?: boolean; emergencyAlertedWithoutContact?: boolean;
+          };
           reply = (typeof parsed.reply === "string" && parsed.reply) || (typeof parsed.message === "string" && parsed.message) || "";
           if (!res.ok && !reply && typeof parsed.error === "string") reply = parsed.error;
+          // Update deduplication state from server response
+          if (parsed.emergencyAlerted) setEmergencyAlertedThisSession(true);
+          if (parsed.emergencyAlertedWithoutContact !== undefined) {
+            setEmergencyAlertedWithoutContact(parsed.emergencyAlertedWithoutContact);
+          }
         } catch {
           reply = res.ok ? raw.trim() : "";
         }
