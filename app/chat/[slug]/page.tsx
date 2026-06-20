@@ -424,21 +424,17 @@ export default function PublicChatPage() {
         <div className="flex min-w-0 flex-1 items-center gap-3">
           {hasLogo ? (
             // Logo only — no practice name text when logo is present
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={botLogoImage!}
-              alt={botTitle}
-              style={{
-                width: 56,
-                height: 56,
-                minWidth: 56,
-                borderRadius: "50%",
-                objectFit: "cover",
-                display: "block",
-                border: "2px solid rgba(255,255,255,0.9)",
-                boxShadow: "0 0 0 3px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.12)",
-              }}
-            />
+            <div style={{
+              width: 56, height: 56, minWidth: 56,
+              borderRadius: "50%",
+              overflow: "hidden",
+              border: "2px solid rgba(255,255,255,0.9)",
+              boxShadow: "0 0 0 3px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.12)",
+              flexShrink: 0,
+            }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={botLogoImage!} alt={botTitle} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            </div>
           ) : (
             // No logo — show initial circle + practice name text
             <>
@@ -491,11 +487,10 @@ export default function PublicChatPage() {
         </button>
       </div>
 
-      {/* Message list */}
+      {/* Message list — no background so the sibling blur layer shows through */}
       <div
         ref={listRef}
         className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4"
-        style={{ background: "rgba(248,250,252,0.5)" }}
       >
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -530,7 +525,7 @@ export default function PublicChatPage() {
         ))}
         {sending ? (
           <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-sm bg-white px-4 py-3 text-sm text-slate-400 shadow-sm ring-1 ring-slate-100">
+            <div className="rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-slate-400 shadow-sm" style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(0,0,0,0.05)" }}>
               <span className="inline-flex gap-1">
                 <span className="animate-bounce">●</span>
                 <span className="animate-bounce [animation-delay:120ms]">●</span>
@@ -544,7 +539,7 @@ export default function PublicChatPage() {
       {/* Input area */}
       <div
         className="shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:rounded-b-2xl"
-        style={{ background: "rgba(255,255,255,0.6)", borderTop: "1px solid rgba(0,0,0,0.06)" }}
+        style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}
       >
         <div className="mb-2 flex flex-wrap gap-1.5">
           {QUICK_REPLIES.map((q) => (
@@ -635,21 +630,17 @@ export default function PublicChatPage() {
         <div className="mx-auto flex max-w-3xl items-center gap-4 sm:gap-5">
           {hasLogo ? (
             // Logo only — practice name hidden when logo is present
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={botLogoImage!}
-              alt={botTitle}
-              style={{
-                width: 64,
-                height: 64,
-                minWidth: 64,
-                borderRadius: "50%",
-                objectFit: "cover",
-                display: "block",
-                border: "2px solid rgba(255,255,255,0.9)",
-                boxShadow: "0 0 0 3px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.12)",
-              }}
-            />
+            <div style={{
+              width: 64, height: 64, minWidth: 64,
+              borderRadius: "50%",
+              overflow: "hidden",
+              border: "2px solid rgba(255,255,255,0.9)",
+              boxShadow: "0 0 0 3px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.12)",
+              flexShrink: 0,
+            }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={botLogoImage!} alt={botTitle} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            </div>
           ) : (
             // No logo — show initial circle + practice name
             <>
@@ -735,19 +726,16 @@ export default function PublicChatPage() {
             aria-label="Open chat"
           >
             {hasLogo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={botLogoImage!}
-                alt=""
-                style={{
-                  width: 76,
-                  height: 76,
-                  objectFit: "cover",
-                  borderRadius: "50%",
-                  border: "3px solid rgba(255,255,255,0.9)",
-                  boxShadow: "0 0 0 2px rgba(255,255,255,0.25)",
-                }}
-              />
+              <div style={{
+                width: 82, height: 82,
+                borderRadius: "50%",
+                overflow: "hidden",
+                border: "2px solid rgba(255,255,255,0.85)",
+                boxShadow: "0 0 0 1px rgba(255,255,255,0.25)",
+              }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={botLogoImage!} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              </div>
             ) : (
               <span className="text-2xl" aria-hidden>💬</span>
             )}
