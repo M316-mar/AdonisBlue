@@ -400,29 +400,42 @@ export default function PublicChatPage() {
   const hasLogo = Boolean(botLogoImage && botLogoImage.trim());
 
   const ChatPanel = (
+    /*
+     * Outer shell: handles ONLY position + open/close animation (translate + opacity).
+     * backdrop-filter is intentionally NOT here — opacity/transition on the same element
+     * creates a new backdrop root in Firefox and cuts off the blur from the page behind.
+     * The blur lives on the inner non-animated child below.
+     */
     <div
-      className={`fixed z-50 flex flex-col shadow-2xl transition-[transform,opacity] duration-300 ease-out md:rounded-2xl md:border md:border-white/80 ${
+      className={`fixed z-50 flex flex-col transition-[transform,opacity] duration-300 ease-out md:rounded-2xl ${
         chatOpen
           ? "inset-0 translate-y-0 opacity-100 md:inset-auto md:bottom-6 md:right-6 md:h-[min(36rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:w-[min(100%,24rem)]"
           : "pointer-events-none inset-0 translate-y-full opacity-0 md:inset-auto md:bottom-6 md:right-6 md:h-[min(36rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:w-[min(100%,24rem)] md:translate-y-8 md:opacity-0"
       }`}
-      style={{
-        background: "rgba(255,255,255,0.75)",
-        backdropFilter: "blur(20px) saturate(1.8)",
-        WebkitBackdropFilter: "blur(20px) saturate(1.8)",
-        border: "1px solid rgba(255,255,255,0.9)",
-        boxShadow: "0 1px 24px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
-        visibility: chatOpen ? "visible" : "hidden",
-      }}
+      style={{ visibility: chatOpen ? "visible" : "hidden" }}
       aria-hidden={!chatOpen}
     >
-      {/* Header */}
+      {/*
+       * Inner blur layer: absolutely fills the outer shell.
+       * No opacity property, no transform — this is what actually blurs the page behind.
+       * Separated from the animation shell so backdrop-filter works correctly in Firefox.
+       */}
+      <div
+        className="pointer-events-none absolute inset-0 md:rounded-2xl"
+        style={{
+          background: "rgba(255,255,255,0.55)",
+          backdropFilter: "blur(24px) saturate(1.9)",
+          WebkitBackdropFilter: "blur(24px) saturate(1.9)",
+          border: "1px solid rgba(255,255,255,0.85)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.9)",
+          zIndex: 0,
+        }}
+      />
+      {/* Header — position:relative + z-index:1 keeps it above the blur layer */}
       <div
         className="flex shrink-0 items-center justify-between gap-2 px-4 py-3 md:rounded-t-2xl"
         style={{
-          background: "rgba(255,255,255,0.6)",
-          backdropFilter: "blur(20px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+          position: "relative", zIndex: 1,
           borderBottom: "1px solid rgba(0,0,0,0.06)",
         }}
       >
@@ -489,7 +502,7 @@ export default function PublicChatPage() {
       <div
         ref={listRef}
         className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4"
-        style={{ background: "rgba(248,250,252,0.5)" }}
+        style={{ background: "rgba(248,250,252,0.5)", position: "relative", zIndex: 1 }}
       >
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -538,7 +551,7 @@ export default function PublicChatPage() {
       {/* Input area */}
       <div
         className="shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:rounded-b-2xl"
-        style={{ background: "rgba(255,255,255,0.6)", borderTop: "1px solid rgba(0,0,0,0.06)" }}
+        style={{ background: "rgba(255,255,255,0.6)", borderTop: "1px solid rgba(0,0,0,0.06)", position: "relative", zIndex: 1 }}
       >
         <div className="mb-2 flex flex-wrap gap-1.5">
           {QUICK_REPLIES.map((q) => (
@@ -592,12 +605,34 @@ export default function PublicChatPage() {
   return (
     <div
       className="flex min-h-dvh flex-col"
-      style={{ background: "linear-gradient(135deg, #f0f4f8 0%, #e8ecf2 100%)", minHeight: "100dvh" }}
+      style={{ background: "linear-gradient(135deg, #f0f4f8 0%, #e8ecf2 100%)", minHeight: "100dvh", position: "relative", overflow: "hidden" }}
     >
+      {/* ── Decorative background blobs — give the glass panel something to blur ── */}
+      {/* Blob 1: soft navy-tinted oval, top-right */}
+      <div aria-hidden style={{
+        position: "absolute", top: "-10%", right: "-8%",
+        width: 520, height: 420,
+        borderRadius: "50%",
+        background: "radial-gradient(ellipse at center, rgba(26,39,68,0.13) 0%, transparent 70%)",
+        filter: "blur(72px)",
+        pointerEvents: "none",
+        zIndex: 0,
+      }} />
+      {/* Blob 2: warm grey bloom, bottom-left */}
+      <div aria-hidden style={{
+        position: "absolute", bottom: "-8%", left: "-10%",
+        width: 480, height: 380,
+        borderRadius: "50%",
+        background: "radial-gradient(ellipse at center, rgba(100,116,139,0.11) 0%, transparent 70%)",
+        filter: "blur(80px)",
+        pointerEvents: "none",
+        zIndex: 0,
+      }} />
       <header
         className="shrink-0 px-4 py-5 sm:px-6 sm:py-6"
         style={{
-          background: "rgba(255,255,255,0.75)",
+          position: "relative", zIndex: 1,
+          background: "rgba(255,255,255,0.55)",
           backdropFilter: "blur(20px) saturate(1.8)",
           WebkitBackdropFilter: "blur(20px) saturate(1.8)",
           borderBottom: "1px solid rgba(0,0,0,0.06)",
@@ -656,7 +691,7 @@ export default function PublicChatPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6 sm:py-12">
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-8 sm:px-6 sm:py-12" style={{ position: "relative", zIndex: 1 }}>
         <p className="text-center text-sm font-medium text-slate-600 sm:text-base">
           {attentionMessage}
         </p>
