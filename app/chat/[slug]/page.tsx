@@ -439,12 +439,13 @@ export default function PublicChatPage() {
           borderBottom: "1px solid rgba(0,0,0,0.06)",
         }}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           {hasLogo ? (
+            // Logo only — no practice name text when logo is present
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={botLogoImage!}
-              alt=""
+              alt={botTitle}
               style={{
                 width: 56,
                 height: 56,
@@ -457,37 +458,47 @@ export default function PublicChatPage() {
               }}
             />
           ) : (
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                minWidth: 56,
-                borderRadius: "50%",
-                backgroundColor: "#1a2744",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 18,
-                fontWeight: 700,
-                color: "white",
-                boxShadow: "0 0 0 3px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.12)",
-              }}
-            >
-              {(bot.practice_name || "").trim().charAt(0).toUpperCase() || "?"}
-            </div>
+            // No logo — show initial circle + practice name text
+            <>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  minWidth: 44,
+                  borderRadius: "50%",
+                  backgroundColor: "#1a2744",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: "white",
+                  boxShadow: "0 0 0 3px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.12)",
+                }}
+              >
+                {(bot.practice_name || "").trim().charAt(0).toUpperCase() || "?"}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p
+                  className="truncate text-sm font-semibold leading-tight"
+                  style={{ ...getBotNameFontStyle(fontId), color: "#1a2744" }}
+                >
+                  {botTitle}
+                </p>
+                <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                  <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+                  Online
+                </p>
+              </div>
+            </>
           )}
-          <div className="min-w-0 flex-1">
-            <p
-              className="truncate text-sm font-semibold leading-tight"
-              style={{ ...getBotNameFontStyle(fontId), color: "#1a2744" }}
-            >
-              {botTitle}
-            </p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+          {/* Online indicator shown alongside logo when logo is present */}
+          {hasLogo && (
+            <p className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
               Online
             </p>
-          </div>
+          )}
         </div>
         <button
           type="button"
@@ -641,14 +652,15 @@ export default function PublicChatPage() {
       >
         <div className="mx-auto flex max-w-3xl items-center gap-4 sm:gap-5">
           {hasLogo ? (
+            // Logo only — practice name hidden when logo is present
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={botLogoImage!}
-              alt=""
+              alt={botTitle}
               style={{
-                width: 56,
-                height: 56,
-                minWidth: 56,
+                width: 64,
+                height: 64,
+                minWidth: 64,
                 borderRadius: "50%",
                 objectFit: "cover",
                 display: "block",
@@ -657,37 +669,47 @@ export default function PublicChatPage() {
               }}
             />
           ) : (
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                minWidth: 56,
-                borderRadius: "50%",
-                backgroundColor: "#1a2744",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 22,
-                fontWeight: 700,
-                color: "white",
-                boxShadow: "0 0 0 3px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.12)",
-              }}
-            >
-              {botTitle.charAt(0).toUpperCase()}
-            </div>
+            // No logo — show initial circle + practice name
+            <>
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  minWidth: 56,
+                  borderRadius: "50%",
+                  backgroundColor: "#1a2744",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: "white",
+                  boxShadow: "0 0 0 3px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.12)",
+                }}
+              >
+                {botTitle.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h1
+                  className="truncate text-xl font-bold tracking-tight sm:text-2xl"
+                  style={{ ...getBotNameFontStyle(fontId), color: "#1a2744" }}
+                >
+                  {botTitle}
+                </h1>
+                <p className="mt-1 flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+                  <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                  Online — we typically reply right away
+                </p>
+              </div>
+            </>
           )}
-          <div className="min-w-0 flex-1">
-            <h1
-              className="truncate text-xl font-bold tracking-tight sm:text-2xl"
-              style={{ ...getBotNameFontStyle(fontId), color: "#1a2744" }}
-            >
-              {botTitle}
-            </h1>
-            <p className="mt-1 flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
+          {/* Online status shown alongside logo when logo is present */}
+          {hasLogo && (
+            <p className="flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
               <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               Online — we typically reply right away
             </p>
-          </div>
+          )}
         </div>
       </header>
 
@@ -722,8 +744,13 @@ export default function PublicChatPage() {
           <button
             type="button"
             onClick={() => setChatOpen(true)}
-            className="relative flex h-16 w-16 items-center justify-center rounded-full shadow-xl transition hover:opacity-90 active:scale-[0.98] md:h-14 md:w-14"
-            style={{ backgroundColor: "#1a2744" }}
+            className="relative flex items-center justify-center rounded-full shadow-xl transition hover:opacity-90 active:scale-[0.98]"
+            style={{
+              backgroundColor: "#1a2744",
+              width: hasLogo ? 72 : 64,
+              height: hasLogo ? 72 : 64,
+              padding: hasLogo ? 0 : undefined,
+            }}
             aria-label="Open chat"
           >
             {hasLogo ? (
@@ -731,12 +758,19 @@ export default function PublicChatPage() {
               <img
                 src={botLogoImage!}
                 alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+                style={{
+                  width: 60,
+                  height: 60,
+                  objectFit: "cover",
+                  borderRadius: "50%",
+                  border: "2px solid rgba(255,255,255,0.85)",
+                  boxShadow: "0 0 0 2px rgba(255,255,255,0.3)",
+                }}
               />
             ) : (
               <span className="text-2xl" aria-hidden>💬</span>
             )}
-            <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-400" />
+            <span className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-400" />
             {showAttn && (
               <span className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ backgroundColor: "rgba(26,39,68,0.4)" }} />
             )}
