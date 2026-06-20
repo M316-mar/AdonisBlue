@@ -125,6 +125,27 @@ export default function AftercarePage() {
   const [addingTreatment, setAddingTreatment] = useState(false);
   const [treatmentSaving, setTreatmentSaving] = useState(false);
 
+  // ── Incident feed state ────────────────────────────────────────────────────
+  type Incident = {
+    id: string;
+    source: "healing" | "chatbot";
+    client_name: string | null;
+    client_phone: string | null;
+    flagged_message: string | null;
+    status: string;
+    nurse_notes: string | null;
+    timestamp: string;
+  };
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [incidentsAccidental, setIncidentsAccidental] = useState<Incident[]>([]);
+  const [incidentView, setIncidentView] = useState<"active" | "accidental">("active");
+  const [incidentLoading, setIncidentLoading] = useState(false);
+  const [noteExpanded, setNoteExpanded] = useState<Record<string, boolean>>({});
+  const [noteValues, setNoteValues] = useState<Record<string, string>>({});
+  const [noteSaving, setNoteSaving] = useState<Record<string, boolean>>({});
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null); // incident id pending confirm
+  const [incidentActionLoading, setIncidentActionLoading] = useState<Record<string, boolean>>({});
+
   // Emergency keywords state
   const [emergencyKeywords, setEmergencyKeywords] = useState<{ id: string; keyword: string }[]>([]);
   const [newKeyword, setNewKeyword] = useState("");
@@ -141,6 +162,20 @@ export default function AftercarePage() {
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(""), ms);
   }
+
+  const loadIncidents = useCallback(async (t: string) => {
+    setIncidentLoading(true);
+    try {
+      const [activeRes, accidentalRes] = await Promise.all([
+        fetch("/api/incidents?status=active", { headers: { Authorization: `Bearer ${t}` } }),
+        fetch("/api/incidents?status=accidental", { headers: { Authorization: `Bearer ${t}` } }),
+      ]);
+      if (activeRes.ok) { const j = await activeRes.json(); setIncidents(j.incidents ?? []); }
+      if (accidentalRes.ok) { const j = await accidentalRes.json(); setIncidentsAccidental(j.incidents ?? []); }
+    } finally {
+      setIncidentLoading(false);
+    }
+  }, []);
 
   // ── Load data ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -170,11 +205,12 @@ export default function AftercarePage() {
           setAlertEmail(j.alert_email ?? "");
           setAlertPhone(j.alert_phone ?? "");
         }
+        void loadIncidents(t);
       }
       setReady(true);
     })();
     return () => { cancelled = true; };
-  }, [router]);
+  }, [router, loadIncidents]);
 
   // ── Procedure handlers ─────────────────────────────────────────────────────
   const handleSeedDefaults = useCallback(async () => {
@@ -438,7 +474,7 @@ export default function AftercarePage() {
             [
               { id: "procedures", label: `📋 Procedures (${procedures.length})` },
               { id: "treatments", label: `💉 Treatments (${treatments.length})` },
-              { id: "emergency", label: "⚠️ Emergency" },
+              { id: "emergency", label: `⚠️ Emergency${incidents.length > 0 ? ` (${incidents.length})` : ""}` },
               { id: "alerts", label: "⚙️ Alerts" },
             ] as const
           ).map(t => (
@@ -1144,9 +1180,221 @@ export default function AftercarePage() {
           </div>
         )}
 
-        {/* ── Emergency Keywords Tab ──────────────────────────────────────── */}
+        {/* ── Emergency Tab ───────────────────────────────────────────────── */}
         {tab === "emergency" && (
           <div className="space-y-4">
+
+            {/* ── Incident Feed ─────────────────────────────────────────── */}
+            <div className="rounded-2xl border border-red-200 bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between bg-red-50 px-5 py-4 border-b border-red-100">
+                <div>
+                  <h3 className="text-base font-bold text-red-700">🚨 Flagged Incidents</h3>
+                  <p className="text-xs text-red-500 mt-0.5">Clients who used emergency keywords — review and follow up.</p>
+                </div>
+                {/* Active / Accidental toggle */}
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIncidentView("active")}
+                    className={`rounded-full px-3 py-1 text-xs font-bold transition ${incidentView === "active" ? "bg-red-500 text-white" : "border border-red-200 text-red-500 bg-white hover:bg-red-50"}`}
+                  >
+                    Active {incidents.length > 0 && `(${incidents.length})`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIncidentView("accidental")}
+                    className={`rounded-full px-3 py-1 text-xs font-bold transition ${incidentView === "accidental" ? "bg-slate-500 text-white" : "border border-slate-200 text-slate-500 bg-white hover:bg-slate-50"}`}
+                  >
+                    Accidental {incidentsAccidental.length > 0 && `(${incidentsAccidental.length})`}
+                  </button>
+                </div>
+              </div>
+
+              {incidentLoading ? (
+                <p className="px-5 py-8 text-center text-sm text-slate-400">Loading incidents…</p>
+              ) : (incidentView === "active" ? incidents : incidentsAccidental).length === 0 ? (
+                <p className="px-5 py-8 text-center text-sm text-slate-400">
+                  {incidentView === "active"
+                    ? "No active incidents — great news! 🎉 Emergency flags will appear here when detected."
+                    : "No incidents marked as accidental."}
+                </p>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {(incidentView === "active" ? incidents : incidentsAccidental).map((inc) => {
+                    const isNoteOpen = noteExpanded[inc.id] ?? false;
+                    const noteVal = noteValues[inc.id] ?? (inc.nurse_notes ?? "");
+                    const isPendingDelete = deleteConfirm === inc.id;
+                    const isActioning = incidentActionLoading[inc.id] ?? false;
+
+                    const handleMarkAccidental = async () => {
+                      setIncidentActionLoading(prev => ({ ...prev, [inc.id]: true }));
+                      await fetch("/api/incidents", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ id: inc.id, source: inc.source, field: "status", value: incidentView === "active" ? "accidental" : "active" }),
+                      });
+                      await loadIncidents(token);
+                      setIncidentActionLoading(prev => ({ ...prev, [inc.id]: false }));
+                    };
+
+                    const handleDelete = async () => {
+                      setIncidentActionLoading(prev => ({ ...prev, [inc.id]: true }));
+                      await fetch("/api/incidents", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ id: inc.id, source: inc.source }),
+                      });
+                      setDeleteConfirm(null);
+                      await loadIncidents(token);
+                      setIncidentActionLoading(prev => ({ ...prev, [inc.id]: false }));
+                    };
+
+                    const handleSaveNote = async () => {
+                      setNoteSaving(prev => ({ ...prev, [inc.id]: true }));
+                      await fetch("/api/incidents", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ id: inc.id, source: inc.source, field: "nurse_notes", value: noteVal }),
+                      });
+                      setNoteSaving(prev => ({ ...prev, [inc.id]: false }));
+                      setNoteExpanded(prev => ({ ...prev, [inc.id]: false }));
+                      // Optimistically update local state
+                      if (incidentView === "active") {
+                        setIncidents(prev => prev.map(i => i.id === inc.id ? { ...i, nurse_notes: noteVal } : i));
+                      } else {
+                        setIncidentsAccidental(prev => prev.map(i => i.id === inc.id ? { ...i, nurse_notes: noteVal } : i));
+                      }
+                      flash("Note saved ✅");
+                    };
+
+                    return (
+                      <li key={inc.id} className="p-5 space-y-3">
+                        {/* Header row */}
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-bold text-[#1a2744]">
+                                {inc.client_name ?? <span className="font-normal italic text-slate-400">Name not provided</span>}
+                              </span>
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${inc.source === "healing" ? "bg-purple-100 text-purple-700" : "bg-sky-100 text-sky-700"}`}>
+                                {inc.source === "healing" ? "Recovery chat" : "AI chatbot"}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              📱 {inc.client_phone ?? <em className="text-slate-400">Phone not provided</em>}
+                            </p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {new Date(inc.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Flagged message */}
+                        {inc.flagged_message && (
+                          <div className="rounded-lg bg-red-50 border-l-4 border-red-400 px-4 py-3">
+                            <p className="text-xs font-semibold text-red-500 mb-1">What they said:</p>
+                            <p className="text-sm text-red-700 italic">&ldquo;{inc.flagged_message}&rdquo;</p>
+                          </div>
+                        )}
+
+                        {/* Existing note (if any) */}
+                        {inc.nurse_notes && !isNoteOpen && (
+                          <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3">
+                            <p className="text-xs font-semibold text-slate-500 mb-1">Your note:</p>
+                            <p className="text-sm text-slate-700">{inc.nurse_notes}</p>
+                          </div>
+                        )}
+
+                        {/* Note editor */}
+                        {isNoteOpen && (
+                          <div className="space-y-2">
+                            <textarea
+                              value={noteVal}
+                              onChange={e => setNoteValues(prev => ({ ...prev, [inc.id]: e.target.value }))}
+                              placeholder="e.g. Called client at 3pm — she's doing better, advised ice and rest."
+                              rows={3}
+                              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488] resize-none"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                disabled={noteSaving[inc.id]}
+                                onClick={() => void handleSaveNote()}
+                                className="rounded-full bg-[#0d9488] px-4 py-1.5 text-xs font-bold text-white hover:bg-teal-700 disabled:opacity-50"
+                              >
+                                {noteSaving[inc.id] ? "Saving…" : "Save note"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setNoteExpanded(prev => ({ ...prev, [inc.id]: false }))}
+                                className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Delete confirmation inline */}
+                        {isPendingDelete && (
+                          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-3 flex-wrap">
+                            <p className="text-sm font-semibold text-red-700 flex-1">Delete this incident record permanently?</p>
+                            <button
+                              type="button"
+                              disabled={isActioning}
+                              onClick={() => void handleDelete()}
+                              className="rounded-full bg-red-500 px-4 py-1.5 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50"
+                            >
+                              {isActioning ? "Deleting…" : "Yes, delete"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteConfirm(null)}
+                              className="rounded-full border border-red-200 px-4 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-100"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Action buttons */}
+                        {!isPendingDelete && (
+                          <div className="flex gap-2 flex-wrap pt-1">
+                            <button
+                              type="button"
+                              disabled={isActioning}
+                              onClick={() => void handleMarkAccidental()}
+                              className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              {isActioning ? "…" : incidentView === "active" ? "🔕 Mark as accidental" : "↩ Restore to active"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNoteValues(prev => ({ ...prev, [inc.id]: inc.nurse_notes ?? "" }));
+                                setNoteExpanded(prev => ({ ...prev, [inc.id]: !isNoteOpen }));
+                              }}
+                              className="rounded-full border border-teal-200 px-3 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-50"
+                            >
+                              📝 {inc.nurse_notes ? "Edit note" : "Add note"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteConfirm(inc.id)}
+                              className="rounded-full border border-red-100 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-50"
+                            >
+                              🗑 Delete
+                            </button>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            {/* ── Emergency Keywords ────────────────────────────────────── */}
             <div className="rounded-2xl border border-red-100 bg-red-50 p-5">
               <h3 className="text-base font-bold text-red-700 mb-2">⚠️ Emergency Keywords</h3>
               <p className="text-sm text-red-600 leading-relaxed">When a client mentions any of these words in their recovery chat, you will receive an immediate email alert so you can reach out right away.</p>

@@ -431,7 +431,7 @@ FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisk
       reply.toLowerCase().includes("link to book your") ||
       reply.toLowerCase().includes("link to book your consultation");
 
-    // Save conversation to Supabase for insights
+    // Save conversation to Supabase for insights (and emergency flagging)
     if (botConfig.nurse_id && messages.length >= 2) {
       try {
         const supabaseInsights = createClient(
@@ -442,6 +442,14 @@ FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisk
           nurse_id: botConfig.nurse_id,
           bot_id: botConfig.bot_id || null,
           messages: messages,
+          // Persist emergency state so the incident feed can surface this row
+          ...(isFlagged && {
+            flagged: true,
+            flagged_message: lastUserMessage.slice(0, 500),
+            client_name: clientName ?? null,
+            client_phone: clientPhone ?? null,
+            status: "active",
+          }),
         });
       } catch (e) {
         console.error("Failed to save conversation:", e);
