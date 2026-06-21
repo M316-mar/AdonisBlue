@@ -548,8 +548,16 @@ export default function PublicChatPage() {
               type="button"
               onClick={() => void sendUserText(q)}
               disabled={sending}
-              className="rounded-full bg-white px-3 py-2 text-left text-xs font-medium transition hover:bg-slate-50 disabled:opacity-50"
-              style={{ border: "1.5px solid rgba(26,39,68,0.2)", color: "#1a2744" }}
+              className="rounded-full px-3 py-2 text-left text-xs font-medium transition disabled:opacity-50"
+              style={{
+                background: [
+                  "rgba(255,255,255,0.82) padding-box",
+                  "linear-gradient(135deg, rgba(255,100,175,0.70) 0%, rgba(120,165,255,0.70) 50%, rgba(255,225,70,0.62) 100%) border-box",
+                ].join(", "),
+                border: "1px solid transparent",
+                color: "#1a2744",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.95), 0 1px 4px rgba(0,0,0,0.07)",
+              }}
             >
               {q}
             </button>
@@ -572,10 +580,27 @@ export default function PublicChatPage() {
             }}
             placeholder="Type a message…"
             disabled={sending}
-            className="max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full bg-white px-4 py-2.5 text-base text-slate-900 outline-none transition placeholder:text-slate-400 disabled:opacity-50"
-            style={{ border: "1.5px solid rgba(0,0,0,0.1)" }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "#1a2744"; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"; }}
+            className="max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full px-4 py-2.5 text-base text-slate-900 outline-none transition placeholder:text-slate-400 disabled:opacity-50"
+            style={{
+              background: [
+                "rgba(255,255,255,0.85) padding-box",
+                "linear-gradient(135deg, rgba(120,165,255,0.68) 0%, rgba(255,100,175,0.65) 50%, rgba(255,225,70,0.60) 100%) border-box",
+              ].join(", "),
+              border: "1.5px solid transparent",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.95)",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.background = [
+                "rgba(255,255,255,0.95) padding-box",
+                "linear-gradient(135deg, rgba(120,165,255,0.92) 0%, rgba(255,100,175,0.88) 50%, rgba(255,225,70,0.82) 100%) border-box",
+              ].join(", ");
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.background = [
+                "rgba(255,255,255,0.85) padding-box",
+                "linear-gradient(135deg, rgba(120,165,255,0.68) 0%, rgba(255,100,175,0.65) 50%, rgba(255,225,70,0.60) 100%) border-box",
+              ].join(", ");
+            }}
           />
           <button
             type="submit"
@@ -593,41 +618,23 @@ export default function PublicChatPage() {
   return (
     <div
       className="flex min-h-dvh flex-col"
-      style={{ background: "linear-gradient(135deg, #f0f4f8 0%, #e8ecf2 100%)", minHeight: "100dvh", position: "relative", overflow: "hidden" }}
+      style={{ background: "linear-gradient(160deg, #dde4f0 0%, #e8e0f2 55%, #f0e4e8 100%)", minHeight: "100dvh", position: "relative", overflow: "hidden" }}
     >
-      {/* ── Decorative background blobs — give the glass panel something to blur ── */}
-      {/* Blob 1: soft navy-tinted oval, top-right */}
-      <div aria-hidden style={{
-        position: "absolute", top: "-10%", right: "-8%",
-        width: 520, height: 420,
-        borderRadius: "50%",
-        background: "radial-gradient(ellipse at center, rgba(26,39,68,0.13) 0%, transparent 70%)",
-        filter: "blur(72px)",
-        pointerEvents: "none",
-        zIndex: 0,
-      }} />
-      {/* Blob 2: warm grey bloom, bottom-left */}
-      <div aria-hidden style={{
-        position: "absolute", bottom: "-8%", left: "-10%",
-        width: 480, height: 380,
-        borderRadius: "50%",
-        background: "radial-gradient(ellipse at center, rgba(100,116,139,0.11) 0%, transparent 70%)",
-        filter: "blur(80px)",
-        pointerEvents: "none",
-        zIndex: 0,
-      }} />
       <header
         className="shrink-0 px-4 py-5 sm:px-6 sm:py-6"
         style={{
           position: "relative", zIndex: 1,
-          background: "linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.50) 100%)",
-          backdropFilter: "blur(20px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(20px) saturate(1.8)",
-          borderBottom: "1px solid rgba(0,0,0,0.06)",
+          background: [
+            "linear-gradient(180deg, rgba(220,230,248,0.72) 0%, rgba(210,220,240,0.55) 100%) padding-box",
+            "linear-gradient(135deg, rgba(255,100,175,0.72) 0%, rgba(120,165,255,0.72) 40%, rgba(255,225,70,0.65) 75%, rgba(80,215,255,0.70) 100%) border-box",
+          ].join(", "),
+          backdropFilter: "blur(36px) saturate(2.1)",
+          WebkitBackdropFilter: "blur(36px) saturate(2.1)",
+          border: "2px solid transparent",
           boxShadow: [
-            "0 1px 24px rgba(0,0,0,0.08)",
-            "inset 0 1px 0 rgba(255,255,255,0.95)",
-            "inset 0 2px 10px rgba(255,255,255,0.22)",
+            "0 2px 24px rgba(0,0,0,0.10)",
+            "inset 0 2px 0 rgba(255,255,255,0.90)",
+            "inset 0 4px 18px rgba(255,255,255,0.42)",
           ].join(", "),
         }}
       >
@@ -723,15 +730,18 @@ export default function PublicChatPage() {
             onClick={() => setChatOpen(true)}
             className="relative flex items-center justify-center rounded-full shadow-2xl transition hover:opacity-90 active:scale-[0.97]"
             style={{
-              backgroundColor: "#1a2744",
               width: hasLogo ? 88 : 64,
               height: hasLogo ? 88 : 64,
-              // Specular edge lighting on the FAB surface — bright top-left catch-light on dark glass
+              // Iridescent border on dark navy surface
+              background: [
+                "#1a2744 padding-box",
+                "linear-gradient(135deg, rgba(255,100,175,0.88) 0%, rgba(120,165,255,0.88) 40%, rgba(255,225,70,0.80) 75%, rgba(80,215,255,0.85) 100%) border-box",
+              ].join(", "),
+              border: "3px solid transparent",
               boxShadow: [
-                "0 8px 32px rgba(0,0,0,0.32)",
-                "0 2px 8px rgba(0,0,0,0.18)",
-                "inset 1px 1px 0 rgba(255,255,255,0.22)",
-                "inset -1px -1px 0 rgba(0,0,0,0.18)",
+                "0 8px 32px rgba(0,0,0,0.35)",
+                "0 2px 8px rgba(0,0,0,0.20)",
+                "inset 1px 1px 0 rgba(255,255,255,0.25)",
               ].join(", "),
             }}
             aria-label="Open chat"
@@ -777,20 +787,30 @@ export default function PublicChatPage() {
         className="pointer-events-none fixed z-[49] md:rounded-2xl inset-0 md:inset-auto md:bottom-6 md:right-6 md:h-[min(36rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:w-[min(100%,24rem)]"
         style={{
           display: chatOpen ? undefined : "none",
-          // Diagonal gradient bakes in a subtle ambient sheen (top-left lighter, bottom-right darker)
-          background: "linear-gradient(145deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.44) 100%)",
-          backdropFilter: "blur(28px) saturate(2)",
-          WebkitBackdropFilter: "blur(28px) saturate(2)",
-          border: "1px solid rgba(255,255,255,0.85)",
+          /*
+           * Iridescent gradient border technique:
+           * Two background layers — padding-box (fills inside border) + border-box (fills the border itself).
+           * border: transparent lets the border-box gradient show through as the "border color".
+           * Result: a soft soap-bubble iridescent rim (pink→blue→yellow→sky) around the panel.
+           */
+          background: [
+            // Inner fill: cool blue-gray tint so white speculars are visible against it
+            "linear-gradient(145deg, rgba(215,225,245,0.70) 0%, rgba(200,215,238,0.52) 100%) padding-box",
+            // Border: iridescent soap-bubble gradient — saturated enough to be visible at 3px
+            "linear-gradient(135deg, rgba(255,100,175,0.78) 0%, rgba(120,165,255,0.78) 35%, rgba(255,225,70,0.72) 68%, rgba(80,215,255,0.76) 100%) border-box",
+          ].join(", "),
+          backdropFilter: "blur(40px) saturate(2.2)",
+          WebkitBackdropFilter: "blur(40px) saturate(2.2)",
+          border: "3px solid transparent",
           boxShadow: [
             // Outer drop shadow
-            "0 8px 40px rgba(0,0,0,0.10)",
-            // Specular catch-light — bright top-left edge simulating an upper-left light source
-            "inset 1px 1px 0 rgba(255,255,255,0.92)",
-            // Counter-shadow — subtle darker bottom-right edge for dimensionality
-            "inset -1px -1px 0 rgba(0,0,0,0.04)",
-            // Soft inner glow — light diffusing inward from the top edge
-            "inset 0 2px 14px rgba(255,255,255,0.28)",
+            "0 12px 48px rgba(0,0,0,0.15)",
+            // Top-left specular catch-light
+            "inset 2px 2px 0 rgba(255,255,255,0.90)",
+            // Bottom-right counter-shadow
+            "inset -1px -1px 0 rgba(0,0,0,0.06)",
+            // Broad inner glow from top edge
+            "inset 0 4px 20px rgba(255,255,255,0.45)",
           ].join(", "),
         }}
       />
