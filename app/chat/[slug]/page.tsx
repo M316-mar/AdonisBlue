@@ -620,11 +620,15 @@ export default function PublicChatPage() {
         className="shrink-0 px-4 py-5 sm:px-6 sm:py-6"
         style={{
           position: "relative", zIndex: 1,
-          background: "rgba(255,255,255,0.55)",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.50) 100%)",
           backdropFilter: "blur(20px) saturate(1.8)",
           WebkitBackdropFilter: "blur(20px) saturate(1.8)",
           borderBottom: "1px solid rgba(0,0,0,0.06)",
-          boxShadow: "0 1px 24px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)",
+          boxShadow: [
+            "0 1px 24px rgba(0,0,0,0.08)",
+            "inset 0 1px 0 rgba(255,255,255,0.95)",
+            "inset 0 2px 10px rgba(255,255,255,0.22)",
+          ].join(", "),
         }}
       >
         <div className="mx-auto flex max-w-3xl items-center gap-4 sm:gap-5">
@@ -722,6 +726,13 @@ export default function PublicChatPage() {
               backgroundColor: "#1a2744",
               width: hasLogo ? 88 : 64,
               height: hasLogo ? 88 : 64,
+              // Specular edge lighting on the FAB surface — bright top-left catch-light on dark glass
+              boxShadow: [
+                "0 8px 32px rgba(0,0,0,0.32)",
+                "0 2px 8px rgba(0,0,0,0.18)",
+                "inset 1px 1px 0 rgba(255,255,255,0.22)",
+                "inset -1px -1px 0 rgba(0,0,0,0.18)",
+              ].join(", "),
             }}
             aria-label="Open chat"
           >
@@ -766,11 +777,21 @@ export default function PublicChatPage() {
         className="pointer-events-none fixed z-[49] md:rounded-2xl inset-0 md:inset-auto md:bottom-6 md:right-6 md:h-[min(36rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:w-[min(100%,24rem)]"
         style={{
           display: chatOpen ? undefined : "none",
-          background: "rgba(255,255,255,0.52)",
+          // Diagonal gradient bakes in a subtle ambient sheen (top-left lighter, bottom-right darker)
+          background: "linear-gradient(145deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.44) 100%)",
           backdropFilter: "blur(28px) saturate(2)",
           WebkitBackdropFilter: "blur(28px) saturate(2)",
           border: "1px solid rgba(255,255,255,0.85)",
-          boxShadow: "0 8px 40px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.9)",
+          boxShadow: [
+            // Outer drop shadow
+            "0 8px 40px rgba(0,0,0,0.10)",
+            // Specular catch-light — bright top-left edge simulating an upper-left light source
+            "inset 1px 1px 0 rgba(255,255,255,0.92)",
+            // Counter-shadow — subtle darker bottom-right edge for dimensionality
+            "inset -1px -1px 0 rgba(0,0,0,0.04)",
+            // Soft inner glow — light diffusing inward from the top edge
+            "inset 0 2px 14px rgba(255,255,255,0.28)",
+          ].join(", "),
         }}
       />
 
