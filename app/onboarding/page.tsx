@@ -265,7 +265,7 @@ function ChatPreview({
     // Page background gradient — matches live widget
     <div
       className="flex h-full flex-col overflow-hidden rounded-2xl shadow-2xl"
-      style={{ background: "linear-gradient(160deg, #dde4f0 0%, #e8e0f2 55%, #f0e4e8 100%)" }}
+      style={{ background: "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)" }}
     >
       {/* Glass panel — iridescent border + blue-gray tinted fill */}
       <div
@@ -452,6 +452,18 @@ function StepWelcome({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5 sm:col-span-2">
+          <label className="text-sm font-medium text-[#1a2744]">
+            Your full name
+          </label>
+          <input
+            className={field}
+            placeholder="e.g. Jane Smith"
+            autoComplete="name"
+            value={draft.nurseName}
+            onChange={(e) => onChange({ nurseName: e.target.value })}
+          />
+        </div>
         <div className="flex flex-col gap-1.5 sm:col-span-2">
           <label className="text-sm font-medium text-[#1a2744]">
             Practice name
@@ -1135,7 +1147,7 @@ function OnboardingInner() {
   // ── Navigation ────────────────────────────────────────────────────────────
   const canAdvance = useCallback((): boolean => {
     if (draft.step === 1)
-      return Boolean(draft.practiceName.trim() && draft.city.trim());
+      return Boolean(draft.nurseName.trim() && draft.practiceName.trim() && draft.city.trim());
     if (draft.step === 2) return draft.procedures.length > 0;
     return true;
   }, [draft]);
@@ -1143,6 +1155,13 @@ function OnboardingInner() {
   const goNext = useCallback(async () => {
     if (!canAdvance()) return;
     setError(null);
+
+    // Save nurse's full name to auth user metadata when leaving step 1
+    if (draft.step === 1 && draft.nurseName.trim()) {
+      await supabase.auth.updateUser({
+        data: { full_name: draft.nurseName.trim() },
+      });
+    }
 
     if (draft.step < TOTAL_STEPS - 1) {
       setDraft({ step: draft.step + 1 });

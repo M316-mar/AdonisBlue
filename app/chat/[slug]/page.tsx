@@ -652,7 +652,7 @@ export default function PublicChatPage() {
   return (
     <div
       className="flex min-h-dvh flex-col"
-      style={{ background: "linear-gradient(160deg, #dde4f0 0%, #e8e0f2 55%, #f0e4e8 100%)", minHeight: "100dvh", position: "relative", overflow: "hidden" }}
+      style={{ background: "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)", minHeight: "100dvh", position: "relative", overflow: "hidden" }}
     >
       <header
         className="shrink-0 px-4 py-5 sm:px-6 sm:py-6"
