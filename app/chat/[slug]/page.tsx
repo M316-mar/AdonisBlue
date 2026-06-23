@@ -425,11 +425,12 @@ export default function PublicChatPage() {
           {hasLogo ? (
             // Logo only — no practice name text when logo is present
             <div style={{
-              width: 56, height: 56, minWidth: 56,
+              width: 52, height: 52, minWidth: 52,
               borderRadius: "50%",
               overflow: "hidden",
-              border: "2px solid rgba(255,255,255,0.9)",
-              boxShadow: "0 0 0 3px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.12)",
+              // Softened ring — semi-transparent so it reads as glass, not a white sticker
+              border: "2px solid rgba(255,255,255,0.45)",
+              boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25), 0 2px 8px rgba(0,0,0,0.10)",
               flexShrink: 0,
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -451,7 +452,7 @@ export default function PublicChatPage() {
                   fontSize: 16,
                   fontWeight: 700,
                   color: "white",
-                  boxShadow: "0 0 0 3px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.12)",
+                  boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,0.20), 0 2px 8px rgba(0,0,0,0.12)",
                 }}
               >
                 {(bot.practice_name || "").trim().charAt(0).toUpperCase() || "?"}
@@ -481,7 +482,15 @@ export default function PublicChatPage() {
         <button
           type="button"
           onClick={() => setChatOpen(false)}
-          className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+          className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:opacity-80"
+          style={{
+            background: [
+              "rgba(215,225,245,0.60) padding-box",
+              "linear-gradient(135deg, rgba(255,100,175,0.65) 0%, rgba(120,165,255,0.65) 55%, rgba(255,225,70,0.55) 100%) border-box",
+            ].join(", "),
+            border: "1px solid transparent",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
+          }}
         >
           Close
         </button>
@@ -502,8 +511,17 @@ export default function PublicChatPage() {
               }`}
               style={
                 m.role === "user"
-                  ? { background: "rgba(15,23,42,0.08)" }
-                  : { background: "rgba(255,255,255,0.9)", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }
+                  // User bubble: dark-tinted, already harmonious at low opacity
+                  ? { background: "rgba(26,39,68,0.10)" }
+                  // Bot bubble: semi-transparent glass card — same material as the panel, not solid white
+                  : {
+                      background: [
+                        "rgba(230,236,250,0.62) padding-box",
+                        "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(215,225,245,0.40) 100%) border-box",
+                      ].join(", "),
+                      border: "1px solid transparent",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75), 0 1px 6px rgba(0,0,0,0.06)",
+                    }
               }
             >
               {renderMessageContent(m.content)}
@@ -525,7 +543,14 @@ export default function PublicChatPage() {
         ))}
         {sending ? (
           <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-slate-400 shadow-sm" style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(0,0,0,0.05)" }}>
+            <div className="rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-slate-500" style={{
+              background: [
+                "rgba(230,236,250,0.62) padding-box",
+                "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(215,225,245,0.40) 100%) border-box",
+              ].join(", "),
+              border: "1px solid transparent",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
+            }}>
               <span className="inline-flex gap-1">
                 <span className="animate-bounce">●</span>
                 <span className="animate-bounce [animation-delay:120ms]">●</span>
@@ -551,12 +576,13 @@ export default function PublicChatPage() {
               className="rounded-full px-3 py-2 text-left text-xs font-medium transition disabled:opacity-50"
               style={{
                 background: [
-                  "rgba(255,255,255,0.82) padding-box",
-                  "linear-gradient(135deg, rgba(255,100,175,0.70) 0%, rgba(120,165,255,0.70) 50%, rgba(255,225,70,0.62) 100%) border-box",
+                  // Match the glass panel tint — blue-gray, not white
+                  "rgba(215,225,245,0.55) padding-box",
+                  "linear-gradient(135deg, rgba(255,100,175,0.75) 0%, rgba(120,165,255,0.75) 50%, rgba(255,225,70,0.65) 100%) border-box",
                 ].join(", "),
-                border: "1px solid transparent",
+                border: "1.5px solid transparent",
                 color: "#1a2744",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.95), 0 1px 4px rgba(0,0,0,0.07)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.80), 0 1px 4px rgba(0,0,0,0.06)",
               }}
             >
               {q}
@@ -583,21 +609,22 @@ export default function PublicChatPage() {
             className="max-h-28 min-h-[2.75rem] w-0 flex-1 resize-none rounded-full px-4 py-2.5 text-base text-slate-900 outline-none transition placeholder:text-slate-400 disabled:opacity-50"
             style={{
               background: [
-                "rgba(255,255,255,0.85) padding-box",
+                "rgba(225,232,248,0.62) padding-box",
                 "linear-gradient(135deg, rgba(120,165,255,0.68) 0%, rgba(255,100,175,0.65) 50%, rgba(255,225,70,0.60) 100%) border-box",
               ].join(", "),
               border: "1.5px solid transparent",
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.95)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.80)",
             }}
             onFocus={(e) => {
               e.currentTarget.style.background = [
-                "rgba(255,255,255,0.95) padding-box",
+                // On focus: slightly more opaque but still glass-tinted, not white
+                "rgba(232,238,252,0.82) padding-box",
                 "linear-gradient(135deg, rgba(120,165,255,0.92) 0%, rgba(255,100,175,0.88) 50%, rgba(255,225,70,0.82) 100%) border-box",
               ].join(", ");
             }}
             onBlur={(e) => {
               e.currentTarget.style.background = [
-                "rgba(255,255,255,0.85) padding-box",
+                "rgba(225,232,248,0.62) padding-box",
                 "linear-gradient(135deg, rgba(120,165,255,0.68) 0%, rgba(255,100,175,0.65) 50%, rgba(255,225,70,0.60) 100%) border-box",
               ].join(", ");
             }}
@@ -606,7 +633,14 @@ export default function PublicChatPage() {
             type="submit"
             disabled={sending || !input.trim()}
             className="shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            style={{ backgroundColor: "#1a2744" }}
+            style={{
+              background: [
+                "#1a2744 padding-box",
+                "linear-gradient(135deg, rgba(255,100,175,0.85) 0%, rgba(120,165,255,0.85) 45%, rgba(255,225,70,0.75) 100%) border-box",
+              ].join(", "),
+              border: "1.5px solid transparent",
+              boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.18)",
+            }}
           >
             Send
           </button>
@@ -645,8 +679,8 @@ export default function PublicChatPage() {
               width: 64, height: 64, minWidth: 64,
               borderRadius: "50%",
               overflow: "hidden",
-              border: "2px solid rgba(255,255,255,0.9)",
-              boxShadow: "0 0 0 3px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.12)",
+              border: "2px solid rgba(255,255,255,0.45)",
+              boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25), 0 2px 10px rgba(0,0,0,0.10)",
               flexShrink: 0,
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -752,7 +786,7 @@ export default function PublicChatPage() {
                 borderRadius: "50%",
                 overflow: "hidden",
                 border: "2px solid rgba(255,255,255,0.85)",
-                boxShadow: "0 0 0 1px rgba(255,255,255,0.25)",
+                boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.3)",
               }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={botLogoImage!} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />

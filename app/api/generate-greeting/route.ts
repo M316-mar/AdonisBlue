@@ -5,7 +5,8 @@ Write a short AI chatbot welcome message for an aesthetic nurse injector's pract
 
 Rules:
 - 2-3 sentences ONLY — no more
-- Use the EXACT practice name given as the business name — never use a personal name
+- Use the EXACT practice name given as the business name
+- If a nurse's full name is provided, you MAY introduce her by her full name (e.g. "I'm Jane Smith") — never use just a first name alone if a full name is available. If no nurse name is provided, do not include any personal name.
 - Apply these psychological principles: warmth, curiosity, social proof, and a soft sense of urgency
 - Sound human, not corporate — like a friendly expert who genuinely cares
 - Include 1-2 tasteful emojis
@@ -53,8 +54,13 @@ export async function POST(request: Request) {
         ? b.botName.trim()
         : "";
 
+  // Nurse's full name from auth metadata — use this when the greeting references the nurse personally
+  const nurseName =
+    typeof b.nurse_name === "string" ? b.nurse_name.trim() : "";
+
   const userMessage = [
     `Practice name: ${practiceName || "(not provided — use a warm generic welcome)"}`,
+    `Nurse's full name: ${nurseName || "(not provided — do not include a personal name)"}`,
     `Bot/assistant name: ${botName || "(not set)"}`,
     `Procedures offered: ${procedures.length > 0 ? procedures.join(", ") : "(not specified — keep it generic)"}`,
     "",

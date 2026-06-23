@@ -158,6 +158,8 @@ type Draft = {
   greeting: string;
   brandColor: string;
   logoUrl: string;
+  // Nurse's full name from auth metadata — used for greeting generation, not persisted to bots table
+  nurseName: string;
 };
 
 function emptyDraft(userId: string): Draft {
@@ -181,6 +183,7 @@ function emptyDraft(userId: string): Draft {
     greeting: "",
     brandColor: "#0d9488",
     logoUrl: "",
+    nurseName: "",
   };
 }
 
@@ -225,21 +228,25 @@ function newId() {
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+// Shared iridescent gradient string used across the glass design system
+const IRIDESCENT =
+  "linear-gradient(135deg, rgba(255,100,175,0.78) 0%, rgba(120,165,255,0.78) 35%, rgba(255,225,70,0.72) 68%, rgba(80,215,255,0.76) 100%)";
+const IRIDESCENT_PILL =
+  "linear-gradient(135deg, rgba(255,100,175,0.75) 0%, rgba(120,165,255,0.75) 50%, rgba(255,225,70,0.65) 100%)";
+
 function ChatPreview({
   practiceName,
   greeting,
-  brandColor,
   logoUrl,
 }: {
   practiceName: string;
   greeting: string;
-  brandColor: string;
+  brandColor: string; // kept in signature for call-site compat, not used
   logoUrl?: string;
 }) {
   const title = practiceName.trim() || "Your Practice";
   const greetingText =
     greeting.trim() || "Hi there! 👋 How can I help you today?";
-  const brand = brandColor || "#0d9488";
 
   const DEMO_MSGS: PreviewMsg[] = [
     { id: "1", role: "assistant", content: greetingText },
@@ -252,75 +259,169 @@ function ChatPreview({
     },
   ];
 
+  const PREVIEW_PILLS = ["Services", "Pricing", "Book now"];
+
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border-2 border-slate-100 bg-white shadow-xl">
-      {/* brand top stripe */}
-      <div className="h-1 w-full shrink-0" style={{ backgroundColor: brand }} />
-
-      {/* header */}
+    // Page background gradient — matches live widget
+    <div
+      className="flex h-full flex-col overflow-hidden rounded-2xl shadow-2xl"
+      style={{ background: "linear-gradient(160deg, #dde4f0 0%, #e8e0f2 55%, #f0e4e8 100%)" }}
+    >
+      {/* Glass panel — iridescent border + blue-gray tinted fill */}
       <div
-        className="flex shrink-0 items-center gap-2.5 border-b-4 bg-white px-3 py-2.5"
-        style={{ borderBottomColor: brand }}
+        className="flex h-full flex-col overflow-hidden rounded-2xl"
+        style={{
+          background: [
+            "linear-gradient(145deg, rgba(215,225,245,0.70) 0%, rgba(200,215,238,0.52) 100%) padding-box",
+            `${IRIDESCENT} border-box`,
+          ].join(", "),
+          border: "3px solid transparent",
+          boxShadow: [
+            "0 12px 48px rgba(0,0,0,0.15)",
+            "inset 2px 2px 0 rgba(255,255,255,0.90)",
+            "inset -1px -1px 0 rgba(0,0,0,0.06)",
+            "inset 0 4px 20px rgba(255,255,255,0.45)",
+          ].join(", "),
+          backdropFilter: "blur(20px) saturate(2)",
+          WebkitBackdropFilter: "blur(20px) saturate(2)",
+        }}
       >
-        {logoUrl ? (
-          <img
-            src={logoUrl}
-            alt="Logo"
-            className="h-14 w-14 rounded-full object-contain bg-white border border-slate-100 shadow-sm p-1 shrink-0"
-          />
-        ) : (
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white"
-            style={{ backgroundColor: brand, boxShadow: "0 1px 3px rgba(0,0,0,.12)" }}
-          >
-            {title.charAt(0).toUpperCase()}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p
-            className="truncate text-xs font-semibold leading-tight"
-            style={{ color: brand }}
-          >
-            {title}
-          </p>
-          <p className="flex items-center gap-1 text-[10px] font-medium text-slate-500">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            Online
-          </p>
-        </div>
-      </div>
-
-      {/* messages */}
-      <div className="flex-1 space-y-2.5 overflow-y-auto bg-slate-50 px-2.5 py-3">
-        {DEMO_MSGS.map((m) => (
-          <div
-            key={m.id}
-            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-[85%] text-[11px] leading-relaxed ${
-                m.role === "user"
-                  ? "rounded-full border-2 bg-white px-3 py-2 text-slate-800"
-                  : "py-0.5 text-slate-800"
-              }`}
-              style={m.role === "user" ? { borderColor: brand } : undefined}
-            >
-              {m.content}
+        {/* Header */}
+        <div
+          className="flex shrink-0 items-center gap-2 px-3 py-2.5"
+          style={{
+            background: [
+              "linear-gradient(180deg, rgba(220,230,248,0.72) 0%, rgba(210,220,240,0.55) 100%) padding-box",
+              `${IRIDESCENT_PILL} border-box`,
+            ].join(", "),
+            border: "0 solid transparent",
+            borderBottom: "1.5px solid transparent",
+            // hairline divider with iridescent tint
+            boxShadow: "0 1px 0 rgba(120,165,255,0.35)",
+          }}
+        >
+          {logoUrl ? (
+            <div style={{
+              width: 40, height: 40, minWidth: 40,
+              borderRadius: "50%",
+              overflow: "hidden",
+              border: "2px solid rgba(255,255,255,0.85)",
+              boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.4)",
+              flexShrink: 0,
+            }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             </div>
+          ) : (
+            <div
+              style={{
+                width: 36, height: 36, minWidth: 36,
+                borderRadius: "50%",
+                backgroundColor: "#1a2744",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 14, fontWeight: 700, color: "white",
+                boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,0.3)",
+                flexShrink: 0,
+              }}
+            >
+              {title.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[11px] font-semibold leading-tight text-slate-800">
+              {title}
+            </p>
+            <p className="flex items-center gap-1 text-[9px] font-medium text-slate-500">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              Online
+            </p>
           </div>
-        ))}
-      </div>
-
-      {/* input bar */}
-      <div className="shrink-0 border-t border-slate-200 bg-white px-2.5 pb-2.5 pt-2">
-        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-400">
-          <span className="flex-1">Type a message…</span>
           <span
-            className="rounded-full px-2.5 py-1 text-[10px] font-semibold text-white"
-            style={{ backgroundColor: brand }}
+            className="shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold text-slate-600"
+            style={{
+              background: [
+                "rgba(215,225,245,0.60) padding-box",
+                `${IRIDESCENT_PILL} border-box`,
+              ].join(", "),
+              border: "1px solid transparent",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
+            }}
           >
-            Send
+            Close
           </span>
+        </div>
+
+        {/* Messages — transparent so glass shows through */}
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2.5 py-3">
+          {DEMO_MSGS.map((m) => (
+            <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div
+                className="max-w-[85%] text-[10px] leading-relaxed"
+                style={
+                  m.role === "user"
+                    ? { background: "rgba(15,23,42,0.08)", borderRadius: 999, padding: "5px 10px", color: "#1e293b" }
+                    : { background: "rgba(255,255,255,0.88)", borderRadius: 10, padding: "5px 8px", color: "#1e293b", boxShadow: "0 1px 3px rgba(0,0,0,0.07)" }
+                }
+              >
+                {m.content}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Input area */}
+        <div
+          className="shrink-0 px-2.5 pb-2.5 pt-2"
+          style={{ borderTop: "1px solid rgba(0,0,0,0.07)" }}
+        >
+          {/* Quick-reply pills */}
+          <div className="mb-1.5 flex flex-wrap gap-1">
+            {PREVIEW_PILLS.map((p) => (
+              <span
+                key={p}
+                className="rounded-full px-2 py-1 text-[9px] font-medium text-slate-700"
+                style={{
+                  background: [
+                    "rgba(215,225,245,0.55) padding-box",
+                    `${IRIDESCENT_PILL} border-box`,
+                  ].join(", "),
+                  border: "1px solid transparent",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
+                }}
+              >
+                {p}
+              </span>
+            ))}
+          </div>
+          {/* Input + Send */}
+          <div className="flex items-center gap-1.5">
+            <div
+              className="flex-1 rounded-full px-3 py-1.5 text-[10px] text-slate-400"
+              style={{
+                background: [
+                  "rgba(255,255,255,0.82) padding-box",
+                  `${IRIDESCENT_PILL} border-box`,
+                ].join(", "),
+                border: "1.5px solid transparent",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.95)",
+              }}
+            >
+              Type a message…
+            </div>
+            <span
+              className="shrink-0 rounded-full px-2.5 py-1.5 text-[9px] font-semibold text-white"
+              style={{
+                background: [
+                  "#1a2744 padding-box",
+                  `${IRIDESCENT} border-box`,
+                ].join(", "),
+                border: "1.5px solid transparent",
+                boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.18)",
+              }}
+            >
+              Send
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -742,6 +843,7 @@ function StepCustomize({
                   practice_name: draft.practiceName,
                   procedures: draft.procedures,
                   bot_name: draft.botName,
+                  nurse_name: draft.nurseName, // full name from auth metadata
                 }),
               });
               const j = (await res.json()) as { greeting?: string };
@@ -908,6 +1010,8 @@ function OnboardingInner() {
       }
       const userId = data.session.user.id;
       tokenRef.current = data.session.access_token;
+      // Capture nurse's full name from auth metadata for use in greeting generation
+      const nurseName = (data.session.user.user_metadata?.full_name as string | undefined)?.trim() ?? "";
 
       // Always fetch server state first — mybot and procedures in parallel
       let serverDraft: Partial<Draft> = {};
@@ -1009,6 +1113,7 @@ function OnboardingInner() {
         ...serverDraft,
         userId,
         step: initialStep,
+        nurseName, // from auth.users.user_metadata.full_name — never written to bots table
       };
       setDraftState(merged);
       saveDraft(merged);

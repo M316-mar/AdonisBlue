@@ -46,10 +46,15 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    const { searchParams } = new URL(request.url);
+    // Default: show active (not archived). Pass ?archived=true to fetch archived records.
+    const showArchived = searchParams.get("archived") === "true";
+
     const { data: treatments } = await supabase
       .from("treatments")
       .select("*, intakes(first_name, email, phone, service_interested)")
       .eq("nurse_id", user.id)
+      .eq("archived", showArchived)
       .order("created_at", { ascending: false });
 
     return NextResponse.json({ treatments: treatments ?? [] });
@@ -257,6 +262,41 @@ export async function POST(request: Request) {
     void clientPhone;
 
     return NextResponse.json({ treatment, aftercare_sent: aftercareSent });
+  } catch {
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+  }
+}
+
+// ── PATCH /api/treatments — soft-delete (archive) a treatment ─────────────────
+// Body: { id: string }  →  sets archived = true, scoped by nurse_id
+export async function PATCH(request: Request) {
+  try {
+    const token = getAuthToken(request);
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const user = await getAuthUser(token);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await request.json();
+    const id = typeof body.id === "string" ? body.id.trim() : "";
+    if (!id || !UUID_REGEX.test(id)) {
+      return NextResponse.json({ error: "Invalid treatment id" }, { status: 400 });
+    }
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { error } = await supabase
+      .from("treatments")
+      .update({ archived: true })
+      .eq("id", id)
+      .eq("nurse_id", user.id); // ownership — nurse can only archive her own records
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }

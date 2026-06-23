@@ -24,6 +24,7 @@ type Treatment = {
   aftercare_sent: boolean;
   notes: string;
   came_via_bot: boolean;
+  archived: boolean;
   intakes: { first_name: string; email: string; phone: string; service_interested: string } | null;
 };
 
@@ -124,6 +125,11 @@ export default function AftercarePage() {
   });
   const [addingTreatment, setAddingTreatment] = useState(false);
   const [treatmentSaving, setTreatmentSaving] = useState(false);
+  // Archive state
+  const [archivedTreatments, setArchivedTreatments] = useState<Treatment[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
 
   // ── Incident feed state ────────────────────────────────────────────────────
   type Incident = {
@@ -365,6 +371,34 @@ export default function AftercarePage() {
     }
     setTreatmentSaving(false);
   }, [newTreatment, procedures, token]);
+
+  // ── Archive handlers ───────────────────────────────────────────────────────
+  const loadArchivedTreatments = useCallback(async () => {
+    if (!token) return;
+    const res = await fetch("/api/treatments?archived=true", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const j = await res.json();
+      setArchivedTreatments(j.treatments ?? []);
+    }
+  }, [token]);
+
+  const handleArchive = useCallback(async (id: string) => {
+    setArchivingId(id);
+    const res = await fetch("/api/treatments", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      setTreatments(prev => prev.filter(t => t.id !== id));
+      // Refresh archived count if panel is open
+      if (showArchived) await loadArchivedTreatments();
+    }
+    setArchiveConfirmId(null);
+    setArchivingId(null);
+  }, [token, showArchived, loadArchivedTreatments]);
 
   // Auto-detect came_via_bot when nurse picks an existing intake
   const handleIntakeSelect = useCallback((intakeId: string) => {
@@ -1155,7 +1189,7 @@ export default function AftercarePage() {
             {/* Treatment cards */}
             {treatments.map(treatment => (
               <div key={treatment.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start gap-3 flex-wrap">
+                <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <p className="font-bold text-[#1a2744]">{treatment.intakes?.first_name ?? "Client"}</p>
@@ -1174,9 +1208,81 @@ export default function AftercarePage() {
                     </p>
                     {treatment.notes && <p className="mt-1 text-xs text-slate-600 italic">{treatment.notes}</p>}
                   </div>
+                  {/* Archive button — subtle trash icon at far right */}
+                  <button
+                    type="button"
+                    onClick={() => setArchiveConfirmId(archiveConfirmId === treatment.id ? null : treatment.id)}
+                    className="shrink-0 rounded-full p-1.5 text-slate-300 transition hover:bg-red-50 hover:text-red-400"
+                    title="Archive treatment"
+                    aria-label="Archive treatment"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </button>
                 </div>
+                {/* Inline archive confirmation */}
+                {archiveConfirmId === treatment.id && (
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    <p className="font-medium mb-2">Archive this treatment? It won&apos;t appear in your list but the data is kept safely.</p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleArchive(treatment.id)}
+                        disabled={archivingId === treatment.id}
+                        className="rounded-full bg-amber-500 px-3 py-1 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                      >
+                        {archivingId === treatment.id ? "Archiving…" : "Yes, archive"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setArchiveConfirmId(null)}
+                        className="rounded-full border border-amber-300 px-3 py-1 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
+
+            {/* Show archived toggle */}
+            <div className="mt-2 flex justify-center">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!showArchived) await loadArchivedTreatments();
+                  setShowArchived(v => !v);
+                }}
+                className="text-xs font-semibold text-slate-400 underline-offset-2 transition hover:text-slate-600 hover:underline"
+              >
+                {showArchived
+                  ? "Hide archived"
+                  : `Show archived${archivedTreatments.length > 0 ? ` (${archivedTreatments.length})` : ""}`}
+              </button>
+            </div>
+
+            {/* Archived treatment cards */}
+            {showArchived && (
+              <div className="space-y-3 mt-1">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Archived treatments</p>
+                {archivedTreatments.length === 0 ? (
+                  <p className="text-sm text-slate-400 italic">No archived treatments.</p>
+                ) : archivedTreatments.map(treatment => (
+                  <div key={treatment.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 opacity-70">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <p className="font-semibold text-slate-500 text-sm">{treatment.intakes?.first_name ?? "Client"}</p>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">{treatment.procedure_name}</span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-400">📦 Archived</span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {new Date(treatment.treatment_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
