@@ -158,6 +158,7 @@ type Draft = {
   greeting: string;
   brandColor: string;
   logoUrl: string;
+  botTheme: string; // 'aurora' | 'crystal'
   // Nurse's full name from auth metadata — used for greeting generation, not persisted to bots table
   nurseName: string;
 };
@@ -183,6 +184,7 @@ function emptyDraft(userId: string): Draft {
     greeting: "",
     brandColor: "#0d9488",
     logoUrl: "",
+    botTheme: "aurora",
     nurseName: "",
   };
 }
@@ -238,12 +240,16 @@ function ChatPreview({
   practiceName,
   greeting,
   logoUrl,
+  botTheme = "aurora",
 }: {
   practiceName: string;
   greeting: string;
   brandColor: string; // kept in signature for call-site compat, not used
   logoUrl?: string;
+  botTheme?: string;
 }) {
+  const isCrystal = botTheme === "crystal";
+  const isClassic = botTheme === "classic";
   const title = practiceName.trim() || "Your Practice";
   const greetingText =
     greeting.trim() || "Hi there! 👋 How can I help you today?";
@@ -265,12 +271,28 @@ function ChatPreview({
     // Page background gradient — matches live widget
     <div
       className="flex h-full flex-col overflow-hidden rounded-2xl shadow-2xl"
-      style={{ background: "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)" }}
+      style={{
+        background: isCrystal
+          ? "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)"
+          : isClassic
+            ? "#f8fafc"
+            : "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)",
+      }}
     >
-      {/* Glass panel — iridescent border + blue-gray tinted fill */}
+      {/* Glass panel */}
       <div
         className="flex h-full flex-col overflow-hidden rounded-2xl"
-        style={{
+        style={isCrystal ? {
+          background: "rgba(255,255,255,0.45)",
+          border: "1px solid rgba(255,255,255,0.5)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          boxShadow: "0 12px 48px rgba(0,0,0,0.12)",
+        } : isClassic ? {
+          background: "#ffffff",
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+        } : {
           background: [
             "linear-gradient(145deg, rgba(215,225,245,0.70) 0%, rgba(200,215,238,0.52) 100%) padding-box",
             `${IRIDESCENT} border-box`,
@@ -359,8 +381,16 @@ function ChatPreview({
                 className="max-w-[85%] text-[10px] leading-relaxed"
                 style={
                   m.role === "user"
-                    ? { background: "rgba(15,23,42,0.08)", borderRadius: 999, padding: "5px 10px", color: "#1e293b" }
-                    : { background: "rgba(255,255,255,0.88)", borderRadius: 10, padding: "5px 8px", color: "#1e293b", boxShadow: "0 1px 3px rgba(0,0,0,0.07)" }
+                    ? isCrystal
+                      ? { background: "rgba(255,255,255,0.30)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", borderRadius: 999, padding: "5px 10px", color: "#1e293b" }
+                      : isClassic
+                        ? { background: "#e2e8f0", borderRadius: 999, padding: "5px 10px", color: "#1e293b" }
+                        : { background: "rgba(15,23,42,0.08)", borderRadius: 999, padding: "5px 10px", color: "#1e293b" }
+                    : isCrystal
+                      ? { background: "rgba(255,255,255,0.80)", borderRadius: 10, padding: "5px 8px", color: "#1e293b", boxShadow: "0 1px 3px rgba(0,0,0,0.07)" }
+                      : isClassic
+                        ? { background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "5px 8px", color: "#1e293b" }
+                        : { background: "rgba(255,255,255,0.88)", borderRadius: 10, padding: "5px 8px", color: "#1e293b", boxShadow: "0 1px 3px rgba(0,0,0,0.07)" }
                 }
               >
                 {m.content}
@@ -380,7 +410,14 @@ function ChatPreview({
               <span
                 key={p}
                 className="rounded-full px-2 py-1 text-[9px] font-medium text-slate-700"
-                style={{
+                style={isCrystal ? {
+                  background: "rgba(255,255,255,0.50)",
+                  border: "1px solid rgba(255,255,255,0.60)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
+                } : isClassic ? {
+                  background: "#f1f5f9",
+                  border: "1px solid #e2e8f0",
+                } : {
                   background: [
                     "rgba(215,225,245,0.55) padding-box",
                     `${IRIDESCENT_PILL} border-box`,
@@ -397,7 +434,13 @@ function ChatPreview({
           <div className="flex items-center gap-1.5">
             <div
               className="flex-1 rounded-full px-3 py-1.5 text-[10px] text-slate-400"
-              style={{
+              style={isCrystal ? {
+                background: "rgba(255,255,255,0.60)",
+                border: "1px solid rgba(255,255,255,0.60)",
+              } : isClassic ? {
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+              } : {
                 background: [
                   "rgba(255,255,255,0.82) padding-box",
                   `${IRIDESCENT_PILL} border-box`,
@@ -410,7 +453,13 @@ function ChatPreview({
             </div>
             <span
               className="shrink-0 rounded-full px-2.5 py-1.5 text-[9px] font-semibold text-white"
-              style={{
+              style={isCrystal ? {
+                background: "#10b981",
+                boxShadow: "0 1px 4px rgba(16,185,129,0.35)",
+              } : isClassic ? {
+                background: "#0d9488",
+                boxShadow: "0 1px 4px rgba(13,148,136,0.35)",
+              } : {
                 background: [
                   "#1a2744 padding-box",
                   `${IRIDESCENT} border-box`,
@@ -831,6 +880,92 @@ function StepCustomize({
         </div>
       </div>
 
+      {/* ── Chat theme picker ───────────────────────────────────────────── */}
+      <div>
+        <p className="text-sm font-semibold text-[#1a2744] mb-1">Widget theme</p>
+        <p className="text-xs text-slate-500 mb-3">Choose the look of your client-facing chat widget.</p>
+        <div className="grid grid-cols-3 gap-2">
+          {/* Aurora */}
+          {(["aurora", "crystal", "classic"] as const).map((theme) => {
+            const selected = (draft.botTheme || "aurora") === theme;
+            const meta = {
+              aurora: { label: "Aurora", sub: "Lavender → Mint" },
+              crystal: { label: "Crystal", sub: "Purple → Blue" },
+              classic: { label: "Classic", sub: "Clean white" },
+            }[theme];
+            return (
+              <button
+                key={theme}
+                type="button"
+                onClick={() => onChange({ botTheme: theme })}
+                className={`relative rounded-2xl overflow-hidden border-2 transition ${
+                  selected ? "border-[#0d9488] ring-2 ring-[#0d9488]/30" : "border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                {/* Mini preview */}
+                <div className="h-[72px]" style={{
+                  background: theme === "aurora"
+                    ? "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)"
+                    : theme === "crystal"
+                      ? "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)"
+                      : "#f8fafc",
+                }}>
+                  <div className="h-full rounded-xl mx-1.5 my-1.5 flex flex-col justify-between p-1.5" style={
+                    theme === "aurora" ? {
+                      background: "linear-gradient(145deg, rgba(215,225,245,0.80) 0%, rgba(200,215,238,0.65) 100%)",
+                      boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.85), 0 3px 8px rgba(0,0,0,0.10)",
+                    } : theme === "crystal" ? {
+                      background: "rgba(255,255,255,0.45)",
+                      border: "1px solid rgba(255,255,255,0.50)",
+                      boxShadow: "0 3px 8px rgba(0,0,0,0.08)",
+                    } : {
+                      background: "#ffffff",
+                      border: "1px solid #e2e8f0",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.07)",
+                    }
+                  }>
+                    {/* Bot bubble */}
+                    <div className="rounded-lg h-2.5 w-10" style={{
+                      background: theme === "aurora" ? "rgba(230,236,250,0.85)" : theme === "crystal" ? "rgba(255,255,255,0.80)" : "#f1f5f9",
+                      border: theme === "classic" ? "1px solid #e2e8f0" : undefined,
+                    }} />
+                    {/* User bubble */}
+                    <div className="flex justify-end">
+                      <div className="rounded-full h-2 w-7" style={{
+                        background: theme === "aurora" ? "rgba(26,39,68,0.12)" : theme === "crystal" ? "rgba(255,255,255,0.30)" : "#e2e8f0",
+                      }} />
+                    </div>
+                    {/* Pills + send */}
+                    <div className="flex gap-1 items-center">
+                      <div className="rounded-full h-1.5 w-5" style={{
+                        background: theme === "aurora" ? "rgba(215,225,245,0.70)" : theme === "crystal" ? "rgba(255,255,255,0.50)" : "#f1f5f9",
+                        border: theme === "classic" ? "1px solid #e2e8f0" : undefined,
+                      }} />
+                      <div className="rounded-full h-1.5 w-5" style={{
+                        background: theme === "aurora" ? "rgba(215,225,245,0.70)" : theme === "crystal" ? "rgba(255,255,255,0.50)" : "#f1f5f9",
+                        border: theme === "classic" ? "1px solid #e2e8f0" : undefined,
+                      }} />
+                      <div className="rounded-full h-2.5 w-4 ml-auto" style={{
+                        background: theme === "aurora" ? "#1a2744" : theme === "crystal" ? "#10b981" : "#0d9488",
+                      }} />
+                    </div>
+                  </div>
+                </div>
+                <div className="py-1.5 text-center">
+                  <p className="text-[11px] font-semibold text-[#1a2744]">{meta.label}</p>
+                  <p className="text-[9px] text-slate-400">{meta.sub}</p>
+                </div>
+                {selected && (
+                  <div className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full bg-[#0d9488] flex items-center justify-center">
+                    <svg viewBox="0 0 10 10" className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 5l2 2 4-4"/></svg>
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-[#1a2744]">
           Welcome message
@@ -1067,6 +1202,7 @@ function OnboardingInner() {
               greeting: (bot.greeting as string | null) ?? "",
               brandColor: (bot.brand_color as string | null) ?? "#0d9488",
               logoUrl: (bot.logo_url as string | null) ?? "",
+              botTheme: (bot.bot_theme as string | null) ?? "aurora",
             };
 
             // Fallback: if services[] is empty, pull names from procedures table
@@ -1197,6 +1333,7 @@ function OnboardingInner() {
         logo_url: draft.logoUrl || null,
         numbing_method: draft.numbingMethod || null,
         cancellation_policy: draft.cancellationPolicy || null,
+        bot_theme: draft.botTheme || "aurora",
         launched: true,
       };
 
@@ -1317,6 +1454,7 @@ function OnboardingInner() {
                     greeting={draft.greeting}
                     brandColor={draft.brandColor}
                     logoUrl={draft.logoUrl}
+                    botTheme={draft.botTheme}
                   />
                 </div>
               </div>
@@ -1369,6 +1507,7 @@ function OnboardingInner() {
                     greeting={draft.greeting}
                     brandColor={draft.brandColor}
                     logoUrl={draft.logoUrl}
+                    botTheme={draft.botTheme}
                   />
                 </div>
               </div>
