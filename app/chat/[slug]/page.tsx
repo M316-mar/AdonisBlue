@@ -579,6 +579,7 @@ export default function PublicChatPage() {
                 ].join(", "),
                 border: "1.5px solid transparent",
                 color: "#1a2744",
+                fontWeight: 600,
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,0.80), 0 1px 4px rgba(0,0,0,0.06)",
               }}
             >
@@ -629,7 +630,7 @@ export default function PublicChatPage() {
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="shrink-0 rounded-full px-4 py-2 text-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             style={{
               background: [
                 "#1a2744 padding-box",
@@ -637,6 +638,8 @@ export default function PublicChatPage() {
               ].join(", "),
               border: "1.5px solid transparent",
               boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.18)",
+              fontWeight: 700,
+              color: "#1a2744",
             }}
           >
             Send
