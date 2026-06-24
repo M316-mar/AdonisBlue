@@ -1140,9 +1140,10 @@ function OnboardingInner() {
 
     // Save nurse's full name to auth user metadata when leaving step 1
     if (draft.step === 1 && draft.nurseName.trim()) {
-      await supabase.auth.updateUser({
+      const { data: updateData, error: updateError } = await supabase.auth.updateUser({
         data: { full_name: draft.nurseName.trim() },
       });
+      console.log("[onboarding] updateUser full_name:", draft.nurseName.trim(), "| result:", updateData?.user?.user_metadata?.full_name, "| error:", updateError?.message ?? null);
     }
 
     if (draft.step < TOTAL_STEPS - 1) {
