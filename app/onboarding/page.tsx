@@ -248,164 +248,231 @@ function ChatPreview({
   logoUrl?: string;
   botTheme?: string;
 }) {
-  console.log("ChatPreview rendering with theme:", botTheme);
-  const isCrystal = botTheme === "crystal";
-  const isClassic = botTheme === "classic";
+  // ── All theme tokens computed up-front as plain JS — never in Tailwind class strings ──
+  const t = botTheme === "crystal" ? "crystal" : botTheme === "classic" ? "classic" : "aurora";
+
+  const outerStyle: React.CSSProperties = {
+    display: "flex", flexDirection: "column", height: "100%",
+    overflow: "hidden", borderRadius: "1rem",
+    boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+    background:
+      t === "crystal" ? "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)"
+      : t === "classic" ? "#ffffff"
+      : "linear-gradient(180deg, #cdc8e8 0%, #c6d9ce 100%)",
+    padding: t === "aurora" ? "3px" : 0,
+  };
+
+  const panelStyle: React.CSSProperties =
+    t === "crystal" ? {
+      display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
+      overflow: "hidden", borderRadius: "0.875rem",
+      background: "rgba(255,255,255,0.42)",
+      border: "1px solid rgba(255,255,255,0.5)",
+      boxShadow: "0 12px 48px rgba(0,0,0,0.12)",
+    } : t === "classic" ? {
+      display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
+      overflow: "hidden", borderRadius: "1rem",
+      background: "#ffffff",
+      border: "2px solid #cbd5e1",
+      boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+    } : {
+      display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
+      overflow: "hidden", borderRadius: "0.875rem",
+      background: [
+        "linear-gradient(145deg, rgba(210,220,245,0.92) 0%, rgba(195,212,235,0.88) 100%) padding-box",
+        `${IRIDESCENT} border-box`,
+      ].join(", "),
+      border: "3px solid transparent",
+      boxShadow: [
+        "inset 2px 2px 0 rgba(255,255,255,0.90)",
+        "inset -1px -1px 0 rgba(0,0,0,0.06)",
+        "inset 0 4px 20px rgba(255,255,255,0.50)",
+      ].join(", "),
+    };
+
+  const headerStyle: React.CSSProperties =
+    t === "crystal" ? {
+      display: "flex", flexShrink: 0, alignItems: "center", gap: 8,
+      padding: "10px 12px",
+      background: "rgba(255,255,255,0.55)",
+      borderBottom: "1px solid rgba(255,255,255,0.50)",
+    } : t === "classic" ? {
+      display: "flex", flexShrink: 0, alignItems: "center", gap: 8,
+      padding: "10px 12px",
+      background: "#ffffff",
+      borderBottom: "1px solid #e2e8f0",
+    } : {
+      display: "flex", flexShrink: 0, alignItems: "center", gap: 8,
+      padding: "10px 12px",
+      background: [
+        "linear-gradient(180deg, rgba(220,230,248,0.72) 0%, rgba(210,220,240,0.55) 100%) padding-box",
+        `${IRIDESCENT_PILL} border-box`,
+      ].join(", "),
+      borderBottom: "1.5px solid transparent",
+      boxShadow: "0 1px 0 rgba(120,165,255,0.35)",
+    };
+
+  const closeBtnStyle: React.CSSProperties =
+    t === "crystal" ? {
+      flexShrink: 0, borderRadius: 999, padding: "4px 8px",
+      fontSize: 9, fontWeight: 600, color: "#475569",
+      background: "rgba(255,255,255,0.50)",
+      border: "1px solid rgba(255,255,255,0.60)",
+    } : t === "classic" ? {
+      flexShrink: 0, borderRadius: 999, padding: "4px 8px",
+      fontSize: 9, fontWeight: 600, color: "#475569",
+      background: "#f1f5f9",
+      border: "1px solid #e2e8f0",
+    } : {
+      flexShrink: 0, borderRadius: 999, padding: "4px 8px",
+      fontSize: 9, fontWeight: 600, color: "#475569",
+      background: [
+        "rgba(215,225,245,0.60) padding-box",
+        `${IRIDESCENT_PILL} border-box`,
+      ].join(", "),
+      border: "1px solid transparent",
+      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
+    };
+
+  const botBubbleStyle: React.CSSProperties =
+    t === "crystal" ? {
+      maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
+      borderRadius: 10, padding: "5px 8px", color: "#1e293b",
+      background: "rgba(255,255,255,0.80)",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+    } : t === "classic" ? {
+      maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
+      borderRadius: 10, padding: "5px 8px", color: "#1e293b",
+      background: "#f1f5f9",
+      border: "1px solid #e2e8f0",
+    } : {
+      maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
+      borderRadius: 10, padding: "5px 8px", color: "#1e293b",
+      background: "rgba(230,236,250,0.80)",
+      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75), 0 1px 3px rgba(0,0,0,0.06)",
+    };
+
+  const userBubbleStyle: React.CSSProperties =
+    t === "crystal" ? {
+      maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
+      borderRadius: 999, padding: "5px 10px", color: "#1e293b",
+      background: "rgba(255,255,255,0.30)",
+    } : t === "classic" ? {
+      maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
+      borderRadius: 999, padding: "5px 10px", color: "#1e293b",
+      background: "#cbd5e1",
+    } : {
+      maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
+      borderRadius: 999, padding: "5px 10px", color: "#1e293b",
+      background: "rgba(15,23,42,0.10)",
+    };
+
+  const pillStyle: React.CSSProperties =
+    t === "crystal" ? {
+      borderRadius: 999, padding: "4px 8px",
+      fontSize: 9, fontWeight: 500, color: "#334155",
+      background: "rgba(255,255,255,0.50)",
+      border: "1px solid rgba(255,255,255,0.60)",
+    } : t === "classic" ? {
+      borderRadius: 999, padding: "4px 8px",
+      fontSize: 9, fontWeight: 500, color: "#334155",
+      background: "#f1f5f9",
+      border: "1px solid #cbd5e1",
+    } : {
+      borderRadius: 999, padding: "4px 8px",
+      fontSize: 9, fontWeight: 500, color: "#1a2744",
+      background: [
+        "rgba(215,225,245,0.55) padding-box",
+        `${IRIDESCENT_PILL} border-box`,
+      ].join(", "),
+      border: "1px solid transparent",
+      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
+    };
+
+  const inputStyle: React.CSSProperties =
+    t === "crystal" ? {
+      flex: 1, borderRadius: 999, padding: "6px 12px",
+      fontSize: 10, color: "#94a3b8",
+      background: "rgba(255,255,255,0.60)",
+      border: "1px solid rgba(255,255,255,0.60)",
+    } : t === "classic" ? {
+      flex: 1, borderRadius: 999, padding: "6px 12px",
+      fontSize: 10, color: "#94a3b8",
+      background: "#f8fafc",
+      border: "1px solid #e2e8f0",
+    } : {
+      flex: 1, borderRadius: 999, padding: "6px 12px",
+      fontSize: 10, color: "#94a3b8",
+      background: [
+        "rgba(255,255,255,0.82) padding-box",
+        `${IRIDESCENT_PILL} border-box`,
+      ].join(", "),
+      border: "1.5px solid transparent",
+      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.95)",
+    };
+
+  const sendStyle: React.CSSProperties =
+    t === "crystal" ? {
+      flexShrink: 0, borderRadius: 999, padding: "6px 10px",
+      fontSize: 9, fontWeight: 600, color: "#ffffff",
+      background: "#10b981",
+      boxShadow: "0 1px 4px rgba(16,185,129,0.35)",
+    } : t === "classic" ? {
+      flexShrink: 0, borderRadius: 999, padding: "6px 10px",
+      fontSize: 9, fontWeight: 600, color: "#ffffff",
+      background: "#0d9488",
+      boxShadow: "0 1px 4px rgba(13,148,136,0.35)",
+    } : {
+      flexShrink: 0, borderRadius: 999, padding: "6px 10px",
+      fontSize: 9, fontWeight: 600, color: "#ffffff",
+      background: [
+        "#1a2744 padding-box",
+        `${IRIDESCENT} border-box`,
+      ].join(", "),
+      border: "1.5px solid transparent",
+      boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.18)",
+    };
+
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const title = practiceName.trim() || "Your Practice";
-  const greetingText =
-    greeting.trim() || "Hi there! 👋 How can I help you today?";
+  const greetingText = greeting.trim() || "Hi there! 👋 How can I help you today?";
 
   const DEMO_MSGS: PreviewMsg[] = [
     { id: "1", role: "assistant", content: greetingText },
     { id: "2", role: "user", content: "What services do you offer?" },
-    {
-      id: "3",
-      role: "assistant",
-      content:
-        "We offer Lip Filler, Botox, Cheek Filler, and more! ✨ Would you like to book a consultation?",
-    },
+    { id: "3", role: "assistant", content: "We offer Lip Filler, Botox, Cheek Filler, and more! ✨ Would you like to book a consultation?" },
   ];
 
   const PREVIEW_PILLS = ["Services", "Pricing", "Book now"];
 
   return (
-    /*
-     * Outer div: the visible "page" background.
-     * For Crystal the gradient shows through the semi-transparent panel.
-     * For Aurora a 4px padding exposes the gradient as a colored frame.
-     * For Classic pure white — outer and inner are the same colour intentionally.
-     */
-    <div
-      className="flex h-full flex-col overflow-hidden rounded-2xl shadow-2xl"
-      style={{
-        background: isCrystal
-          ? "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)"
-          : isClassic
-            ? "#ffffff"
-            : "linear-gradient(180deg, #cdc8e8 0%, #c6d9ce 100%)",
-        padding: isClassic ? 0 : isCrystal ? 0 : "3px",
-      }}
-    >
-      {/* Glass / plain panel — sits inside the padding frame for Aurora */}
-      <div
-        className="flex flex-1 flex-col overflow-hidden rounded-xl min-h-0"
-        style={isCrystal ? {
-          background: "rgba(255,255,255,0.42)",
-          border: "1px solid rgba(255,255,255,0.5)",
-          boxShadow: "0 12px 48px rgba(0,0,0,0.12)",
-        } : isClassic ? {
-          background: "#ffffff",
-          border: "2px solid #cbd5e1",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-          borderRadius: "1rem",
-        } : {
-          // Aurora: rich blue-gray fill so the iridescent border-box gradient is legible
-          background: [
-            "linear-gradient(145deg, rgba(210,220,245,0.92) 0%, rgba(195,212,235,0.88) 100%) padding-box",
-            `${IRIDESCENT} border-box`,
-          ].join(", "),
-          border: "3px solid transparent",
-          boxShadow: [
-            "inset 2px 2px 0 rgba(255,255,255,0.90)",
-            "inset -1px -1px 0 rgba(0,0,0,0.06)",
-            "inset 0 4px 20px rgba(255,255,255,0.50)",
-          ].join(", "),
-        }}
-      >
-        {/* Header — switches style per theme so the Live Preview visibly changes */}
-        <div
-          className="flex shrink-0 items-center gap-2 px-3 py-2.5"
-          style={isCrystal ? {
-            background: "rgba(255,255,255,0.55)",
-            borderBottom: "1px solid rgba(255,255,255,0.50)",
-            boxShadow: "0 1px 0 rgba(255,255,255,0.40)",
-          } : isClassic ? {
-            background: "#ffffff",
-            borderBottom: "1px solid #e2e8f0",
-            flexShrink: 0,
-          } : {
-            // Aurora: iridescent glass header
-            background: [
-              "linear-gradient(180deg, rgba(220,230,248,0.72) 0%, rgba(210,220,240,0.55) 100%) padding-box",
-              `${IRIDESCENT_PILL} border-box`,
-            ].join(", "),
-            border: "0 solid transparent",
-            borderBottom: "1.5px solid transparent",
-            boxShadow: "0 1px 0 rgba(120,165,255,0.35)",
-          }}
-        >
+    <div style={outerStyle}>
+      <div style={panelStyle}>
+        {/* Header */}
+        <div style={headerStyle}>
           {logoUrl ? (
-            <div style={{
-              width: 56, height: 56, minWidth: 56,
-              borderRadius: "50%",
-              overflow: "hidden",
-              border: "2px solid rgba(255,255,255,0.55)",
-              boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
-              flexShrink: 0,
-            }}>
+            <div style={{ width: 56, height: 56, minWidth: 56, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={logoUrl} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             </div>
           ) : (
-            <div
-              style={{
-                width: 36, height: 36, minWidth: 36,
-                borderRadius: "50%",
-                backgroundColor: "#1a2744",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 14, fontWeight: 700, color: "white",
-                boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,0.3)",
-                flexShrink: 0,
-              }}
-            >
+            <div style={{ width: 36, height: 36, minWidth: 36, borderRadius: "50%", backgroundColor: "#1a2744", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "white", flexShrink: 0 }}>
               {title.charAt(0).toUpperCase()}
             </div>
           )}
-          <p className="flex items-center gap-1 text-[9px] font-medium text-slate-500">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <p style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 500, color: "#64748b", margin: 0, flex: 1 }}>
+            <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", backgroundColor: "#34d399", flexShrink: 0 }} />
             Online
           </p>
-          <span
-            className="shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold text-slate-600"
-            style={isCrystal ? {
-              background: "rgba(255,255,255,0.50)",
-              border: "1px solid rgba(255,255,255,0.60)",
-            } : isClassic ? {
-              background: "#f1f5f9",
-              border: "1px solid #e2e8f0",
-            } : {
-              background: [
-                "rgba(215,225,245,0.60) padding-box",
-                `${IRIDESCENT_PILL} border-box`,
-              ].join(", "),
-              border: "1px solid transparent",
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
-            }}
-          >
-            Close
-          </span>
+          <span style={closeBtnStyle}>Close</span>
         </div>
 
-        {/* Messages — transparent so glass shows through */}
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2.5 py-3">
+        {/* Messages */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, padding: "12px 10px" }}>
           {DEMO_MSGS.map((m) => (
-            <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div
-                className="max-w-[85%] text-[10px] leading-relaxed"
-                style={
-                  m.role === "user"
-                    ? isCrystal
-                      ? { background: "rgba(255,255,255,0.30)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", borderRadius: 999, padding: "5px 10px", color: "#1e293b" }
-                      : isClassic
-                        ? { background: "#cbd5e1", borderRadius: 999, padding: "5px 10px", color: "#1e293b" }
-                        : { background: "rgba(15,23,42,0.08)", borderRadius: 999, padding: "5px 10px", color: "#1e293b" }
-                    : isCrystal
-                      ? { background: "rgba(255,255,255,0.80)", borderRadius: 10, padding: "5px 8px", color: "#1e293b", boxShadow: "0 1px 3px rgba(0,0,0,0.07)" }
-                      : isClassic
-                        ? { background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 10, padding: "5px 8px", color: "#1e293b" }
-                        : { background: "rgba(255,255,255,0.88)", borderRadius: 10, padding: "5px 8px", color: "#1e293b", boxShadow: "0 1px 3px rgba(0,0,0,0.07)" }
-                }
-              >
+            <div key={m.id} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+              <div style={m.role === "user" ? userBubbleStyle : botBubbleStyle}>
                 {m.content}
               </div>
             </div>
@@ -413,77 +480,17 @@ function ChatPreview({
         </div>
 
         {/* Input area */}
-        <div
-          className="shrink-0 px-2.5 pb-2.5 pt-2"
-          style={{ borderTop: "1px solid rgba(0,0,0,0.07)" }}
-        >
-          {/* Quick-reply pills */}
-          <div className="mb-1.5 flex flex-wrap gap-1">
+        <div style={{ flexShrink: 0, padding: "8px 10px 10px", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+          {/* Pills */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
             {PREVIEW_PILLS.map((p) => (
-              <span
-                key={p}
-                className="rounded-full px-2 py-1 text-[9px] font-medium text-slate-700"
-                style={isCrystal ? {
-                  background: "rgba(255,255,255,0.50)",
-                  border: "1px solid rgba(255,255,255,0.60)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
-                } : isClassic ? {
-                  background: "#f1f5f9",
-                  border: "1px solid #cbd5e1",
-                  color: "#334155",
-                } : {
-                  background: [
-                    "rgba(215,225,245,0.55) padding-box",
-                    `${IRIDESCENT_PILL} border-box`,
-                  ].join(", "),
-                  border: "1px solid transparent",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
-                }}
-              >
-                {p}
-              </span>
+              <span key={p} style={pillStyle}>{p}</span>
             ))}
           </div>
           {/* Input + Send */}
-          <div className="flex items-center gap-1.5">
-            <div
-              className="flex-1 rounded-full px-3 py-1.5 text-[10px] text-slate-400"
-              style={isCrystal ? {
-                background: "rgba(255,255,255,0.60)",
-                border: "1px solid rgba(255,255,255,0.60)",
-              } : isClassic ? {
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-              } : {
-                background: [
-                  "rgba(255,255,255,0.82) padding-box",
-                  `${IRIDESCENT_PILL} border-box`,
-                ].join(", "),
-                border: "1.5px solid transparent",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.95)",
-              }}
-            >
-              Type a message…
-            </div>
-            <span
-              className="shrink-0 rounded-full px-2.5 py-1.5 text-[9px] font-semibold text-white"
-              style={isCrystal ? {
-                background: "#10b981",
-                boxShadow: "0 1px 4px rgba(16,185,129,0.35)",
-              } : isClassic ? {
-                background: "#0d9488",
-                boxShadow: "0 1px 4px rgba(13,148,136,0.35)",
-              } : {
-                background: [
-                  "#1a2744 padding-box",
-                  `${IRIDESCENT} border-box`,
-                ].join(", "),
-                border: "1.5px solid transparent",
-                boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.18)",
-              }}
-            >
-              Send
-            </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={inputStyle}>Type a message…</div>
+            <span style={sendStyle}>Send</span>
           </div>
         </div>
       </div>
@@ -1468,6 +1475,7 @@ function OnboardingInner() {
                 </p>
                 <div className="h-[480px]">
                   <ChatPreview
+                    key={draft.botTheme}
                     practiceName={draft.practiceName}
                     greeting={draft.greeting}
                     brandColor={draft.brandColor}
@@ -1521,6 +1529,7 @@ function OnboardingInner() {
                 </p>
                 <div className="h-[420px] px-4 pb-4">
                   <ChatPreview
+                    key={draft.botTheme}
                     practiceName={draft.practiceName}
                     greeting={draft.greeting}
                     brandColor={draft.brandColor}
