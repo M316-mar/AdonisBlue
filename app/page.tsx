@@ -150,6 +150,7 @@ export default function Home() {
               </div>
             </div>
             {/* Aurora glass chat widget preview */}
+            <div className="rounded-3xl bg-[#f8fafc] p-6 sm:p-8">
             <div className="relative">
               <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-purple-400/20 via-sky-300/10 to-teal-400/15 blur-2xl" aria-hidden />
               {/* Outer gradient background */}
@@ -266,6 +267,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           </div>
         </section>
