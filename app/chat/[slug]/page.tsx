@@ -428,10 +428,9 @@ export default function PublicChatPage() {
           {hasLogo ? (
             // Logo only — no practice name text when logo is present
             <div style={{
-              width: 52, height: 52, minWidth: 52,
+              width: 64, height: 64, minWidth: 64,
               borderRadius: "50%",
               overflow: "hidden",
-              // Softened ring — semi-transparent so it reads as glass, not a white sticker
               border: "2px solid rgba(255,255,255,0.45)",
               boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25), 0 2px 8px rgba(0,0,0,0.10)",
               flexShrink: 0,
@@ -707,7 +706,7 @@ export default function PublicChatPage() {
           {hasLogo ? (
             // Logo only — practice name hidden when logo is present
             <div style={{
-              width: 64, height: 64, minWidth: 64,
+              width: 72, height: 72, minWidth: 72,
               borderRadius: "50%",
               overflow: "hidden",
               border: "2px solid rgba(255,255,255,0.45)",
@@ -795,8 +794,8 @@ export default function PublicChatPage() {
             onClick={() => setChatOpen(true)}
             className="relative flex items-center justify-center rounded-full shadow-2xl transition hover:opacity-90 active:scale-[0.97]"
             style={{
-              width: hasLogo ? 88 : 64,
-              height: hasLogo ? 88 : 64,
+              width: hasLogo ? 96 : 64,
+              height: hasLogo ? 96 : 64,
               // Iridescent border on dark navy surface
               background: [
                 "#1a2744 padding-box",
@@ -808,16 +807,15 @@ export default function PublicChatPage() {
                 "0 2px 8px rgba(0,0,0,0.20)",
                 "inset 1px 1px 0 rgba(255,255,255,0.25)",
               ].join(", "),
+              padding: hasLogo ? 3 : 0,
             }}
             aria-label="Open chat"
           >
             {hasLogo ? (
               <div style={{
-                width: 82, height: 82,
+                width: "100%", height: "100%",
                 borderRadius: "50%",
                 overflow: "hidden",
-                border: "2px solid rgba(255,255,255,0.85)",
-                boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.3)",
               }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={botLogoImage!} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />

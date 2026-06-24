@@ -269,44 +269,47 @@ function ChatPreview({
   const PREVIEW_PILLS = ["Services", "Pricing", "Book now"];
 
   return (
-    // Page background gradient — matches live widget
+    /*
+     * Outer div: the visible "page" background.
+     * For Crystal the gradient shows through the semi-transparent panel.
+     * For Aurora a 4px padding exposes the gradient as a colored frame.
+     * For Classic pure white — outer and inner are the same colour intentionally.
+     */
     <div
       className="flex h-full flex-col overflow-hidden rounded-2xl shadow-2xl"
       style={{
         background: isCrystal
           ? "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)"
           : isClassic
-            ? "#f8fafc"
-            : "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)",
+            ? "#ffffff"
+            : "linear-gradient(180deg, #cdc8e8 0%, #c6d9ce 100%)",
+        padding: isClassic ? 0 : isCrystal ? 0 : "3px",
       }}
     >
-      {/* Glass panel */}
+      {/* Glass / plain panel — sits inside the padding frame for Aurora */}
       <div
-        className="flex h-full flex-col overflow-hidden rounded-2xl"
+        className="flex flex-1 flex-col overflow-hidden rounded-xl min-h-0"
         style={isCrystal ? {
-          background: "rgba(255,255,255,0.45)",
+          background: "rgba(255,255,255,0.42)",
           border: "1px solid rgba(255,255,255,0.5)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
           boxShadow: "0 12px 48px rgba(0,0,0,0.12)",
         } : isClassic ? {
           background: "#ffffff",
-          border: "1px solid #e2e8f0",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+          border: "2px solid #cbd5e1",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+          borderRadius: "1rem",
         } : {
+          // Aurora: rich blue-gray fill so the iridescent border-box gradient is legible
           background: [
-            "linear-gradient(145deg, rgba(215,225,245,0.70) 0%, rgba(200,215,238,0.52) 100%) padding-box",
+            "linear-gradient(145deg, rgba(210,220,245,0.92) 0%, rgba(195,212,235,0.88) 100%) padding-box",
             `${IRIDESCENT} border-box`,
           ].join(", "),
           border: "3px solid transparent",
           boxShadow: [
-            "0 12px 48px rgba(0,0,0,0.15)",
             "inset 2px 2px 0 rgba(255,255,255,0.90)",
             "inset -1px -1px 0 rgba(0,0,0,0.06)",
-            "inset 0 4px 20px rgba(255,255,255,0.45)",
+            "inset 0 4px 20px rgba(255,255,255,0.50)",
           ].join(", "),
-          backdropFilter: "blur(20px) saturate(2)",
-          WebkitBackdropFilter: "blur(20px) saturate(2)",
         }}
       >
         {/* Header — switches style per theme so the Live Preview visibly changes */}
@@ -319,6 +322,7 @@ function ChatPreview({
           } : isClassic ? {
             background: "#ffffff",
             borderBottom: "1px solid #e2e8f0",
+            flexShrink: 0,
           } : {
             // Aurora: iridescent glass header
             background: [
@@ -332,11 +336,11 @@ function ChatPreview({
         >
           {logoUrl ? (
             <div style={{
-              width: 40, height: 40, minWidth: 40,
+              width: 56, height: 56, minWidth: 56,
               borderRadius: "50%",
               overflow: "hidden",
-              border: "2px solid rgba(255,255,255,0.85)",
-              boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.4)",
+              border: "2px solid rgba(255,255,255,0.55)",
+              boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
               flexShrink: 0,
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -393,12 +397,12 @@ function ChatPreview({
                     ? isCrystal
                       ? { background: "rgba(255,255,255,0.30)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", borderRadius: 999, padding: "5px 10px", color: "#1e293b" }
                       : isClassic
-                        ? { background: "#e2e8f0", borderRadius: 999, padding: "5px 10px", color: "#1e293b" }
+                        ? { background: "#cbd5e1", borderRadius: 999, padding: "5px 10px", color: "#1e293b" }
                         : { background: "rgba(15,23,42,0.08)", borderRadius: 999, padding: "5px 10px", color: "#1e293b" }
                     : isCrystal
                       ? { background: "rgba(255,255,255,0.80)", borderRadius: 10, padding: "5px 8px", color: "#1e293b", boxShadow: "0 1px 3px rgba(0,0,0,0.07)" }
                       : isClassic
-                        ? { background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "5px 8px", color: "#1e293b" }
+                        ? { background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 10, padding: "5px 8px", color: "#1e293b" }
                         : { background: "rgba(255,255,255,0.88)", borderRadius: 10, padding: "5px 8px", color: "#1e293b", boxShadow: "0 1px 3px rgba(0,0,0,0.07)" }
                 }
               >
@@ -425,7 +429,8 @@ function ChatPreview({
                   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
                 } : isClassic ? {
                   background: "#f1f5f9",
-                  border: "1px solid #e2e8f0",
+                  border: "1px solid #cbd5e1",
+                  color: "#334155",
                 } : {
                   background: [
                     "rgba(215,225,245,0.55) padding-box",
@@ -447,7 +452,7 @@ function ChatPreview({
                 background: "rgba(255,255,255,0.60)",
                 border: "1px solid rgba(255,255,255,0.60)",
               } : isClassic ? {
-                background: "#ffffff",
+                background: "#f8fafc",
                 border: "1px solid #e2e8f0",
               } : {
                 background: [
