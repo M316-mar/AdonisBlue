@@ -240,198 +240,103 @@ function ChatPreview({
   practiceName,
   greeting,
   logoUrl,
-  botTheme = "aurora",
 }: {
   practiceName: string;
   greeting: string;
   brandColor: string; // kept in signature for call-site compat, not used
   logoUrl?: string;
-  botTheme?: string;
+  botTheme?: string; // kept for call-site compat, not used
 }) {
-  // ── All theme tokens computed up-front as plain JS — never in Tailwind class strings ──
-  const t = botTheme === "crystal" ? "crystal" : botTheme === "classic" ? "classic" : "aurora";
-
   const outerStyle: React.CSSProperties = {
     display: "flex", flexDirection: "column", height: "100%",
     overflow: "hidden", borderRadius: "1rem",
     boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-    background:
-      t === "crystal" ? "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)"
-      : t === "classic" ? "#ffffff"
-      : "linear-gradient(180deg, #cdc8e8 0%, #c6d9ce 100%)",
-    padding: t === "aurora" ? "3px" : 0,
+    background: "linear-gradient(180deg, #cdc8e8 0%, #c6d9ce 100%)",
+    padding: "3px",
   };
 
-  const panelStyle: React.CSSProperties =
-    t === "crystal" ? {
-      display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
-      overflow: "hidden", borderRadius: "0.875rem",
-      background: "rgba(255,255,255,0.42)",
-      border: "1px solid rgba(255,255,255,0.5)",
-      boxShadow: "0 12px 48px rgba(0,0,0,0.12)",
-    } : t === "classic" ? {
-      display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
-      overflow: "hidden", borderRadius: "1rem",
-      background: "#ffffff",
-      border: "2px solid #cbd5e1",
-      boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-    } : {
-      display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
-      overflow: "hidden", borderRadius: "0.875rem",
-      background: [
-        "linear-gradient(145deg, rgba(210,220,245,0.92) 0%, rgba(195,212,235,0.88) 100%) padding-box",
-        `${IRIDESCENT} border-box`,
-      ].join(", "),
-      border: "3px solid transparent",
-      boxShadow: [
-        "inset 2px 2px 0 rgba(255,255,255,0.90)",
-        "inset -1px -1px 0 rgba(0,0,0,0.06)",
-        "inset 0 4px 20px rgba(255,255,255,0.50)",
-      ].join(", "),
-    };
+  const panelStyle: React.CSSProperties = {
+    display: "flex", flexDirection: "column", flex: 1, minHeight: 0,
+    overflow: "hidden", borderRadius: "0.875rem",
+    background: [
+      "linear-gradient(145deg, rgba(210,220,245,0.92) 0%, rgba(195,212,235,0.88) 100%) padding-box",
+      `${IRIDESCENT} border-box`,
+    ].join(", "),
+    border: "3px solid transparent",
+    boxShadow: [
+      "inset 2px 2px 0 rgba(255,255,255,0.90)",
+      "inset -1px -1px 0 rgba(0,0,0,0.06)",
+      "inset 0 4px 20px rgba(255,255,255,0.50)",
+    ].join(", "),
+  };
 
-  const headerStyle: React.CSSProperties =
-    t === "crystal" ? {
-      display: "flex", flexShrink: 0, alignItems: "center", gap: 8,
-      padding: "10px 12px",
-      background: "rgba(255,255,255,0.55)",
-      borderBottom: "1px solid rgba(255,255,255,0.50)",
-    } : t === "classic" ? {
-      display: "flex", flexShrink: 0, alignItems: "center", gap: 8,
-      padding: "10px 12px",
-      background: "#ffffff",
-      borderBottom: "1px solid #e2e8f0",
-    } : {
-      display: "flex", flexShrink: 0, alignItems: "center", gap: 8,
-      padding: "10px 12px",
-      background: [
-        "linear-gradient(180deg, rgba(220,230,248,0.72) 0%, rgba(210,220,240,0.55) 100%) padding-box",
-        `${IRIDESCENT_PILL} border-box`,
-      ].join(", "),
-      borderBottom: "1.5px solid transparent",
-      boxShadow: "0 1px 0 rgba(120,165,255,0.35)",
-    };
+  const headerStyle: React.CSSProperties = {
+    display: "flex", flexShrink: 0, alignItems: "center", gap: 8,
+    padding: "10px 12px",
+    background: [
+      "linear-gradient(180deg, rgba(220,230,248,0.72) 0%, rgba(210,220,240,0.55) 100%) padding-box",
+      `${IRIDESCENT_PILL} border-box`,
+    ].join(", "),
+    borderBottom: "1.5px solid transparent",
+    boxShadow: "0 1px 0 rgba(120,165,255,0.35)",
+  };
 
-  const closeBtnStyle: React.CSSProperties =
-    t === "crystal" ? {
-      flexShrink: 0, borderRadius: 999, padding: "4px 8px",
-      fontSize: 9, fontWeight: 600, color: "#475569",
-      background: "rgba(255,255,255,0.50)",
-      border: "1px solid rgba(255,255,255,0.60)",
-    } : t === "classic" ? {
-      flexShrink: 0, borderRadius: 999, padding: "4px 8px",
-      fontSize: 9, fontWeight: 600, color: "#475569",
-      background: "#f1f5f9",
-      border: "1px solid #e2e8f0",
-    } : {
-      flexShrink: 0, borderRadius: 999, padding: "4px 8px",
-      fontSize: 9, fontWeight: 600, color: "#475569",
-      background: [
-        "rgba(215,225,245,0.60) padding-box",
-        `${IRIDESCENT_PILL} border-box`,
-      ].join(", "),
-      border: "1px solid transparent",
-      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
-    };
+  const closeBtnStyle: React.CSSProperties = {
+    flexShrink: 0, borderRadius: 999, padding: "4px 8px",
+    fontSize: 9, fontWeight: 600, color: "#475569",
+    background: [
+      "rgba(215,225,245,0.60) padding-box",
+      `${IRIDESCENT_PILL} border-box`,
+    ].join(", "),
+    border: "1px solid transparent",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
+  };
 
-  const botBubbleStyle: React.CSSProperties =
-    t === "crystal" ? {
-      maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
-      borderRadius: 10, padding: "5px 8px", color: "#1e293b",
-      background: "rgba(255,255,255,0.80)",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
-    } : t === "classic" ? {
-      maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
-      borderRadius: 10, padding: "5px 8px", color: "#1e293b",
-      background: "#f1f5f9",
-      border: "1px solid #e2e8f0",
-    } : {
-      maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
-      borderRadius: 10, padding: "5px 8px", color: "#1e293b",
-      background: "rgba(230,236,250,0.80)",
-      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75), 0 1px 3px rgba(0,0,0,0.06)",
-    };
+  const botBubbleStyle: React.CSSProperties = {
+    maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
+    borderRadius: 10, padding: "5px 8px", color: "#1e293b",
+    background: "rgba(230,236,250,0.80)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75), 0 1px 3px rgba(0,0,0,0.06)",
+  };
 
-  const userBubbleStyle: React.CSSProperties =
-    t === "crystal" ? {
-      maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
-      borderRadius: 999, padding: "5px 10px", color: "#1e293b",
-      background: "rgba(255,255,255,0.30)",
-    } : t === "classic" ? {
-      maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
-      borderRadius: 999, padding: "5px 10px", color: "#1e293b",
-      background: "#cbd5e1",
-    } : {
-      maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
-      borderRadius: 999, padding: "5px 10px", color: "#1e293b",
-      background: "rgba(15,23,42,0.10)",
-    };
+  const userBubbleStyle: React.CSSProperties = {
+    maxWidth: "85%", fontSize: 10, lineHeight: 1.6,
+    borderRadius: 999, padding: "5px 10px", color: "#1e293b",
+    background: "rgba(15,23,42,0.10)",
+  };
 
-  const pillStyle: React.CSSProperties =
-    t === "crystal" ? {
-      borderRadius: 999, padding: "4px 8px",
-      fontSize: 9, fontWeight: 500, color: "#334155",
-      background: "rgba(255,255,255,0.50)",
-      border: "1px solid rgba(255,255,255,0.60)",
-    } : t === "classic" ? {
-      borderRadius: 999, padding: "4px 8px",
-      fontSize: 9, fontWeight: 500, color: "#334155",
-      background: "#f1f5f9",
-      border: "1px solid #cbd5e1",
-    } : {
-      borderRadius: 999, padding: "4px 8px",
-      fontSize: 9, fontWeight: 500, color: "#1a2744",
-      background: [
-        "rgba(215,225,245,0.55) padding-box",
-        `${IRIDESCENT_PILL} border-box`,
-      ].join(", "),
-      border: "1px solid transparent",
-      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
-    };
+  const pillStyle: React.CSSProperties = {
+    borderRadius: 999, padding: "4px 8px",
+    fontSize: 9, fontWeight: 500, color: "#1a2744",
+    background: [
+      "rgba(215,225,245,0.55) padding-box",
+      `${IRIDESCENT_PILL} border-box`,
+    ].join(", "),
+    border: "1px solid transparent",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
+  };
 
-  const inputStyle: React.CSSProperties =
-    t === "crystal" ? {
-      flex: 1, borderRadius: 999, padding: "6px 12px",
-      fontSize: 10, color: "#94a3b8",
-      background: "rgba(255,255,255,0.60)",
-      border: "1px solid rgba(255,255,255,0.60)",
-    } : t === "classic" ? {
-      flex: 1, borderRadius: 999, padding: "6px 12px",
-      fontSize: 10, color: "#94a3b8",
-      background: "#f8fafc",
-      border: "1px solid #e2e8f0",
-    } : {
-      flex: 1, borderRadius: 999, padding: "6px 12px",
-      fontSize: 10, color: "#94a3b8",
-      background: [
-        "rgba(255,255,255,0.82) padding-box",
-        `${IRIDESCENT_PILL} border-box`,
-      ].join(", "),
-      border: "1.5px solid transparent",
-      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.95)",
-    };
+  const inputStyle: React.CSSProperties = {
+    flex: 1, borderRadius: 999, padding: "6px 12px",
+    fontSize: 10, color: "#94a3b8",
+    background: [
+      "rgba(255,255,255,0.82) padding-box",
+      `${IRIDESCENT_PILL} border-box`,
+    ].join(", "),
+    border: "1.5px solid transparent",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.95)",
+  };
 
-  const sendStyle: React.CSSProperties =
-    t === "crystal" ? {
-      flexShrink: 0, borderRadius: 999, padding: "6px 10px",
-      fontSize: 9, fontWeight: 600, color: "#ffffff",
-      background: "#10b981",
-      boxShadow: "0 1px 4px rgba(16,185,129,0.35)",
-    } : t === "classic" ? {
-      flexShrink: 0, borderRadius: 999, padding: "6px 10px",
-      fontSize: 9, fontWeight: 600, color: "#ffffff",
-      background: "#0d9488",
-      boxShadow: "0 1px 4px rgba(13,148,136,0.35)",
-    } : {
-      flexShrink: 0, borderRadius: 999, padding: "6px 10px",
-      fontSize: 9, fontWeight: 600, color: "#ffffff",
-      background: [
-        "#1a2744 padding-box",
-        `${IRIDESCENT} border-box`,
-      ].join(", "),
-      border: "1.5px solid transparent",
-      boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.18)",
-    };
+  const sendStyle: React.CSSProperties = {
+    flexShrink: 0, borderRadius: 999, padding: "6px 10px",
+    fontSize: 9, fontWeight: 600, color: "#ffffff",
+    background: [
+      "#1a2744 padding-box",
+      `${IRIDESCENT} border-box`,
+    ].join(", "),
+    border: "1.5px solid transparent",
+    boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.18)",
+  };
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -452,9 +357,9 @@ function ChatPreview({
         {/* Header */}
         <div style={headerStyle}>
           {logoUrl ? (
-            <div style={{ width: 56, height: 56, minWidth: 56, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
+            <div style={{ width: 64, height: 64, minWidth: 64, borderRadius: 8, overflow: "hidden", flexShrink: 0 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logoUrl} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <img src={logoUrl} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
             </div>
           ) : (
             <div style={{ width: 36, height: 36, minWidth: 36, borderRadius: "50%", backgroundColor: "#1a2744", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "white", flexShrink: 0 }}>
@@ -898,96 +803,6 @@ function StepCustomize({
               </p>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* ── Chat theme picker ───────────────────────────────────────────── */}
-      <div>
-        <p className="text-sm font-semibold text-[#1a2744] mb-1">Widget theme</p>
-        <p className="text-xs text-slate-500 mb-3">Choose the look of your client-facing chat widget.</p>
-        <div className="grid grid-cols-3 gap-2">
-          {/* Aurora */}
-          {(["aurora", "crystal", "classic"] as const).map((theme) => {
-            const selected = (draft.botTheme || "aurora") === theme;
-            const meta = {
-              aurora: { label: "Aurora", sub: "Lavender → Mint" },
-              crystal: { label: "Crystal", sub: "Purple → Blue" },
-              classic: { label: "Classic", sub: "Clean white" },
-            }[theme];
-            return (
-              <button
-                key={theme}
-                type="button"
-                onClick={() => {
-                  console.log("theme clicked:", theme);
-                  onChange({ botTheme: theme });
-                  console.log("draft.botTheme before set (stale closure):", draft.botTheme);
-                }}
-                className={`relative rounded-2xl overflow-hidden border-2 transition ${
-                  selected ? "border-[#0d9488] ring-2 ring-[#0d9488]/30" : "border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                {/* Mini preview */}
-                <div className="h-[72px]" style={{
-                  background: theme === "aurora"
-                    ? "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)"
-                    : theme === "crystal"
-                      ? "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)"
-                      : "#f8fafc",
-                }}>
-                  <div className="h-full rounded-xl mx-1.5 my-1.5 flex flex-col justify-between p-1.5" style={
-                    theme === "aurora" ? {
-                      background: "linear-gradient(145deg, rgba(215,225,245,0.80) 0%, rgba(200,215,238,0.65) 100%)",
-                      boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.85), 0 3px 8px rgba(0,0,0,0.10)",
-                    } : theme === "crystal" ? {
-                      background: "rgba(255,255,255,0.45)",
-                      border: "1px solid rgba(255,255,255,0.50)",
-                      boxShadow: "0 3px 8px rgba(0,0,0,0.08)",
-                    } : {
-                      background: "#ffffff",
-                      border: "1px solid #e2e8f0",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.07)",
-                    }
-                  }>
-                    {/* Bot bubble */}
-                    <div className="rounded-lg h-2.5 w-10" style={{
-                      background: theme === "aurora" ? "rgba(230,236,250,0.85)" : theme === "crystal" ? "rgba(255,255,255,0.80)" : "#f1f5f9",
-                      border: theme === "classic" ? "1px solid #e2e8f0" : undefined,
-                    }} />
-                    {/* User bubble */}
-                    <div className="flex justify-end">
-                      <div className="rounded-full h-2 w-7" style={{
-                        background: theme === "aurora" ? "rgba(26,39,68,0.12)" : theme === "crystal" ? "rgba(255,255,255,0.30)" : "#e2e8f0",
-                      }} />
-                    </div>
-                    {/* Pills + send */}
-                    <div className="flex gap-1 items-center">
-                      <div className="rounded-full h-1.5 w-5" style={{
-                        background: theme === "aurora" ? "rgba(215,225,245,0.70)" : theme === "crystal" ? "rgba(255,255,255,0.50)" : "#f1f5f9",
-                        border: theme === "classic" ? "1px solid #e2e8f0" : undefined,
-                      }} />
-                      <div className="rounded-full h-1.5 w-5" style={{
-                        background: theme === "aurora" ? "rgba(215,225,245,0.70)" : theme === "crystal" ? "rgba(255,255,255,0.50)" : "#f1f5f9",
-                        border: theme === "classic" ? "1px solid #e2e8f0" : undefined,
-                      }} />
-                      <div className="rounded-full h-2.5 w-4 ml-auto" style={{
-                        background: theme === "aurora" ? "#1a2744" : theme === "crystal" ? "#10b981" : "#0d9488",
-                      }} />
-                    </div>
-                  </div>
-                </div>
-                <div className="py-1.5 text-center">
-                  <p className="text-[11px] font-semibold text-[#1a2744]">{meta.label}</p>
-                  <p className="text-[9px] text-slate-400">{meta.sub}</p>
-                </div>
-                {selected && (
-                  <div className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full bg-[#0d9488] flex items-center justify-center">
-                    <svg viewBox="0 0 10 10" className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 5l2 2 4-4"/></svg>
-                  </div>
-                )}
-              </button>
-            );
-          })}
         </div>
       </div>
 

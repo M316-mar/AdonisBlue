@@ -399,8 +399,6 @@ export default function PublicChatPage() {
   const botTitle = (bot.practice_name || "").trim() || "Chat";
   const botLogoImage = (bot.logo_url || bot.logo_image || bot.logo_data_url) || null;
   const hasLogo = Boolean(botLogoImage && botLogoImage.trim());
-  const isCrystal = bot.bot_theme === "crystal";
-  const isClassic = bot.bot_theme === "classic";
 
   const ChatPanel = (
     /*
@@ -429,14 +427,14 @@ export default function PublicChatPage() {
             // Logo only — no practice name text when logo is present
             <div style={{
               width: 64, height: 64, minWidth: 64,
-              borderRadius: "50%",
+              borderRadius: 8,
               overflow: "hidden",
               border: "2px solid rgba(255,255,255,0.45)",
               boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25), 0 2px 8px rgba(0,0,0,0.10)",
               flexShrink: 0,
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={botLogoImage!} alt={botTitle} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <img src={botLogoImage!} alt={botTitle} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
             </div>
           ) : (
             // No logo — show initial circle + practice name text
@@ -513,25 +511,15 @@ export default function PublicChatPage() {
               }`}
               style={
                 m.role === "user"
-                  ? isCrystal
-                    ? { background: "rgba(255,255,255,0.30)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }
-                    : isClassic
-                      ? { background: "#e2e8f0" }
-                      // Aurora user bubble
-                      : { background: "rgba(26,39,68,0.10)" }
-                  : isCrystal
-                    ? { background: "rgba(255,255,255,0.80)", boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }
-                    : isClassic
-                      ? { background: "#f8fafc", border: "1px solid #e2e8f0" }
-                      // Aurora bot bubble
-                      : {
-                          background: [
-                            "rgba(230,236,250,0.62) padding-box",
-                            "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(215,225,245,0.40) 100%) border-box",
-                          ].join(", "),
-                          border: "1px solid transparent",
-                          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75), 0 1px 6px rgba(0,0,0,0.06)",
-                        }
+                  ? { background: "rgba(26,39,68,0.10)" }
+                  : {
+                      background: [
+                        "rgba(230,236,250,0.62) padding-box",
+                        "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(215,225,245,0.40) 100%) border-box",
+                      ].join(", "),
+                      border: "1px solid transparent",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75), 0 1px 6px rgba(0,0,0,0.06)",
+                    }
               }
             >
               {renderMessageContent(m.content)}
@@ -553,13 +541,7 @@ export default function PublicChatPage() {
         ))}
         {sending ? (
           <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-slate-500" style={isCrystal ? {
-              background: "rgba(255,255,255,0.80)",
-              boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
-            } : isClassic ? {
-              background: "#f8fafc",
-              border: "1px solid #e2e8f0",
-            } : {
+            <div className="rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-slate-500" style={{
               background: [
                 "rgba(230,236,250,0.62) padding-box",
                 "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(215,225,245,0.40) 100%) border-box",
@@ -590,16 +572,7 @@ export default function PublicChatPage() {
               onClick={() => void sendUserText(q)}
               disabled={sending}
               className="rounded-full px-3 py-2 text-left text-xs font-medium transition disabled:opacity-50"
-              style={isCrystal ? {
-                background: "rgba(255,255,255,0.50)",
-                border: "1px solid rgba(255,255,255,0.60)",
-                color: "#1a2744",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
-              } : isClassic ? {
-                background: "#f1f5f9",
-                border: "1px solid #e2e8f0",
-                color: "#1a2744",
-              } : {
+              style={{
                 background: [
                   "rgba(215,225,245,0.55) padding-box",
                   "linear-gradient(135deg, rgba(255,100,175,0.75) 0%, rgba(120,165,255,0.75) 50%, rgba(255,225,70,0.65) 100%) border-box",
@@ -657,13 +630,7 @@ export default function PublicChatPage() {
             type="submit"
             disabled={sending || !input.trim()}
             className="shrink-0 rounded-full px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            style={isCrystal ? {
-              background: "#10b981",
-              boxShadow: "0 2px 8px rgba(16,185,129,0.35)",
-            } : isClassic ? {
-              background: "#0d9488",
-              boxShadow: "0 2px 8px rgba(13,148,136,0.30)",
-            } : {
+            style={{
               background: [
                 "#1a2744 padding-box",
                 "linear-gradient(135deg, rgba(255,100,175,0.85) 0%, rgba(120,165,255,0.85) 45%, rgba(255,225,70,0.75) 100%) border-box",
@@ -682,7 +649,7 @@ export default function PublicChatPage() {
   return (
     <div
       className="flex min-h-dvh flex-col"
-      style={{ background: isCrystal ? "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)" : isClassic ? "#f8fafc" : "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)", minHeight: "100dvh", position: "relative", overflow: "hidden" }}
+      style={{ background: "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)", minHeight: "100dvh", position: "relative", overflow: "hidden" }}
     >
       <header
         className="shrink-0 px-4 py-5 sm:px-6 sm:py-6"
@@ -707,14 +674,14 @@ export default function PublicChatPage() {
             // Logo only — practice name hidden when logo is present
             <div style={{
               width: 72, height: 72, minWidth: 72,
-              borderRadius: "50%",
+              borderRadius: 8,
               overflow: "hidden",
               border: "2px solid rgba(255,255,255,0.45)",
               boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25), 0 2px 10px rgba(0,0,0,0.10)",
               flexShrink: 0,
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={botLogoImage!} alt={botTitle} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <img src={botLogoImage!} alt={botTitle} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
             </div>
           ) : (
             // No logo — show initial circle + practice name
@@ -850,43 +817,19 @@ export default function PublicChatPage() {
         className="pointer-events-none fixed z-[49] md:rounded-2xl inset-0 md:inset-auto md:bottom-6 md:right-6 md:h-[min(36rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-4rem)] md:w-[min(100%,24rem)]"
         style={{
           display: chatOpen ? undefined : "none",
-          ...(isCrystal ? {
-            background: "rgba(255,255,255,0.45)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            border: "1px solid rgba(255,255,255,0.50)",
-            boxShadow: "0 12px 48px rgba(0,0,0,0.12)",
-          } : isClassic ? {
-            background: "#ffffff",
-            border: "1px solid #e2e8f0",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.10)",
-          } : {
-            /*
-             * Iridescent gradient border technique:
-             * Two background layers — padding-box (fills inside border) + border-box (fills the border itself).
-             * border: transparent lets the border-box gradient show through as the "border color".
-             * Result: a soft soap-bubble iridescent rim (pink→blue→yellow→sky) around the panel.
-             */
-            background: [
-              // Inner fill: cool blue-gray tint so white speculars are visible against it
-              "linear-gradient(145deg, rgba(215,225,245,0.70) 0%, rgba(200,215,238,0.52) 100%) padding-box",
-              // Border: iridescent soap-bubble gradient — saturated enough to be visible at 3px
-              "linear-gradient(135deg, rgba(255,100,175,0.78) 0%, rgba(120,165,255,0.78) 35%, rgba(255,225,70,0.72) 68%, rgba(80,215,255,0.76) 100%) border-box",
-            ].join(", "),
-            backdropFilter: "blur(40px) saturate(2.2)",
-            WebkitBackdropFilter: "blur(40px) saturate(2.2)",
-            border: "3px solid transparent",
-            boxShadow: [
-              // Outer drop shadow
-              "0 12px 48px rgba(0,0,0,0.15)",
-              // Top-left specular catch-light
-              "inset 2px 2px 0 rgba(255,255,255,0.90)",
-              // Bottom-right counter-shadow
-              "inset -1px -1px 0 rgba(0,0,0,0.06)",
-              // Broad inner glow from top edge
-              "inset 0 4px 20px rgba(255,255,255,0.45)",
-            ].join(", "),
-          }),
+          background: [
+            "linear-gradient(145deg, rgba(215,225,245,0.70) 0%, rgba(200,215,238,0.52) 100%) padding-box",
+            "linear-gradient(135deg, rgba(255,100,175,0.78) 0%, rgba(120,165,255,0.78) 35%, rgba(255,225,70,0.72) 68%, rgba(80,215,255,0.76) 100%) border-box",
+          ].join(", "),
+          backdropFilter: "blur(40px) saturate(2.2)",
+          WebkitBackdropFilter: "blur(40px) saturate(2.2)",
+          border: "3px solid transparent",
+          boxShadow: [
+            "0 12px 48px rgba(0,0,0,0.15)",
+            "inset 2px 2px 0 rgba(255,255,255,0.90)",
+            "inset -1px -1px 0 rgba(0,0,0,0.06)",
+            "inset 0 4px 20px rgba(255,255,255,0.45)",
+          ].join(", "),
         }}
       />
 
