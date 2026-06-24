@@ -93,7 +93,7 @@ export default function Home() {
       {/* ── NAV ── */}
       <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 shadow-sm backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
-          <a href="#" className="flex min-w-0 shrink items-center gap-2">
+          <a href="/" className="flex min-w-0 shrink items-center gap-2">
             <Image src="/Alona.png" alt="AdonisBlue" width={44} height={44} className="rounded-xl" />
             <span className="text-lg font-bold tracking-tight text-[#1a2744]">AdonisBlue</span>
           </a>
@@ -577,7 +577,7 @@ export default function Home() {
       {/* ── FOOTER ── */}
       <footer className="border-t border-slate-100 bg-white px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 lg:flex-row lg:justify-between">
-          <a href="#" className="flex items-center gap-2">
+          <a href="/" className="flex items-center gap-2">
             <Image src="/Alona.png" alt="AdonisBlue" width={36} height={36} className="rounded-xl" />
             <span className="text-base font-semibold text-[#1a2744]">AdonisBlue</span>
           </a>
