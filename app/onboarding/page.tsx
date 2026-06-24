@@ -308,17 +308,24 @@ function ChatPreview({
           WebkitBackdropFilter: "blur(20px) saturate(2)",
         }}
       >
-        {/* Header */}
+        {/* Header — switches style per theme so the Live Preview visibly changes */}
         <div
           className="flex shrink-0 items-center gap-2 px-3 py-2.5"
-          style={{
+          style={isCrystal ? {
+            background: "rgba(255,255,255,0.55)",
+            borderBottom: "1px solid rgba(255,255,255,0.50)",
+            boxShadow: "0 1px 0 rgba(255,255,255,0.40)",
+          } : isClassic ? {
+            background: "#ffffff",
+            borderBottom: "1px solid #e2e8f0",
+          } : {
+            // Aurora: iridescent glass header
             background: [
               "linear-gradient(180deg, rgba(220,230,248,0.72) 0%, rgba(210,220,240,0.55) 100%) padding-box",
               `${IRIDESCENT_PILL} border-box`,
             ].join(", "),
             border: "0 solid transparent",
             borderBottom: "1.5px solid transparent",
-            // hairline divider with iridescent tint
             boxShadow: "0 1px 0 rgba(120,165,255,0.35)",
           }}
         >
@@ -349,18 +356,19 @@ function ChatPreview({
               {title.charAt(0).toUpperCase()}
             </div>
           )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[11px] font-semibold leading-tight text-slate-800">
-              {title}
-            </p>
-            <p className="flex items-center gap-1 text-[9px] font-medium text-slate-500">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              Online
-            </p>
-          </div>
+          <p className="flex items-center gap-1 text-[9px] font-medium text-slate-500">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            Online
+          </p>
           <span
             className="shrink-0 rounded-full px-2 py-1 text-[9px] font-semibold text-slate-600"
-            style={{
+            style={isCrystal ? {
+              background: "rgba(255,255,255,0.50)",
+              border: "1px solid rgba(255,255,255,0.60)",
+            } : isClassic ? {
+              background: "#f1f5f9",
+              border: "1px solid #e2e8f0",
+            } : {
               background: [
                 "rgba(215,225,245,0.60) padding-box",
                 `${IRIDESCENT_PILL} border-box`,
