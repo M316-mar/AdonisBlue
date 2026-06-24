@@ -1287,6 +1287,12 @@ function OnboardingInner() {
         userId,
         step: initialStep,
         nurseName, // from auth.users.user_metadata.full_name — never written to bots table
+        // botTheme: prefer DB value, then local draft, then default
+        botTheme: (serverDraft.botTheme && serverDraft.botTheme !== "aurora" ? serverDraft.botTheme : null)
+          ?? (localDraft.botTheme && localDraft.botTheme !== "aurora" ? localDraft.botTheme : null)
+          ?? serverDraft.botTheme
+          ?? localDraft.botTheme
+          ?? "aurora",
       };
       setDraftState(merged);
       saveDraft(merged);
