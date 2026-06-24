@@ -110,6 +110,8 @@ export default function NurseDashboardPage() {
   const [nurseName, setNurseName] = useState("there");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelDone, setCancelDone] = useState(false);
   const [bot, setBot] = useState<BotRow | null>(null);
   const [intakes, setIntakes] = useState<IntakeRow[]>([]);
   const [surveyLoading, setSurveyLoading] = useState<string | null>(null);
@@ -194,6 +196,27 @@ export default function NurseDashboardPage() {
     await signOutCompletely();
     router.push("/auth");
   }, [router]);
+
+  const handleCancelMembership = useCallback(async () => {
+    if (!window.confirm("Are you sure you want to cancel your membership? You'll keep access until the end of your billing period.")) return;
+    setCancelBusy(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/cancel-subscription", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setCancelDone(true);
+      } else {
+        alert("Something went wrong. Please try again or contact support.");
+      }
+    } finally {
+      setCancelBusy(false);
+    }
+  }, []);
 
   const handleConfirmDeleteDialog = useCallback(async () => {
     setDeleteBusy(true);
@@ -660,13 +683,20 @@ export default function NurseDashboardPage() {
                       >
                         {freezeLoading ? "Saving…" : bot?.frozen ? "❄️ Unfreeze my account" : "❄️ Freeze my account"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteDialogOpen(true)}
-                        className="inline-flex w-full items-center justify-center rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
-                      >
-                        Cancel membership
-                      </button>
+                      {cancelDone ? (
+                        <p className="text-center text-xs font-semibold text-teal-700 rounded-full border border-teal-200 bg-teal-50 px-4 py-2">
+                          ✓ Membership canceled — you keep access until the end of your billing period.
+                        </p>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => void handleCancelMembership()}
+                          disabled={cancelBusy}
+                          className="inline-flex w-full items-center justify-center rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-50"
+                        >
+                          {cancelBusy ? "Canceling…" : "Cancel membership"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
