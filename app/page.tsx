@@ -149,54 +149,120 @@ export default function Home() {
                 <p className="text-sm text-slate-400"><span className="font-semibold text-white">200+ nurses</span> already using AdonisBlue</p>
               </div>
             </div>
-            {/* Chat mockup */}
+            {/* Aurora glass chat widget preview */}
             <div className="relative">
-              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-teal-500/20 via-sky-500/10 to-purple-500/10 blur-2xl" aria-hidden />
-              <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/5 shadow-2xl shadow-black/40 backdrop-blur-xl">
-                <div className="flex items-center gap-3 border-b border-white/10 bg-white/5 px-4 py-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-400/20">
-                    <Image src="/Alona.png" alt="" width={32} height={32} className="rounded-full" />
+              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-purple-400/20 via-sky-300/10 to-teal-400/15 blur-2xl" aria-hidden />
+              {/* Outer gradient background */}
+              <div className="relative overflow-hidden rounded-3xl shadow-2xl shadow-black/30" style={{ background: "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)", padding: "3px" }}>
+                {/* Glass panel */}
+                <div className="overflow-hidden rounded-[calc(1.5rem-3px)]" style={{
+                  background: [
+                    "linear-gradient(145deg, rgba(210,220,245,0.92) 0%, rgba(195,212,235,0.88) 100%) padding-box",
+                    "linear-gradient(135deg, rgba(255,100,175,0.78) 0%, rgba(120,165,255,0.78) 35%, rgba(255,225,70,0.72) 68%, rgba(80,215,255,0.76) 100%) border-box",
+                  ].join(", "),
+                  border: "3px solid transparent",
+                  boxShadow: "inset 2px 2px 0 rgba(255,255,255,0.90), inset -1px -1px 0 rgba(0,0,0,0.06), inset 0 4px 20px rgba(255,255,255,0.50)",
+                }}>
+                  {/* Header */}
+                  <div className="flex items-center gap-3 px-4 py-3" style={{
+                    background: [
+                      "linear-gradient(180deg, rgba(220,230,248,0.72) 0%, rgba(210,220,240,0.55) 100%) padding-box",
+                      "linear-gradient(135deg, rgba(255,100,175,0.65) 0%, rgba(120,165,255,0.65) 50%, rgba(255,225,70,0.55) 100%) border-box",
+                    ].join(", "),
+                    borderBottom: "1.5px solid transparent",
+                    boxShadow: "0 1px 0 rgba(120,165,255,0.35)",
+                  }}>
+                    <div style={{ width: 52, height: 52, minWidth: 52, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.60)", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
+                      <Image src="/Alona.png" alt="AdonisBlue" width={52} height={52} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-[#1a2744]">AdonisBlue Assistant</p>
+                      <p className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                        <span className="relative flex h-2 w-2">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                          <span className="relative h-2 w-2 rounded-full bg-emerald-400" />
+                        </span>
+                        Online · replies instantly
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold text-slate-500" style={{
+                      background: "rgba(215,225,245,0.60)",
+                      border: "1px solid rgba(255,255,255,0.70)",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.80)",
+                    }}>Live preview</span>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">AdonisBlue Assistant</p>
-                    <p className="flex items-center gap-1.5 text-xs text-teal-300">
-                      <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-300 opacity-75" /><span className="relative h-1.5 w-1.5 rounded-full bg-teal-300" /></span>
-                      Online · replies instantly
-                    </p>
-                  </div>
-                  <span className="ml-auto rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-medium text-slate-400">Live preview</span>
-                </div>
-                <div className="space-y-4 px-4 py-5">
-                  <div className="flex justify-end">
-                    <div className="max-w-[80%] rounded-2xl rounded-br-sm border border-teal-400/30 bg-teal-400/10 px-4 py-2.5 text-sm text-white">
-                      Can I get lip filler if I'm on a blood thinner?
+
+                  {/* Messages */}
+                  <div className="space-y-3 px-4 py-4">
+                    <div className="flex justify-end">
+                      <div className="max-w-[80%] rounded-full px-4 py-2 text-sm text-slate-800" style={{ background: "rgba(26,39,68,0.10)" }}>
+                        Can I get lip filler if I&apos;m on a blood thinner?
+                      </div>
+                    </div>
+                    <div className="flex justify-start">
+                      <div className="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed text-slate-800" style={{
+                        background: [
+                          "rgba(230,236,250,0.62) padding-box",
+                          "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(215,225,245,0.40) 100%) border-box",
+                        ].join(", "),
+                        border: "1px solid transparent",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75), 0 1px 6px rgba(0,0,0,0.06)",
+                      }}>
+                        Great question! Many practices review blood thinners before treatment. I can send our booking link so your injector can guide you safely 💙
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <div className="max-w-[80%] rounded-full px-4 py-2 text-sm text-slate-800" style={{ background: "rgba(26,39,68,0.10)" }}>
+                        How much is lip filler?
+                      </div>
+                    </div>
+                    <div className="flex justify-start">
+                      <div className="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed text-slate-800" style={{
+                        background: [
+                          "rgba(230,236,250,0.62) padding-box",
+                          "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(215,225,245,0.40) 100%) border-box",
+                        ].join(", "),
+                        border: "1px solid transparent",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75), 0 1px 6px rgba(0,0,0,0.06)",
+                      }}>
+                        Pricing is personalized to exactly what you need — your nurse will go over everything at your appointment. Ready to grab a spot? 💕
+                      </div>
                     </div>
                   </div>
-                  <div className="flex justify-start">
-                    <div className="max-w-[80%] rounded-2xl rounded-bl-sm border border-white/10 bg-white/8 px-4 py-2.5 text-sm leading-relaxed text-slate-200">
-                      Great question! Many practices review blood thinners before treatment. I can send our booking link so your injector can guide you safely 💙
+
+                  {/* Input area */}
+                  <div className="px-4 pb-4 pt-2" style={{ borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {["What services do you offer?", "How do I book?", "Does it hurt?"].map((q) => (
+                        <span key={q} className="rounded-full px-3 py-1.5 text-xs font-semibold text-[#1a2744]" style={{
+                          background: [
+                            "rgba(215,225,245,0.55) padding-box",
+                            "linear-gradient(135deg, rgba(255,100,175,0.75) 0%, rgba(120,165,255,0.75) 50%, rgba(255,225,70,0.65) 100%) border-box",
+                          ].join(", "),
+                          border: "1.5px solid transparent",
+                          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.80), 0 1px 4px rgba(0,0,0,0.06)",
+                        }}>{q}</span>
+                      ))}
                     </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <div className="max-w-[80%] rounded-2xl rounded-br-sm border border-teal-400/30 bg-teal-400/10 px-4 py-2.5 text-sm text-white">
-                      How much is lip filler?
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 rounded-full px-4 py-2 text-xs text-slate-400" style={{
+                        background: [
+                          "rgba(255,255,255,0.82) padding-box",
+                          "linear-gradient(135deg, rgba(120,165,255,0.68) 0%, rgba(255,100,175,0.65) 50%, rgba(255,225,70,0.60) 100%) border-box",
+                        ].join(", "),
+                        border: "1.5px solid transparent",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.95)",
+                      }}>Type a message…</div>
+                      <span className="shrink-0 rounded-full px-3 py-1.5 text-xs font-bold text-[#1a2744]" style={{
+                        background: [
+                          "#1a2744 padding-box",
+                          "linear-gradient(135deg, rgba(255,100,175,0.85) 0%, rgba(120,165,255,0.85) 45%, rgba(255,225,70,0.75) 100%) border-box",
+                        ].join(", "),
+                        border: "1.5px solid transparent",
+                        boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.18)",
+                        color: "#1a2744",
+                      }}>Send</span>
                     </div>
-                  </div>
-                  <div className="flex justify-start">
-                    <div className="max-w-[80%] rounded-2xl rounded-bl-sm border border-white/10 bg-white/8 px-4 py-2.5 text-sm leading-relaxed text-slate-200">
-                      Pricing is personalized to exactly what you need — your nurse will go over everything at your appointment. Ready to grab a spot? 💕
-                    </div>
-                  </div>
-                </div>
-                <div className="border-t border-white/10 px-4 pb-4 pt-3">
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    {["What services do you offer?","How do I book?","Does it hurt?"].map(q => (
-                      <span key={q} className="rounded-full border border-teal-400/30 bg-teal-400/10 px-3 py-1.5 text-xs font-medium text-teal-300">{q}</span>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5">
-                    <span className="text-xs text-slate-500">Type a message…</span>
-                    <span className="ml-auto flex h-7 w-7 items-center justify-center rounded-full bg-teal-500 text-sm text-white">↑</span>
                   </div>
                 </div>
               </div>
