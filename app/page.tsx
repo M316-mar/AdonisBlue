@@ -112,12 +112,7 @@ export default function Home() {
       <main>
 
         {/* ── HERO — dark navy like Firefly ── */}
-        <section className="relative overflow-hidden bg-[#0d1628] px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-28">
-          <div className="pointer-events-none absolute inset-0" aria-hidden>
-            <div className="absolute -top-40 left-1/2 h-[700px] w-[700px] -translate-x-1/2 rounded-full bg-teal-500/15 blur-[120px]" />
-            <div className="absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full bg-sky-500/10 blur-[100px]" />
-            <div className="absolute right-0 top-1/3 h-[300px] w-[300px] rounded-full bg-purple-500/10 blur-[80px]" />
-          </div>
+        <section className="relative overflow-hidden px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-28" style={{ background: "linear-gradient(to right, #0d1628 50%, #ffffff 50%)" }}>
           <div className="relative mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
             <div>
               <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-teal-400/30 bg-teal-400/10 px-4 py-1.5">
@@ -151,9 +146,8 @@ export default function Home() {
             </div>
             {/* Aurora glass chat widget preview */}
             <div className="relative">
-              <div className="absolute -inset-6 rounded-3xl bg-gradient-to-br from-purple-400/25 via-sky-300/15 to-teal-400/20 blur-3xl" aria-hidden />
               {/* Outer gradient background */}
-              <div className="relative overflow-hidden rounded-3xl" style={{ background: "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)", padding: "3px", boxShadow: "0 24px 64px rgba(0,0,0,0.45), 0 8px 24px rgba(120,165,255,0.18)" }}>
+              <div className="relative overflow-hidden rounded-3xl shadow-2xl" style={{ background: "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)", padding: "3px" }}>
                 {/* Glass panel */}
                 <div className="overflow-hidden rounded-[calc(1.5rem-3px)]" style={{
                   background: [
