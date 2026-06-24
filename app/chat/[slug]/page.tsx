@@ -426,7 +426,7 @@ export default function PublicChatPage() {
           {hasLogo ? (
             // Logo only — no practice name text when logo is present
             <div style={{
-              width: 64, height: 64, minWidth: 64,
+              width: 80, height: 80, minWidth: 80,
               borderRadius: 8,
               overflow: "hidden",
               backgroundColor: "rgba(255,255,255,0.9)",
@@ -677,7 +677,7 @@ export default function PublicChatPage() {
           {hasLogo ? (
             // Logo only — practice name hidden when logo is present
             <div style={{
-              width: 72, height: 72, minWidth: 72,
+              width: 88, height: 88, minWidth: 88,
               borderRadius: 8,
               overflow: "hidden",
               backgroundColor: "rgba(255,255,255,0.9)",
