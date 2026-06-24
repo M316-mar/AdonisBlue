@@ -248,6 +248,7 @@ function ChatPreview({
   logoUrl?: string;
   botTheme?: string;
 }) {
+  console.log("ChatPreview rendering with theme:", botTheme);
   const isCrystal = botTheme === "crystal";
   const isClassic = botTheme === "classic";
   const title = practiceName.trim() || "Your Practice";
@@ -905,7 +906,11 @@ function StepCustomize({
               <button
                 key={theme}
                 type="button"
-                onClick={() => onChange({ botTheme: theme })}
+                onClick={() => {
+                  console.log("theme clicked:", theme);
+                  onChange({ botTheme: theme });
+                  console.log("draft.botTheme before set (stale closure):", draft.botTheme);
+                }}
                 className={`relative rounded-2xl overflow-hidden border-2 transition ${
                   selected ? "border-[#0d9488] ring-2 ring-[#0d9488]/30" : "border-slate-200 hover:border-slate-300"
                 }`}
