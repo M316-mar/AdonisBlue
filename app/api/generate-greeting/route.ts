@@ -58,6 +58,8 @@ export async function POST(request: Request) {
   const nurseName =
     typeof b.nurse_name === "string" ? b.nurse_name.trim() : "";
 
+  console.log("[generate-greeting] received nurse_name:", JSON.stringify(b.nurse_name), "→ trimmed:", JSON.stringify(nurseName));
+
   const userMessage = [
     `Practice name: ${practiceName || "(not provided — use a warm generic welcome)"}`,
     nurseName

@@ -823,15 +823,17 @@ function StepCustomize({
           onClick={async () => {
             setGenerating(true);
             try {
+              const greetingPayload = {
+                practice_name: draft.practiceName,
+                procedures: draft.procedures,
+                bot_name: draft.botName,
+                nurse_name: draft.nurseName,
+              };
+              console.log("[generate-greeting] sending nurse_name:", JSON.stringify(greetingPayload.nurse_name));
               const res = await fetch("/api/generate-greeting", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  practice_name: draft.practiceName,
-                  procedures: draft.procedures,
-                  bot_name: draft.botName,
-                  nurse_name: draft.nurseName, // full name from auth metadata
-                }),
+                body: JSON.stringify(greetingPayload),
               });
               const j = (await res.json()) as { greeting?: string };
               if (j.greeting) onChange({ greeting: j.greeting });
