@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     // Mark subscription as canceled in the bots table — never touch auth
     await db
       .from("bots")
-      .update({ subscription_status: "canceled" })
+      .update({ subscription_status: "canceled", plan: "free" })
       .eq("nurse_id", user.id);
 
     console.log("[cancel-subscription] canceled for nurse_id:", user.id);
