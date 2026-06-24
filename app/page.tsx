@@ -150,11 +150,10 @@ export default function Home() {
               </div>
             </div>
             {/* Aurora glass chat widget preview */}
-            <div className="rounded-3xl bg-[#f8fafc] p-6 sm:p-8">
             <div className="relative">
-              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-purple-400/20 via-sky-300/10 to-teal-400/15 blur-2xl" aria-hidden />
+              <div className="absolute -inset-6 rounded-3xl bg-gradient-to-br from-purple-400/25 via-sky-300/15 to-teal-400/20 blur-3xl" aria-hidden />
               {/* Outer gradient background */}
-              <div className="relative overflow-hidden rounded-3xl shadow-2xl shadow-black/30" style={{ background: "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)", padding: "3px" }}>
+              <div className="relative overflow-hidden rounded-3xl" style={{ background: "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)", padding: "3px", boxShadow: "0 24px 64px rgba(0,0,0,0.45), 0 8px 24px rgba(120,165,255,0.18)" }}>
                 {/* Glass panel */}
                 <div className="overflow-hidden rounded-[calc(1.5rem-3px)]" style={{
                   background: [
@@ -267,7 +266,6 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-            </div>
             </div>
           </div>
         </section>
