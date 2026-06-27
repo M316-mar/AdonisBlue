@@ -67,12 +67,13 @@ export async function POST(request: Request) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
-      await db.from("bots").update({
+      await db.from("bots").upsert({
+        nurse_id:               nurseId,
         plan:                   planName,
         subscription_status:    "active",
         stripe_customer_id:     customerId,
         stripe_subscription_id: subscriptionId,
-      }).eq("nurse_id", nurseId);
+      }, { onConflict: "nurse_id" });
     }
   }
 
