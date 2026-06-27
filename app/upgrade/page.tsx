@@ -42,7 +42,7 @@ export default function UpgradePage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-      if (!token) { router.push("/auth"); return; }
+      if (!token) { setError("Session expired — please refresh the page and try again."); return; }
 
       const res = await fetch("/api/create-checkout-session", {
         method: "POST",
