@@ -463,7 +463,7 @@ export default function Home() {
                 <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Starter</h3>
                 <p className="mt-2 text-sm text-slate-500">Your complete AI front desk. One extra booking a month pays for this.</p>
                 <ul className="mt-6 flex-1 space-y-2.5">
-                  {["Unlimited client conversations, 24/7","Custom bot name, colors & logo","Aftercare + reminder emails","Embed chat on your website","Booking link built into bot","Questions flagged and sent to you","6 & 9 month rebooking reminders","Conversation insights dashboard","Emergency alert system","Booking software integration"].map(l => (
+                  {["Unlimited client conversations","24/7 AI front desk chatbot","Aftercare + healing chat + emergency alerts","Automated rebooking reminders","Booking link built into bot","Embed chat on your website","Conversation insights dashboard","Weekly summary of top questions","Blue Room community access"].map(l => (
                     <li key={l} className="flex gap-2 text-sm text-slate-600"><span className="text-[#0d9488]">✓</span>{l}</li>
                   ))}
                 </ul>
