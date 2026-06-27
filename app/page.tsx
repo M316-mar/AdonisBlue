@@ -80,7 +80,6 @@ function ROICalculator() {
 }
 
 export default function Home() {
-  const [annual, setAnnual] = useState(false);
 
   return (
     <div className="min-h-full bg-white font-sans text-slate-800 antialiased">
@@ -430,10 +429,6 @@ export default function Home() {
                 <span className="text-sm font-bold text-[#1a2744]">AdonisBlue Starter</span>
                 <span className="text-sm font-bold text-[#0d9488]">$85/mo</span>
               </div>
-              <div className="flex items-center justify-between border-t border-teal-200 bg-teal-50 px-6 py-5">
-                <span className="text-base font-bold text-[#1a2744]">AdonisBlue Pro</span>
-                <span className="text-base font-bold text-[#0d9488]">$150/mo</span>
-              </div>
             </div>
           </div>
         </section>
@@ -443,26 +438,17 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Pricing</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Choose the pace that matches your practice</h2>
-              <div className="mt-6 flex items-center justify-center gap-3">
-                <span className={`text-sm font-medium ${!annual ? "text-[#1a2744]" : "text-slate-400"}`}>Monthly</span>
-                <button type="button" onClick={() => setAnnual(a => !a)}
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${annual ? "bg-[#0d9488]" : "bg-slate-200"}`}>
-                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${annual ? "translate-x-6" : "translate-x-1"}`} />
-                </button>
-                <span className={`text-sm font-medium ${annual ? "text-[#1a2744]" : "text-slate-400"}`}>
-                  Annual <span className="ml-1 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-700">2 months free</span>
-                </span>
-              </div>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Simple, all-in pricing</h2>
+              <p className="mt-3 text-base text-slate-500">Start free for 14 days. No credit card needed.</p>
             </div>
-            <div className="mt-12 grid gap-6 lg:grid-cols-3 lg:items-start">
-              {/* Free */}
+            <div className="mt-12 grid gap-6 lg:grid-cols-2 lg:items-start max-w-3xl mx-auto">
+              {/* Trial */}
               <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
                 <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">14 Days Free</p>
                 <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Full access, free for 14 days</h3>
                 <p className="mt-2 text-sm text-slate-500">Every feature unlocked. No credit card needed. No commitment.</p>
                 <ul className="mt-6 flex-1 space-y-2.5">
-                  {["Everything in Pro — fully unlocked","Unlimited client conversations","Custom bot name and colors","Aftercare + reminder emails","Embed chat on your website","Cancel before day 14 — pay nothing"].map(l => (
+                  {["Everything in Starter — fully unlocked","Unlimited client conversations","Custom bot name and colors","Aftercare + reminder emails","Embed chat on your website","Cancel before day 14 — pay nothing"].map(l => (
                     <li key={l} className="flex gap-2 text-sm text-slate-600"><span className="text-[#0d9488]">✓</span>{l}</li>
                   ))}
                 </ul>
@@ -471,34 +457,18 @@ export default function Home() {
                 </a>
               </div>
               {/* Starter */}
-              <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
-                <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">{annual ? "$71 / month" : "$85 / month"}</p>
-                {annual && <p className="text-xs text-teal-600 mt-0.5">billed $850/yr — save $170</p>}
-                <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Starter</h3>
-                <p className="mt-2 text-sm text-slate-500">One extra booking a month pays for this.</p>
-                <ul className="mt-6 flex-1 space-y-2.5">
-                  {["Everything in free trial","Unlimited conversations","Embed chat on your website","Booking link built into bot","Questions flagged and sent to you","Weekly summary of top questions"].map(l => (
-                    <li key={l} className="flex gap-2 text-sm text-slate-600"><span className="text-[#0d9488]">✓</span>{l}</li>
-                  ))}
-                </ul>
-                <a href="/auth" className="mt-8 inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#1a2744] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#243556]">
-                  Get Starter
-                </a>
-              </div>
-              {/* Pro */}
               <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border-2 border-[#0d9488] bg-gradient-to-b from-teal-50 to-white p-7 shadow-xl shadow-teal-100">
-                <div className="absolute right-4 top-4 rounded-full bg-[#0d9488] px-3 py-1 text-xs font-bold text-white">Most Popular</div>
-                <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">{annual ? "$125 / month" : "$150 / month"}</p>
-                {annual && <p className="text-xs text-teal-600 mt-0.5">billed $1,500/yr — save $300</p>}
-                <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Pro</h3>
-                <p className="mt-2 text-sm text-slate-500">Your AI-powered front desk — for less than one treatment.</p>
+                <div className="absolute right-4 top-4 rounded-full bg-[#0d9488] px-3 py-1 text-xs font-bold text-white">Everything included</div>
+                <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">$85 / month</p>
+                <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Starter</h3>
+                <p className="mt-2 text-sm text-slate-500">Your complete AI front desk. One extra booking a month pays for this.</p>
                 <ul className="mt-6 flex-1 space-y-2.5">
-                  {["Everything in Starter","Custom bot name and colors","Guided setup for every client question","Monthly check-in to improve answers","Conversation insights dashboard","Multiple locations or specialties","VIP 4-hour response for fixes"].map(l => (
+                  {["Unlimited client conversations, 24/7","Custom bot name, colors & logo","Aftercare + reminder emails","Embed chat on your website","Booking link built into bot","Questions flagged and sent to you","6 & 9 month rebooking reminders","Conversation insights dashboard","Emergency alert system","Booking software integration"].map(l => (
                     <li key={l} className="flex gap-2 text-sm text-slate-600"><span className="text-[#0d9488]">✓</span>{l}</li>
                   ))}
                 </ul>
                 <a href="/auth" className="mt-8 inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#0d9488] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-teal-200 transition hover:bg-teal-700">
-                  Get Pro
+                  Get Starter →
                 </a>
               </div>
             </div>

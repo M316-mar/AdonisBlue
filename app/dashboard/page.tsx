@@ -641,11 +641,9 @@ export default function NurseDashboardPage() {
                   ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
                   : null;
                 const expired = plan === "trial" && trialEndsAt !== null && trialEndsAt.getTime() < Date.now();
-                const planLabel = plan === "pro" ? "⭐ Pro" : plan === "starter" ? "💳 Starter" : "🆓 Trial";
-                const planColor = plan === "pro"
+                const planLabel = plan === "starter" || plan === "pro" ? "💳 Starter" : "🆓 Trial";
+                const planColor = plan === "starter" || plan === "pro"
                   ? "text-teal-600 bg-teal-50 border-teal-200"
-                  : plan === "starter"
-                  ? "text-sky-600 bg-sky-50 border-sky-200"
                   : expired
                   ? "text-red-600 bg-red-50 border-red-200"
                   : "text-amber-600 bg-amber-50 border-amber-200";
@@ -665,10 +663,10 @@ export default function NurseDashboardPage() {
                       <p className="mt-2 text-xs text-red-500">Your trial has ended. Upgrade to keep your bot running.</p>
                     )}
                     <Link
-                      href={plan === "trial" || plan === "starter" ? "/upgrade" : "/#pricing"}
+                      href={plan === "trial" || plan === "free" ? "/upgrade" : "/#pricing"}
                       className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
                     >
-                      {plan === "trial" ? "Upgrade plan →" : plan === "starter" ? "Upgrade to Pro →" : "Manage plan →"}
+                      {plan === "trial" || plan === "free" ? "Upgrade to Starter →" : "Manage plan →"}
                     </Link>
                     <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
                       <button

@@ -10,39 +10,24 @@ const PLANS = [
     id: "starter" as const,
     name: "Starter",
     emoji: "💳",
-    color: "border-sky-200 bg-sky-50",
-    badgeColor: "bg-sky-100 text-sky-700",
-    btnColor: "bg-sky-600 hover:bg-sky-700",
-    monthlyPrice: 85,
-    annualPrice: 850,
-    features: [
-      "Everything in free trial",
-      "Unlimited conversations",
-      "Embed chat on your website",
-      "Booking link built into bot",
-      "Questions flagged and sent to you",
-      "Weekly summary of top questions",
-    ],
-  },
-  {
-    id: "pro" as const,
-    name: "Pro",
-    emoji: "⭐",
     color: "border-teal-300 bg-teal-50 ring-2 ring-teal-400",
     badgeColor: "bg-teal-100 text-teal-700",
     btnColor: "bg-[#0d9488] hover:bg-teal-700",
-    monthlyPrice: 150,
-    annualPrice: 1500,
+    monthlyPrice: 85,
+    annualPrice: 850,
     features: [
-      "Everything in Starter",
-      "Custom bot name and colors",
-      "Guided setup for every client question",
-      "Monthly check-in to improve answers",
+      "Unlimited client conversations, 24/7",
+      "Custom bot name, colors & logo",
+      "Aftercare + reminder emails",
+      "Embed chat on your website",
+      "Booking link built into bot",
+      "Questions flagged and sent to you",
+      "6 & 9 month rebooking reminders",
       "Conversation insights dashboard",
-      "Multiple locations or specialties",
-      "VIP 4-hour response for fixes",
+      "Emergency alert system",
+      "Booking software integration",
     ],
-    badge: "Most Popular",
+    badge: "Everything included",
   },
 ];
 
@@ -52,7 +37,7 @@ export default function UpgradePage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleUpgrade = async (plan: "starter" | "pro") => {
+  const handleUpgrade = async (plan: "starter") => {
     setLoading(plan);
     setError(null);
     try {
@@ -120,7 +105,7 @@ export default function UpgradePage() {
         </div>
 
         {/* Plan cards */}
-        <div className="mt-8 grid gap-5 sm:grid-cols-2">
+        <div className="mt-8 grid gap-5 sm:grid-cols-1 max-w-md mx-auto w-full">
           {PLANS.map((plan) => {
             const isLoading = loading === plan.id;
             return (
