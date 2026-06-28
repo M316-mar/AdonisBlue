@@ -714,6 +714,11 @@ export default function NurseDashboardPage() {
                       >
                         {freezeLoading ? "Saving…" : bot?.frozen ? "❄️ Unfreeze my account" : "❄️ Freeze my account"}
                       </button>
+                      <p className={`text-xs px-1 ${bot?.frozen ? "text-amber-600 font-medium" : "text-slate-500"}`}>
+                        {bot?.frozen
+                          ? "Your bot is paused. Clients cannot chat until you unfreeze."
+                          : "Temporarily pauses your bot — clients will see an 'unavailable' message instead of the chat."}
+                      </p>
                       {cancelDone ? (
                         <p className="text-center text-xs font-semibold text-teal-700 rounded-full border border-teal-200 bg-teal-50 px-4 py-2">
                           ✓ Membership canceled — you keep access until the end of your billing period.
