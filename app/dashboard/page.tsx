@@ -112,6 +112,7 @@ export default function NurseDashboardPage() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelDone, setCancelDone] = useState(false);
+  const [portalBusy, setPortalBusy] = useState(false);
   const [bot, setBot] = useState<BotRow | null>(null);
   const [intakes, setIntakes] = useState<IntakeRow[]>([]);
   const [surveyLoading, setSurveyLoading] = useState<string | null>(null);
@@ -196,6 +197,27 @@ export default function NurseDashboardPage() {
     await signOutCompletely();
     router.push("/auth");
   }, [router]);
+
+  const handleManagePlan = useCallback(async () => {
+    setPortalBusy(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/billing-portal", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = await res.json() as { url?: string; error?: string };
+      if (res.ok && j.url) {
+        window.location.href = j.url;
+      } else {
+        alert(j.error ?? "Could not open billing portal. Please try again.");
+      }
+    } finally {
+      setPortalBusy(false);
+    }
+  }, []);
 
   const handleCancelMembership = useCallback(async () => {
     if (!window.confirm("Are you sure you want to cancel your membership? You'll keep access until the end of your billing period.")) return;
@@ -662,12 +684,23 @@ export default function NurseDashboardPage() {
                     {expired && (
                       <p className="mt-2 text-xs text-red-500">Your trial has ended. Upgrade to keep your bot running.</p>
                     )}
-                    <Link
-                      href={plan === "trial" || plan === "free" ? "/upgrade" : "/#pricing"}
-                      className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
-                    >
-                      {plan === "trial" || plan === "free" ? "Upgrade to Starter →" : "Manage plan →"}
-                    </Link>
+                    {plan === "trial" || plan === "free" ? (
+                      <Link
+                        href="/upgrade"
+                        className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                      >
+                        Upgrade to Starter →
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={portalBusy}
+                        onClick={() => void handleManagePlan()}
+                        className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700 disabled:opacity-60"
+                      >
+                        {portalBusy ? "Opening portal…" : "Manage plan →"}
+                      </button>
+                    )}
                     <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
                       <button
                         type="button"
