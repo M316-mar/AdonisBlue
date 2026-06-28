@@ -36,6 +36,7 @@ type BotRow = {
   aftercare: string | null;
   photos: string[] | null;
   launched: boolean | null;
+  frozen?: boolean | null;
   bot_name_font?: BotNameFontId | null;
   bubble_attention_message?: string | null;
   bot_theme?: string | null;
@@ -391,6 +392,57 @@ export default function PublicChatPage() {
             ? "This link may be incorrect or the bot is not live yet. Ask your provider for an updated link."
             : "Please refresh the page or try again later."}
         </p>
+      </div>
+    );
+  }
+
+  if (bot.frozen) {
+    const frozenLogoImage = (bot.logo_url || bot.logo_image || bot.logo_data_url) || null;
+    const frozenTitle = (bot.practice_name || "").trim() || (bot.bot_name || "").trim() || "This practice";
+    return (
+      <div
+        className="flex min-h-dvh flex-col items-center justify-center px-6 text-center"
+        style={{ background: "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)" }}
+      >
+        <div
+          className="w-full max-w-sm rounded-3xl p-8"
+          style={{
+            background: [
+              "linear-gradient(145deg, rgba(215,225,245,0.80) 0%, rgba(200,215,238,0.62) 100%) padding-box",
+              "linear-gradient(135deg, rgba(255,100,175,0.70) 0%, rgba(120,165,255,0.70) 50%, rgba(255,225,70,0.62) 100%) border-box",
+            ].join(", "),
+            backdropFilter: "blur(32px) saturate(2.0)",
+            WebkitBackdropFilter: "blur(32px) saturate(2.0)",
+            border: "2px solid transparent",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.12), inset 0 2px 0 rgba(255,255,255,0.90)",
+          }}
+        >
+          {frozenLogoImage ? (
+            <div className="mx-auto mb-5" style={{ width: 80, height: 80, borderRadius: 12, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.9)", border: "2px solid rgba(255,255,255,0.5)", boxShadow: "0 2px 10px rgba(0,0,0,0.10)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={frozenLogoImage} alt={frozenTitle} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+            </div>
+          ) : (
+            <div className="mx-auto mb-5 flex items-center justify-center" style={{ width: 64, height: 64, borderRadius: "50%", backgroundColor: "#1a2744", fontSize: 24, fontWeight: 700, color: "white", boxShadow: "0 2px 10px rgba(0,0,0,0.15)" }}>
+              {frozenTitle.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <h1 className="text-lg font-bold text-[#1a2744]">{frozenTitle}</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">
+            This chat is temporarily unavailable. Please contact us directly to get in touch.
+          </p>
+          {bot.booking_link ? (
+            <a
+              href={bot.booking_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 inline-flex w-full items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+              style={{ backgroundColor: "#1a2744" }}
+            >
+              Contact us →
+            </a>
+          ) : null}
+        </div>
       </div>
     );
   }
