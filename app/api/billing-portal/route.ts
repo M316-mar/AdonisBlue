@@ -41,7 +41,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url });
   } catch (e) {
-    console.error("[billing-portal] unexpected error:", e);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[billing-portal] unexpected error:", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
