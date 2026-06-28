@@ -125,9 +125,18 @@ export default function NurseDashboardPage() {
   const [justLaunched, setJustLaunched] = useState(false);
   const [freezeLoading, setFreezeLoading] = useState(false);
   const [showEmailNotice, setShowEmailNotice] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
     setShowEmailNotice(!localStorage.getItem("emailNoticesDismissed"));
+    if (!localStorage.getItem("adonisblue-welcome-seen")) {
+      setShowWelcome(true);
+    }
+  }, []);
+
+  const dismissWelcome = useCallback(() => {
+    localStorage.setItem("adonisblue-welcome-seen", "true");
+    setShowWelcome(false);
   }, []);
 
   useEffect(() => {
@@ -823,6 +832,46 @@ export default function NurseDashboardPage() {
             </button>
           </p>
         </div>
+
+        {showWelcome ? (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="welcome-modal-title">
+            <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close" onClick={dismissWelcome} />
+            <div className="relative z-[101] w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-7">
+              <h2 id="welcome-modal-title" className="text-xl font-bold text-[#1a2744]">Welcome to your AdonisBlue dashboard! 🦋</h2>
+              <p className="mt-1.5 text-sm text-slate-500">Here&apos;s a quick overview of everything you can do:</p>
+              <ul className="mt-4 space-y-3">
+                {[
+                  { icon: "🤖", title: "Your Bot", desc: "Share your bot link on Instagram, your website, or via text. Clients can ask questions and book 24/7." },
+                  { icon: "🩹", title: "Aftercare", desc: "Log treatments after appointments. Your client gets the right aftercare email automatically." },
+                  { icon: "🚨", title: "Emergency Alerts", desc: "If a client reports a concerning symptom in their healing chat, you get an immediate email alert." },
+                  { icon: "📊", title: "Insights", desc: "See how many clients your bot has captured and your conversion rate." },
+                  { icon: "⚙️", title: "My Plan", desc: "Upgrade, freeze, or manage your subscription here." },
+                ].map(({ icon, title, desc }) => (
+                  <li key={title} className="flex gap-3">
+                    <span className="mt-0.5 shrink-0 text-base">{icon}</span>
+                    <p className="text-sm text-slate-700"><span className="font-semibold text-[#1a2744]">{title}</span> — {desc}</p>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={dismissWelcome}
+                  className="flex-1 rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                >
+                  Got it, let&apos;s go! →
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissWelcome}
+                  className="text-sm font-medium text-slate-400 underline underline-offset-2 transition hover:text-slate-600"
+                >
+                  Skip
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {deleteDialogOpen ? (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="delete-account-title">
