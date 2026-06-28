@@ -835,40 +835,31 @@ export default function NurseDashboardPage() {
 
         {showWelcome ? (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="welcome-modal-title">
-            <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close" onClick={dismissWelcome} />
-            <div className="relative z-[101] w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-7">
-              <h2 id="welcome-modal-title" className="text-xl font-bold text-[#1a2744]">Welcome to your AdonisBlue dashboard! 🦋</h2>
-              <p className="mt-1.5 text-sm text-slate-500">Here&apos;s a quick overview of everything you can do:</p>
+            <button type="button" className="absolute inset-0 bg-black/50" aria-label="Close" onClick={dismissWelcome} />
+            <div className="relative z-[101] w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+              <h2 id="welcome-modal-title" className="text-lg font-bold text-[#1a2744]">Welcome to AdonisBlue! 🦋</h2>
+              <p className="mt-1 text-sm text-slate-500">Here&apos;s all you need to know:</p>
               <ul className="mt-4 space-y-3">
                 {[
-                  { icon: "🤖", title: "Your Bot", desc: "Share your bot link on Instagram, your website, or via text. Clients can ask questions and book 24/7." },
-                  { icon: "🩹", title: "Aftercare", desc: "Log treatments after appointments. Your client gets the right aftercare email automatically." },
-                  { icon: "🚨", title: "Emergency Alerts", desc: "If a client reports a concerning symptom in their healing chat, you get an immediate email alert." },
-                  { icon: "📊", title: "Insights", desc: "See how many clients your bot has captured and your conversion rate." },
-                  { icon: "⚙️", title: "My Plan", desc: "Upgrade, freeze, or manage your subscription here." },
-                ].map(({ icon, title, desc }) => (
-                  <li key={title} className="flex gap-3">
-                    <span className="mt-0.5 shrink-0 text-base">{icon}</span>
-                    <p className="text-sm text-slate-700"><span className="font-semibold text-[#1a2744]">{title}</span> — {desc}</p>
+                  { icon: "🤖", text: "Your bot link — Share it on Instagram or your website. Clients can chat 24/7." },
+                  { icon: "🩹", text: "Aftercare — Log a treatment after each appointment. The right email goes out automatically." },
+                  { icon: "🚨", text: "Emergency alerts — If a client types a concerning symptom, you get an immediate email." },
+                  { icon: "📊", text: "Insights — See how many clients your bot captured." },
+                  { icon: "❄️", text: "Freeze — Going on vacation? Freeze your bot so clients see a pause message." },
+                ].map(({ icon, text }) => (
+                  <li key={icon} className="flex gap-2.5 text-sm text-slate-700">
+                    <span className="mt-0.5 shrink-0">{icon}</span>
+                    <span>{text}</span>
                   </li>
                 ))}
               </ul>
-              <div className="mt-6 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={dismissWelcome}
-                  className="flex-1 rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
-                >
-                  Got it, let&apos;s go! →
-                </button>
-                <button
-                  type="button"
-                  onClick={dismissWelcome}
-                  className="text-sm font-medium text-slate-400 underline underline-offset-2 transition hover:text-slate-600"
-                >
-                  Skip
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={dismissWelcome}
+                className="mt-6 w-full rounded-full bg-[#0d9488] py-3 text-sm font-bold text-white transition hover:bg-teal-700"
+              >
+                Got it! Let&apos;s go 🦋
+              </button>
             </div>
           </div>
         ) : null}
