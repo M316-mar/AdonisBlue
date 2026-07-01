@@ -74,7 +74,7 @@ function onboardingHrefForChecklist(id: ChecklistId): string {
     case "booking":    return "/onboarding?step=2";
     case "photos":     return "/onboarding?step=4";
     case "botStyle":   return "/onboarding?step=4";
-    case "policies":   return "/onboarding?step=3";
+    case "policies":   return "/onboarding?step=2";
     case "preview":    return "/onboarding?step=4";
     case "share":      return "/dashboard#embed";
     default:           return "/onboarding";

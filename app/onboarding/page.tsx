@@ -146,6 +146,7 @@ type Draft = {
   customProcedures: string;
   numbingMethod: string;
   cancellationPolicy: string;
+  depositInfo: string;
   bookingLink: string;
   // Step 3
   instagram: string;
@@ -174,6 +175,7 @@ function emptyDraft(userId: string): Draft {
     customProcedures: "",
     numbingMethod: "",
     cancellationPolicy: "",
+    depositInfo: "",
     bookingLink: "",
     instagram: "",
     tiktok: "",
@@ -611,6 +613,19 @@ function StepProcedures({
         />
         <p className="text-xs text-slate-400">Your AI bot will share this with clients before they book.</p>
       </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-[#1a2744]">
+          Deposit requirement <span className="font-normal text-slate-400">(optional)</span>
+        </label>
+        <input
+          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]"
+          placeholder="e.g. $100 deposit required at booking — non-refundable"
+          value={draft.depositInfo}
+          onChange={(e) => onChange({ depositInfo: e.target.value })}
+        />
+        <p className="text-xs text-slate-400">Your bot will share this when clients ask about deposits or booking requirements.</p>
+      </div>
     </div>
   );
 }
@@ -1032,6 +1047,7 @@ function OnboardingInner() {
               customProcedures: "",
               numbingMethod: (bot.numbing_method as string | null) ?? "",
               cancellationPolicy: (bot.cancellation_policy as string | null) ?? "",
+              depositInfo: (bot.deposit_info as string | null) ?? "",
               bookingLink: (bot.booking_link as string | null) ?? "",
               // Step 3
               instagram: (bot.instagram as string | null) ?? "",
@@ -1182,6 +1198,7 @@ function OnboardingInner() {
         logo_url: draft.logoUrl || null,
         numbing_method: draft.numbingMethod || null,
         cancellation_policy: draft.cancellationPolicy || null,
+        deposit_info: draft.depositInfo || null,
         bot_theme: draft.botTheme || "aurora",
         launched: true,
       };
