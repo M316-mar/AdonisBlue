@@ -293,9 +293,16 @@ export default function BookingConnectPage() {
                   </button>
                   <p className="mt-1.5 text-xs text-slate-500">Sends sample data to verify your webhook is working.</p>
                   {testResult && (
-                    <p className={`mt-2 text-xs font-medium ${testResult.ok ? "text-teal-400" : "text-rose-400"}`}>
-                      {testResult.msg}
-                    </p>
+                    <div className="mt-2">
+                      <p className={`text-xs font-medium ${testResult.ok ? "text-teal-400" : "text-rose-400"}`}>
+                        {testResult.msg}
+                      </p>
+                      {!testResult.ok && (
+                        <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                          If you haven&apos;t connected your booking software yet, this is expected. Come back and test after pasting your webhook URL into Vagaro, Jane, or your booking platform.
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div>
