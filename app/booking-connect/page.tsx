@@ -254,6 +254,23 @@ export default function BookingConnectPage() {
           </p>
         </div>
 
+        {/* Value proposition */}
+        <div className="rounded-2xl border border-slate-700 bg-[#1a2744] px-5 py-4">
+          <p className="text-sm font-bold text-white">Set it once. Never log a treatment manually again.</p>
+          <ul className="mt-3 space-y-1.5">
+            {[
+              "Every booking automatically appears in your AdonisBlue dashboard",
+              "Aftercare emails send automatically after each appointment — no manual logging",
+              "Works with Vagaro, Jane App, Square, Acuity, Mindbody and more",
+            ].map((text) => (
+              <li key={text} className="flex gap-2 text-xs text-slate-300 leading-relaxed">
+                <span className="shrink-0">✅</span>
+                <span>{text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
         {/* Webhook URL card */}
         <div className="rounded-2xl border border-slate-700 bg-[#1a2744] p-5 shadow-lg">
           <h2 className="mb-3 text-base font-bold text-white">Your webhook URL</h2>
