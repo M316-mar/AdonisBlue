@@ -225,6 +225,18 @@ export default function AdminPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
 
+        {/* Preview test bot shortcut */}
+        <div className="mb-5">
+          <a
+            href="https://www.adonisblue.io/chat/preview-adonisblue"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border-2 border-[#0d9488] px-5 py-2.5 text-sm font-semibold text-[#0d9488] transition hover:bg-teal-50"
+          >
+            🔍 Preview test bot →
+          </a>
+        </div>
+
         {/* Stats row */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 mb-6">
           {[
