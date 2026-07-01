@@ -13,6 +13,7 @@ const features = [
 ];
 
 const faqItems = [
+  { q: "Is my clients' payment information safe?", a: "AdonisBlue never receives, stores, or processes payment or credit card information. When a client books and pays a deposit, that transaction happens entirely within your booking software (Vagaro, Jane App, Square, etc.) — AdonisBlue only receives the appointment details like client name, service, and date. Your clients' financial data never touches AdonisBlue." },
   { q: "I'm not techy.", a: "If you can fill out a form and send a text, you can set up AdonisBlue. Most nurses are live in under an hour." },
   { q: "I already use Vagaro / Jane / Square.", a: "Good. AdonisBlue connects to all of them. Your booking flow doesn't change — it just gets smarter." },
   { q: "I have a small practice.", a: "That's exactly who this is for. Solo injectors get the most out of automation because they don't have a front desk person handling this." },
