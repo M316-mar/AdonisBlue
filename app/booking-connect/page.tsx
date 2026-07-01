@@ -121,6 +121,8 @@ export default function BookingConnectPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async (authToken: string) => {
@@ -165,6 +167,35 @@ export default function BookingConnectPage() {
   function platformWebhookUrl(source: string): string {
     if (!connectData?.webhook_url) return "";
     return connectData.webhook_url + source;
+  }
+
+  async function handleTest() {
+    if (!connectData?.webhook_url) return;
+    setTestLoading(true);
+    setTestResult(null);
+    try {
+      const testUrl = connectData.webhook_url + "test";
+      const res = await fetch(testUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_name: "Test Client",
+          client_email: "test@example.com",
+          service: "Lip Filler",
+          date: new Date().toISOString().split("T")[0],
+          source: "test",
+        }),
+      });
+      if (res.ok) {
+        setTestResult({ ok: true, msg: "✅ Connection successful! Your webhook is working." });
+      } else {
+        setTestResult({ ok: false, msg: `❌ Webhook returned status ${res.status}. Check your setup.` });
+      }
+    } catch {
+      setTestResult({ ok: false, msg: "❌ Could not reach your webhook. Make sure the URL is correct." });
+    } finally {
+      setTestLoading(false);
+    }
   }
 
   async function handleGenerate(action: "generate" | "regenerate") {
@@ -215,12 +246,11 @@ export default function BookingConnectPage() {
 
       <main className="mx-auto max-w-2xl space-y-5 px-4 py-6 [padding-bottom:max(24px,env(safe-area-inset-bottom))]">
         {/* Privacy banner */}
-        <div className="rounded-2xl border border-teal-500/40 bg-[#1a2744] p-4">
-          <p className="text-sm text-slate-300">
-            🔒 <span className="font-semibold text-teal-400">Privacy first:</span> We only receive
-            appointment date and service type — we{" "}
-            <span className="font-semibold">never</span> see your payments, revenue, or financial
-            data.
+        <div className="rounded-2xl border border-teal-500/30 bg-teal-900/20 px-4 py-3.5 flex gap-3 items-start">
+          <span className="text-base shrink-0 mt-0.5">🔒</span>
+          <p className="text-xs leading-relaxed text-slate-300">
+            <span className="font-semibold text-teal-300">Your clients&apos; payment data is always safe</span>{" "}
+            — AdonisBlue never receives, stores, or processes credit card or payment information. Only appointment details (name, service, date) are shared with AdonisBlue. Deposits and payments stay entirely within your booking software.
           </p>
         </div>
 
@@ -250,17 +280,36 @@ export default function BookingConnectPage() {
                 Replace <code className="rounded bg-slate-700 px-1 text-teal-300">YOUR_PLATFORM</code> with the platform name (e.g.{" "}
                 <code className="rounded bg-slate-700 px-1 text-teal-300">vagaro</code>).
               </p>
-              <div className="mt-4 border-t border-slate-700 pt-4">
-                <button
-                  type="button"
-                  onClick={() => void handleGenerate("regenerate")}
-                  disabled={actionLoading}
-                  className="text-xs font-medium text-rose-400 underline underline-offset-2 transition hover:text-rose-300 disabled:opacity-50"
-                  style={{ touchAction: "manipulation" }}
-                >
-                  {actionLoading ? "Regenerating…" : "Regenerate URL"}
-                </button>
-                <span className="ml-2 text-xs text-slate-500">— This will break existing connections</span>
+              <div className="mt-4 border-t border-slate-700 pt-4 flex flex-col gap-3">
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => void handleTest()}
+                    disabled={testLoading}
+                    className="min-h-[40px] rounded-full border border-teal-500 px-5 py-2 text-sm font-semibold text-teal-300 transition hover:bg-teal-900/40 disabled:opacity-50 active:scale-95"
+                    style={{ touchAction: "manipulation" }}
+                  >
+                    {testLoading ? "Testing…" : "Test connection →"}
+                  </button>
+                  <p className="mt-1.5 text-xs text-slate-500">Sends sample data to verify your webhook is working.</p>
+                  {testResult && (
+                    <p className={`mt-2 text-xs font-medium ${testResult.ok ? "text-teal-400" : "text-rose-400"}`}>
+                      {testResult.msg}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => void handleGenerate("regenerate")}
+                    disabled={actionLoading}
+                    className="text-xs font-medium text-rose-400 underline underline-offset-2 transition hover:text-rose-300 disabled:opacity-50"
+                    style={{ touchAction: "manipulation" }}
+                  >
+                    {actionLoading ? "Regenerating…" : "Regenerate URL"}
+                  </button>
+                  <span className="ml-2 text-xs text-slate-500">— This will break existing connections</span>
+                </div>
               </div>
             </>
           ) : (
