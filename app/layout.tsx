@@ -39,8 +39,11 @@ export const metadata: Metadata = {
   title: "AdonisBlue — AI Front Desk for Nurse Injectors",
   description: "AdonisBlue is your AI-powered front desk built for nurse injectors. Answer client questions 24/7, capture leads, and never miss a booking again.",
   icons: {
-    icon: "/Alona.png",
+    icon: [
+      { url: "/Alona.png", type: "image/png" },
+    ],
     apple: "/Alona.png",
+    shortcut: "/Alona.png",
   },
 };
 
