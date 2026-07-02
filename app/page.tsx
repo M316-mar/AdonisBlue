@@ -80,6 +80,66 @@ function ROICalculator() {
   );
 }
 
+function NewsletterForm() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/newsletter-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      if (res.ok) {
+        setStatus("success");
+      } else {
+        setStatus("error");
+      }
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  if (status === "success") {
+    return (
+      <p className="mt-6 text-sm font-semibold text-[#0d9488]">
+        You&apos;re in! Check your inbox for a welcome email 🦋
+      </p>
+    );
+  }
+
+  return (
+    <form onSubmit={(e) => void handleSubmit(e)} className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+      <input
+        type="email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="your@email.com"
+        disabled={status === "loading"}
+        className="w-full rounded-full border border-slate-200 bg-slate-50 px-5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 focus:ring-[#0d9488]/20 sm:w-72"
+      />
+      <button
+        type="submit"
+        disabled={status === "loading"}
+        className="shrink-0 rounded-full bg-[#0d9488] px-6 py-3 text-sm font-bold text-white shadow-md transition hover:bg-teal-700 disabled:opacity-60"
+      >
+        {status === "loading" ? "Subscribing…" : "Subscribe free →"}
+      </button>
+      {status === "error" && (
+        <p className="w-full text-center text-xs text-red-500">Something went wrong. Please try again.</p>
+      )}
+      {status === "idle" || status === "error" ? (
+        <p className="w-full text-center text-xs text-slate-400">Join 200+ nurse injectors already subscribed</p>
+      ) : null}
+    </form>
+  );
+}
+
 export default function Home() {
 
   return (
@@ -519,6 +579,20 @@ export default function Home() {
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Questions you probably have</h2>
             </div>
             <div className="mt-12"><FaqAccordion /></div>
+          </div>
+        </section>
+
+        {/* ── NEWSLETTER SIGNUP ── */}
+        <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-xl text-center">
+            <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">The Injector Edge</p>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
+              Weekly tips for nurse injectors — free.
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-500 sm:text-base">
+              Get one actionable tip every week on growing your aesthetic practice, using AI, and saving time. No spam. Unsubscribe anytime.
+            </p>
+            <NewsletterForm />
           </div>
         </section>
 
