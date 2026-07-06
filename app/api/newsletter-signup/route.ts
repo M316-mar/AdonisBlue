@@ -21,8 +21,8 @@ export async function POST(request: Request) {
       .upsert({ email }, { onConflict: "email" });
 
     if (error) {
-      console.error("[newsletter-signup] supabase error:", error.message);
-      return NextResponse.json({ error: "Could not save subscription." }, { status: 500 });
+      console.error("[newsletter-signup] supabase error:", error.message, error.code, error.details);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
