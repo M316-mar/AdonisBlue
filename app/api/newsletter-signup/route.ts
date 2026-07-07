@@ -25,6 +25,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Add to Beehiiv
+    const beehiivKey = process.env.BEEHIIV_API_KEY;
+    const beehiivPubId = process.env.BEEHIIV_PUBLICATION_ID;
+
+    if (beehiivKey && beehiivPubId) {
+      try {
+        await fetch(`https://api.beehiiv.com/v2/publications/${beehiivPubId}/subscriptions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${beehiivKey}`,
+          },
+          body: JSON.stringify({
+            email,
+            reactivate_existing: false,
+            send_welcome_email: true,
+          }),
+        });
+      } catch (e) {
+        console.error("[newsletter-signup] beehiiv error:", e);
+        // Non-fatal — Supabase save already succeeded
+      }
+    }
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
