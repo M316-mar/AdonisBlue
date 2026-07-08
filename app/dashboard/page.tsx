@@ -732,6 +732,23 @@ export default function NurseDashboardPage() {
                   )}
                 </div>
               </div>
+              {/* ── Instagram Automation ── */}
+              <div className="mt-4 rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50 to-rose-50 p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">📱</span>
+                  <h3 className="text-sm font-bold text-[#1a2744]">Instagram Automation</h3>
+                </div>
+                <p className="text-xs leading-relaxed text-slate-500 mb-3">
+                  Let clients comment a keyword on your posts and automatically receive your bot link in a DM — hands free.
+                </p>
+                <Link
+                  href="/instagram-automation"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-pink-200 bg-white px-4 py-2 text-xs font-bold text-pink-600 transition hover:bg-pink-50"
+                >
+                  Set up Instagram automation →
+                </Link>
+              </div>
+
               {/* ── My Plan ── */}
               {(() => {
                 const plan = (bot?.plan ?? "trial").toLowerCase();
