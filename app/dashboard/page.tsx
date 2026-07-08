@@ -113,6 +113,7 @@ export default function NurseDashboardPage() {
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelDone, setCancelDone] = useState(false);
   const [portalBusy, setPortalBusy] = useState(false);
+  const [embedOpen, setEmbedOpen] = useState(false);
   const [bot, setBot] = useState<BotRow | null>(null);
   const [intakes, setIntakes] = useState<IntakeRow[]>([]);
   const [surveyLoading, setSurveyLoading] = useState<string | null>(null);
@@ -679,24 +680,24 @@ export default function NurseDashboardPage() {
                   ? "text-red-600 bg-red-50 border-red-200"
                   : "text-amber-600 bg-amber-50 border-amber-200";
                 return (
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
-                    <h3 className="text-base font-semibold text-[#1a2744]">My Plan</h3>
-                    <div className="mt-3 flex items-center gap-3">
-                      <span className={`inline-flex rounded-full border px-3 py-1 text-sm font-bold ${planColor}`}>{planLabel}</span>
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+                    <h3 className="text-sm font-semibold text-[#1a2744]">My Plan</h3>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-bold ${planColor}`}>{planLabel}</span>
                       {expired && <span className="text-xs font-semibold text-red-500">Trial expired</span>}
                     </div>
                     {plan === "trial" && !expired && daysLeft !== null && (
-                      <p className="mt-2 text-xs text-slate-500">
+                      <p className="mt-1.5 text-xs text-slate-500">
                         <span className="font-semibold text-amber-600">{daysLeft} day{daysLeft !== 1 ? "s" : ""}</span> left in your free trial
                       </p>
                     )}
                     {expired && (
-                      <p className="mt-2 text-xs text-red-500">Your trial has ended. Upgrade to keep your bot running.</p>
+                      <p className="mt-1.5 text-xs text-red-500">Your trial has ended. Upgrade to keep your bot running.</p>
                     )}
                     {plan === "trial" || plan === "free" ? (
                       <Link
                         href="/upgrade"
-                        className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                        className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
                       >
                         Upgrade to Starter →
                       </Link>
@@ -705,17 +706,17 @@ export default function NurseDashboardPage() {
                         type="button"
                         disabled={portalBusy}
                         onClick={() => void handleManagePlan()}
-                        className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700 disabled:opacity-60"
+                        className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700 disabled:opacity-60"
                       >
                         {portalBusy ? "Opening portal…" : "Manage plan →"}
                       </button>
                     )}
-                    <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
+                    <div className="mt-2 border-t border-slate-100 pt-2 space-y-1.5">
                       <button
                         type="button"
                         disabled={freezeLoading}
                         onClick={() => void handleFreezeToggle()}
-                        className={`inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold transition disabled:opacity-50 ${
+                        className={`inline-flex w-full items-center justify-center rounded-full border px-4 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
                           bot?.frozen
                             ? "border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100"
                             : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
@@ -729,7 +730,7 @@ export default function NurseDashboardPage() {
                           : "Temporarily pauses your bot — clients will see an 'unavailable' message instead of the chat."}
                       </p>
                       {cancelDone ? (
-                        <p className="text-center text-xs font-semibold text-teal-700 rounded-full border border-teal-200 bg-teal-50 px-4 py-2">
+                        <p className="text-center text-xs font-semibold text-teal-700 rounded-full border border-teal-200 bg-teal-50 px-4 py-1.5">
                           ✓ Membership canceled — you keep access until the end of your billing period.
                         </p>
                       ) : (
@@ -737,7 +738,7 @@ export default function NurseDashboardPage() {
                           type="button"
                           onClick={() => void handleCancelMembership()}
                           disabled={cancelBusy}
-                          className="inline-flex w-full items-center justify-center rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-50"
+                          className="inline-flex w-full items-center justify-center rounded-full border border-red-200 px-4 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-50"
                         >
                           {cancelBusy ? "Canceling…" : "Cancel membership"}
                         </button>
@@ -747,25 +748,55 @@ export default function NurseDashboardPage() {
                 );
               })()}
 
+              {/* ── The Blue Room (sidebar card) ── */}
+              <div className="mt-3 rounded-2xl border border-[#1a2744]/20 bg-gradient-to-br from-[#1a2744] to-[#0d4f6b] p-4 shadow-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-300/30 bg-teal-300/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-teal-300">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-300" />
+                    Coming Soon
+                  </span>
+                </div>
+                <h3 className="text-sm font-bold text-white">The Blue Room 💙</h3>
+                <p className="mt-1 text-xs leading-relaxed text-slate-300">Your private community of nurse injectors — tips, support, templates, and industry news.</p>
+                <Link
+                  href="/blueroom"
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-white px-4 py-2 text-xs font-bold text-[#1a2744] shadow transition hover:bg-teal-50"
+                >
+                  Enter The Blue Room 💙
+                </Link>
+              </div>
+
               {launched ? (
                 <>
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
-                    <h3 className="text-base font-semibold text-[#1a2744]">Add to your website</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-500">Copy this code and paste it anywhere in your website&apos;s HTML. Your bot will appear automatically — and any updates you make here apply instantly, no changes needed on your site.</p>
-                    <div className="mt-3 rounded-xl bg-[#1a2744] px-3 py-3">
-                      <code className="block break-all text-xs leading-relaxed text-teal-200">
-                        {`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`}
-                      </code>
-                    </div>
+                  {/* ── Add to your website (collapsible) ── */}
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-white shadow-lg overflow-hidden">
                     <button
                       type="button"
-                      onClick={() => void navigator.clipboard.writeText(`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`)}
-                      className="mt-3 w-full rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                      onClick={() => setEmbedOpen(o => !o)}
+                      className="flex w-full items-center justify-between px-4 py-3 text-left"
                     >
-                      Copy embed code
+                      <h3 className="text-sm font-semibold text-[#1a2744]">Add to your website</h3>
+                      <span className="text-slate-400 text-xs">{embedOpen ? "▲" : "▾"}</span>
                     </button>
+                    {embedOpen && (
+                      <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+                        <p className="text-xs leading-relaxed text-slate-500">Copy this code and paste it anywhere in your website&apos;s HTML. Updates apply instantly.</p>
+                        <div className="mt-2 rounded-xl bg-[#1a2744] px-3 py-3">
+                          <code className="block break-all text-xs leading-relaxed text-teal-200">
+                            {`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`}
+                          </code>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void navigator.clipboard.writeText(`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`)}
+                          className="mt-2 w-full rounded-full bg-[#0d9488] px-4 py-2 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                        >
+                          Copy embed code
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-4 rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50 to-rose-50 p-4 shadow-sm sm:p-5">
+                  <div className="mt-3 rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50 to-rose-50 p-4 shadow-sm">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-xl">📱</span>
                       <h3 className="text-sm font-bold text-[#1a2744]">Instagram integration</h3>
@@ -785,40 +816,6 @@ export default function NurseDashboardPage() {
             </div>
           </aside>
         </div>
-
-        <section className="mt-8 lg:mt-10">
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2744] via-[#0d4f6b] to-[#0d9488] px-4 py-8 sm:px-6 sm:py-10">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_80%_0%,rgba(56,189,248,0.15),transparent)]" aria-hidden />
-            <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="max-w-xl">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-teal-300/30 bg-teal-300/10 px-3 py-1">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-300" />
-                  <span className="text-xs font-semibold uppercase tracking-widest text-teal-300">Coming Soon</span>
-                </div>
-                <h2 className="text-xl font-bold text-white sm:text-2xl">The Blue Room 💙</h2>
-                <p className="mt-2 text-sm leading-relaxed text-slate-200 sm:text-base">
-                  Your private community of nurse injectors. Share tips, get support, stay on top of the latest aesthetic trends, and grow together — all inside AdonisBlue, built just for you.
-                </p>
-                <ul className="mt-4 grid grid-cols-2 gap-2">
-                  {["Trending procedures","New techniques","Holiday offer templates","Peer support","Industry news","Members only content"].map(item => (
-                    <li key={item} className="flex items-center gap-2 text-xs font-medium text-teal-100">
-                      <span className="text-teal-300">✓</span>{item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="flex flex-col gap-3 sm:shrink-0 sm:items-end">
-                <Link
-                  href="/blueroom"
-                  className="inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-bold text-[#1a2744] shadow-lg transition hover:bg-teal-50 sm:w-auto"
-                >
-                  Enter The Blue Room 💙
-                </Link>
-                <p className="text-xs text-teal-200/70 text-center">Be first in when we launch</p>
-              </div>
-            </div>
-          </div>
-        </section>
 
         <div className="mt-8 border-t border-slate-200 pt-6 lg:mt-10 lg:pt-8">
           <p className="text-xs text-slate-500">
