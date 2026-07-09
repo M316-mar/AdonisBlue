@@ -172,7 +172,7 @@ export default function Home() {
       <main>
 
         {/* ── HERO — dark navy like Firefly ── */}
-        <section className="relative overflow-hidden px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-28" style={{ background: "linear-gradient(to right, #0d1628 50%, #ffffff 50%)" }}>
+        <section className="relative overflow-hidden px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-28" style={{ background: "#0d1628" }}>
           <div className="relative mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
             <div>
               <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-teal-400/30 bg-teal-400/10 px-4 py-1.5">
