@@ -802,32 +802,34 @@ export default function NurseDashboardPage() {
                         type="button"
                         disabled={freezeLoading}
                         onClick={() => void handleFreezeToggle()}
-                        className={`inline-flex w-full items-center justify-center rounded-full border px-4 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                        className={`inline-flex w-full items-center justify-center rounded-full border-2 px-4 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
                           bot?.frozen
-                            ? "border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100"
-                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            ? "border-teal-400 bg-teal-50 text-teal-700 hover:bg-teal-100"
+                            : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
                         }`}
                       >
                         {freezeLoading ? "Saving…" : bot?.frozen ? "❄️ Unfreeze my account" : "❄️ Freeze my account"}
                       </button>
-                      <p className={`text-xs px-1 ${bot?.frozen ? "text-amber-600 font-medium" : "text-slate-500"}`}>
+                      <p className={`text-xs px-1 font-semibold ${bot?.frozen ? "text-amber-600" : "text-slate-500"}`}>
                         {bot?.frozen
                           ? "Your bot is paused. Clients cannot chat until you unfreeze."
                           : "Temporarily pauses your bot — clients will see an 'unavailable' message instead of the chat."}
                       </p>
-                      {cancelDone ? (
-                        <p className="text-center text-xs font-semibold text-teal-700 rounded-full border border-teal-200 bg-teal-50 px-4 py-1.5">
-                          ✓ Membership canceled — you keep access until the end of your billing period.
-                        </p>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => void handleCancelMembership()}
-                          disabled={cancelBusy}
-                          className="inline-flex w-full items-center justify-center rounded-full border border-red-200 px-4 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-50"
-                        >
-                          {cancelBusy ? "Canceling…" : "Cancel membership"}
-                        </button>
+                      {(plan === "starter" || plan === "pro") && (
+                        cancelDone ? (
+                          <p className="text-center text-xs font-semibold text-teal-700 rounded-full border-2 border-teal-300 bg-teal-50 px-4 py-1.5">
+                            ✓ Membership canceled — you keep access until the end of your billing period.
+                          </p>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => void handleCancelMembership()}
+                            disabled={cancelBusy}
+                            className="inline-flex w-full items-center justify-center rounded-full border-2 border-red-300 px-4 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-50"
+                          >
+                            {cancelBusy ? "Canceling…" : "Cancel membership"}
+                          </button>
+                        )
                       )}
                     </div>
                   </div>
