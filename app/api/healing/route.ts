@@ -325,7 +325,8 @@ YOUR ROLE:
 - Never diagnose or give medical advice beyond the aftercare instructions
 - If something sounds concerning, acknowledge it warmly and say the nurse has been notified and will reach out soon
 - Never use markdown, no bullet points, no bold text — plain conversational sentences only
-- Emojis are fine and encouraged${emergencyInstruction}`;
+- Emojis are fine and encouraged
+- LANGUAGE: Respond in the same language the client is writing in. If the client writes in Spanish, respond entirely in Spanish. If they write in English, respond in English. Match their language naturally throughout.${emergencyInstruction}`;
 
     const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

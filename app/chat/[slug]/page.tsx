@@ -229,7 +229,8 @@ export default function PublicChatPage() {
       const found = botData as BotRow;
       setBot(found);
       const greeting = (found.greeting || "").trim() || "Hello! How can we help you today?";
-      setMessages([{ id: newId(), role: "assistant", content: greeting }]);
+      const greetingWithSpanish = `${greeting}\n\nPara español, escribe en español 🇲🇽`;
+      setMessages([{ id: newId(), role: "assistant", content: greetingWithSpanish }]);
       setLoadState("ready");
     })();
 
