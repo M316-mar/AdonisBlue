@@ -117,6 +117,38 @@ export async function POST(request: Request) {
       }
     }
 
+    // ── Fetch procedures from procedures table for this nurse ─────────────
+    // These are the source of truth — richer than bots.services (include aftercare_instructions)
+    let procedureRows: { name: string; aftercare_instructions?: string | null }[] = [];
+    if (botConfig.nurse_id) {
+      try {
+        const db = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        const { data } = await db
+          .from("procedures")
+          .select("name, aftercare_instructions")
+          .eq("nurse_id", botConfig.nurse_id)
+          .order("created_at", { ascending: true });
+        if (data && data.length > 0) procedureRows = data;
+      } catch {
+        // Non-fatal — fall back to bots.services below
+      }
+    }
+
+    // Build service name list: procedures table wins, fall back to bots.services
+    const serviceNames: string[] =
+      procedureRows.length > 0
+        ? procedureRows.map((p) => p.name)
+        : (botConfig.services || []);
+
+    // Build per-procedure aftercare block (only for procedures that have instructions)
+    const procedureAftercareBlock = procedureRows
+      .filter((p) => p.aftercare_instructions?.trim())
+      .map((p) => `${p.name}:\n${p.aftercare_instructions!.trim()}`)
+      .join("\n\n");
+
     // ── Emergency keyword detection — server-side, before AI call ─────────
     // Check the latest user message only (the one that just arrived)
     const lastUserMessage =
@@ -324,7 +356,7 @@ Do NOT continue normal intake or booking conversation until this is addressed.`
 
 Your role is a sales-psychology driven customer service assistant. You are NOT pushy. You guide people warmly toward booking.
 
-SERVICES OFFERED: ${(botConfig.services || []).join(", ")}
+SERVICES OFFERED: ${serviceNames.join(", ")}
 
 YOUR PERSONALITY:
 - Warm, human, conversational — like a trusted friend who happens to know aesthetics
@@ -378,7 +410,8 @@ When client asks to see work say: I'd love to show you! Check out our work on In
 
 POLICIES:
 ${botConfig.cancellation_policy ? `Cancellation policy: ${botConfig.cancellation_policy}` : ""}
-${botConfig.aftercare ? `Aftercare: ${botConfig.aftercare}` : ""}
+${botConfig.aftercare ? `General aftercare: ${botConfig.aftercare}` : ""}
+${procedureAftercareBlock ? `PROCEDURE-SPECIFIC AFTERCARE INSTRUCTIONS:\nWhen a client who has already booked or had a procedure asks about recovery or aftercare, refer to these instructions for accuracy:\n\n${procedureAftercareBlock}` : ""}
 IMPORTANT: Before you send the booking link you MUST first say the cancellation policy in plain English. Then after mentioning it send the booking link. Never send the booking link without mentioning the policy first.
 
 ${botConfig.numbing_method ? `NUMBING METHOD — CRITICAL: When anyone asks about pain, numbing, or comfort, you MUST mention this specific method and nothing else: "${botConfig.numbing_method}". Do not say "numbing cream" or any generic term. Use the nurse's exact method.` : "NUMBING: If asked about pain, say we use a topical numbing cream to make the experience as comfortable as possible."}
