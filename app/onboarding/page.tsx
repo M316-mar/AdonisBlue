@@ -1224,7 +1224,11 @@ function OnboardingInner() {
         return;
       }
 
-      // Seed procedures
+      // Seed procedures — delete all existing first to prevent duplicates, then re-insert
+      await fetch("/api/procedures", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (services.length > 0) {
         await Promise.allSettled(
           services.map((name) =>

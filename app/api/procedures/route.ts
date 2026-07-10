@@ -73,13 +73,25 @@ export async function DELETE(request: Request) {
     const { data: { user } } = await supabaseAuth.auth.getUser(token);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { id } = await request.json();
+    // If no body (or body has no id), delete ALL procedures for this nurse
+    let id: string | undefined;
+    try {
+      const body = await request.json();
+      id = body?.id;
+    } catch {
+      // no body — treat as delete-all
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    await supabase.from("procedures").delete().eq("id", id).eq("nurse_id", user.id);
+    if (id) {
+      await supabase.from("procedures").delete().eq("id", id).eq("nurse_id", user.id);
+    } else {
+      await supabase.from("procedures").delete().eq("nurse_id", user.id);
+    }
     return NextResponse.json({ success: true });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
