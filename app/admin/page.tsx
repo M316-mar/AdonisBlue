@@ -97,6 +97,7 @@ export default function AdminPage() {
   const [newsletter, setNewsletter] = useState({ subject: "", content: "", preview_text: "" });
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterSent, setNewsletterSent] = useState<number | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -227,14 +228,31 @@ export default function AdminPage() {
 
         {/* Preview test bot shortcut */}
         <div className="mb-5">
-          <a
-            href="https://www.adonisblue.io/chat/preview-adonisblue"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border-2 border-[#0d9488] px-5 py-2.5 text-sm font-semibold text-[#0d9488] transition hover:bg-teal-50"
+          <button
+            disabled={previewLoading}
+            onClick={async () => {
+              setPreviewLoading(true);
+              try {
+                const res = await fetch("/api/admin/preview-link", {
+                  method: "POST",
+                  headers: { "x-admin-secret": "AdonisBlue2026!" },
+                });
+                const json = await res.json();
+                if (json.url) {
+                  window.open(json.url, "_blank", "noopener,noreferrer");
+                } else {
+                  alert("Could not generate preview link: " + (json.error ?? "unknown error"));
+                }
+              } catch (e) {
+                alert("Error: " + String(e));
+              } finally {
+                setPreviewLoading(false);
+              }
+            }}
+            className="inline-flex items-center gap-2 rounded-full border-2 border-[#0d9488] px-5 py-2.5 text-sm font-semibold text-[#0d9488] transition hover:bg-teal-50 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            🔍 Preview test bot →
-          </a>
+            {previewLoading ? "Opening preview…" : "🔍 Preview test bot →"}
+          </button>
         </div>
 
         {/* Stats row */}
