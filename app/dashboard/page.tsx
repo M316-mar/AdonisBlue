@@ -373,6 +373,11 @@ export default function NurseDashboardPage() {
             </button>
           </div>
         )}
+        <div className="mb-4 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 flex items-center gap-3">
+          <span className="text-lg shrink-0">💉</span>
+          <p className="text-sm text-teal-800 flex-1">After every appointment, log your treatment in the Aftercare Dashboard so AdonisBlue can send aftercare emails and rebooking reminders automatically.</p>
+          <a href="/aftercare" className="shrink-0 text-sm font-semibold text-teal-700 hover:text-teal-900 whitespace-nowrap">Log a treatment →</a>
+        </div>
         <div className="grid gap-6 lg:grid-cols-12 lg:gap-8 lg:items-start">
           <div className="space-y-6 lg:col-span-8">
             <section className="relative overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 shadow-lg sm:px-6 sm:py-8">
