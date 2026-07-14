@@ -20,6 +20,9 @@ export async function POST(request: Request) {
     const { data, error } = await supabase.auth.admin.generateLink({
       type: "magiclink",
       email: PREVIEW_EMAIL,
+      options: {
+        redirectTo: "https://www.adonisblue.io/dashboard",
+      },
     });
 
     if (error || !data?.properties?.action_link) {

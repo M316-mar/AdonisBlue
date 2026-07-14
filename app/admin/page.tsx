@@ -251,7 +251,7 @@ export default function AdminPage() {
             }}
             className="inline-flex items-center gap-2 rounded-full border-2 border-[#0d9488] px-5 py-2.5 text-sm font-semibold text-[#0d9488] transition hover:bg-teal-50 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {previewLoading ? "Opening preview…" : "🔍 Preview test bot →"}
+            {previewLoading ? "Opening preview…" : "👩‍⚕️ Preview Nurse Dashboard →"}
           </button>
         </div>
 
