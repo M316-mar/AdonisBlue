@@ -186,23 +186,24 @@ export default function NurseDashboardPage() {
 
   // Load Tawk.to live support chat — dashboard only
   useEffect(() => {
+    // Inject CSS override to force widget to bottom left
+    if (!document.getElementById("tawk-position-override")) {
+      const style = document.createElement("style");
+      style.id = "tawk-position-override";
+      style.innerHTML = `
+        #tawkchat-container, .widget-visible iframe[title*="chat"], iframe[src*="tawk"] {
+          left: 16px !important;
+          right: auto !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
     const s1 = document.createElement("script");
     s1.async = true;
     s1.src = "https://embed.tawk.to/6a57c832096ab21d402a63f3/1jtjec19d";
     s1.charset = "UTF-8";
     s1.setAttribute("crossorigin", "*");
-    s1.onload = () => {
-      // Push widget up so it doesn't overlap the feedback/suggestion FAB
-      if ((window as Window & { Tawk_API?: { customStyle?: object } }).Tawk_API) {
-        (window as Window & { Tawk_API?: { customStyle?: object } }).Tawk_API!.customStyle = {
-          zIndex: 999,
-          visibility: {
-            desktop: { position: "bl", xOffset: 16, yOffset: 16 },
-            mobile: { position: "bl", xOffset: 16, yOffset: 16 },
-          },
-        };
-      }
-    };
     document.head.appendChild(s1);
     return () => {
       document.head.removeChild(s1);
