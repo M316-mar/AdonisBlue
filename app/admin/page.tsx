@@ -503,6 +503,19 @@ export default function AdminPage() {
                       <p className="text-xs text-slate-500">{new Date(f.created_at).toLocaleDateString()} at {new Date(f.created_at).toLocaleTimeString()}</p>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void fetch(`/api/admin/feedback?id=${f.id}`, {
+                        method: "DELETE",
+                        headers: { "x-admin-secret": "AdonisBlue2026!" },
+                      }).then(() => setFeedback(prev => prev.filter(x => x.id !== f.id)));
+                    }}
+                    className="shrink-0 rounded-lg p-1.5 text-slate-500 transition hover:bg-red-500/20 hover:text-red-400"
+                    title="Delete"
+                  >
+                    🗑️
+                  </button>
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-slate-300 border-l-2 border-teal-400/30 pl-4">{f.message || "(no message)"}</p>
               </div>
