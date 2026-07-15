@@ -184,29 +184,18 @@ export default function NurseDashboardPage() {
     };
   }, [router]);
 
-  // Load Tawk.to live support chat — dashboard only
+  // Load Crisp live support chat — dashboard only
   useEffect(() => {
-    // Inject CSS override to force widget to bottom left
-    if (!document.getElementById("tawk-position-override")) {
-      const style = document.createElement("style");
-      style.id = "tawk-position-override";
-      style.innerHTML = `
-        #tawkchat-container, .widget-visible iframe[title*="chat"], iframe[src*="tawk"] {
-          left: 16px !important;
-          right: auto !important;
-        }
-      `;
-      document.head.appendChild(style);
-    }
-
-    const s1 = document.createElement("script");
-    s1.async = true;
-    s1.src = "https://embed.tawk.to/6a57c832096ab21d402a63f3/1jtjec19d";
-    s1.charset = "UTF-8";
-    s1.setAttribute("crossorigin", "*");
-    document.head.appendChild(s1);
+    (window as { $crisp?: unknown[] }).$crisp = [];
+    (window as { CRISP_WEBSITE_ID?: string }).CRISP_WEBSITE_ID = "f603e5ef-ce27-4e34-bba2-5daa893366e1";
+    const script = document.createElement("script");
+    script.src = "https://client.crisp.chat/l.js";
+    script.async = true;
+    document.head.appendChild(script);
     return () => {
-      document.head.removeChild(s1);
+      document.head.removeChild(script);
+      delete (window as { $crisp?: unknown[] }).$crisp;
+      delete (window as { CRISP_WEBSITE_ID?: string }).CRISP_WEBSITE_ID;
     };
   }, []);
 
