@@ -999,16 +999,16 @@ export default function NurseDashboardPage() {
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
         {feedbackOpen ? (
           <div className="w-[min(100vw-3rem,20rem)] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/10">
-            <p className="text-sm font-semibold text-[#1a2744]">We grow because of you 💙</p>
+            <p className="text-sm font-semibold text-[#1a2744]">💡 Share an idea</p>
             <p className="mt-1 text-xs leading-relaxed text-slate-600">
-              Tell us what&apos;s working, what&apos;s not, or what you wish existed. We read every single message.
+              Have a feature idea or suggestion to improve AdonisBlue? We&apos;d love to hear it! For technical help, use the live chat support button.
             </p>
             <textarea
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
               rows={4}
               className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-base text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#0d9488]/40 focus:bg-white focus:ring-2 focus:ring-[#0d9488]/20"
-              placeholder="Your thoughts help us build something truly special for nurses like you..."
+              placeholder="What feature would make AdonisBlue even better for you?"
             />
             <div className="mt-3 flex gap-2">
               <button
