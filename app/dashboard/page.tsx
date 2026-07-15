@@ -184,6 +184,19 @@ export default function NurseDashboardPage() {
     };
   }, [router]);
 
+  // Load Tawk.to live support chat — dashboard only
+  useEffect(() => {
+    const s1 = document.createElement("script");
+    s1.async = true;
+    s1.src = "https://embed.tawk.to/6a57c832096ab21d402a63f3/1jtjec19d";
+    s1.charset = "UTF-8";
+    s1.setAttribute("crossorigin", "*");
+    document.head.appendChild(s1);
+    return () => {
+      document.head.removeChild(s1);
+    };
+  }, []);
+
   const done = useMemo(() => computeChecklistDone(bot), [bot]);
   const launched = bot?.launched === true;
   const botChatSlug = useMemo(() => {
