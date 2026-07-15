@@ -196,7 +196,10 @@ export default function NurseDashboardPage() {
       if ((window as Window & { Tawk_API?: { customStyle?: object } }).Tawk_API) {
         (window as Window & { Tawk_API?: { customStyle?: object } }).Tawk_API!.customStyle = {
           zIndex: 999,
-          visibility: { desktop: { position: "br", xOffset: 16, yOffset: 80 } },
+          visibility: {
+            desktop: { position: "bl", xOffset: 16, yOffset: 16 },
+            mobile: { position: "bl", xOffset: 16, yOffset: 16 },
+          },
         };
       }
     };
