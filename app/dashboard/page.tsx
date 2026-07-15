@@ -184,18 +184,16 @@ export default function NurseDashboardPage() {
     };
   }, [router]);
 
-  // Load Crisp live support chat — dashboard only
+  // Load Tawk.to live support chat — dashboard only
   useEffect(() => {
-    (window as { $crisp?: unknown[] }).$crisp = [];
-    (window as { CRISP_WEBSITE_ID?: string }).CRISP_WEBSITE_ID = "f603e5ef-ce27-4e34-bba2-5daa893366e1";
-    const script = document.createElement("script");
-    script.src = "https://client.crisp.chat/l.js";
-    script.async = true;
-    document.head.appendChild(script);
+    const s1 = document.createElement("script");
+    s1.async = true;
+    s1.src = "https://embed.tawk.to/6a57c832096ab21d402a63f3/1jtjec19d";
+    s1.charset = "UTF-8";
+    s1.setAttribute("crossorigin", "*");
+    document.head.appendChild(s1);
     return () => {
-      document.head.removeChild(script);
-      delete (window as { $crisp?: unknown[] }).$crisp;
-      delete (window as { CRISP_WEBSITE_ID?: string }).CRISP_WEBSITE_ID;
+      try { document.head.removeChild(s1); } catch {}
     };
   }, []);
 
@@ -1011,7 +1009,7 @@ export default function NurseDashboardPage() {
         </div>
       ) : null}
 
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+      <div className="fixed bottom-6 left-6 z-50 flex flex-col items-start gap-3">
         {feedbackOpen ? (
           <div className="w-[min(100vw-3rem,20rem)] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/10">
             <p className="text-sm font-semibold text-[#1a2744]">💡 Share an idea</p>
