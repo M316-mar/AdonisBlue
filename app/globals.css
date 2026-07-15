@@ -34,3 +34,12 @@ body {
 .animate-bounce-in {
   animation: bounce-in 0.35s ease-out both;
 }
+
+@keyframes fab-pulse {
+  0%, 100% { box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.20), inset 1px 1px 0 rgba(255,255,255,0.25); }
+  50% { box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.20), inset 1px 1px 0 rgba(255,255,255,0.25), 0 0 0 10px rgba(13,148,136,0.15), 0 0 0 20px rgba(13,148,136,0.05); }
+}
+
+.animate-fab-pulse {
+  animation: fab-pulse 2s ease-in-out infinite;
+}

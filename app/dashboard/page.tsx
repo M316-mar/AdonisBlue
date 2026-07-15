@@ -191,6 +191,15 @@ export default function NurseDashboardPage() {
     s1.src = "https://embed.tawk.to/6a57c832096ab21d402a63f3/1jtjec19d";
     s1.charset = "UTF-8";
     s1.setAttribute("crossorigin", "*");
+    s1.onload = () => {
+      // Push widget up so it doesn't overlap the feedback/suggestion FAB
+      if ((window as Window & { Tawk_API?: { customStyle?: object } }).Tawk_API) {
+        (window as Window & { Tawk_API?: { customStyle?: object } }).Tawk_API!.customStyle = {
+          zIndex: 999,
+          visibility: { desktop: { position: "br", xOffset: 16, yOffset: 80 } },
+        };
+      }
+    };
     document.head.appendChild(s1);
     return () => {
       document.head.removeChild(s1);

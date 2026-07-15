@@ -817,7 +817,7 @@ export default function PublicChatPage() {
           <button
             type="button"
             onClick={() => setChatOpen(true)}
-            className="relative flex items-center justify-center rounded-full shadow-2xl transition hover:opacity-90 active:scale-[0.97]"
+            className="relative flex items-center justify-center rounded-full shadow-2xl transition hover:opacity-90 active:scale-[0.97] animate-fab-pulse"
             style={{
               width: hasLogo ? 96 : 64,
               height: hasLogo ? 96 : 64,
