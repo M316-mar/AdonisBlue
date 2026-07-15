@@ -1001,7 +1001,7 @@ export default function NurseDashboardPage() {
           <div className="w-[min(100vw-3rem,20rem)] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/10">
             <p className="text-sm font-semibold text-[#1a2744]">💡 Share an idea</p>
             <p className="mt-1 text-xs leading-relaxed text-slate-600">
-              Have a feature idea or suggestion to improve AdonisBlue? We&apos;d love to hear it! For technical help, use the live chat support button.
+              Have a feature idea or suggestion to improve AdonisBlue? We&apos;d love to hear it! For technical help, use the Live Support chat.
             </p>
             <textarea
               value={feedbackText}

@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     // Also email us
     await resend.emails.send({
       from: "AdonisBlue <hello@adonisblue.io>",
-      to: "hello@adonisblue.io",
+      to: "hi@adonisblue.io",
       subject: `💬 New feedback from ${nurse_name || "a nurse"}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
