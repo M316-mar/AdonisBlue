@@ -191,6 +191,18 @@ export default function NurseDashboardPage() {
     s1.src = "https://embed.tawk.to/6a57c832096ab21d402a63f3/1jtjec19d";
     s1.charset = "UTF-8";
     s1.setAttribute("crossorigin", "*");
+    s1.onload = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tawk = (window as any).Tawk_API;
+      if (tawk) {
+        tawk.onLoad = function () {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          tawk.setAttributes({ position: "bl" }, function (_error: unknown) {});
+          tawk.hideWidget();
+          tawk.showWidget();
+        };
+      }
+    };
     document.head.appendChild(s1);
     return () => {
       try { document.head.removeChild(s1); } catch {}

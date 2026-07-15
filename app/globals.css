@@ -25,6 +25,14 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Force Tawk.to to bottom left */
+#tawkchat-minified-wrapper,
+#tawkchat-container {
+  left: 20px !important;
+  right: auto !important;
+  bottom: 20px !important;
+}
+
 @keyframes bounce-in {
   0% { opacity: 0; transform: translateY(8px) scale(0.95); }
   60% { opacity: 1; transform: translateY(-3px) scale(1.02); }
