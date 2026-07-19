@@ -47,7 +47,10 @@ type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   photos?: string[];
+  pronounPicker?: true; // special UI — renders pronoun quick-reply buttons
 };
+
+type PronounOption = "She/Her" | "He/Him" | "Prefer not to say";
 
 const QUICK_REPLIES = [
   "What services do you offer?",
@@ -172,6 +175,9 @@ export default function PublicChatPage() {
   // Emergency alert deduplication — tracked per browser session
   const [emergencyAlertedThisSession, setEmergencyAlertedThisSession] = useState(false);
   const [emergencyAlertedWithoutContact, setEmergencyAlertedWithoutContact] = useState(false);
+  // Pronoun preference — asked once after client provides their name
+  const [pronouns, setPronouns] = useState<PronounOption | null>(null);
+  const [pronounsAsked, setPronounsAsked] = useState(false);
 
   const nurseDisplayName = useMemo(() => {
     if (!bot) return "your provider";
@@ -287,6 +293,8 @@ export default function PublicChatPage() {
         // Emergency alert deduplication flags — set by client after first alert fires
         emergencyAlertedThisSession,
         emergencyAlertedWithoutContact,
+        // Pronoun preference — collected once after name intake
+        pronouns,
       };
 
       try {
@@ -348,7 +356,32 @@ export default function PublicChatPage() {
                 },
               ]
             : [];
-        setMessages((prev) => [...prev, assistantMsg, ...photoFollowUp]);
+
+        // Inject pronoun picker once after the AI has asked for (and received) the client's name
+        const allMsgs = [...messages, userMessage];
+        const shouldAskPronouns =
+          !pronounsAsked &&
+          !pronouns &&
+          allMsgs.some(
+            (m) =>
+              m.role === "assistant" &&
+              (m.content.toLowerCase().includes("full name") ||
+                m.content.toLowerCase().includes("your name"))
+          );
+        const pronounPickerMsg: ChatMessage[] = shouldAskPronouns
+          ? [
+              {
+                id: newId(),
+                role: "assistant",
+                content:
+                  "Just so I can make sure my responses feel right for you — how would you like me to address you? 👤",
+                pronounPicker: true,
+              },
+            ]
+          : [];
+        if (shouldAskPronouns) setPronounsAsked(true);
+
+        setMessages((prev) => [...prev, assistantMsg, ...photoFollowUp, ...pronounPickerMsg]);
       } catch {
         setMessages((prev) => [
           ...prev,
@@ -557,40 +590,91 @@ export default function PublicChatPage() {
       >
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-[85%] text-sm leading-relaxed ${
-                m.role === "user"
-                  ? "rounded-full px-3.5 py-2 text-slate-800"
-                  : "rounded-2xl px-3.5 py-2.5 text-slate-800"
-              }`}
-              style={
-                m.role === "user"
-                  ? { background: "rgba(26,39,68,0.10)" }
-                  : {
-                      background: [
-                        "rgba(230,236,250,0.62) padding-box",
-                        "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(215,225,245,0.40) 100%) border-box",
-                      ].join(", "),
-                      border: "1px solid transparent",
-                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75), 0 1px 6px rgba(0,0,0,0.06)",
-                    }
-              }
-            >
-              {renderMessageContent(m.content)}
-              {m.photos && m.photos.length > 0 ? (
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {m.photos.slice(0, 6).map((src, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={`${m.id}-p-${i}`}
-                      src={src}
-                      alt=""
-                      className="aspect-square w-full rounded-lg border border-slate-200 object-cover"
-                    />
-                  ))}
+            {m.pronounPicker ? (
+              /* ── Pronoun picker ── */
+              <div className="max-w-[85%]">
+                <div
+                  className="rounded-2xl px-3.5 py-2.5 text-sm text-slate-800"
+                  style={{
+                    background: [
+                      "rgba(230,236,250,0.62) padding-box",
+                      "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(215,225,245,0.40) 100%) border-box",
+                    ].join(", "),
+                    border: "1px solid transparent",
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75), 0 1px 6px rgba(0,0,0,0.06)",
+                  }}
+                >
+                  {m.content}
                 </div>
-              ) : null}
-            </div>
+                {!pronouns && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(["She/Her", "He/Him", "Prefer not to say"] as PronounOption[]).map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        disabled={sending}
+                        onClick={() => {
+                          setPronouns(opt);
+                          // Replace picker with a user confirmation bubble
+                          setMessages((prev) =>
+                            prev
+                              .filter((x) => !x.pronounPicker)
+                              .concat({ id: newId(), role: "user", content: opt })
+                          );
+                        }}
+                        className="rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50"
+                        style={{
+                          background: [
+                            "rgba(215,225,245,0.55) padding-box",
+                            "linear-gradient(135deg, rgba(255,100,175,0.75) 0%, rgba(120,165,255,0.75) 50%, rgba(255,225,70,0.65) 100%) border-box",
+                          ].join(", "),
+                          border: "1.5px solid transparent",
+                          color: "#1a2744",
+                          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.80), 0 1px 4px rgba(0,0,0,0.06)",
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                className={`max-w-[85%] text-sm leading-relaxed ${
+                  m.role === "user"
+                    ? "rounded-full px-3.5 py-2 text-slate-800"
+                    : "rounded-2xl px-3.5 py-2.5 text-slate-800"
+                }`}
+                style={
+                  m.role === "user"
+                    ? { background: "rgba(26,39,68,0.10)" }
+                    : {
+                        background: [
+                          "rgba(230,236,250,0.62) padding-box",
+                          "linear-gradient(135deg, rgba(255,255,255,0.70) 0%, rgba(215,225,245,0.40) 100%) border-box",
+                        ].join(", "),
+                        border: "1px solid transparent",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75), 0 1px 6px rgba(0,0,0,0.06)",
+                      }
+                }
+              >
+                {renderMessageContent(m.content)}
+                {m.photos && m.photos.length > 0 ? (
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {m.photos.slice(0, 6).map((src, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={`${m.id}-p-${i}`}
+                        src={src}
+                        alt=""
+                        className="aspect-square w-full rounded-lg border border-slate-200 object-cover"
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
         ))}
         {sending ? (

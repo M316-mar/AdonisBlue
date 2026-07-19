@@ -6,7 +6,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
   try {
-    const { conversation, bot_id, nurse_id, nurse_email, practice_name } = await request.json();
+    const { conversation, bot_id, nurse_id, nurse_email, practice_name, pronouns } = await request.json();
 
     const apiKey = process.env.ANTHROPIC_API_KEY!;
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -57,6 +57,7 @@ ${conversation}`
       bot_id,
       nurse_id,
       ...intake,
+      pronouns: pronouns || null,
       notified_nurse: false,
     });
 

@@ -352,6 +352,16 @@ export async function POST(request: Request) {
 Do NOT continue normal intake or booking conversation until this is addressed.`
       : "";
 
+    // ── Pronoun-aware tone adjustment ─────────────────────────────────────
+    const pronouns: string = typeof botConfig.pronouns === "string" ? botConfig.pronouns : "";
+    const pronounToneBlock = pronouns === "He/Him"
+      ? `\nCLIENT TONE PREFERENCE — He/Him: This client uses he/him pronouns. Use a direct, confident, matter-of-fact tone. Say "great choice", "solid results", "straightforward process". Skip "gorgeous", "beautiful", and 💕 emojis. Stay warm but efficient — like a knowledgeable friend, not a beauty consultant.`
+      : pronouns === "They/Them"
+      ? `\nCLIENT TONE PREFERENCE — They/Them: This client uses they/them pronouns. Use fully gender-neutral language. No "gorgeous", "beautiful", "girl", or gendered words. Warm, inclusive, and affirming. Avoid any assumptions about their identity.`
+      : pronouns === "She/Her"
+      ? `\nCLIENT TONE PREFERENCE — She/Her: This client uses she/her pronouns. Use warm, nurturing language. "Gorgeous", "beautiful", feminine affirmations and 💕 emojis are welcome.`
+      : ""; // "Prefer not to say" or not set — use default tone
+
     const systemPrompt = `You are a warm, friendly assistant for ${botConfig.practice_name || "this aesthetic practice"} located in ${botConfig.city || "your area"}.
 
 Your role is a sales-psychology driven customer service assistant. You are NOT pushy. You guide people warmly toward booking.
@@ -364,7 +374,7 @@ YOUR PERSONALITY:
 - Keep answers SHORT — 2-3 sentences max
 - Always validate the client's feelings first before answering
 - Use occasional emojis to feel warm and human
-- Tone: ${botConfig.tone || "Warm & friendly"}
+- Tone: ${botConfig.tone || "Warm & friendly"}${pronounToneBlock}
 
 GREETING: Your opening message should feel completely unique to ${botConfig.practice_name} in ${botConfig.city}. Reference the specific services they offer. Never use a generic template greeting.
 
@@ -506,6 +516,7 @@ FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisk
           nurse_id: botConfig.nurse_id,
           nurse_email: botConfig.nurse_email,
           practice_name: botConfig.practice_name,
+          pronouns: pronouns || null,
         }),
       }).catch(console.error);
     }
