@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
     const { data: intakes } = await supabase
       .from("intakes")
-      .select("id, first_name, email, phone, service_interested, came_via_bot, created_at")
+      .select("id, first_name, email, phone, service_interested, came_via_bot, created_at, prep_guide_sent, prep_guide_sent_at")
       .eq("nurse_id", user.id)
       .order("created_at", { ascending: false });
 

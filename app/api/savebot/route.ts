@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       "booking_link", "cancellation_policy", "numbing_method",
       "previous_work_policy", "touch_up_policy", "same_day_consultation",
       "deposit_info", "forward_questions", "aftercare",
-      "bot_name_font", "bubble_attention_message",
+      "bot_name_font", "bubble_attention_message", "pre_appointment_instructions",
     ];
     for (const field of stringFields) {
       if (field in body) {

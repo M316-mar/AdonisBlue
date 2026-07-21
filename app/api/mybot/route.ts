@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
       .from("bots")
       .select(
-        "id, nurse_id, practice_name, city, state, instagram, facebook, tiktok, website, other_social, notification_email, bot_name, slug, greeting, tone, chat_theme, primary_color, brand_color, booking_link, cancellation_policy, aftercare, numbing_method, previous_work_policy, touch_up_policy, same_day_consultation, deposit_info, forward_questions, services, logo_image, logo_data_url, logo_url, brand_name_image, bot_name_font, bubble_attention_message, photos, launched, frozen, created_at, plan, trial_ends_at, subscription_status"
+        "id, nurse_id, practice_name, city, state, instagram, facebook, tiktok, website, other_social, notification_email, bot_name, slug, greeting, tone, chat_theme, primary_color, brand_color, booking_link, cancellation_policy, aftercare, numbing_method, previous_work_policy, touch_up_policy, same_day_consultation, deposit_info, forward_questions, services, logo_image, logo_data_url, logo_url, brand_name_image, bot_name_font, bubble_attention_message, photos, launched, frozen, created_at, plan, trial_ends_at, subscription_status, webhook_secret, pre_appointment_instructions"
       )
       .eq("nurse_id", user.id)
       .single();

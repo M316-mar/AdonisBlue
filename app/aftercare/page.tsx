@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -18,6 +18,7 @@ type Procedure = {
 
 type Treatment = {
   id: string;
+  intake_id: string | null;
   procedure_name: string;
   procedure_id: string | null;
   treatment_date: string;
@@ -86,7 +87,7 @@ export default function AftercarePage() {
   const [token, setToken] = useState("");
 
   // Top-level tab
-  const [tab, setTab] = useState<"procedures" | "treatments" | "emergency" | "alerts">("procedures");
+  const [tab, setTab] = useState<"procedures" | "treatments" | "prep" | "emergency" | "alerts">("treatments");
 
   // Procedure state
   const [procedures, setProcedures] = useState<Procedure[]>([]);
@@ -162,6 +163,19 @@ export default function AftercarePage() {
   const [alertPhone, setAlertPhone] = useState("");
   const [alertSaving, setAlertSaving] = useState(false);
 
+  // Aftercare send state (Treatments tab)
+  const [aftercareSendingId, setAftercareSendingId] = useState<string | null>(null);
+  const [aftercareSentIds, setAftercareSentIds] = useState<Set<string>>(new Set());
+
+  // Pre-appointment prep guide state
+  const [prepInstructions, setPrepInstructions] = useState(
+    "Come with a clean face — no makeup\nAvoid alcohol 24 hours before your appointment\nAvoid blood thinners and ibuprofen for 24 hours\nStay hydrated — drink plenty of water\nArrive 10 minutes early"
+  );
+  const [prepSaving, setPrepSaving] = useState(false);
+  const [prepSendingId, setPrepSendingId] = useState<string | null>(null);
+  const [prepSentIds, setPrepSentIds] = useState<Set<string>>(new Set());
+  const [hasBookingSoftware, setHasBookingSoftware] = useState(false);
+
   const [successMsg, setSuccessMsg] = useState("");
 
   function flash(msg: string, ms = 4000) {
@@ -193,23 +207,41 @@ export default function AftercarePage() {
       const t = data.session.access_token;
       setToken(t);
 
-      const [procRes, treatRes, intakeRes, kwRes, alertRes] = await Promise.all([
+      const [procRes, treatRes, intakeRes, kwRes, alertRes, botRes] = await Promise.all([
         fetch("/api/procedures", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/treatments", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/intakes", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/emergency-keywords", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/alert-settings", { headers: { Authorization: `Bearer ${t}` } }),
+        fetch("/api/mybot", { headers: { Authorization: `Bearer ${t}` } }),
       ]);
 
       if (!cancelled) {
         if (procRes.ok) { const j = await procRes.json(); setProcedures(j.procedures ?? []); }
         if (treatRes.ok) { const j = await treatRes.json(); setTreatments(j.treatments ?? []); }
-        if (intakeRes.ok) { const j = await intakeRes.json(); setIntakes(j.intakes ?? []); }
+        if (intakeRes.ok) {
+          const j = await intakeRes.json();
+          const loadedIntakes = j.intakes ?? [];
+          setIntakes(loadedIntakes);
+          // Pre-populate sent IDs from DB
+          const alreadySent = new Set<string>(
+            loadedIntakes.filter((i: Intake & { prep_guide_sent?: boolean }) => i.prep_guide_sent).map((i: Intake) => i.id)
+          );
+          setPrepSentIds(alreadySent);
+        }
         if (kwRes.ok) { const j = await kwRes.json(); setEmergencyKeywords(j.keywords ?? []); }
         if (alertRes.ok) {
           const j = await alertRes.json();
           setAlertEmail(j.alert_email ?? "");
           setAlertPhone(j.alert_phone ?? "");
+        }
+        if (botRes.ok) {
+          const j = await botRes.json();
+          const bot = j.bot;
+          if (bot?.pre_appointment_instructions?.trim()) {
+            setPrepInstructions(bot.pre_appointment_instructions.trim());
+          }
+          setHasBookingSoftware(Boolean(bot?.webhook_secret?.trim()));
         }
         void loadIncidents(t);
       }
@@ -503,11 +535,12 @@ export default function AftercarePage() {
         )}
 
         {/* Top-level tabs */}
-        <div className="mb-5 flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0" style={{ scrollbarWidth: "none" }}>
+        <div className="mb-5 flex gap-2 overflow-x-auto pb-1 -mx-4 px-4" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
           {(
             [
-              { id: "procedures", label: `📋 Procedures (${procedures.length})` },
               { id: "treatments", label: `💉 Treatments (${treatments.length})` },
+              { id: "procedures", label: `📋 Procedures (${procedures.length})` },
+              { id: "prep", label: "🗓️ Pre-Appointment" },
               { id: "emergency", label: `⚠️ Emergency${incidents.length > 0 ? ` (${incidents.length})` : ""}` },
               { id: "alerts", label: "⚙️ Alerts" },
             ] as const
@@ -1207,6 +1240,32 @@ export default function AftercarePage() {
                       {treatment.intakes?.email} · {new Date(treatment.treatment_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
                     </p>
                     {treatment.notes && <p className="mt-1 text-xs text-slate-600 italic">{treatment.notes}</p>}
+                    {/* Send aftercare button — only if not already sent and has an intake */}
+                    {!treatment.aftercare_sent && !aftercareSentIds.has(treatment.id) && treatment.intake_id && treatment.intakes?.email && (
+                      <button
+                        type="button"
+                        disabled={aftercareSendingId === treatment.id}
+                        onClick={async () => {
+                          setAftercareSendingId(treatment.id);
+                          try {
+                            const res = await fetch("/api/send-aftercare", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ intake_id: treatment.intake_id }),
+                            });
+                            if (res.ok) {
+                              setAftercareSentIds(prev => new Set([...prev, treatment.id]));
+                              flash(`Aftercare sent to ${treatment.intakes?.first_name ?? "client"}! 💙`);
+                            }
+                          } finally {
+                            setAftercareSendingId(null);
+                          }
+                        }}
+                        className="mt-2 rounded-full bg-[#0d9488] px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+                      >
+                        {aftercareSendingId === treatment.id ? "Sending…" : "Send aftercare 💌"}
+                      </button>
+                    )}
                   </div>
                   {/* Archive button — subtle trash icon at far right */}
                   <button
@@ -1286,9 +1345,126 @@ export default function AftercarePage() {
           </div>
         )}
 
+        {/* ── Pre-Appointment Tab ─────────────────────────────────────────── */}
+        {tab === "prep" && (
+          <div className="space-y-5">
+
+            {/* Booking software banner */}
+            {hasBookingSoftware ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700">
+                ✅ Booking software connected — prep guides will send automatically when clients book.
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+                <span className="font-semibold">💡 Connect your booking software</span> to send prep guides automatically when clients book.{" "}
+                <Link href="/booking-connect" className="underline font-semibold hover:text-amber-900">Set it up →</Link>
+                {" "}For now, send manually below.
+              </div>
+            )}
+
+            {/* Section A — Prep instructions */}
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-4">
+              <div>
+                <h3 className="text-base font-bold text-[#1a2744]">Your prep instructions</h3>
+                <p className="text-sm text-slate-500 mt-1">What should clients know before arriving? One instruction per line.</p>
+              </div>
+              <textarea
+                value={prepInstructions}
+                onChange={e => setPrepInstructions(e.target.value)}
+                rows={7}
+                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#0d9488]/40 focus:bg-white focus:ring-2 focus:ring-[#0d9488]/20"
+                placeholder="Come with a clean face — no makeup&#10;Avoid alcohol 24 hours before&#10;..."
+              />
+              <button
+                type="button"
+                disabled={prepSaving}
+                onClick={async () => {
+                  setPrepSaving(true);
+                  try {
+                    await fetch("/api/savebot", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                      body: JSON.stringify({ pre_appointment_instructions: prepInstructions }),
+                    });
+                    flash("Prep instructions saved!");
+                  } finally {
+                    setPrepSaving(false);
+                  }
+                }}
+                className="rounded-full bg-[#0d9488] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+              >
+                {prepSaving ? "Saving…" : "Save instructions"}
+              </button>
+            </div>
+
+            {/* Section B — Send to clients */}
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <div className="bg-slate-50 border-b border-slate-100 px-6 py-4">
+                <h3 className="text-base font-bold text-[#1a2744]">Send to clients</h3>
+                <p className="text-sm text-slate-500 mt-0.5">Clients who haven't received their prep guide yet.</p>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {intakes.filter(i => !prepSentIds.has(i.id)).length === 0 ? (
+                  <div className="px-6 py-10 text-center">
+                    <p className="text-3xl mb-2">✅</p>
+                    <p className="font-semibold text-[#1a2744]">All clients have received their prep guide!</p>
+                  </div>
+                ) : (
+                  intakes
+                    .filter(i => !prepSentIds.has(i.id) && i.email)
+                    .map(i => (
+                      <div key={i.id} className="flex items-center justify-between gap-4 px-6 py-4">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-[#1a2744] truncate">{i.first_name || "Unknown"}</p>
+                          <p className="text-xs text-slate-500 truncate">{i.email}</p>
+                          {i.service_interested && (
+                            <p className="text-xs text-teal-600 mt-0.5">{i.service_interested}</p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={prepSendingId === i.id}
+                          onClick={async () => {
+                            setPrepSendingId(i.id);
+                            try {
+                              const res = await fetch("/api/send-prep-guide", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({ intake_id: i.id }),
+                              });
+                              if (res.ok) {
+                                setPrepSentIds(prev => new Set([...prev, i.id]));
+                                flash(`Prep guide sent to ${i.first_name || "client"}!`);
+                              } else {
+                                const j = await res.json();
+                                flash(`Error: ${j.error ?? "Could not send"}`);
+                              }
+                            } finally {
+                              setPrepSendingId(null);
+                            }
+                          }}
+                          className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60 whitespace-nowrap"
+                        >
+                          {prepSendingId === i.id ? "Sending…" : "Send Prep Guide 💌"}
+                        </button>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+
+          </div>
+        )}
+
         {/* ── Emergency Tab ───────────────────────────────────────────────── */}
         {tab === "emergency" && (
           <div className="space-y-4">
+
+            {/* Explanatory banner */}
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
+              <p className="font-semibold mb-1">🚨 How emergency monitoring works</p>
+              <p className="leading-relaxed">Emergency keywords are monitored in your healing chat and AI bot. When a client types any of the keywords below, you will be immediately notified by email at your alert address. Make sure your alert email is set in the <button type="button" onClick={() => setTab("alerts")} className="underline font-semibold hover:text-red-900">Alerts tab</button>.</p>
+            </div>
 
             {/* ── Incident Feed ─────────────────────────────────────────── */}
             <div className="rounded-2xl border border-red-200 bg-white shadow-sm overflow-hidden">
@@ -1561,9 +1737,9 @@ export default function AftercarePage() {
         {/* ── Alert Settings Tab ──────────────────────────────────────────── */}
         {tab === "alerts" && (
           <div className="space-y-4">
-            <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50 to-sky-50 p-5">
-              <h3 className="font-bold text-[#1a2744] mb-1">⚙️ Emergency Alert Settings</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">When a client uses an emergency keyword in their recovery chat, we&apos;ll alert you immediately at these contacts.</p>
+            <div className="rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-sky-50 p-5">
+              <h3 className="font-bold text-[#1a2744] mb-1">⚙️ Alert Settings</h3>
+              <p className="text-sm text-slate-600 leading-relaxed">This is where we contact you when a client reports an emergency symptom in their healing chat or AI bot. Set your preferred email and phone number below so we can reach you immediately when it matters most.</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
               <div>
