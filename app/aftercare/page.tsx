@@ -575,7 +575,7 @@ export default function AftercarePage() {
               <Image src="/Alona.png" alt="AdonisBlue" width={36} height={36} className="rounded-xl" />
             </Link>
             <div className="min-w-0">
-              <h1 className="text-sm font-bold text-[#1a2744] sm:text-base truncate">Aftercare Dashboard 🩹</h1>
+              <h1 className="text-sm font-bold text-[#1a2744] sm:text-base truncate">Client Hub 🩹</h1>
               <p className="hidden text-xs text-slate-500 sm:block">Procedure-specific aftercare for every client</p>
             </div>
           </div>
