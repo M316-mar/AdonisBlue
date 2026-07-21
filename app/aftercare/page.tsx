@@ -149,6 +149,7 @@ export default function AftercarePage() {
   });
   const [addingTreatment, setAddingTreatment] = useState(false);
   const [treatmentSaving, setTreatmentSaving] = useState(false);
+  const [walkinCustomProcedure, setWalkinCustomProcedure] = useState("");
   // Post-treatment prep guide prompt
   const [prepPrompt, setPrepPrompt] = useState<{
     intakeId: string | null;
@@ -385,20 +386,41 @@ export default function AftercarePage() {
 
   // ── Treatment handler ──────────────────────────────────────────────────────
   const handleLogTreatment = useCallback(async () => {
-    if ((!newTreatment.intake_id && !newTreatment.is_walkin) || newTreatment.procedure_ids.length === 0) return;
+    const hasCustom = newTreatment.is_walkin && walkinCustomProcedure.trim();
+    if ((!newTreatment.intake_id && !newTreatment.is_walkin) || (newTreatment.procedure_ids.length === 0 && !hasCustom)) return;
     setTreatmentSaving(true);
 
+    // Resolve procedure name — prefer selected procedures, fall back to custom input
     const selectedProcedures = procedures.filter(p => newTreatment.procedure_ids.includes(p.id));
-    const procedureNames = selectedProcedures.map(p => p.name).join(", ");
+    const procedureNames = selectedProcedures.length > 0
+      ? selectedProcedures.map(p => p.name).join(", ")
+      : walkinCustomProcedure.trim();
+
+    // If custom procedure was typed, call AI to generate aftercare instructions
+    let customAftercareInstructions: string | null = null;
+    if (hasCustom && selectedProcedures.length === 0) {
+      try {
+        const aiRes = await fetch("/api/generate-aftercare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ procedure_name: walkinCustomProcedure.trim() }),
+        });
+        if (aiRes.ok) {
+          const aiJ = await aiRes.json();
+          customAftercareInstructions = aiJ.instructions ?? null;
+        }
+      } catch { /* fall through — will use default aftercare */ }
+    }
 
     const res = await fetch("/api/treatments", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         intake_id: newTreatment.intake_id || null,
-        procedure_id: newTreatment.procedure_ids[0],
+        procedure_id: newTreatment.procedure_ids[0] ?? null,
         procedure_ids: newTreatment.procedure_ids,
         procedure_name: procedureNames,
+        custom_aftercare_instructions: customAftercareInstructions,
         treatment_date: newTreatment.treatment_date,
         notes: newTreatment.notes,
         is_walkin: newTreatment.is_walkin,
@@ -413,6 +435,7 @@ export default function AftercarePage() {
       const j = await res.json();
       setTreatments(prev => [j.treatment, ...prev]);
       setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "", send_aftercare: true, came_via_bot: false });
+      setWalkinCustomProcedure("");
       setAddingTreatment(false);
       flash(j.aftercare_sent ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
       // Handle rebook: create a second treatment record for the future appointment
@@ -442,12 +465,12 @@ export default function AftercarePage() {
         if (rebookRes.ok) {
           const rj = await rebookRes.json();
           setTreatments(prev => [rj.treatment, ...prev]);
-          // Show prep guide for the future appointment intake (not walk-ins, they're already here)
-          if (rj.treatment?.intake_id && !newTreatment.is_walkin) {
+          // Show prep guide for the future appointment (use newTreatment.intake_id — reliable closure value)
+          if (newTreatment.intake_id && !newTreatment.is_walkin) {
             const clientName = intakes.find(i => i.id === newTreatment.intake_id)?.first_name || "Client";
             const rebookProcName = rebookProcNames || procedureNames;
             const instructions = defaultPrepInstructions(rebookProcName);
-            setPrepPrompt({ intakeId: rj.treatment.intake_id, clientName, procedureName: rebookProcName, instructions });
+            setPrepPrompt({ intakeId: newTreatment.intake_id, clientName, procedureName: rebookProcName, instructions });
             setPrepTab("auto");
             setPrepCustomText(instructions);
             setPrepSentDone(false);
@@ -456,12 +479,13 @@ export default function AftercarePage() {
         setRebookChecked(false);
         setRebookDate("");
         setRebookProcedureIds([]);
-      } else if (savedTreatment?.intake_id && !newTreatment.is_walkin) {
+      } else if (newTreatment.intake_id && !newTreatment.is_walkin) {
         // Show prep guide prompt for scheduled clients (not walk-ins — they're already in-clinic)
+        // Use newTreatment.intake_id directly (closure value) — more reliable than API response
         const clientName = intakes.find(i => i.id === newTreatment.intake_id)?.first_name || "Client";
         const instructions = defaultPrepInstructions(procedureNames);
         setPrepPrompt({
-          intakeId: savedTreatment.intake_id,
+          intakeId: newTreatment.intake_id,
           clientName,
           procedureName: procedureNames,
           instructions,
@@ -472,7 +496,7 @@ export default function AftercarePage() {
       }
     }
     setTreatmentSaving(false);
-  }, [newTreatment, rebookChecked, rebookDate, rebookProcedureIds, procedures, token, intakes]);
+  }, [newTreatment, walkinCustomProcedure, rebookChecked, rebookDate, rebookProcedureIds, procedures, token, intakes]);
 
   // ── Archive handlers ───────────────────────────────────────────────────────
   const loadArchivedTreatments = useCallback(async () => {
@@ -1300,6 +1324,22 @@ export default function AftercarePage() {
                         ✅ {newTreatment.procedure_ids.length} procedure{newTreatment.procedure_ids.length > 1 ? "s" : ""} selected
                       </p>
                     )}
+                    {/* Custom procedure for walk-ins or unlisted services */}
+                    {newTreatment.is_walkin && (
+                      <div className="mt-3">
+                        <label className="mb-1 block text-xs font-semibold text-slate-500">Or type a custom procedure (e.g. &quot;Jawline Filler&quot;)</label>
+                        <input
+                          type="text"
+                          value={walkinCustomProcedure}
+                          onChange={e => setWalkinCustomProcedure(e.target.value)}
+                          placeholder="e.g. Jawline Filler, Lip Flip, Under Eye Filler…"
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-[#0d9488]"
+                        />
+                        {walkinCustomProcedure.trim() && (
+                          <p className="mt-1 text-xs text-indigo-600">✨ AI will generate aftercare instructions for &quot;{walkinCustomProcedure.trim()}&quot; when you save.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Date */}
@@ -1404,7 +1444,7 @@ export default function AftercarePage() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled={treatmentSaving || (!newTreatment.intake_id && !newTreatment.is_walkin) || newTreatment.procedure_ids.length === 0}
+                      disabled={treatmentSaving || (!newTreatment.intake_id && !newTreatment.is_walkin) || (newTreatment.procedure_ids.length === 0 && !(newTreatment.is_walkin && walkinCustomProcedure.trim()))}
                       onClick={() => void handleLogTreatment()}
                       style={{ touchAction: "manipulation" }}
                       className="min-h-[48px] flex-1 rounded-full bg-[#0d9488] px-6 py-2 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50 active:scale-[0.97]"
