@@ -149,7 +149,7 @@ export default function AftercarePage() {
   });
   const [addingTreatment, setAddingTreatment] = useState(false);
   const [treatmentSaving, setTreatmentSaving] = useState(false);
-  const [walkinCustomProcedure, setWalkinCustomProcedure] = useState("");
+  const [customProcedure, setCustomProcedure] = useState("");
   // Post-treatment prep guide prompt
   const [prepPrompt, setPrepPrompt] = useState<{
     intakeId: string | null;
@@ -397,12 +397,12 @@ export default function AftercarePage() {
     const capturedRebookChecked = rebookChecked;
     const capturedRebookDate = rebookDate;
     const capturedRebookProcedureIds = rebookProcedureIds;
-    const capturedCustomProcedure = walkinCustomProcedure.trim();
+    const capturedCustomProcedure = customProcedure.trim();
     const capturedClientName = intakes.find(i => i.id === capturedIntakeId)?.first_name
       || capturedWalkinName
       || "Client";
 
-    const hasCustom = capturedIsWalkin && capturedCustomProcedure;
+    const hasCustom = !!capturedCustomProcedure; // custom procedure works for any client type
     if ((!capturedIntakeId && !capturedIsWalkin) || (newTreatment.procedure_ids.length === 0 && !hasCustom)) return;
     setTreatmentSaving(true);
 
@@ -414,20 +414,29 @@ export default function AftercarePage() {
 
     console.log("[handleLogTreatment] capturedIntakeId:", capturedIntakeId, "capturedIsWalkin:", capturedIsWalkin, "procedureNames:", procedureNames, "rebookChecked:", capturedRebookChecked);
 
-    // If custom procedure was typed, call AI to generate aftercare instructions
+    // If a custom procedure was typed, call AI to generate prep instructions (used in prep guide Auto tab)
+    // Also generate aftercare instructions for the email (used if no standard procedure is selected)
+    let aiPrepInstructions: string | null = null;
     let customAftercareInstructions: string | null = null;
-    if (hasCustom && selectedProcedures.length === 0) {
+    if (hasCustom) {
       try {
-        const aiRes = await fetch("/api/generate-aftercare", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ procedure_name: capturedCustomProcedure }),
-        });
-        if (aiRes.ok) {
-          const aiJ = await aiRes.json();
-          customAftercareInstructions = aiJ.instructions ?? null;
-        }
-      } catch { /* fall through — will use default aftercare */ }
+        const [prepRes, aftercareRes] = await Promise.all([
+          fetch("/api/generate-prep-instructions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ procedure_name: capturedCustomProcedure }),
+          }),
+          selectedProcedures.length === 0
+            ? fetch("/api/generate-aftercare", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ procedure_name: capturedCustomProcedure }),
+              })
+            : Promise.resolve(null),
+        ]);
+        if (prepRes.ok) { const d = await prepRes.json(); aiPrepInstructions = d.instructions ?? null; }
+        if (aftercareRes?.ok) { const d = await aftercareRes.json(); customAftercareInstructions = d.instructions ?? null; }
+      } catch { /* fall through — will use default instructions */ }
     }
 
     const res = await fetch("/api/treatments", {
@@ -453,7 +462,7 @@ export default function AftercarePage() {
       const j = await res.json();
       setTreatments(prev => [j.treatment, ...prev]);
       setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "", send_aftercare: true, came_via_bot: false });
-      setWalkinCustomProcedure("");
+      setCustomProcedure("");
       setAddingTreatment(false);
       flash(j.aftercare_sent ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
 
@@ -489,7 +498,7 @@ export default function AftercarePage() {
           // Show prep guide for the FUTURE (rebooked) appointment
           if (capturedIntakeId && !capturedIsWalkin) {
             const rebookProcName = rebookProcNames || procedureNames;
-            const instructions = defaultPrepInstructions(rebookProcName);
+            const instructions = aiPrepInstructions ?? defaultPrepInstructions(rebookProcName);
             const formattedDate = new Date(capturedRebookDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
             console.log("[handleLogTreatment] showing rebook prep guide for", capturedClientName, rebookProcName, formattedDate);
             setPrepPrompt({ intakeId: capturedIntakeId, clientName: capturedClientName, procedureName: rebookProcName, instructions, appointmentDate: formattedDate });
@@ -500,8 +509,9 @@ export default function AftercarePage() {
         }
       } else if (capturedIntakeId && !capturedIsWalkin) {
         // ── Regular (non-rebook) scheduled client: show prep guide ────────────
-        const instructions = defaultPrepInstructions(procedureNames);
-        console.log("[handleLogTreatment] showing prep guide for", capturedClientName, procedureNames, "intakeId:", capturedIntakeId);
+        // Use AI-generated instructions if a custom procedure was typed, else fallback to defaults
+        const instructions = aiPrepInstructions ?? defaultPrepInstructions(procedureNames);
+        console.log("[handleLogTreatment] showing prep guide for", capturedClientName, procedureNames, "intakeId:", capturedIntakeId, "aiInstructions:", !!aiPrepInstructions);
         setPrepPrompt({
           intakeId: capturedIntakeId,
           clientName: capturedClientName,
@@ -514,7 +524,7 @@ export default function AftercarePage() {
       }
     }
     setTreatmentSaving(false);
-  }, [newTreatment, walkinCustomProcedure, rebookChecked, rebookDate, rebookProcedureIds, procedures, token, intakes]);
+  }, [newTreatment, customProcedure, rebookChecked, rebookDate, rebookProcedureIds, procedures, token, intakes]);
 
   // ── Archive handlers ───────────────────────────────────────────────────────
   const loadArchivedTreatments = useCallback(async () => {
@@ -1346,22 +1356,20 @@ export default function AftercarePage() {
                         ✅ {newTreatment.procedure_ids.length} procedure{newTreatment.procedure_ids.length > 1 ? "s" : ""} selected
                       </p>
                     )}
-                    {/* Custom procedure for walk-ins or unlisted services */}
-                    {newTreatment.is_walkin && (
-                      <div className="mt-3">
-                        <label className="mb-1 block text-xs font-semibold text-slate-500">Or type a custom procedure (e.g. &quot;Jawline Filler&quot;)</label>
-                        <input
-                          type="text"
-                          value={walkinCustomProcedure}
-                          onChange={e => setWalkinCustomProcedure(e.target.value)}
-                          placeholder="e.g. Jawline Filler, Lip Flip, Under Eye Filler…"
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-[#0d9488]"
-                        />
-                        {walkinCustomProcedure.trim() && (
-                          <p className="mt-1 text-xs text-indigo-600">✨ AI will generate aftercare instructions for &quot;{walkinCustomProcedure.trim()}&quot; when you save.</p>
-                        )}
-                      </div>
-                    )}
+                    {/* Custom procedure — available for any client type */}
+                    <div className="mt-3">
+                      <label className="mb-1 block text-xs font-semibold text-slate-500">Or add a custom procedure</label>
+                      <input
+                        type="text"
+                        value={customProcedure}
+                        onChange={e => setCustomProcedure(e.target.value)}
+                        placeholder="e.g. Jawline Filler, Lip Flip, Morpheus8…"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-[#0d9488]"
+                      />
+                      {customProcedure.trim() && (
+                        <p className="mt-1 text-xs text-indigo-600">✨ AI will generate a personalised prep guide for &quot;{customProcedure.trim()}&quot; when you save.</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Date */}
@@ -1466,7 +1474,7 @@ export default function AftercarePage() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled={treatmentSaving || (!newTreatment.intake_id && !newTreatment.is_walkin) || (newTreatment.procedure_ids.length === 0 && !(newTreatment.is_walkin && walkinCustomProcedure.trim()))}
+                      disabled={treatmentSaving || (!newTreatment.intake_id && !newTreatment.is_walkin) || (newTreatment.procedure_ids.length === 0 && !customProcedure.trim())}
                       onClick={() => void handleLogTreatment()}
                       style={{ touchAction: "manipulation" }}
                       className="min-h-[48px] flex-1 rounded-full bg-[#0d9488] px-6 py-2 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50 active:scale-[0.97]"
