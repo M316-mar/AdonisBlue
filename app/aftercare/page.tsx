@@ -156,6 +156,7 @@ export default function AftercarePage() {
     clientName: string;
     procedureName: string;
     instructions: string;
+    appointmentDate?: string; // ISO date string for rebook appointments
   } | null>(null);
   const [prepTab, setPrepTab] = useState<"auto" | "custom">("auto");
   const [prepCustomText, setPrepCustomText] = useState("");
@@ -386,15 +387,32 @@ export default function AftercarePage() {
 
   // ── Treatment handler ──────────────────────────────────────────────────────
   const handleLogTreatment = useCallback(async () => {
-    const hasCustom = newTreatment.is_walkin && walkinCustomProcedure.trim();
-    if ((!newTreatment.intake_id && !newTreatment.is_walkin) || (newTreatment.procedure_ids.length === 0 && !hasCustom)) return;
+    // ── Snapshot all state values NOW, before any awaits or resets ────────────
+    // This is the fix for the prep guide not appearing: React 18 batches state
+    // updates, so reading newTreatment.*  after setState calls can be unreliable.
+    // By capturing upfront into plain locals, we're immune to any stale closure issues.
+    const capturedIntakeId = newTreatment.intake_id;
+    const capturedIsWalkin = newTreatment.is_walkin;
+    const capturedWalkinName = newTreatment.walkin_name;
+    const capturedRebookChecked = rebookChecked;
+    const capturedRebookDate = rebookDate;
+    const capturedRebookProcedureIds = rebookProcedureIds;
+    const capturedCustomProcedure = walkinCustomProcedure.trim();
+    const capturedClientName = intakes.find(i => i.id === capturedIntakeId)?.first_name
+      || capturedWalkinName
+      || "Client";
+
+    const hasCustom = capturedIsWalkin && capturedCustomProcedure;
+    if ((!capturedIntakeId && !capturedIsWalkin) || (newTreatment.procedure_ids.length === 0 && !hasCustom)) return;
     setTreatmentSaving(true);
 
     // Resolve procedure name — prefer selected procedures, fall back to custom input
     const selectedProcedures = procedures.filter(p => newTreatment.procedure_ids.includes(p.id));
     const procedureNames = selectedProcedures.length > 0
       ? selectedProcedures.map(p => p.name).join(", ")
-      : walkinCustomProcedure.trim();
+      : capturedCustomProcedure;
+
+    console.log("[handleLogTreatment] capturedIntakeId:", capturedIntakeId, "capturedIsWalkin:", capturedIsWalkin, "procedureNames:", procedureNames, "rebookChecked:", capturedRebookChecked);
 
     // If custom procedure was typed, call AI to generate aftercare instructions
     let customAftercareInstructions: string | null = null;
@@ -403,7 +421,7 @@ export default function AftercarePage() {
         const aiRes = await fetch("/api/generate-aftercare", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ procedure_name: walkinCustomProcedure.trim() }),
+          body: JSON.stringify({ procedure_name: capturedCustomProcedure }),
         });
         if (aiRes.ok) {
           const aiJ = await aiRes.json();
@@ -416,15 +434,15 @@ export default function AftercarePage() {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        intake_id: newTreatment.intake_id || null,
+        intake_id: capturedIntakeId || null,
         procedure_id: newTreatment.procedure_ids[0] ?? null,
         procedure_ids: newTreatment.procedure_ids,
         procedure_name: procedureNames,
         custom_aftercare_instructions: customAftercareInstructions,
         treatment_date: newTreatment.treatment_date,
         notes: newTreatment.notes,
-        is_walkin: newTreatment.is_walkin,
-        walkin_name: newTreatment.walkin_name,
+        is_walkin: capturedIsWalkin,
+        walkin_name: capturedWalkinName,
         walkin_email: newTreatment.walkin_email,
         walkin_phone: newTreatment.walkin_phone,
         send_aftercare: newTreatment.send_aftercare,
@@ -438,55 +456,55 @@ export default function AftercarePage() {
       setWalkinCustomProcedure("");
       setAddingTreatment(false);
       flash(j.aftercare_sent ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
-      // Handle rebook: create a second treatment record for the future appointment
-      const savedTreatment = j.treatment;
-      if (rebookChecked && rebookDate && (newTreatment.intake_id || newTreatment.is_walkin)) {
+
+      if (capturedRebookChecked && capturedRebookDate && (capturedIntakeId || capturedIsWalkin)) {
+        // ── Rebook: create second treatment for future appointment ─────────────
         const rebookProcNames = procedures
-          .filter(p => rebookProcedureIds.includes(p.id))
+          .filter(p => capturedRebookProcedureIds.includes(p.id))
           .map(p => p.name).join(", ");
         const rebookRes = await fetch("/api/treatments", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
-            intake_id: newTreatment.intake_id || null,
-            procedure_id: rebookProcedureIds[0] ?? null,
-            procedure_ids: rebookProcedureIds,
+            intake_id: capturedIntakeId || null,
+            procedure_id: capturedRebookProcedureIds[0] ?? null,
+            procedure_ids: capturedRebookProcedureIds,
             procedure_name: rebookProcNames || procedureNames,
-            treatment_date: rebookDate,
+            treatment_date: capturedRebookDate,
             notes: "Rebooked appointment",
-            is_walkin: newTreatment.is_walkin,
-            walkin_name: newTreatment.walkin_name,
+            is_walkin: capturedIsWalkin,
+            walkin_name: capturedWalkinName,
             walkin_email: newTreatment.walkin_email,
             walkin_phone: newTreatment.walkin_phone,
             send_aftercare: false,
             came_via_bot: newTreatment.came_via_bot,
           }),
         });
+        setRebookChecked(false);
+        setRebookDate("");
+        setRebookProcedureIds([]);
         if (rebookRes.ok) {
           const rj = await rebookRes.json();
           setTreatments(prev => [rj.treatment, ...prev]);
-          // Show prep guide for the future appointment (use newTreatment.intake_id — reliable closure value)
-          if (newTreatment.intake_id && !newTreatment.is_walkin) {
-            const clientName = intakes.find(i => i.id === newTreatment.intake_id)?.first_name || "Client";
+          // Show prep guide for the FUTURE (rebooked) appointment
+          if (capturedIntakeId && !capturedIsWalkin) {
             const rebookProcName = rebookProcNames || procedureNames;
             const instructions = defaultPrepInstructions(rebookProcName);
-            setPrepPrompt({ intakeId: newTreatment.intake_id, clientName, procedureName: rebookProcName, instructions });
+            const formattedDate = new Date(capturedRebookDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+            console.log("[handleLogTreatment] showing rebook prep guide for", capturedClientName, rebookProcName, formattedDate);
+            setPrepPrompt({ intakeId: capturedIntakeId, clientName: capturedClientName, procedureName: rebookProcName, instructions, appointmentDate: formattedDate });
             setPrepTab("auto");
             setPrepCustomText(instructions);
             setPrepSentDone(false);
           }
         }
-        setRebookChecked(false);
-        setRebookDate("");
-        setRebookProcedureIds([]);
-      } else if (newTreatment.intake_id && !newTreatment.is_walkin) {
-        // Show prep guide prompt for scheduled clients (not walk-ins — they're already in-clinic)
-        // Use newTreatment.intake_id directly (closure value) — more reliable than API response
-        const clientName = intakes.find(i => i.id === newTreatment.intake_id)?.first_name || "Client";
+      } else if (capturedIntakeId && !capturedIsWalkin) {
+        // ── Regular (non-rebook) scheduled client: show prep guide ────────────
         const instructions = defaultPrepInstructions(procedureNames);
+        console.log("[handleLogTreatment] showing prep guide for", capturedClientName, procedureNames, "intakeId:", capturedIntakeId);
         setPrepPrompt({
-          intakeId: newTreatment.intake_id,
-          clientName,
+          intakeId: capturedIntakeId,
+          clientName: capturedClientName,
           procedureName: procedureNames,
           instructions,
         });
@@ -1093,7 +1111,11 @@ export default function AftercarePage() {
                 ) : (
                   <>
                     <div className="flex items-start justify-between gap-3 mb-4">
-                      <p className="text-sm font-semibold text-[#1a2744]">💌 Send a pre-appointment prep guide to {prepPrompt.clientName}?</p>
+                      <p className="text-sm font-semibold text-[#1a2744]">
+                        {prepPrompt.appointmentDate
+                          ? `💌 Send a prep guide to ${prepPrompt.clientName} for their ${prepPrompt.procedureName} on ${prepPrompt.appointmentDate}?`
+                          : `💌 Send a pre-appointment prep guide to ${prepPrompt.clientName}?`}
+                      </p>
                       <button type="button" onClick={() => setPrepPrompt(null)} className="shrink-0 text-xs text-slate-400 hover:text-slate-600 underline">Skip</button>
                     </div>
                     {/* Auto / Customize tabs */}
