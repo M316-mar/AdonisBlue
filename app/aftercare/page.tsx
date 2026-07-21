@@ -1490,35 +1490,6 @@ export default function AftercarePage() {
                                 {treatment.notes && treatment.notes !== "Rebooked appointment" && (
                                   <p className="mt-1 text-xs text-slate-600 italic">{treatment.notes}</p>
                                 )}
-                                {/* Send aftercare button */}
-                                {!treatment.aftercare_sent && !aftercareSentIds.has(treatment.id) && treatment.intake_id && treatment.intakes?.email && (
-                                  <button
-                                    type="button"
-                                    disabled={aftercareSendingId === treatment.id}
-                                    onClick={async () => {
-                                      setAftercareSendingId(treatment.id);
-                                      try {
-                                        const res = await fetch("/api/send-aftercare", {
-                                          method: "POST",
-                                          headers: { "Content-Type": "application/json" },
-                                          body: JSON.stringify({ intake_id: treatment.intake_id }),
-                                        });
-                                        if (res.ok) {
-                                          setAftercareSentIds(prev => new Set([...prev, treatment.id]));
-                                          setTreatments(prev => prev.map(t =>
-                                            t.id === treatment.id ? { ...t, aftercare_sent: true } : t
-                                          ));
-                                          flash(`Aftercare sent to ${treatment.intakes?.first_name ?? "client"}! 💙`);
-                                        }
-                                      } finally {
-                                        setAftercareSendingId(null);
-                                      }
-                                    }}
-                                    className="mt-2 rounded-full bg-[#0d9488] px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
-                                  >
-                                    {aftercareSendingId === treatment.id ? "Sending…" : "Send aftercare 💌"}
-                                  </button>
-                                )}
                               </div>
                               {/* Archive button */}
                               <button

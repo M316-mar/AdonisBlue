@@ -52,7 +52,7 @@ export async function GET(request: Request) {
 
     const { data: treatments } = await supabase
       .from("treatments")
-      .select("*, intakes(first_name, email, phone, service_interested)")
+      .select("*, intakes(first_name, email, phone, service_interested, prep_guide_sent, followup_sent)")
       .eq("nurse_id", user.id)
       .eq("archived", showArchived)
       .order("created_at", { ascending: false });

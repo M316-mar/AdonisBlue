@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     // Fetch treatments — enforce nurse_id ownership
     const { data: treatments } = await supabase
       .from("treatments")
-      .select("id, procedure_name, treatment_date, intakes(first_name, email)")
+      .select("id, procedure_name, treatment_date, intake_id, intakes(first_name, email)")
       .in("id", treatmentIds)
       .eq("nurse_id", user.id);
 
@@ -128,6 +128,13 @@ export async function POST(request: Request) {
 </body></html>`,
         });
         sent++;
+        // Mark followup sent on the intake
+        if (treatment.intake_id) {
+          await supabase
+            .from("intakes")
+            .update({ followup_sent: true, followup_sent_at: new Date().toISOString() })
+            .eq("id", treatment.intake_id);
+        }
       } catch {
         // continue — don't fail the whole batch for one bad email
       }

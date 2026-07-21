@@ -23,11 +23,11 @@ export async function POST(request: Request) {
 
     const { data: bot } = await supabase
       .from("bots")
-      .select("aftercare, practice_name, primary_color, logo_image, logo_data_url")
+      .select("aftercare, aftercare_template, practice_name, primary_color, logo_image, logo_data_url")
       .eq("nurse_id", intake.nurse_id)
       .single();
 
-    const aftercare = bot?.aftercare || "Take care of yourself and stay hydrated!";
+    const aftercare = bot?.aftercare_template || bot?.aftercare || "Take care of yourself and stay hydrated!";
     const practiceName = bot?.practice_name || "your provider";
     const clientName = intake.first_name || "Beautiful";
 
