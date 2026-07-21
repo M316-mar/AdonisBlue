@@ -160,6 +160,11 @@ export default function AftercarePage() {
   const [prepCustomText, setPrepCustomText] = useState("");
   const [prepSending, setPrepSending] = useState(false);
   const [prepSentDone, setPrepSentDone] = useState(false);
+  // Rebook state (shown after logging a treatment)
+  const [rebookChecked, setRebookChecked] = useState(false);
+  const [rebookDate, setRebookDate] = useState("");
+  const [rebookProcedureIds, setRebookProcedureIds] = useState<string[]>([]);
+
   // Archive state
   const [archivedTreatments, setArchivedTreatments] = useState<Treatment[]>([]);
   const [showArchived, setShowArchived] = useState(false);
@@ -410,12 +415,50 @@ export default function AftercarePage() {
       setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "", send_aftercare: true, came_via_bot: false });
       setAddingTreatment(false);
       flash(j.aftercare_sent ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
-      // Show prep guide prompt if client has an intake (not walk-in without intake)
+      // Handle rebook: create a second treatment record for the future appointment
       const savedTreatment = j.treatment;
-      if (savedTreatment?.intake_id) {
-        const clientName = newTreatment.is_walkin
-          ? newTreatment.walkin_name || "Client"
-          : intakes.find(i => i.id === newTreatment.intake_id)?.first_name || "Client";
+      if (rebookChecked && rebookDate && (newTreatment.intake_id || newTreatment.is_walkin)) {
+        const rebookProcNames = procedures
+          .filter(p => rebookProcedureIds.includes(p.id))
+          .map(p => p.name).join(", ");
+        const rebookRes = await fetch("/api/treatments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            intake_id: newTreatment.intake_id || null,
+            procedure_id: rebookProcedureIds[0] ?? null,
+            procedure_ids: rebookProcedureIds,
+            procedure_name: rebookProcNames || procedureNames,
+            treatment_date: rebookDate,
+            notes: "Rebooked appointment",
+            is_walkin: newTreatment.is_walkin,
+            walkin_name: newTreatment.walkin_name,
+            walkin_email: newTreatment.walkin_email,
+            walkin_phone: newTreatment.walkin_phone,
+            send_aftercare: false,
+            came_via_bot: newTreatment.came_via_bot,
+          }),
+        });
+        if (rebookRes.ok) {
+          const rj = await rebookRes.json();
+          setTreatments(prev => [rj.treatment, ...prev]);
+          // Show prep guide for the future appointment intake (not walk-ins, they're already here)
+          if (rj.treatment?.intake_id && !newTreatment.is_walkin) {
+            const clientName = intakes.find(i => i.id === newTreatment.intake_id)?.first_name || "Client";
+            const rebookProcName = rebookProcNames || procedureNames;
+            const instructions = defaultPrepInstructions(rebookProcName);
+            setPrepPrompt({ intakeId: rj.treatment.intake_id, clientName, procedureName: rebookProcName, instructions });
+            setPrepTab("auto");
+            setPrepCustomText(instructions);
+            setPrepSentDone(false);
+          }
+        }
+        setRebookChecked(false);
+        setRebookDate("");
+        setRebookProcedureIds([]);
+      } else if (savedTreatment?.intake_id && !newTreatment.is_walkin) {
+        // Show prep guide prompt for scheduled clients (not walk-ins — they're already in-clinic)
+        const clientName = intakes.find(i => i.id === newTreatment.intake_id)?.first_name || "Client";
         const instructions = defaultPrepInstructions(procedureNames);
         setPrepPrompt({
           intakeId: savedTreatment.intake_id,
@@ -429,7 +472,7 @@ export default function AftercarePage() {
       }
     }
     setTreatmentSaving(false);
-  }, [newTreatment, procedures, token]);
+  }, [newTreatment, rebookChecked, rebookDate, rebookProcedureIds, procedures, token, intakes]);
 
   // ── Archive handlers ───────────────────────────────────────────────────────
   const loadArchivedTreatments = useCallback(async () => {
@@ -1305,6 +1348,59 @@ export default function AftercarePage() {
                     </label>
                   </div>
 
+                  {/* Rebook option */}
+                  <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 space-y-3">
+                    <label className="flex items-center gap-3 cursor-pointer min-h-[44px]">
+                      <input
+                        type="checkbox"
+                        checked={rebookChecked}
+                        onChange={e => {
+                          setRebookChecked(e.target.checked);
+                          if (e.target.checked) {
+                            // Default rebook date to 3 months out, same procedures
+                            const d = new Date();
+                            d.setMonth(d.getMonth() + 3);
+                            setRebookDate(d.toISOString().slice(0, 10));
+                            setRebookProcedureIds(newTreatment.procedure_ids);
+                          }
+                        }}
+                        className="h-4 w-4 rounded"
+                      />
+                      <span className="text-sm font-semibold text-indigo-800">📅 Rebook next appointment</span>
+                    </label>
+                    {rebookChecked && (
+                      <div className="space-y-3 pt-1">
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-slate-600">Next appointment date</label>
+                          <input
+                            type="date"
+                            value={rebookDate}
+                            onChange={e => setRebookDate(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-[#0d9488]"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-slate-600">Procedures for next appointment</label>
+                          <div className="flex flex-wrap gap-2">
+                            {procedures.filter((p, i, self) => i === self.findIndex(t => t.name === p.name)).map(p => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => setRebookProcedureIds(prev =>
+                                  prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id]
+                                )}
+                                className={`min-h-[40px] rounded-full px-4 py-1.5 text-xs font-semibold transition ${rebookProcedureIds.includes(p.id) ? "bg-indigo-500 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                              >
+                                {rebookProcedureIds.includes(p.id) ? "✓ " : ""}{p.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-xs text-indigo-600">A prep guide email will be sent to the client for their rebooked appointment.</p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -1348,7 +1444,7 @@ export default function AftercarePage() {
                       {treatment.came_via_bot && (
                         <span className="rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-xs font-semibold text-indigo-700">🤖 Via bot</span>
                       )}
-                      {treatment.aftercare_sent ? (
+                      {(treatment.aftercare_sent || aftercareSentIds.has(treatment.id)) ? (
                         <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">✅ Aftercare sent</span>
                       ) : (
                         <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">⏳ No aftercare</span>
