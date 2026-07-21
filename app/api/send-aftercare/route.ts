@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
     await supabase
       .from("intakes")
-      .update({ aftercare_sent_at: new Date().toISOString() })
+      .update({ aftercare_sent: true, aftercare_sent_at: new Date().toISOString() })
       .eq("id", intake_id);
 
     return NextResponse.json({ success: true });
