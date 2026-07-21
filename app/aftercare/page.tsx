@@ -152,18 +152,6 @@ export default function AftercarePage() {
   const [treatmentSubmitted, setTreatmentSubmitted] = useState(false);
   const [expandedClientIds, setExpandedClientIds] = useState<Set<string>>(new Set());
   const [customProcedure, setCustomProcedure] = useState("");
-  // Post-treatment prep guide prompt
-  const [prepPrompt, setPrepPrompt] = useState<{
-    intakeId: string | null;
-    clientName: string;
-    procedureName: string;
-    instructions: string;
-    appointmentDate?: string; // ISO date string for rebook appointments
-  } | null>(null);
-  const [prepTab, setPrepTab] = useState<"auto" | "custom">("auto");
-  const [prepCustomText, setPrepCustomText] = useState("");
-  const [prepSending, setPrepSending] = useState(false);
-  const [prepSentDone, setPrepSentDone] = useState(false);
   // Rebook state (shown after logging a treatment)
   const [rebookChecked, setRebookChecked] = useState(false);
   const [rebookDate, setRebookDate] = useState("");
@@ -517,32 +505,7 @@ export default function AftercarePage() {
         if (rebookRes.ok) {
           const rj = await rebookRes.json();
           setTreatments(prev => [rj.treatment, ...prev]);
-          // Show full interactive prep guide for the FUTURE (rebooked) appointment
-          console.log("[rebook] rebookRes.ok=true capturedIntakeId:", capturedIntakeId, "capturedIsWalkin:", capturedIsWalkin, "rebookEffectiveProcName:", rebookEffectiveProcName, "capturedRebookDate:", capturedRebookDate);
-          if (capturedIntakeId && !capturedIsWalkin) {
-            const instructions = rebookPrepInstructions ?? aiPrepInstructions ?? defaultPrepInstructions(rebookEffectiveProcName);
-            const formattedDate = new Date(capturedRebookDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-            console.log("[handleLogTreatment] showing rebook prep guide for", capturedClientName, rebookEffectiveProcName, formattedDate);
-            setPrepPrompt({ intakeId: capturedIntakeId, clientName: capturedClientName, procedureName: rebookEffectiveProcName, instructions, appointmentDate: formattedDate });
-            setPrepTab("auto");
-            setPrepCustomText(instructions);
-            setPrepSentDone(false);
-          }
         }
-      } else if (capturedIntakeId && !capturedIsWalkin) {
-        // ── Regular (non-rebook) scheduled client: show prep guide ────────────
-        // Use AI-generated instructions if a custom procedure was typed, else fallback to defaults
-        const instructions = aiPrepInstructions ?? defaultPrepInstructions(procedureNames);
-        console.log("[handleLogTreatment] showing prep guide for", capturedClientName, procedureNames, "intakeId:", capturedIntakeId, "aiInstructions:", !!aiPrepInstructions);
-        setPrepPrompt({
-          intakeId: capturedIntakeId,
-          clientName: capturedClientName,
-          procedureName: procedureNames,
-          instructions,
-        });
-        setPrepTab("auto");
-        setPrepCustomText(instructions);
-        setPrepSentDone(false);
       }
     }
     setTreatmentSaving(false);
@@ -1131,102 +1094,6 @@ export default function AftercarePage() {
         {/* ── Treatments Tab ─────────────────────────────────────────────── */}
         {tab === "treatments" && (
           <div className="space-y-4">
-            {/* Post-treatment prep guide prompt */}
-            {prepPrompt && (
-              <div className="rounded-2xl border-2 border-teal-200 bg-teal-50 p-5 shadow-sm">
-                {prepSentDone ? (
-                  <div className="text-center py-2">
-                    <p className="text-2xl mb-1">✅</p>
-                    <p className="font-semibold text-teal-800">Sent to {prepPrompt.clientName}!</p>
-                    <button type="button" onClick={() => setPrepPrompt(null)} className="mt-2 text-xs text-slate-500 underline">Dismiss</button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      <p className="text-sm font-semibold text-[#1a2744]">
-                        {prepPrompt.appointmentDate
-                          ? `💌 Send a prep guide to ${prepPrompt.clientName} for their ${prepPrompt.procedureName} on ${prepPrompt.appointmentDate}?`
-                          : `💌 Send a pre-appointment prep guide to ${prepPrompt.clientName}?`}
-                      </p>
-                      <button type="button" onClick={() => setPrepPrompt(null)} className="shrink-0 text-xs text-slate-400 hover:text-slate-600 underline">Skip</button>
-                    </div>
-                    {/* Auto / Customize tabs */}
-                    <div className="flex gap-2 mb-3">
-                      {([["auto", "✨ Auto"], ["custom", "✏️ Customize"]] as const).map(([id, label]) => (
-                        <button
-                          key={id}
-                          type="button"
-                          onClick={() => setPrepTab(id)}
-                          className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${prepTab === id ? "bg-[#0d9488] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    {prepTab === "auto" ? (
-                      <div className="space-y-3">
-                        <div className="rounded-xl border border-teal-200 bg-white px-4 py-3">
-                          {prepPrompt.instructions.split("\n").map((line, i) => (
-                            <p key={i} className="text-sm text-slate-700 py-0.5">✅ {line}</p>
-                          ))}
-                        </div>
-                        <button
-                          type="button"
-                          disabled={prepSending}
-                          onClick={async () => {
-                            setPrepSending(true);
-                            try {
-                              const res = await fetch("/api/send-prep-guide", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                                body: JSON.stringify({ intake_id: prepPrompt.intakeId, custom_instructions: prepPrompt.instructions }),
-                              });
-                              if (res.ok) setPrepSentDone(true);
-                              else flash("Could not send prep guide — please try again.");
-                            } finally {
-                              setPrepSending(false);
-                            }
-                          }}
-                          className="rounded-full bg-[#0d9488] px-6 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
-                        >
-                          {prepSending ? "Sending…" : "Send 💌"}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <textarea
-                          value={prepCustomText}
-                          onChange={e => setPrepCustomText(e.target.value)}
-                          rows={6}
-                          className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]/40 focus:ring-2 focus:ring-[#0d9488]/20"
-                        />
-                        <button
-                          type="button"
-                          disabled={prepSending}
-                          onClick={async () => {
-                            setPrepSending(true);
-                            try {
-                              const res = await fetch("/api/send-prep-guide", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                                body: JSON.stringify({ intake_id: prepPrompt.intakeId, custom_instructions: prepCustomText }),
-                              });
-                              if (res.ok) setPrepSentDone(true);
-                              else flash("Could not send prep guide — please try again.");
-                            } finally {
-                              setPrepSending(false);
-                            }
-                          }}
-                          className="rounded-full bg-[#0d9488] px-6 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
-                        >
-                          {prepSending ? "Sending…" : "Send 💌"}
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
             {/* Results summary */}
             <div className="flex gap-3">
               <StatBadge
@@ -1502,7 +1369,6 @@ export default function AftercarePage() {
                             )}
                           </div>
                         </div>
-                        <p className="text-xs text-indigo-600">💌 After saving, you&apos;ll be prompted to send a prep guide for this appointment.</p>
                       </div>
                     )}
                   </div>

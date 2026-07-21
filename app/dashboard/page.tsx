@@ -741,6 +741,12 @@ export default function NurseDashboardPage() {
                     🩹 Client Hub
                   </Link>
                   <Link
+                    href="/client-journey"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-4 py-2.5 text-center text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
+                  >
+                    🗺️ Client Journey
+                  </Link>
+                  <Link
                     href="/offers"
                     className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2.5 text-center text-sm font-semibold text-orange-700 transition hover:bg-orange-100"
                   >
