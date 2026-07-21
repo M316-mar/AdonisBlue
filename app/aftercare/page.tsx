@@ -149,6 +149,7 @@ export default function AftercarePage() {
   });
   const [addingTreatment, setAddingTreatment] = useState(false);
   const [treatmentSaving, setTreatmentSaving] = useState(false);
+  const [treatmentSubmitted, setTreatmentSubmitted] = useState(false);
   const [customProcedure, setCustomProcedure] = useState("");
   // Post-treatment prep guide prompt
   const [prepPrompt, setPrepPrompt] = useState<{
@@ -463,6 +464,7 @@ export default function AftercarePage() {
     if (res.ok) {
       const j = await res.json();
       setTreatments(prev => [j.treatment, ...prev]);
+      setTreatmentSubmitted(true);
       setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "", send_aftercare: true, came_via_bot: false });
       setCustomProcedure("");
       setAddingTreatment(false);
@@ -1246,7 +1248,7 @@ export default function AftercarePage() {
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => { setAddingTreatment(true); setCustomProcedure(""); }}
+                onClick={() => { setAddingTreatment(true); setCustomProcedure(""); setTreatmentSubmitted(false); }}
                 style={{ touchAction: "manipulation" }}
                 className="min-h-[44px] rounded-full bg-[#0d9488] px-5 py-2 text-sm font-bold text-white transition hover:bg-teal-700 active:scale-[0.97]"
               >
@@ -1507,7 +1509,7 @@ export default function AftercarePage() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled={treatmentSaving || (!newTreatment.intake_id && !newTreatment.is_walkin) || (newTreatment.procedure_ids.length === 0 && !customProcedure.trim())}
+                      disabled={treatmentSaving || treatmentSubmitted || (!newTreatment.intake_id && !newTreatment.is_walkin) || (newTreatment.procedure_ids.length === 0 && !customProcedure.trim())}
                       onClick={() => void handleLogTreatment()}
                       style={{ touchAction: "manipulation" }}
                       className="min-h-[48px] flex-1 rounded-full bg-[#0d9488] px-6 py-2 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50 active:scale-[0.97]"
@@ -1516,7 +1518,7 @@ export default function AftercarePage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setAddingTreatment(false); setCustomProcedure(""); }}
+                      onClick={() => { setAddingTreatment(false); setCustomProcedure(""); setTreatmentSubmitted(false); }}
                       style={{ touchAction: "manipulation" }}
                       className="min-h-[48px] rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 active:scale-[0.97]"
                     >
