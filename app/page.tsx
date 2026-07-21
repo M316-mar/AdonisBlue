@@ -164,7 +164,7 @@ export default function Home() {
           </nav>
           <div className="flex items-center gap-2">
             <a href="/auth" className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:border-teal-300 hover:text-[#0d9488]">Log in</a>
-            <a href="#pricing" className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-teal-200 transition hover:bg-teal-700">Get Started</a>
+            <a href="/auth" className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-teal-200 transition hover:bg-teal-700">Get Started</a>
           </div>
         </div>
       </header>
