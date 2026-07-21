@@ -1245,7 +1245,7 @@ export default function AftercarePage() {
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => setAddingTreatment(true)}
+                onClick={() => { setAddingTreatment(true); setCustomProcedure(""); }}
                 style={{ touchAction: "manipulation" }}
                 className="min-h-[44px] rounded-full bg-[#0d9488] px-5 py-2 text-sm font-bold text-white transition hover:bg-teal-700 active:scale-[0.97]"
               >
@@ -1515,7 +1515,7 @@ export default function AftercarePage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setAddingTreatment(false)}
+                      onClick={() => { setAddingTreatment(false); setCustomProcedure(""); }}
                       style={{ touchAction: "manipulation" }}
                       className="min-h-[48px] rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 active:scale-[0.97]"
                     >
