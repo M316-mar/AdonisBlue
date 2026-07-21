@@ -79,6 +79,29 @@ function StatBadge({ label, value, color }: { label: string; value: string | num
   );
 }
 
+// ─── Prep guide helpers ────────────────────────────────────────────────────────
+
+function defaultPrepInstructions(procedureName: string): string {
+  const lower = procedureName.toLowerCase();
+  if (lower.includes("lip")) {
+    return "Come with clean lips — no lip liner or lipstick.\nAvoid alcohol 24 hours before your appointment.\nAvoid blood thinners and ibuprofen for 24 hours.\nStay hydrated — drink plenty of water.\nArrive 10 minutes early.";
+  }
+  if (lower.includes("botox") || lower.includes("neuromodulator") || lower.includes("dysport") || lower.includes("xeomin")) {
+    return "Come with a clean face — no makeup.\nAvoid alcohol 24 hours before your appointment.\nAvoid blood thinners and ibuprofen for 24 hours.\nDon't exercise heavily the day of your appointment.\nArrive 10 minutes early.";
+  }
+  if (lower.includes("cheek") || lower.includes("filler") || lower.includes("jawline") || lower.includes("chin") || lower.includes("temple") || lower.includes("under eye") || lower.includes("tear")) {
+    return "Come with a clean face — no makeup.\nAvoid alcohol 24 hours before your appointment.\nAvoid blood thinners and ibuprofen for 24 hours.\nStay hydrated — drink plenty of water.\nArrive 10 minutes early.";
+  }
+  if (lower.includes("prp") || lower.includes("biostimulator") || lower.includes("sculptra") || lower.includes("radiesse")) {
+    return "Come with a clean face — no makeup.\nAvoid alcohol 48 hours before your appointment.\nAvoid blood thinners and ibuprofen for 48 hours.\nStay hydrated — drink plenty of water.\nArrive 10 minutes early.";
+  }
+  if (lower.includes("skin") || lower.includes("booster") || lower.includes("hydra") || lower.includes("microneedling")) {
+    return "Come with a clean face — no makeup or active skincare.\nAvoid alcohol 24 hours before your appointment.\nAvoid retinol and acids for 3 days before.\nStay hydrated — drink plenty of water.\nArrive 10 minutes early.";
+  }
+  // Generic default
+  return "Come with a clean face — no makeup.\nAvoid alcohol 24 hours before your appointment.\nAvoid blood thinners and ibuprofen for 24 hours.\nStay hydrated — drink plenty of water.\nArrive 10 minutes early.";
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AftercarePage() {
@@ -87,7 +110,7 @@ export default function AftercarePage() {
   const [token, setToken] = useState("");
 
   // Top-level tab
-  const [tab, setTab] = useState<"procedures" | "treatments" | "prep" | "emergency" | "alerts">("treatments");
+  const [tab, setTab] = useState<"procedures" | "treatments" | "emergency" | "alerts">("treatments");
 
   // Procedure state
   const [procedures, setProcedures] = useState<Procedure[]>([]);
@@ -126,6 +149,17 @@ export default function AftercarePage() {
   });
   const [addingTreatment, setAddingTreatment] = useState(false);
   const [treatmentSaving, setTreatmentSaving] = useState(false);
+  // Post-treatment prep guide prompt
+  const [prepPrompt, setPrepPrompt] = useState<{
+    intakeId: string | null;
+    clientName: string;
+    procedureName: string;
+    instructions: string;
+  } | null>(null);
+  const [prepTab, setPrepTab] = useState<"auto" | "custom">("auto");
+  const [prepCustomText, setPrepCustomText] = useState("");
+  const [prepSending, setPrepSending] = useState(false);
+  const [prepSentDone, setPrepSentDone] = useState(false);
   // Archive state
   const [archivedTreatments, setArchivedTreatments] = useState<Treatment[]>([]);
   const [showArchived, setShowArchived] = useState(false);
@@ -167,15 +201,6 @@ export default function AftercarePage() {
   const [aftercareSendingId, setAftercareSendingId] = useState<string | null>(null);
   const [aftercareSentIds, setAftercareSentIds] = useState<Set<string>>(new Set());
 
-  // Pre-appointment prep guide state
-  const [prepInstructions, setPrepInstructions] = useState(
-    "Come with a clean face — no makeup\nAvoid alcohol 24 hours before your appointment\nAvoid blood thinners and ibuprofen for 24 hours\nStay hydrated — drink plenty of water\nArrive 10 minutes early"
-  );
-  const [prepSaving, setPrepSaving] = useState(false);
-  const [prepSendingId, setPrepSendingId] = useState<string | null>(null);
-  const [prepSentIds, setPrepSentIds] = useState<Set<string>>(new Set());
-  const [hasBookingSoftware, setHasBookingSoftware] = useState(false);
-
   const [successMsg, setSuccessMsg] = useState("");
 
   function flash(msg: string, ms = 4000) {
@@ -207,13 +232,12 @@ export default function AftercarePage() {
       const t = data.session.access_token;
       setToken(t);
 
-      const [procRes, treatRes, intakeRes, kwRes, alertRes, botRes] = await Promise.all([
+      const [procRes, treatRes, intakeRes, kwRes, alertRes] = await Promise.all([
         fetch("/api/procedures", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/treatments", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/intakes", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/emergency-keywords", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/alert-settings", { headers: { Authorization: `Bearer ${t}` } }),
-        fetch("/api/mybot", { headers: { Authorization: `Bearer ${t}` } }),
       ]);
 
       if (!cancelled) {
@@ -221,27 +245,13 @@ export default function AftercarePage() {
         if (treatRes.ok) { const j = await treatRes.json(); setTreatments(j.treatments ?? []); }
         if (intakeRes.ok) {
           const j = await intakeRes.json();
-          const loadedIntakes = j.intakes ?? [];
-          setIntakes(loadedIntakes);
-          // Pre-populate sent IDs from DB
-          const alreadySent = new Set<string>(
-            loadedIntakes.filter((i: Intake & { prep_guide_sent?: boolean }) => i.prep_guide_sent).map((i: Intake) => i.id)
-          );
-          setPrepSentIds(alreadySent);
+          setIntakes(j.intakes ?? []);
         }
         if (kwRes.ok) { const j = await kwRes.json(); setEmergencyKeywords(j.keywords ?? []); }
         if (alertRes.ok) {
           const j = await alertRes.json();
           setAlertEmail(j.alert_email ?? "");
           setAlertPhone(j.alert_phone ?? "");
-        }
-        if (botRes.ok) {
-          const j = await botRes.json();
-          const bot = j.bot;
-          if (bot?.pre_appointment_instructions?.trim()) {
-            setPrepInstructions(bot.pre_appointment_instructions.trim());
-          }
-          setHasBookingSoftware(Boolean(bot?.webhook_secret?.trim()));
         }
         void loadIncidents(t);
       }
@@ -400,6 +410,23 @@ export default function AftercarePage() {
       setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "", send_aftercare: true, came_via_bot: false });
       setAddingTreatment(false);
       flash(j.aftercare_sent ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
+      // Show prep guide prompt if client has an intake (not walk-in without intake)
+      const savedTreatment = j.treatment;
+      if (savedTreatment?.intake_id) {
+        const clientName = newTreatment.is_walkin
+          ? newTreatment.walkin_name || "Client"
+          : intakes.find(i => i.id === newTreatment.intake_id)?.first_name || "Client";
+        const instructions = defaultPrepInstructions(procedureNames);
+        setPrepPrompt({
+          intakeId: savedTreatment.intake_id,
+          clientName,
+          procedureName: procedureNames,
+          instructions,
+        });
+        setPrepTab("auto");
+        setPrepCustomText(instructions);
+        setPrepSentDone(false);
+      }
     }
     setTreatmentSaving(false);
   }, [newTreatment, procedures, token]);
@@ -540,7 +567,6 @@ export default function AftercarePage() {
             [
               { id: "treatments", label: `💉 Treatments (${treatments.length})` },
               { id: "procedures", label: `📋 Procedures (${procedures.length})` },
-              { id: "prep", label: "🗓️ Pre-Appointment" },
               { id: "emergency", label: `⚠️ Emergency${incidents.length > 0 ? ` (${incidents.length})` : ""}` },
               { id: "alerts", label: "⚙️ Alerts" },
             ] as const
@@ -988,6 +1014,98 @@ export default function AftercarePage() {
         {/* ── Treatments Tab ─────────────────────────────────────────────── */}
         {tab === "treatments" && (
           <div className="space-y-4">
+            {/* Post-treatment prep guide prompt */}
+            {prepPrompt && (
+              <div className="rounded-2xl border-2 border-teal-200 bg-teal-50 p-5 shadow-sm">
+                {prepSentDone ? (
+                  <div className="text-center py-2">
+                    <p className="text-2xl mb-1">✅</p>
+                    <p className="font-semibold text-teal-800">Sent to {prepPrompt.clientName}!</p>
+                    <button type="button" onClick={() => setPrepPrompt(null)} className="mt-2 text-xs text-slate-500 underline">Dismiss</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                      <p className="text-sm font-semibold text-[#1a2744]">💌 Send a pre-appointment prep guide to {prepPrompt.clientName}?</p>
+                      <button type="button" onClick={() => setPrepPrompt(null)} className="shrink-0 text-xs text-slate-400 hover:text-slate-600 underline">Skip</button>
+                    </div>
+                    {/* Auto / Customize tabs */}
+                    <div className="flex gap-2 mb-3">
+                      {([["auto", "✨ Auto"], ["custom", "✏️ Customize"]] as const).map(([id, label]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setPrepTab(id)}
+                          className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${prepTab === id ? "bg-[#0d9488] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {prepTab === "auto" ? (
+                      <div className="space-y-3">
+                        <div className="rounded-xl border border-teal-200 bg-white px-4 py-3">
+                          {prepPrompt.instructions.split("\n").map((line, i) => (
+                            <p key={i} className="text-sm text-slate-700 py-0.5">✅ {line}</p>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={prepSending}
+                          onClick={async () => {
+                            setPrepSending(true);
+                            try {
+                              const res = await fetch("/api/send-prep-guide", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({ intake_id: prepPrompt.intakeId, custom_instructions: prepPrompt.instructions }),
+                              });
+                              if (res.ok) setPrepSentDone(true);
+                              else flash("Could not send prep guide — please try again.");
+                            } finally {
+                              setPrepSending(false);
+                            }
+                          }}
+                          className="rounded-full bg-[#0d9488] px-6 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+                        >
+                          {prepSending ? "Sending…" : "Send 💌"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <textarea
+                          value={prepCustomText}
+                          onChange={e => setPrepCustomText(e.target.value)}
+                          rows={6}
+                          className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]/40 focus:ring-2 focus:ring-[#0d9488]/20"
+                        />
+                        <button
+                          type="button"
+                          disabled={prepSending}
+                          onClick={async () => {
+                            setPrepSending(true);
+                            try {
+                              const res = await fetch("/api/send-prep-guide", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({ intake_id: prepPrompt.intakeId, custom_instructions: prepCustomText }),
+                              });
+                              if (res.ok) setPrepSentDone(true);
+                              else flash("Could not send prep guide — please try again.");
+                            } finally {
+                              setPrepSending(false);
+                            }
+                          }}
+                          className="rounded-full bg-[#0d9488] px-6 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+                        >
+                          {prepSending ? "Sending…" : "Send 💌"}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
             {/* Results summary */}
             <div className="flex gap-3">
               <StatBadge
@@ -1342,117 +1460,6 @@ export default function AftercarePage() {
                 ))}
               </div>
             )}
-          </div>
-        )}
-
-        {/* ── Pre-Appointment Tab ─────────────────────────────────────────── */}
-        {tab === "prep" && (
-          <div className="space-y-5">
-
-            {/* Booking software banner */}
-            {hasBookingSoftware ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700">
-                ✅ Booking software connected — prep guides will send automatically when clients book.
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
-                <span className="font-semibold">💡 Connect your booking software</span> to send prep guides automatically when clients book.{" "}
-                <Link href="/booking-connect" className="underline font-semibold hover:text-amber-900">Set it up →</Link>
-                {" "}For now, send manually below.
-              </div>
-            )}
-
-            {/* Section A — Prep instructions */}
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-4">
-              <div>
-                <h3 className="text-base font-bold text-[#1a2744]">Your prep instructions</h3>
-                <p className="text-sm text-slate-500 mt-1">What should clients know before arriving? One instruction per line.</p>
-              </div>
-              <textarea
-                value={prepInstructions}
-                onChange={e => setPrepInstructions(e.target.value)}
-                rows={7}
-                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#0d9488]/40 focus:bg-white focus:ring-2 focus:ring-[#0d9488]/20"
-                placeholder="Come with a clean face — no makeup&#10;Avoid alcohol 24 hours before&#10;..."
-              />
-              <button
-                type="button"
-                disabled={prepSaving}
-                onClick={async () => {
-                  setPrepSaving(true);
-                  try {
-                    await fetch("/api/savebot", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                      body: JSON.stringify({ pre_appointment_instructions: prepInstructions }),
-                    });
-                    flash("Prep instructions saved!");
-                  } finally {
-                    setPrepSaving(false);
-                  }
-                }}
-                className="rounded-full bg-[#0d9488] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
-              >
-                {prepSaving ? "Saving…" : "Save instructions"}
-              </button>
-            </div>
-
-            {/* Section B — Send to clients */}
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-              <div className="bg-slate-50 border-b border-slate-100 px-6 py-4">
-                <h3 className="text-base font-bold text-[#1a2744]">Send to clients</h3>
-                <p className="text-sm text-slate-500 mt-0.5">Clients who haven't received their prep guide yet.</p>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {intakes.filter(i => !prepSentIds.has(i.id)).length === 0 ? (
-                  <div className="px-6 py-10 text-center">
-                    <p className="text-3xl mb-2">✅</p>
-                    <p className="font-semibold text-[#1a2744]">All clients have received their prep guide!</p>
-                  </div>
-                ) : (
-                  intakes
-                    .filter(i => !prepSentIds.has(i.id) && i.email)
-                    .map(i => (
-                      <div key={i.id} className="flex items-center justify-between gap-4 px-6 py-4">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-[#1a2744] truncate">{i.first_name || "Unknown"}</p>
-                          <p className="text-xs text-slate-500 truncate">{i.email}</p>
-                          {i.service_interested && (
-                            <p className="text-xs text-teal-600 mt-0.5">{i.service_interested}</p>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          disabled={prepSendingId === i.id}
-                          onClick={async () => {
-                            setPrepSendingId(i.id);
-                            try {
-                              const res = await fetch("/api/send-prep-guide", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                                body: JSON.stringify({ intake_id: i.id }),
-                              });
-                              if (res.ok) {
-                                setPrepSentIds(prev => new Set([...prev, i.id]));
-                                flash(`Prep guide sent to ${i.first_name || "client"}!`);
-                              } else {
-                                const j = await res.json();
-                                flash(`Error: ${j.error ?? "Could not send"}`);
-                              }
-                            } finally {
-                              setPrepSendingId(null);
-                            }
-                          }}
-                          className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60 whitespace-nowrap"
-                        >
-                          {prepSendingId === i.id ? "Sending…" : "Send Prep Guide 💌"}
-                        </button>
-                      </div>
-                    ))
-                )}
-              </div>
-            </div>
-
           </div>
         )}
 

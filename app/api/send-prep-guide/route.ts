@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabaseAuth.auth.getUser(token);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { intake_id } = await request.json();
+    const { intake_id, custom_instructions } = await request.json();
     if (!intake_id) return NextResponse.json({ error: "Missing intake_id" }, { status: 400 });
 
     const supabase = createClient(
@@ -56,7 +56,12 @@ export async function POST(request: Request) {
       .single();
 
     const practiceName = bot?.practice_name || "your provider";
-    const rawInstructions: string = bot?.pre_appointment_instructions?.trim() || "";
+
+    // Priority: custom_instructions from request > bot's saved instructions > hardcoded defaults
+    const rawInstructions: string =
+      (typeof custom_instructions === "string" && custom_instructions.trim())
+        ? custom_instructions.trim()
+        : bot?.pre_appointment_instructions?.trim() || "";
 
     // Parse instructions — split by newline, fall back to defaults
     const instructionLines: string[] = rawInstructions
