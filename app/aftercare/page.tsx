@@ -150,6 +150,7 @@ export default function AftercarePage() {
   const [addingTreatment, setAddingTreatment] = useState(false);
   const [treatmentSaving, setTreatmentSaving] = useState(false);
   const [treatmentSubmitted, setTreatmentSubmitted] = useState(false);
+  const [expandedClientIds, setExpandedClientIds] = useState<Set<string>>(new Set());
   const [customProcedure, setCustomProcedure] = useState("");
   // Post-treatment prep guide prompt
   const [prepPrompt, setPrepPrompt] = useState<{
@@ -1538,95 +1539,165 @@ export default function AftercarePage() {
               </div>
             )}
 
-            {/* Treatment cards */}
-            {treatments.map(treatment => (
-              <div key={treatment.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <p className="font-bold text-[#1a2744]">{treatment.intakes?.first_name ?? "Client"}</p>
-                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">{treatment.procedure_name}</span>
-                      {treatment.came_via_bot && (
-                        <span className="rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-xs font-semibold text-indigo-700">🤖 Via bot</span>
-                      )}
-                      {(treatment.aftercare_sent || aftercareSentIds.has(treatment.id)) ? (
-                        <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">✅ Aftercare sent</span>
-                      ) : (
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">⏳ No aftercare</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500">
-                      {treatment.intakes?.email} · {new Date(treatment.treatment_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                    </p>
-                    {treatment.notes && <p className="mt-1 text-xs text-slate-600 italic">{treatment.notes}</p>}
-                    {/* Send aftercare button — only if not already sent and has an intake */}
-                    {!treatment.aftercare_sent && !aftercareSentIds.has(treatment.id) && treatment.intake_id && treatment.intakes?.email && (
-                      <button
-                        type="button"
-                        disabled={aftercareSendingId === treatment.id}
-                        onClick={async () => {
-                          setAftercareSendingId(treatment.id);
-                          try {
-                            const res = await fetch("/api/send-aftercare", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ intake_id: treatment.intake_id }),
-                            });
-                            if (res.ok) {
-                              setAftercareSentIds(prev => new Set([...prev, treatment.id]));
-                              setTreatments(prev => prev.map(t =>
-                                t.id === treatment.id ? { ...t, aftercare_sent: true } : t
-                              ));
-                              flash(`Aftercare sent to ${treatment.intakes?.first_name ?? "client"}! 💙`);
-                            }
-                          } finally {
-                            setAftercareSendingId(null);
-                          }
-                        }}
-                        className="mt-2 rounded-full bg-[#0d9488] px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
-                      >
-                        {aftercareSendingId === treatment.id ? "Sending…" : "Send aftercare 💌"}
-                      </button>
+            {/* Client-grouped treatment cards */}
+            {(() => {
+              // Group treatments by intake_id (fall back to email, then "walk-in-{id}")
+              const groups: Map<string, Treatment[]> = new Map();
+              for (const t of treatments) {
+                const key = t.intake_id ?? (t.intakes?.email ?? `walk-in-${t.id}`);
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key)!.push(t);
+              }
+              return Array.from(groups.entries()).map(([groupKey, groupTreatments]) => {
+                const rep = groupTreatments[0];
+                const clientName = rep.intakes?.first_name ?? "Walk-in Client";
+                const clientEmail = rep.intakes?.email ?? "";
+                const hasUnsent = groupTreatments.some(t => !t.aftercare_sent && !aftercareSentIds.has(t.id));
+                // Auto-expand if any treatment has unsent aftercare
+                const isExpanded = expandedClientIds.has(groupKey) || (!expandedClientIds.has(`collapsed:${groupKey}`) && hasUnsent);
+                const toggle = () => setExpandedClientIds(prev => {
+                  const next = new Set(prev);
+                  if (isExpanded) {
+                    next.delete(groupKey);
+                    next.add(`collapsed:${groupKey}`);
+                  } else {
+                    next.add(groupKey);
+                    next.delete(`collapsed:${groupKey}`);
+                  }
+                  return next;
+                });
+                return (
+                  <div key={groupKey} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                    {/* Client header — click to expand/collapse */}
+                    <button
+                      type="button"
+                      onClick={toggle}
+                      className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50 transition"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="shrink-0 h-9 w-9 rounded-full bg-gradient-to-br from-teal-400 to-[#1a2744] flex items-center justify-center text-white text-sm font-bold">
+                          {clientName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-[#1a2744] truncate">{clientName}</p>
+                          {clientEmail && <p className="text-xs text-slate-500 truncate">{clientEmail}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {hasUnsent && (
+                          <span className="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-700">⏳ Aftercare pending</span>
+                        )}
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                          {groupTreatments.length} treatment{groupTreatments.length !== 1 ? "s" : ""}
+                        </span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {/* Treatment timeline — shown when expanded */}
+                    {isExpanded && (
+                      <div className="border-t border-slate-100 divide-y divide-slate-100">
+                        {groupTreatments.map((treatment, idx) => (
+                          <div key={treatment.id} className="px-5 py-4">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">{treatment.procedure_name}</span>
+                                  {treatment.came_via_bot && (
+                                    <span className="rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-xs font-semibold text-indigo-700">🤖 Via bot</span>
+                                  )}
+                                  {treatment.notes === "Rebooked appointment" && (
+                                    <span className="rounded-full bg-purple-50 border border-purple-200 px-2 py-0.5 text-xs font-semibold text-purple-700">📅 Rebooked</span>
+                                  )}
+                                  {(treatment.aftercare_sent || aftercareSentIds.has(treatment.id)) ? (
+                                    <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">✅ Aftercare sent</span>
+                                  ) : (
+                                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">⏳ No aftercare</span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-500">
+                                  {new Date(treatment.treatment_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                                  {idx === 0 && <span className="ml-1 text-teal-600 font-semibold">· Latest</span>}
+                                </p>
+                                {treatment.notes && treatment.notes !== "Rebooked appointment" && (
+                                  <p className="mt-1 text-xs text-slate-600 italic">{treatment.notes}</p>
+                                )}
+                                {/* Send aftercare button */}
+                                {!treatment.aftercare_sent && !aftercareSentIds.has(treatment.id) && treatment.intake_id && treatment.intakes?.email && (
+                                  <button
+                                    type="button"
+                                    disabled={aftercareSendingId === treatment.id}
+                                    onClick={async () => {
+                                      setAftercareSendingId(treatment.id);
+                                      try {
+                                        const res = await fetch("/api/send-aftercare", {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ intake_id: treatment.intake_id }),
+                                        });
+                                        if (res.ok) {
+                                          setAftercareSentIds(prev => new Set([...prev, treatment.id]));
+                                          setTreatments(prev => prev.map(t =>
+                                            t.id === treatment.id ? { ...t, aftercare_sent: true } : t
+                                          ));
+                                          flash(`Aftercare sent to ${treatment.intakes?.first_name ?? "client"}! 💙`);
+                                        }
+                                      } finally {
+                                        setAftercareSendingId(null);
+                                      }
+                                    }}
+                                    className="mt-2 rounded-full bg-[#0d9488] px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+                                  >
+                                    {aftercareSendingId === treatment.id ? "Sending…" : "Send aftercare 💌"}
+                                  </button>
+                                )}
+                              </div>
+                              {/* Archive button */}
+                              <button
+                                type="button"
+                                onClick={() => setArchiveConfirmId(archiveConfirmId === treatment.id ? null : treatment.id)}
+                                className="shrink-0 rounded-full p-1.5 text-slate-300 transition hover:bg-red-50 hover:text-red-400"
+                                title="Archive treatment"
+                                aria-label="Archive treatment"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            </div>
+                            {/* Inline archive confirmation */}
+                            {archiveConfirmId === treatment.id && (
+                              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                <p className="font-medium mb-2">Archive this treatment? It won&apos;t appear in your list but the data is kept safely.</p>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleArchive(treatment.id)}
+                                    disabled={archivingId === treatment.id}
+                                    className="rounded-full bg-amber-500 px-3 py-1 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                                  >
+                                    {archivingId === treatment.id ? "Archiving…" : "Yes, archive"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setArchiveConfirmId(null)}
+                                    className="rounded-full border border-amber-300 px-3 py-1 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  {/* Archive button — subtle trash icon at far right */}
-                  <button
-                    type="button"
-                    onClick={() => setArchiveConfirmId(archiveConfirmId === treatment.id ? null : treatment.id)}
-                    className="shrink-0 rounded-full p-1.5 text-slate-300 transition hover:bg-red-50 hover:text-red-400"
-                    title="Archive treatment"
-                    aria-label="Archive treatment"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-                {/* Inline archive confirmation */}
-                {archiveConfirmId === treatment.id && (
-                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                    <p className="font-medium mb-2">Archive this treatment? It won&apos;t appear in your list but the data is kept safely.</p>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void handleArchive(treatment.id)}
-                        disabled={archivingId === treatment.id}
-                        className="rounded-full bg-amber-500 px-3 py-1 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
-                      >
-                        {archivingId === treatment.id ? "Archiving…" : "Yes, archive"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setArchiveConfirmId(null)}
-                        className="rounded-full border border-amber-300 px-3 py-1 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                );
+              });
+            })()}
 
             {/* Show archived toggle */}
             <div className="mt-2 flex justify-center">
