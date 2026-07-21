@@ -1235,7 +1235,7 @@ export default function AftercarePage() {
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-600">Select procedures (can choose multiple)</label>
                     <div className="flex flex-wrap gap-2">
-                      {procedures.map(p => (
+                      {procedures.filter((p, i, self) => i === self.findIndex(t => t.name === p.name)).map(p => (
                         <button
                           key={p.id}
                           type="button"

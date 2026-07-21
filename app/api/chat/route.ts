@@ -137,14 +137,19 @@ export async function POST(request: Request) {
       }
     }
 
+    // Deduplicate procedures by name
+    const uniqueProcedureRows = procedureRows.filter(
+      (p, index, self) => index === self.findIndex((t) => t.name === p.name)
+    );
+
     // Build service name list: procedures table wins, fall back to bots.services
     const serviceNames: string[] =
-      procedureRows.length > 0
-        ? procedureRows.map((p) => p.name)
+      uniqueProcedureRows.length > 0
+        ? uniqueProcedureRows.map((p) => p.name)
         : (botConfig.services || []);
 
     // Build per-procedure aftercare block (only for procedures that have instructions)
-    const procedureAftercareBlock = procedureRows
+    const procedureAftercareBlock = uniqueProcedureRows
       .filter((p) => p.aftercare_instructions?.trim())
       .map((p) => `${p.name}:\n${p.aftercare_instructions!.trim()}`)
       .join("\n\n");
