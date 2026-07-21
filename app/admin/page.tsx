@@ -239,7 +239,7 @@ export default function AdminPage() {
                 });
                 const json = await res.json();
                 if (json.url) {
-                  window.open(json.url, "_blank", "noopener,noreferrer");
+                  window.location.href = json.url;
                 } else {
                   alert("Could not generate preview link: " + (json.error ?? "unknown error"));
                 }
