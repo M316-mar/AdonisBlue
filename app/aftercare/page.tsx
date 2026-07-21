@@ -515,6 +515,7 @@ export default function AftercarePage() {
           const rj = await rebookRes.json();
           setTreatments(prev => [rj.treatment, ...prev]);
           // Show full interactive prep guide for the FUTURE (rebooked) appointment
+          console.log("[rebook] rebookRes.ok=true capturedIntakeId:", capturedIntakeId, "capturedIsWalkin:", capturedIsWalkin, "rebookEffectiveProcName:", rebookEffectiveProcName, "capturedRebookDate:", capturedRebookDate);
           if (capturedIntakeId && !capturedIsWalkin) {
             const instructions = rebookPrepInstructions ?? aiPrepInstructions ?? defaultPrepInstructions(rebookEffectiveProcName);
             const formattedDate = new Date(capturedRebookDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
