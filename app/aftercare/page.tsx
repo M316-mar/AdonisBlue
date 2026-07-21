@@ -166,6 +166,7 @@ export default function AftercarePage() {
   const [rebookChecked, setRebookChecked] = useState(false);
   const [rebookDate, setRebookDate] = useState("");
   const [rebookProcedureIds, setRebookProcedureIds] = useState<string[]>([]);
+  const [rebookCustomProcedure, setRebookCustomProcedure] = useState("");
 
   // Archive state
   const [archivedTreatments, setArchivedTreatments] = useState<Treatment[]>([]);
@@ -397,6 +398,7 @@ export default function AftercarePage() {
     const capturedRebookChecked = rebookChecked;
     const capturedRebookDate = rebookDate;
     const capturedRebookProcedureIds = rebookProcedureIds;
+    const capturedRebookCustomProcedure = rebookCustomProcedure.trim();
     const capturedCustomProcedure = customProcedure.trim();
     const capturedClientName = intakes.find(i => i.id === capturedIntakeId)?.first_name
       || capturedWalkinName
@@ -471,6 +473,22 @@ export default function AftercarePage() {
         const rebookProcNames = procedures
           .filter(p => capturedRebookProcedureIds.includes(p.id))
           .map(p => p.name).join(", ");
+        // Effective rebook procedure name: selected list OR custom field
+        const rebookEffectiveProcName = rebookProcNames || capturedRebookCustomProcedure || procedureNames;
+
+        // If a rebook custom procedure was typed, fetch AI prep instructions for it
+        let rebookPrepInstructions: string | null = null;
+        if (capturedRebookCustomProcedure && !rebookProcNames) {
+          try {
+            const r = await fetch("/api/generate-prep-instructions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ procedure_name: capturedRebookCustomProcedure }),
+            });
+            if (r.ok) { const d = await r.json(); rebookPrepInstructions = d.instructions ?? null; }
+          } catch { /* fall through */ }
+        }
+
         const rebookRes = await fetch("/api/treatments", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -478,7 +496,7 @@ export default function AftercarePage() {
             intake_id: capturedIntakeId || null,
             procedure_id: capturedRebookProcedureIds[0] ?? null,
             procedure_ids: capturedRebookProcedureIds,
-            procedure_name: rebookProcNames || procedureNames,
+            procedure_name: rebookEffectiveProcName,
             treatment_date: capturedRebookDate,
             notes: "Rebooked appointment",
             is_walkin: capturedIsWalkin,
@@ -492,16 +510,16 @@ export default function AftercarePage() {
         setRebookChecked(false);
         setRebookDate("");
         setRebookProcedureIds([]);
+        setRebookCustomProcedure("");
         if (rebookRes.ok) {
           const rj = await rebookRes.json();
           setTreatments(prev => [rj.treatment, ...prev]);
-          // Show prep guide for the FUTURE (rebooked) appointment
+          // Show full interactive prep guide for the FUTURE (rebooked) appointment
           if (capturedIntakeId && !capturedIsWalkin) {
-            const rebookProcName = rebookProcNames || procedureNames;
-            const instructions = aiPrepInstructions ?? defaultPrepInstructions(rebookProcName);
+            const instructions = rebookPrepInstructions ?? aiPrepInstructions ?? defaultPrepInstructions(rebookEffectiveProcName);
             const formattedDate = new Date(capturedRebookDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-            console.log("[handleLogTreatment] showing rebook prep guide for", capturedClientName, rebookProcName, formattedDate);
-            setPrepPrompt({ intakeId: capturedIntakeId, clientName: capturedClientName, procedureName: rebookProcName, instructions, appointmentDate: formattedDate });
+            console.log("[handleLogTreatment] showing rebook prep guide for", capturedClientName, rebookEffectiveProcName, formattedDate);
+            setPrepPrompt({ intakeId: capturedIntakeId, clientName: capturedClientName, procedureName: rebookEffectiveProcName, instructions, appointmentDate: formattedDate });
             setPrepTab("auto");
             setPrepCustomText(instructions);
             setPrepSentDone(false);
@@ -524,7 +542,7 @@ export default function AftercarePage() {
       }
     }
     setTreatmentSaving(false);
-  }, [newTreatment, customProcedure, rebookChecked, rebookDate, rebookProcedureIds, procedures, token, intakes]);
+  }, [newTreatment, customProcedure, rebookChecked, rebookDate, rebookProcedureIds, rebookCustomProcedure, procedures, token, intakes]);
 
   // ── Archive handlers ───────────────────────────────────────────────────────
   const loadArchivedTreatments = useCallback(async () => {
@@ -1465,8 +1483,22 @@ export default function AftercarePage() {
                               </button>
                             ))}
                           </div>
+                          {/* Custom procedure for rebook */}
+                          <div className="mt-2">
+                            <label className="mb-1 block text-xs font-semibold text-slate-500">Or add a custom procedure</label>
+                            <input
+                              type="text"
+                              value={rebookCustomProcedure}
+                              onChange={e => setRebookCustomProcedure(e.target.value)}
+                              placeholder="e.g. Jawline Filler, Lip Flip, Morpheus8…"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                            />
+                            {rebookCustomProcedure.trim() && !rebookProcedureIds.length && (
+                              <p className="mt-1 text-xs text-indigo-500">✨ AI will generate a prep guide for &quot;{rebookCustomProcedure.trim()}&quot;</p>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-xs text-indigo-600">A prep guide email will be sent to the client for their rebooked appointment.</p>
+                        <p className="text-xs text-indigo-600">💌 After saving, you&apos;ll be prompted to send a prep guide for this appointment.</p>
                       </div>
                     )}
                   </div>
