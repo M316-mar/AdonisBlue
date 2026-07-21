@@ -1571,6 +1571,9 @@ export default function AftercarePage() {
                             });
                             if (res.ok) {
                               setAftercareSentIds(prev => new Set([...prev, treatment.id]));
+                              setTreatments(prev => prev.map(t =>
+                                t.id === treatment.id ? { ...t, aftercare_sent: true } : t
+                              ));
                               flash(`Aftercare sent to ${treatment.intakes?.first_name ?? "client"}! 💙`);
                             }
                           } finally {
