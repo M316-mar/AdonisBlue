@@ -66,6 +66,11 @@ type Bot = {
   followup_template: string | null;
 };
 
+type Procedure = {
+  id: string;
+  name: string;
+};
+
 // ─── Email Preview helpers ────────────────────────────────────────────────────
 
 function BeforePreview({ text }: { text: string }) {
@@ -156,6 +161,17 @@ export default function ClientJourneyPage() {
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [expandedClientKeys, setExpandedClientKeys] = useState<Set<string>>(new Set());
 
+  // Procedures for Aftercare tab
+  const [procedures, setProcedures] = useState<Procedure[]>([]);
+
+  // Custom aftercare composer state
+  const [acSelectedProcedure, setAcSelectedProcedure] = useState("");
+  const [acCustomProcedure, setAcCustomProcedure] = useState("");
+  const [acGenerating, setAcGenerating] = useState(false);
+  const [acGeneratedText, setAcGeneratedText] = useState("");
+  const [acSelectedIntakeId, setAcSelectedIntakeId] = useState("");
+  const [acSending, setAcSending] = useState(false);
+
   // Per-session send tracking (optimistic UI before page refresh)
   const [prepSending, setPrepSending] = useState<string | null>(null);
   const [prepSentIds, setPrepSentIds] = useState<Set<string>>(new Set());
@@ -180,9 +196,10 @@ export default function ClientJourneyPage() {
       const t = data.session.access_token;
       setToken(t);
 
-      const [botRes, treatRes] = await Promise.all([
+      const [botRes, treatRes, procRes] = await Promise.all([
         fetch("/api/mybot", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/treatments", { headers: { Authorization: `Bearer ${t}` } }),
+        fetch("/api/procedures", { headers: { Authorization: `Bearer ${t}` } }),
       ]);
 
       if (!cancelled) {
@@ -196,6 +213,10 @@ export default function ClientJourneyPage() {
         if (treatRes.ok) {
           const j = await treatRes.json();
           setTreatments((j.treatments ?? []).filter((t: Treatment) => !t.archived));
+        }
+        if (procRes.ok) {
+          const j = await procRes.json();
+          setProcedures(j.procedures ?? []);
         }
         setReady(true);
       }
@@ -288,6 +309,58 @@ export default function ClientJourneyPage() {
     }
   }, [token]);
 
+  // ── AI generate aftercare for a procedure ──────────────────────────────────
+  const generateAftercareForProcedure = useCallback(async () => {
+    const procedure = acCustomProcedure.trim() || acSelectedProcedure;
+    if (!procedure) return;
+    setAcGenerating(true);
+    setAcGeneratedText("");
+    try {
+      const res = await fetch("/api/generate-aftercare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ procedure }),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        setAcGeneratedText(j.instructions ?? "");
+      } else {
+        flash("Failed to generate aftercare — please try again.");
+      }
+    } finally {
+      setAcGenerating(false);
+    }
+  }, [token, acCustomProcedure, acSelectedProcedure]);
+
+  // ── Send custom aftercare to a specific client ──────────────────────────────
+  const sendCustomAftercareToClient = useCallback(async () => {
+    if (!acSelectedIntakeId || !acGeneratedText.trim()) return;
+    setAcSending(true);
+    try {
+      const res = await fetch("/api/send-aftercare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intake_id: acSelectedIntakeId, custom_body: acGeneratedText.trim() }),
+      });
+      if (res.ok) {
+        setAftercareSentIds(prev => new Set([...prev, acSelectedIntakeId]));
+        setTreatments(prev => prev.map(t =>
+          t.intake_id === acSelectedIntakeId ? { ...t, aftercare_sent: true } : t
+        ));
+        flash("💙 Custom aftercare sent!");
+        setAcGeneratedText("");
+        setAcCustomProcedure("");
+        setAcSelectedProcedure("");
+        setAcSelectedIntakeId("");
+      } else {
+        const j = await res.json().catch(() => ({}));
+        flash(`Failed: ${j.error ?? "unknown error"}`);
+      }
+    } finally {
+      setAcSending(false);
+    }
+  }, [token, acSelectedIntakeId, acGeneratedText]);
+
   // ── Client grouping ─────────────────────────────────────────────────────────
   const clientGroups = (() => {
     const groups = new Map<string, Treatment[]>();
@@ -320,6 +393,19 @@ export default function ClientJourneyPage() {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  // Unique clients with email for the custom-send dropdown
+  const clientsWithEmail: { intakeId: string; name: string }[] = (() => {
+    const seen = new Set<string>();
+    const result: { intakeId: string; name: string }[] = [];
+    for (const t of treatments) {
+      if (t.intake_id && t.intakes?.email && !seen.has(t.intake_id)) {
+        seen.add(t.intake_id);
+        result.push({ intakeId: t.intake_id, name: t.intakes.first_name || "Client" });
+      }
+    }
+    return result;
+  })();
 
   const TABS = [
     { id: "charts" as const,   label: "Clients",             emoji: "👤" },
@@ -627,10 +713,12 @@ export default function ClientJourneyPage() {
         {/* ── Aftercare Email Tab ────────────────────────────────────────── */}
         {tab === "aftercare" && (
           <div className="space-y-4">
+
+            {/* Default template card */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="font-bold text-[#1a2744] mb-1">💌 Aftercare email template</h2>
+              <h2 className="font-bold text-[#1a2744] mb-1">💌 Default aftercare template</h2>
               <p className="text-sm text-slate-500 mb-3">
-                Customise the aftercare message sent after appointments. Use{" "}
+                This is sent automatically when you log a treatment. Use{" "}
                 <code className="bg-slate-100 px-1 rounded text-xs">[client_name]</code>,{" "}
                 <code className="bg-slate-100 px-1 rounded text-xs">[procedure]</code>, and{" "}
                 <code className="bg-slate-100 px-1 rounded text-xs">[practice_name]</code> as placeholders.
@@ -638,7 +726,7 @@ export default function ClientJourneyPage() {
               <textarea
                 value={aftercareText}
                 onChange={e => setAftercareText(e.target.value)}
-                rows={12}
+                rows={10}
                 className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0d9488] focus:bg-white transition"
               />
               <div className="mt-4 flex flex-wrap gap-3">
@@ -665,6 +753,113 @@ export default function ClientJourneyPage() {
                 <AftercarePreview text={aftercareText} />
               </div>
             )}
+
+            {/* Custom / one-off aftercare composer */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+              <div>
+                <h2 className="font-bold text-[#1a2744] mb-1">✨ Custom aftercare email</h2>
+                <p className="text-sm text-slate-500">
+                  💡 If you perform a procedure not in your bot, you can create a custom aftercare email here and send it directly to your client.
+                </p>
+              </div>
+
+              {/* Procedure chips */}
+              {procedures.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Your procedures</p>
+                  <div className="flex flex-wrap gap-2">
+                    {procedures.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setAcSelectedProcedure(p.name);
+                          setAcCustomProcedure("");
+                          setAcGeneratedText("");
+                        }}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                          acSelectedProcedure === p.name && !acCustomProcedure
+                            ? "bg-[#1a2744] text-white"
+                            : "border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Custom procedure input + Generate button */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Or type a custom procedure</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={acCustomProcedure}
+                    onChange={e => {
+                      setAcCustomProcedure(e.target.value);
+                      setAcSelectedProcedure("");
+                      setAcGeneratedText("");
+                    }}
+                    placeholder="e.g. PRP Facial, Dermaplaning…"
+                    className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488] focus:bg-white transition"
+                  />
+                  <button
+                    type="button"
+                    disabled={acGenerating || (!acCustomProcedure.trim() && !acSelectedProcedure)}
+                    onClick={() => void generateAftercareForProcedure()}
+                    className="shrink-0 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:opacity-50"
+                  >
+                    {acGenerating ? "Generating…" : "✨ Generate with AI"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Generated / editable textarea */}
+              {acGeneratedText && (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Review & edit before sending</p>
+                    <textarea
+                      value={acGeneratedText}
+                      onChange={e => setAcGeneratedText(e.target.value)}
+                      rows={10}
+                      className="w-full resize-none rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-violet-400 focus:bg-white transition"
+                    />
+                  </div>
+
+                  {/* Client selector */}
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Send to</p>
+                    {clientsWithEmail.length === 0 ? (
+                      <p className="text-sm text-slate-400 italic">No clients with email addresses found. Log a treatment first.</p>
+                    ) : (
+                      <select
+                        value={acSelectedIntakeId}
+                        onChange={e => setAcSelectedIntakeId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488] focus:bg-white transition"
+                      >
+                        <option value="">— Select a client —</option>
+                        {clientsWithEmail.map(c => (
+                          <option key={c.intakeId} value={c.intakeId}>{c.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={acSending || !acSelectedIntakeId}
+                    onClick={() => void sendCustomAftercareToClient()}
+                    className="w-full rounded-full bg-[#0d9488] px-6 py-3 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                  >
+                    {acSending ? "Sending…" : "💙 Send to client"}
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
 

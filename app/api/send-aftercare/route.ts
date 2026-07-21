@@ -6,7 +6,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
   try {
-    const { intake_id } = await request.json();
+    const { intake_id, custom_body } = await request.json();
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,7 +27,9 @@ export async function POST(request: Request) {
       .eq("nurse_id", intake.nurse_id)
       .single();
 
-    const aftercare = bot?.aftercare_template || bot?.aftercare || "Take care of yourself and stay hydrated!";
+    const aftercare = (typeof custom_body === "string" && custom_body.trim())
+      ? custom_body.trim()
+      : bot?.aftercare_template || bot?.aftercare || "Take care of yourself and stay hydrated!";
     const practiceName = bot?.practice_name || "your provider";
     const clientName = intake.first_name || "Beautiful";
 
