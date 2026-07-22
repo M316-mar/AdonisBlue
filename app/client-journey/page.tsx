@@ -368,7 +368,7 @@ export default function ClientJourneyPage() {
   const clientGroups = (() => {
     const groups = new Map<string, Treatment[]>();
     for (const t of treatments) {
-      const key = t.intake_id ?? `anon-${t.id}`;
+      const key = t.intake_id ?? t.intakes?.email ?? `anon-${t.id}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(t);
     }
