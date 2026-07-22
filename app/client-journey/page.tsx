@@ -64,6 +64,7 @@ type Bot = {
   pre_appointment_instructions: string | null;
   aftercare_template: string | null;
   followup_template: string | null;
+  webhook_secret: string | null;
 };
 
 type Procedure = {
@@ -156,6 +157,7 @@ export default function ClientJourneyPage() {
   const [aftercareText, setAftercareText] = useState("");
   const [followupText, setFollowupText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [botConnected, setBotConnected] = useState(false);
 
   // Client charts
   const [treatments, setTreatments] = useState<Treatment[]>([]);
@@ -209,6 +211,7 @@ export default function ClientJourneyPage() {
           setBeforeText(b.pre_appointment_instructions ?? DEFAULT_BEFORE);
           setAftercareText(b.aftercare_template ?? DEFAULT_AFTERCARE);
           setFollowupText(b.followup_template ?? DEFAULT_FOLLOWUP);
+          setBotConnected(!!b.webhook_secret);
         }
         if (treatRes.ok) {
           const j = await treatRes.json();
@@ -567,7 +570,13 @@ export default function ClientJourneyPage() {
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="text-base">📋</span>
                               <div>
-                                <p className="text-sm font-semibold text-[#1a2744]">Before Appointment</p>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <p className="text-sm font-semibold text-[#1a2744]">Before Appointment</p>
+                                  {botConnected
+                                    ? <span className="rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs font-semibold text-green-700">🤖 Automatic</span>
+                                    : <a href="/booking-connect" className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 hover:bg-slate-200 transition">⚙️ Set up auto</a>
+                                  }
+                                </div>
                                 <p className={`text-xs font-semibold ${prepSent ? "text-teal-600" : "text-slate-400"}`}>
                                   {prepSent ? "✅ Sent" : "❌ Not sent"}
                                 </p>
@@ -586,14 +595,15 @@ export default function ClientJourneyPage() {
                           </div>
 
                           {/* Aftercare */}
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-base">💙</span>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-2 min-w-0">
+                              <span className="text-base mt-0.5">💙</span>
                               <div>
                                 <p className="text-sm font-semibold text-[#1a2744]">Aftercare</p>
                                 <p className={`text-xs font-semibold ${aftercareSent ? "text-teal-600" : "text-slate-400"}`}>
                                   {aftercareSent ? "✅ Sent" : "❌ Not sent"}
                                 </p>
+                                <p className="text-xs text-slate-400 italic mt-0.5">Aftercare is customized per procedure — send manually from the Aftercare Email tab.</p>
                               </div>
                             </div>
                             {!aftercareSent && (
@@ -613,7 +623,13 @@ export default function ClientJourneyPage() {
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="text-base">🔄</span>
                               <div>
-                                <p className="text-sm font-semibold text-[#1a2744]">Follow-up</p>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <p className="text-sm font-semibold text-[#1a2744]">Follow-up</p>
+                                  {botConnected
+                                    ? <span className="rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs font-semibold text-green-700">🤖 Automatic</span>
+                                    : <a href="/booking-connect" className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 hover:bg-slate-200 transition">⚙️ Set up auto</a>
+                                  }
+                                </div>
                                 <p className={`text-xs font-semibold ${followupSent ? "text-teal-600" : "text-slate-400"}`}>
                                   {followupSent ? "✅ Sent" : "❌ Not sent"}
                                 </p>
