@@ -60,17 +60,17 @@ function ROICalculator() {
         <input type="range" min={5} max={200} value={clients} onChange={e => setClients(Number(e.target.value))} className="w-full accent-[#0d9488] text-base" />
         <div className="flex justify-between text-xs text-slate-400 mt-1"><span>5</span><span>200</span></div>
       </div>
-      <div className="grid grid-cols-3 gap-4 text-center">
-        <div className="rounded-xl bg-slate-50 p-4">
-          <p className="text-2xl font-bold text-[#1a2744]">{extraBookings}</p>
+      <div className="grid grid-cols-3 gap-2 text-center sm:gap-4">
+        <div className="rounded-xl bg-slate-50 p-3 sm:p-4">
+          <p className="text-xl font-bold text-[#1a2744] sm:text-2xl">{extraBookings}</p>
           <p className="text-xs text-slate-500 mt-1">extra bookings/mo</p>
         </div>
-        <div className="rounded-xl bg-slate-50 p-4">
-          <p className="text-2xl font-bold text-[#1a2744]">${monthlyRevenue.toLocaleString()}</p>
+        <div className="rounded-xl bg-slate-50 p-3 sm:p-4">
+          <p className="text-xl font-bold text-[#1a2744] sm:text-2xl">${monthlyRevenue.toLocaleString()}</p>
           <p className="text-xs text-slate-500 mt-1">extra revenue/mo</p>
         </div>
-        <div className="rounded-xl bg-teal-50 border border-teal-200 p-4">
-          <p className="text-2xl font-bold text-[#0d9488]">${roi.toLocaleString()}</p>
+        <div className="rounded-xl bg-teal-50 border border-teal-200 p-3 sm:p-4">
+          <p className="text-xl font-bold text-[#0d9488] sm:text-2xl">${roi.toLocaleString()}</p>
           <p className="text-xs text-teal-600 mt-1 font-semibold">net ROI/mo</p>
         </div>
       </div>
@@ -555,7 +555,7 @@ export default function Home() {
         {/* ── RISK REVERSAL ── */}
         <section className="bg-white px-4 pb-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-4xl">
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-3 grid-cols-1">
               {[
                 { emoji: "🔓", title: "Full access", sub: "Every feature, free for 14 days" },
                 { emoji: "🚫", title: "No setup fee", sub: "Live in under an hour" },

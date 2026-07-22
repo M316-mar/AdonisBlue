@@ -538,13 +538,13 @@ export default function NurseDashboardPage() {
                 </ul>
               </section>
             ) : (
-              <div className="flex items-center gap-4 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-sky-50 px-5 py-4 shadow-sm">
+              <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-sky-50 px-5 py-4 shadow-sm">
                 <span className="text-3xl">🎉</span>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-base font-bold text-[#1a2744]">You&apos;re all set!</p>
                   <p className="text-sm text-slate-600">Your bot is live and your practice is fully set up. Share your link and start getting clients.</p>
                 </div>
-                <div className="ml-auto flex shrink-0 gap-2">
+                <div className="mt-3 flex shrink-0 gap-2 sm:ml-auto sm:mt-0">
                   <Link href="/onboarding?step=1" className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50">
                     Edit my bot
                   </Link>
@@ -634,7 +634,7 @@ export default function NurseDashboardPage() {
                   <div className="flex items-center gap-3">
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-sm">💌</span>
                     <div className="text-left">
-                      <p className="text-sm font-semibold text-white">Client Intakes & Follow-ups</p>
+                      <p className="text-sm font-semibold text-[#1a2744]">Client Intakes & Follow-ups</p>
                       <p className="text-xs text-slate-400">{intakes.length} client{intakes.length !== 1 ? "s" : ""} — {intakes.filter(i => !i.aftercare_sent_at).length} aftercare pending</p>
                     </div>
                   </div>

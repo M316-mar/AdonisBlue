@@ -33,6 +33,14 @@ body {
   bottom: 20px !important;
 }
 
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @keyframes bounce-in {
   0% { opacity: 0; transform: translateY(8px) scale(0.95); }
   60% { opacity: 1; transform: translateY(-3px) scale(1.02); }
