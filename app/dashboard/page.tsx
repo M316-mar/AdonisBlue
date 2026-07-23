@@ -400,7 +400,7 @@ export default function NurseDashboardPage() {
         )}
         <div className="mb-4 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 flex items-center gap-3">
           <span className="text-lg shrink-0">💉</span>
-          <p className="text-sm text-teal-800 flex-1">After every appointment, log your treatment in the Client Hub so AdonisBlue can send aftercare emails and rebooking reminders automatically.</p>
+          <p className="text-sm text-teal-800 flex-1">After every appointment, log your treatment in Treatment Records so AdonisBlue can send aftercare emails and rebooking reminders automatically.</p>
           <a href="/aftercare" className="shrink-0 text-sm font-semibold text-teal-700 hover:text-teal-900 whitespace-nowrap">Log a treatment →</a>
         </div>
         <div className="grid gap-6 lg:grid-cols-12 lg:gap-8 lg:items-start">
@@ -738,7 +738,7 @@ export default function NurseDashboardPage() {
                     href="/aftercare"
                     className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
                   >
-                    🩹 Client Hub
+                    🩹 Treatment Records
                   </Link>
                   <Link
                     href="/client-journey"

@@ -612,7 +612,7 @@ export default function AftercarePage() {
               <Image src="/Alona.png" alt="AdonisBlue" width={36} height={36} className="rounded-xl" />
             </Link>
             <div className="min-w-0">
-              <h1 className="text-sm font-bold text-[#1a2744] sm:text-base truncate">Client Hub 🩹</h1>
+              <h1 className="text-sm font-bold text-[#1a2744] sm:text-base truncate">Treatment Records 🩹</h1>
               <p className="hidden text-xs text-slate-500 sm:block">Procedure-specific aftercare for every client</p>
             </div>
           </div>
@@ -1414,6 +1414,8 @@ export default function AftercarePage() {
                 if (!groups.has(key)) groups.set(key, []);
                 groups.get(key)!.push(t);
               }
+              // Sort each group newest first
+              for (const [, g] of groups) g.sort((a, b) => new Date(b.treatment_date).getTime() - new Date(a.treatment_date).getTime());
               return Array.from(groups.entries()).map(([groupKey, groupTreatments]) => {
                 const rep = groupTreatments[0];
                 const clientName = rep.intakes?.first_name ?? "Walk-in Client";
@@ -1454,7 +1456,7 @@ export default function AftercarePage() {
                           <span className="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-700">⏳ Aftercare pending</span>
                         )}
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                          {groupTreatments.length} treatment{groupTreatments.length !== 1 ? "s" : ""}
+                          {groupTreatments.length} visit{groupTreatments.length !== 1 ? "s" : ""}
                         </span>
                         <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
