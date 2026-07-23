@@ -501,6 +501,14 @@ export default function AftercarePage() {
     if (res.ok) {
       const j = await res.json();
       setTreatments(prev => [j.treatment, ...prev]);
+      // Walk-in creates a new intake on the server — refresh the intakes list so the
+      // new client folder appears immediately without a full page reload.
+      if (capturedIsWalkin) {
+        fetch("/api/intakes", { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.json())
+          .then(d => { if (d.intakes) setIntakes(d.intakes); })
+          .catch(() => {});
+      }
       setTreatmentSubmitted(true);
       setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "", send_aftercare: true, came_via_bot: false });
       setCustomProcedure("");
@@ -1113,7 +1121,7 @@ export default function AftercarePage() {
                                             )}
                                           </div>
                                           <p className="text-xs text-slate-500 mt-0.5">
-                                            {t.intakes?.email} · {new Date(t.treatment_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                            {t.intakes?.email} · {new Date(t.treatment_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                                           </p>
                                         </div>
                                         {hasEmail && (
@@ -1690,7 +1698,7 @@ export default function AftercarePage() {
                                   )}
                                 </div>
                                 <p className="text-xs text-slate-500">
-                                  {new Date(treatment.treatment_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                                  {new Date(treatment.treatment_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
                                   {idx === 0 && <span className="ml-1 text-teal-600 font-semibold">· Latest</span>}
                                 </p>
                                 {treatment.notes && treatment.notes !== "Rebooked appointment" && (
@@ -1772,7 +1780,7 @@ export default function AftercarePage() {
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-400">📦 Archived</span>
                     </div>
                     <p className="text-xs text-slate-400">
-                      {new Date(treatment.treatment_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                      {new Date(treatment.treatment_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
                     </p>
                   </div>
                 ))}
