@@ -124,6 +124,7 @@ export default function AftercarePage() {
   const [addingClient, setAddingClient] = useState(false);
   const [newClient, setNewClient] = useState({ first_name: "", email: "", phone: "" });
   const [clientSaving, setClientSaving] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [editClientForm, setEditClientForm] = useState({ first_name: "", email: "", phone: "" });
   const [editClientSaving, setEditClientSaving] = useState(false);
@@ -327,6 +328,7 @@ export default function AftercarePage() {
   const handleAddClient = useCallback(async (procedureName: string) => {
     if (!newClient.first_name.trim()) return;
     setClientSaving(true);
+    setClientError(null);
     const res = await fetch("/api/intakes", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -343,6 +345,9 @@ export default function AftercarePage() {
       setNewClient({ first_name: "", email: "", phone: "" });
       setAddingClient(false);
       flash("Client added!");
+    } else {
+      const j = await res.json().catch(() => ({}));
+      setClientError(j.error ?? "Couldn't add this client. Please try again.");
     }
     setClientSaving(false);
   }, [newClient, token]);
@@ -1015,6 +1020,9 @@ export default function AftercarePage() {
                                 placeholder="Phone (optional)"
                                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-[#0d9488]"
                               />
+                              {clientError && (
+                                <p className="text-xs font-semibold text-red-600">{clientError}</p>
+                              )}
                               <div className="flex gap-2">
                                 <button
                                   type="button"
@@ -1027,7 +1035,7 @@ export default function AftercarePage() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => { setAddingClient(false); setNewClient({ first_name: "", email: "", phone: "" }); }}
+                                  onClick={() => { setAddingClient(false); setNewClient({ first_name: "", email: "", phone: "" }); setClientError(null); }}
                                   style={{ touchAction: "manipulation" }}
                                   className="min-h-[44px] rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 active:scale-[0.97]"
                                 >
