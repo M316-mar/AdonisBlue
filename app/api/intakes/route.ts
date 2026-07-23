@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     const firstName = typeof body.first_name === "string" ? body.first_name.trim().slice(0, 100) : "";
     if (!firstName) return NextResponse.json({ error: "First name is required" }, { status: 400 });
 
-    const email = typeof body.email === "string" ? body.email.trim() : "";
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     if (email && !EMAIL_REGEX.test(email)) {
       return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
     }
@@ -68,6 +68,35 @@ export async function POST(request: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
+
+    if (email) {
+      const { data: existing } = await supabase
+        .from("intakes")
+        .select("id, first_name")
+        .eq("nurse_id", user.id)
+        .eq("email", email)
+        .maybeSingle();
+      if (existing) {
+        return NextResponse.json(
+          { error: `A client with this email already exists (${existing.first_name})`, existing_intake_id: existing.id },
+          { status: 409 }
+        );
+      }
+    }
+    if (phone) {
+      const { data: existing } = await supabase
+        .from("intakes")
+        .select("id, first_name")
+        .eq("nurse_id", user.id)
+        .eq("phone", phone)
+        .maybeSingle();
+      if (existing) {
+        return NextResponse.json(
+          { error: `A client with this phone number already exists (${existing.first_name})`, existing_intake_id: existing.id },
+          { status: 409 }
+        );
+      }
+    }
 
     const { data: intake, error } = await supabase
       .from("intakes")

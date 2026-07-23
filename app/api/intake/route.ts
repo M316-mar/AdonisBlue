@@ -28,21 +28,60 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Save intake to Supabase
-    await supabase.from("intakes").insert({
-      bot_id,
-      nurse_id,
-      first_name,
-      email,
-      phone,
-      had_procedures_before,
-      on_blood_thinners,
-      blood_thinner_details,
-      allergies,
-      medication_allergies,
-      service_interested,
-      notified_nurse: false,
-    });
+    // Normalize email for matching
+    const normalizedEmail = typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
+
+    // Check if this client already has a folder (by email, then phone) before creating a new one
+    let existingIntake: { id: string } | null = null;
+    if (normalizedEmail) {
+      const { data } = await supabase
+        .from("intakes")
+        .select("id")
+        .eq("nurse_id", nurse_id)
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+      existingIntake = data ?? null;
+    }
+    if (!existingIntake && phone) {
+      const { data } = await supabase
+        .from("intakes")
+        .select("id")
+        .eq("nurse_id", nurse_id)
+        .eq("phone", phone)
+        .maybeSingle();
+      existingIntake = data ?? null;
+    }
+
+    if (existingIntake) {
+      // Returning client — update their existing folder instead of creating a duplicate
+      await supabase.from("intakes").update({
+        first_name,
+        email: normalizedEmail,
+        phone,
+        had_procedures_before,
+        on_blood_thinners,
+        blood_thinner_details,
+        allergies,
+        medication_allergies,
+        service_interested,
+        notified_nurse: false,
+      }).eq("id", existingIntake.id);
+    } else {
+      await supabase.from("intakes").insert({
+        bot_id,
+        nurse_id,
+        first_name,
+        email: normalizedEmail,
+        phone,
+        had_procedures_before,
+        on_blood_thinners,
+        blood_thinner_details,
+        allergies,
+        medication_allergies,
+        service_interested,
+        notified_nurse: false,
+      });
+    }
 
     // Email the nurse
     await resend.emails.send({

@@ -119,7 +119,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid walk-in phone number" }, { status: 400 });
     }
 
-    const walkinEmail = walkinEmailRaw || null;
+    const walkinEmail = walkinEmailRaw ? walkinEmailRaw.toLowerCase() : null;
     const walkinPhone = walkinPhoneRaw || null;
 
     const supabase = createClient(
@@ -134,21 +134,49 @@ export async function POST(request: Request) {
     let clientPhone: string | null = null;
 
     if (isWalkin && walkinName) {
-      const { data: newIntake } = await supabase
-        .from("intakes")
-        .insert({
-          nurse_id: user.id,
-          first_name: walkinName,
-          email: walkinEmail,
-          phone: walkinPhone,
-          service_interested: procedureName || "Walk-in",
-        })
-        .select()
-        .single();
-      resolvedIntakeId = newIntake?.id ?? null;
-      clientEmail = walkinEmail;
-      clientName = walkinName;
-      clientPhone = walkinPhone;
+      // Check for an existing client (by email, then phone) before creating a new folder
+      let existingIntake: { id: string; first_name: string; email: string | null; phone: string | null } | null = null;
+      if (walkinEmail) {
+        const { data } = await supabase
+          .from("intakes")
+          .select("id, first_name, email, phone")
+          .eq("nurse_id", user.id)
+          .eq("email", walkinEmail)
+          .maybeSingle();
+        existingIntake = data ?? null;
+      }
+      if (!existingIntake && walkinPhone) {
+        const { data } = await supabase
+          .from("intakes")
+          .select("id, first_name, email, phone")
+          .eq("nurse_id", user.id)
+          .eq("phone", walkinPhone)
+          .maybeSingle();
+        existingIntake = data ?? null;
+      }
+
+      if (existingIntake) {
+        resolvedIntakeId = existingIntake.id;
+        clientEmail = existingIntake.email ?? walkinEmail;
+        clientName = existingIntake.first_name ?? walkinName;
+        clientPhone = existingIntake.phone ?? walkinPhone;
+      } else {
+        const { data: newIntake } = await supabase
+          .from("intakes")
+          .insert({
+            nurse_id: user.id,
+            first_name: walkinName,
+            email: walkinEmail,
+            phone: walkinPhone,
+            service_interested: procedureName || "Walk-in",
+          })
+          .select()
+          .single();
+        resolvedIntakeId = newIntake?.id ?? null;
+        clientEmail = walkinEmail;
+        clientName = walkinName;
+        clientPhone = walkinPhone;
+      }
     } else if (resolvedIntakeId) {
       const { data: intake } = await supabase
         .from("intakes")
