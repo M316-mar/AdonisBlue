@@ -124,6 +124,10 @@ export default function AftercarePage() {
   const [addingClient, setAddingClient] = useState(false);
   const [newClient, setNewClient] = useState({ first_name: "", email: "", phone: "" });
   const [clientSaving, setClientSaving] = useState(false);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [editClientForm, setEditClientForm] = useState({ first_name: "", email: "", phone: "" });
+  const [editClientSaving, setEditClientSaving] = useState(false);
+  const [editClientError, setEditClientError] = useState<string | null>(null);
   const [addProcedureDropdownKey, setAddProcedureDropdownKey] = useState<string | null>(null);
   const [addProcedureLoadingKey, setAddProcedureLoadingKey] = useState<string | null>(null);
 
@@ -342,6 +346,37 @@ export default function AftercarePage() {
     }
     setClientSaving(false);
   }, [newClient, token]);
+
+  const handleUpdateClient = useCallback(async () => {
+    if (!editingClientId || !editClientForm.first_name.trim()) return;
+    setEditClientSaving(true);
+    setEditClientError(null);
+    const res = await fetch("/api/intakes", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        id: editingClientId,
+        first_name: editClientForm.first_name,
+        email: editClientForm.email,
+        phone: editClientForm.phone,
+      }),
+    });
+    if (res.ok) {
+      const j = await res.json();
+      setIntakes(prev => prev.map(i => (i.id === j.intake.id ? j.intake : i)));
+      setTreatments(prev => prev.map(t =>
+        t.intake_id === j.intake.id
+          ? { ...t, intakes: { ...t.intakes, first_name: j.intake.first_name, email: j.intake.email, phone: j.intake.phone, service_interested: t.intakes?.service_interested ?? "" } }
+          : t
+      ));
+      setEditingClientId(null);
+      flash("Client info updated!");
+    } else {
+      const j = await res.json().catch(() => ({}));
+      setEditClientError(j.error ?? "Failed to update client");
+    }
+    setEditClientSaving(false);
+  }, [editingClientId, editClientForm, token]);
 
   const handleAddToAnotherProcedure = useCallback(async (
     intake: Intake,
@@ -1542,10 +1577,12 @@ export default function AftercarePage() {
                 return (
                   <div key={groupKey} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                     {/* Client header — click to expand/collapse */}
-                    <button
-                      type="button"
+                    <div
                       onClick={toggle}
-                      className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50 transition"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") toggle(); }}
+                      className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50 transition cursor-pointer"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="shrink-0 h-9 w-9 rounded-full bg-gradient-to-br from-teal-400 to-[#1a2744] flex items-center justify-center text-white text-sm font-bold">
@@ -1563,11 +1600,73 @@ export default function AftercarePage() {
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
                           {groupTreatments.length} visit{groupTreatments.length !== 1 ? "s" : ""}
                         </span>
+                        {rep.intake_id && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingClientId(rep.intake_id);
+                              setEditClientForm({ first_name: clientName, email: clientEmail, phone: rep.intakes?.phone ?? "" });
+                              setEditClientError(null);
+                            }}
+                            className="rounded-full p-1.5 text-slate-300 transition hover:bg-teal-50 hover:text-teal-500"
+                            title="Edit client info"
+                            aria-label="Edit client info"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793 3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                          </button>
+                        )}
                         <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                         </svg>
                       </div>
-                    </button>
+                    </div>
+
+                    {/* Inline edit form */}
+                    {editingClientId === rep.intake_id && (
+                      <div className="border-t border-slate-100 bg-slate-50 px-5 py-4 space-y-3">
+                        <div className="grid gap-2 sm:grid-cols-3">
+                          <input
+                            value={editClientForm.first_name}
+                            onChange={e => setEditClientForm(f => ({ ...f, first_name: e.target.value }))}
+                            placeholder="Name"
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-teal-400"
+                          />
+                          <input
+                            value={editClientForm.email}
+                            onChange={e => setEditClientForm(f => ({ ...f, email: e.target.value }))}
+                            placeholder="Email"
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-teal-400"
+                          />
+                          <input
+                            value={editClientForm.phone}
+                            onChange={e => setEditClientForm(f => ({ ...f, phone: e.target.value }))}
+                            placeholder="Phone"
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-teal-400"
+                          />
+                        </div>
+                        {editClientError && <p className="text-xs font-semibold text-red-600">{editClientError}</p>}
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={editClientSaving}
+                            onClick={() => void handleUpdateClient()}
+                            className="rounded-full bg-[#0d9488] px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                          >
+                            {editClientSaving ? "Saving…" : "Save changes"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setEditingClientId(null); setEditClientError(null); }}
+                            className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-600"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Treatment timeline — shown when expanded */}
                     {isExpanded && (

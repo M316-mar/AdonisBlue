@@ -247,7 +247,7 @@ export async function POST(request: Request) {
     // Validate email
     let clientEmail: string | null = null;
     if (normalized.client_email) {
-      const e = normalized.client_email.trim().slice(0, 254);
+      const e = normalized.client_email.trim().slice(0, 254).toLowerCase();
       if (EMAIL_REGEX.test(e)) clientEmail = e;
     }
 
@@ -325,15 +325,28 @@ export async function POST(request: Request) {
 
     console.log("Intake ID:", intakeId);
 
-    // Insert treatment record if we have intake_id and appointment_date
+    // Insert treatment record if we have intake_id and appointment_date — but only if
+    // this exact appointment hasn't already been recorded (booking platforms commonly
+    // fire the same webhook event more than once: on create, update, reminder, etc.)
     if (intakeId && appointmentDate) {
-      await supabase.from("treatments").insert({
-        nurse_id: botRow.nurse_id,
-        intake_id: intakeId,
-        procedure_name: serviceName ?? "Booking appointment",
-        treatment_date: appointmentDate,
-        came_via_bot: false,
-      });
+      const { data: existingTreatment } = await supabase
+        .from("treatments")
+        .select("id")
+        .eq("nurse_id", botRow.nurse_id)
+        .eq("intake_id", intakeId)
+        .eq("treatment_date", appointmentDate)
+        .eq("procedure_name", serviceName ?? "Booking appointment")
+        .maybeSingle();
+
+      if (!existingTreatment) {
+        await supabase.from("treatments").insert({
+          nurse_id: botRow.nurse_id,
+          intake_id: intakeId,
+          procedure_name: serviceName ?? "Booking appointment",
+          treatment_date: appointmentDate,
+          came_via_bot: false,
+        });
+      }
     }
 
     return NextResponse.json({ ok: true });

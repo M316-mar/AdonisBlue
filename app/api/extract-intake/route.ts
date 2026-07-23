@@ -53,13 +53,53 @@ ${conversation}`
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    await supabase.from("intakes").insert({
-      bot_id,
-      nurse_id,
-      ...intake,
-      pronouns: pronouns || null,
-      notified_nurse: false,
-    });
+    // Normalize email for matching/storage
+    const normalizedEmail = typeof intake.email === "string" && intake.email.trim()
+      ? intake.email.trim().toLowerCase()
+      : null;
+    const normalizedPhone = typeof intake.phone === "string" && intake.phone.trim()
+      ? intake.phone.trim()
+      : null;
+    intake.email = normalizedEmail;
+    intake.phone = normalizedPhone;
+
+    // Check if this client already has a folder (by email, then phone) before creating a new one
+    let existingIntake: { id: string } | null = null;
+    if (normalizedEmail) {
+      const { data } = await supabase
+        .from("intakes")
+        .select("id")
+        .eq("nurse_id", nurse_id)
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+      existingIntake = data ?? null;
+    }
+    if (!existingIntake && normalizedPhone) {
+      const { data } = await supabase
+        .from("intakes")
+        .select("id")
+        .eq("nurse_id", nurse_id)
+        .eq("phone", normalizedPhone)
+        .maybeSingle();
+      existingIntake = data ?? null;
+    }
+
+    if (existingIntake) {
+      // Returning client — update their existing folder instead of creating a duplicate
+      await supabase.from("intakes").update({
+        ...intake,
+        pronouns: pronouns || null,
+        notified_nurse: false,
+      }).eq("id", existingIntake.id);
+    } else {
+      await supabase.from("intakes").insert({
+        bot_id,
+        nurse_id,
+        ...intake,
+        pronouns: pronouns || null,
+        notified_nurse: false,
+      });
+    }
 
     const { data: botData } = await supabase
       .from("bots")
