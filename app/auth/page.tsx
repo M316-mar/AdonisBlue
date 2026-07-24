@@ -233,8 +233,8 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-full bg-white font-sans text-slate-800 antialiased">
-      <div className="grid min-h-full lg:grid-cols-2">
+    <div className="min-h-screen bg-white font-sans text-slate-800 antialiased">
+      <div className="grid min-h-screen lg:grid-cols-2">
         <div className="flex flex-col px-4 py-10 sm:px-8 sm:py-14 lg:px-12 lg:py-16">
           <Link href="/" className="mb-10 inline-flex w-fit shrink-0 items-center gap-1.5 sm:gap-2">
             <Image src="/Alona.png" alt="AdonisBlue Logo" width={52} height={52} />
