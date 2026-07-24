@@ -233,13 +233,15 @@ export async function POST(request: Request) {
       sendAftercare
     ) {
       const combinedAftercareHtml = selectedProcedures
-        .map(
-          (proc) => `
+        .map((proc) => {
+          const instructions = (proc.aftercare_instructions ?? "").trim()
+            || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours. Reach out if you have any questions or concerns!";
+          return `
         <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
           <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(proc.name ?? "")} Aftercare</h3>
-          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(proc.aftercare_instructions ?? "")}</p>
-        </div>`
-        )
+          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(instructions)}</p>
+        </div>`;
+        })
         .join("");
 
       await resend.emails.send({
