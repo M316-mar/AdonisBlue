@@ -457,7 +457,6 @@ export default function AftercarePage() {
       ? selectedProcedures.map(p => p.name).join(", ")
       : capturedCustomProcedure;
 
-    console.log("[handleLogTreatment] capturedIntakeId:", capturedIntakeId, "capturedIsWalkin:", capturedIsWalkin, "procedureNames:", procedureNames, "rebookChecked:", capturedRebookChecked);
 
     // If a custom procedure was typed, call AI to generate prep instructions (used in prep guide Auto tab)
     // Also generate aftercare instructions for the email (used if no standard procedure is selected)

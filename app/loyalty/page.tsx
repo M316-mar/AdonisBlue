@@ -66,7 +66,6 @@ export default function ReferralsPage() {
           if (loyaltyRes.ok) { const j = await loyaltyRes.json(); setLoyalty(j.loyalty ?? []); }
           if (intakesRes.ok) {
           const j = await intakesRes.json();
-          console.log("Intakes loaded:", j.intakes?.length, j.intakes);
           setIntakes(j.intakes ?? []);
         } else {
           console.error("Intakes failed:", intakesRes.status, await intakesRes.text());

@@ -44,7 +44,6 @@ export async function POST(request: Request) {
       .update({ subscription_status: "canceled", plan: "free" })
       .eq("nurse_id", user.id);
 
-    console.log("[cancel-subscription] canceled for nurse_id:", user.id);
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error("[cancel-subscription] unexpected error:", e);

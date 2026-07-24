@@ -844,7 +844,6 @@ function StepCustomize({
                 bot_name: draft.botName,
                 nurse_name: draft.nurseName,
               };
-              console.log("[generate-greeting] sending nurse_name:", JSON.stringify(greetingPayload.nurse_name));
               const res = await fetch("/api/generate-greeting", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1161,7 +1160,6 @@ function OnboardingInner() {
       const { data: updateData, error: updateError } = await supabase.auth.updateUser({
         data: { full_name: draft.nurseName.trim() },
       });
-      console.log("[onboarding] updateUser full_name:", draft.nurseName.trim(), "| result:", updateData?.user?.user_metadata?.full_name, "| error:", updateError?.message ?? null);
     }
 
     if (draft.step < TOTAL_STEPS - 1) {
@@ -1203,8 +1201,6 @@ function OnboardingInner() {
         launched: true,
       };
 
-      console.log("[savebot] sending payload:", botPayload);
-      console.log("[savebot] token present:", Boolean(token));
 
       const res = await fetch("/api/savebot", {
         method: "POST",
@@ -1216,7 +1212,6 @@ function OnboardingInner() {
       });
 
       const result = (await res.json()) as { error?: string };
-      console.log("[savebot] response status:", res.status, "body:", result);
 
       if (!res.ok) {
         setError(result.error ?? "Could not save. Please try again.");
@@ -1244,7 +1239,6 @@ function OnboardingInner() {
         );
       }
 
-      console.log("[savebot] success — bot saved, redirecting to dashboard");
       setBotSlug(slug);
       setDraft({ step: TOTAL_STEPS });
     } catch (e) {

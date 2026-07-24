@@ -341,7 +341,6 @@ export default function PublicChatPage() {
             : "We could not reach the assistant right now. Please try again in a moment.";
         }
 
-        console.log("BOT REPLY:", reply.slice(0, 100));
         const assistantMsg: ChatMessage = { id: newId(), role: "assistant", content: reply };
 
         const photoFollowUp: ChatMessage[] =

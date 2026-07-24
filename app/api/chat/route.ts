@@ -189,8 +189,8 @@ export async function POST(request: Request) {
       );
 
     if (isFlagged) {
-      console.log(`[chat-emergency] Keyword detected in message: "${lastUserMessage.slice(0, 80)}"`);
-      console.log(`[chat-emergency] hasContact=${hasContact} (name="${clientName}", phone="${clientPhone}")`);
+      console.log("[chat-emergency] Keyword detected in message");
+      console.log(`[chat-emergency] hasContact=${hasContact}`);
       console.log(`[chat-emergency] alreadyAlerted=${alreadyAlerted}, alreadyAlertedWithoutContact=${alreadyAlertedWithoutContact}`);
       console.log(`[chat-emergency] shouldAlert=${shouldAlert}`);
     }
@@ -221,7 +221,7 @@ export async function POST(request: Request) {
               const { data: authUser } = await db.auth.admin.getUserById(botConfig.nurse_id);
               alertEmail = authUser?.user?.email ?? null;
               if (alertEmail) {
-                console.log(`[chat-emergency] notification_email not set — falling back to auth email: ${alertEmail}`);
+                console.log("[chat-emergency] notification_email not set — falling back to auth email");
               } else {
                 console.warn(`[chat-emergency] No email found for nurse ${botConfig.nurse_id} — email skipped`);
               }
@@ -229,7 +229,7 @@ export async function POST(request: Request) {
               console.error("[chat-emergency] Failed to fetch auth fallback email:", err);
             }
           } else {
-            console.log(`[chat-emergency] Sending alert to notification_email: ${alertEmail}`);
+            console.log("[chat-emergency] Sending alert to notification_email");
           }
 
           const practiceName = botRow?.practice_name || botConfig.practice_name || "your practice";
@@ -302,7 +302,7 @@ export async function POST(request: Request) {
               subject,
               html: emailHtml,
             });
-            console.log(`[chat-emergency] Alert email sent to ${alertEmail}`);
+            console.log("[chat-emergency] Alert email sent");
           }
 
           // ── SMS via Twilio ────────────────────────────────────────────
@@ -325,7 +325,7 @@ export async function POST(request: Request) {
                   from: fromNumber,
                   to: alertPhone,
                 });
-                console.log(`[chat-emergency] SMS sent to ${alertPhone}`);
+                console.log("[chat-emergency] SMS sent");
               }
             } catch (smsErr) {
               console.error("[chat-emergency] SMS failed (non-fatal):", smsErr);
