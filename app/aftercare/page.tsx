@@ -81,6 +81,13 @@ function StatBadge({ label, value, color }: { label: string; value: string | num
 
 // ─── Prep guide helpers ────────────────────────────────────────────────────────
 
+function formatTreatmentDate(dateStr: string | null | undefined, options: Intl.DateTimeFormatOptions): string {
+  if (!dateStr) return "Date not recorded";
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) return "Date not recorded";
+  return d.toLocaleDateString("en-US", options);
+}
+
 function defaultPrepInstructions(procedureName: string): string {
   const lower = procedureName.toLowerCase();
   if (lower.includes("lip")) {
@@ -1128,7 +1135,7 @@ export default function AftercarePage() {
                                             )}
                                           </div>
                                           <p className="text-xs text-slate-500 mt-0.5">
-                                            {t.intakes?.email} · {new Date(t.treatment_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                            {t.intakes?.email} · {formatTreatmentDate(t.treatment_date, { month: "short", day: "numeric", year: "numeric" })}
                                           </p>
                                         </div>
                                         {hasEmail && (
@@ -1705,7 +1712,7 @@ export default function AftercarePage() {
                                   )}
                                 </div>
                                 <p className="text-xs text-slate-500">
-                                  {new Date(treatment.treatment_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                                  {formatTreatmentDate(treatment.treatment_date, { month: "long", day: "numeric", year: "numeric" })}
                                   {idx === 0 && <span className="ml-1 text-teal-600 font-semibold">· Latest</span>}
                                 </p>
                                 {treatment.notes && treatment.notes !== "Rebooked appointment" && (
@@ -1787,7 +1794,7 @@ export default function AftercarePage() {
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-400">📦 Archived</span>
                     </div>
                     <p className="text-xs text-slate-400">
-                      {new Date(treatment.treatment_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                      {formatTreatmentDate(treatment.treatment_date, { month: "long", day: "numeric", year: "numeric" })}
                     </p>
                   </div>
                 ))}
