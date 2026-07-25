@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /aftercare
+Disallow: /onboarding
+Disallow: /loyalty
+Disallow: /blueroom
+Disallow: /client-journey
+Disallow: /insights
+Disallow: /admin
+Disallow: /admin-login
+Disallow: /api/
+
+Sitemap: https://www.adonisblue.io/sitemap.xml

@@ -36,14 +36,29 @@ const botFontNunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "AdonisBlue — AI Front Desk for Nurse Injectors",
-  description: "AdonisBlue is your AI-powered front desk built for nurse injectors. Answer client questions 24/7, capture leads, and never miss a booking again.",
+  metadataBase: new URL("https://www.adonisblue.io"),
+  title: "AdonisBlue — Keep Your Clients Coming Back",
+  description: "AdonisBlue helps nurse injectors keep clients coming back with automatic aftercare, healing check-ins, and follow-up that makes every client feel cared for — not just treated.",
   icons: {
     icon: [
       { url: "/Alona.png", type: "image/png" },
     ],
     apple: "/Alona.png",
     shortcut: "/Alona.png",
+  },
+  openGraph: {
+    title: "AdonisBlue — Keep Your Clients Coming Back",
+    description: "Automatic aftercare, healing check-ins, and follow-up that makes every client feel cared for — not just treated.",
+    url: "https://www.adonisblue.io",
+    siteName: "AdonisBlue",
+    images: [{ url: "/Alona.png", width: 512, height: 512, alt: "AdonisBlue" }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "AdonisBlue — Keep Your Clients Coming Back",
+    description: "Automatic aftercare, healing check-ins, and follow-up that makes every client feel cared for — not just treated.",
+    images: ["/Alona.png"],
   },
 };
 
