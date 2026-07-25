@@ -351,7 +351,7 @@ export default function Home() {
         <section className="px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl">
             <div className="flex flex-col items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#1a2744] via-[#0d4f6b] to-[#0d9488] px-6 py-5 sm:flex-row sm:px-8 sm:py-6">
-              <p className="text-base font-semibold text-white sm:text-lg">See how nurses are saving 2+ hours a day with AdonisBlue</p>
+              <p className="text-base font-semibold text-white sm:text-lg">See how AdonisBlue keeps your clients coming back</p>
               <a href="#pricing" className="shrink-0 rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#1a2744] shadow-md transition hover:bg-teal-50">
                 Start free trial →
               </a>
@@ -362,8 +362,8 @@ export default function Home() {
         {/* ── PROBLEM SECTION ── */}
         <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">You became a nurse injector to do the work you love. Not to answer DMs at 11pm.</h2>
-            <p className="mt-6 text-lg leading-relaxed text-slate-500">Most injectors are running their practice from their phone — answering "how long does swelling last?" for the 40th time, chasing clients who never rebooked, and worrying about missing an aftercare emergency. You don't need to hire someone. You need a system.</p>
+            <h2 className="text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Your clients don't leave because you're not good enough. They leave because they feel forgotten.</h2>
+            <p className="mt-6 text-lg leading-relaxed text-slate-500">She got her treatment. She paid. She left. Then no one checked on her again. So she found a new injector — one who made her feel like she mattered. That's happening to your clients right now. Not because of your skill. Because of what happens after.</p>
           </div>
         </section>
 
