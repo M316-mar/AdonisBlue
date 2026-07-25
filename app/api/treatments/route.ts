@@ -223,26 +223,58 @@ export async function POST(request: Request) {
       ? await supabase.from("procedures").select("*").in("id", allProcedureIds)
       : { data: [] };
 
+    // Custom (non-list) procedure support: the client sends AI-generated instructions
+    // for a typed-in procedure that isn't in the nurse's saved Procedures list.
+    const customAftercareInstructions = typeof body.custom_aftercare_instructions === "string"
+      ? body.custom_aftercare_instructions.trim()
+      : "";
+
+    // Optional per-client extra notes (e.g. more discomfort than usual, unusual visit) —
+    // appended to whatever aftercare content is sent, on top of the normal instructions.
+    const extraAftercareNotes = typeof body.extra_aftercare_notes === "string"
+      ? body.extra_aftercare_notes.trim().slice(0, 1000)
+      : "";
+
+    const hasStandardProcedures = !!(selectedProcedures && selectedProcedures.length > 0);
+    const hasCustomAftercare = !!(procedureName && customAftercareInstructions);
+
     // ── Send combined aftercare email ──────────────────────────────────────
     let aftercareSent = false;
 
     if (
       clientEmail &&
-      selectedProcedures &&
-      selectedProcedures.length > 0 &&
-      sendAftercare
+      sendAftercare &&
+      (hasStandardProcedures || hasCustomAftercare)
     ) {
-      const combinedAftercareHtml = selectedProcedures
-        .map((proc) => {
-          const instructions = (proc.aftercare_instructions ?? "").trim()
-            || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours. Reach out if you have any questions or concerns!";
-          return `
+      let combinedAftercareHtml = "";
+
+      if (hasStandardProcedures) {
+        combinedAftercareHtml = selectedProcedures
+          .map((proc) => {
+            const instructions = (proc.aftercare_instructions ?? "").trim()
+              || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours. Reach out if you have any questions or concerns!";
+            return `
         <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
           <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(proc.name ?? "")} Aftercare</h3>
           <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(instructions)}</p>
         </div>`;
-        })
-        .join("");
+          })
+          .join("");
+      } else if (hasCustomAftercare) {
+        combinedAftercareHtml = `
+        <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
+          <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(procedureName)} Aftercare</h3>
+          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(customAftercareInstructions)}</p>
+        </div>`;
+      }
+
+      if (extraAftercareNotes) {
+        combinedAftercareHtml += `
+        <div style="background:#fff7ed;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #f97316;">
+          <h3 style="margin:0 0 10px;color:#c2410c;font-size:15px;font-weight:600;">💬 A note just for you</h3>
+          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(extraAftercareNotes)}</p>
+        </div>`;
+      }
 
       await resend.emails.send({
         from: "AdonisBlue <hello@adonisblue.io>",

@@ -81,6 +81,13 @@ function StatBadge({ label, value, color }: { label: string; value: string | num
 
 // ─── Prep guide helpers ────────────────────────────────────────────────────────
 
+function toLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function formatTreatmentDate(dateStr: string | null | undefined, options: Intl.DateTimeFormatOptions): string {
   if (!dateStr) return "Date not recorded";
   const d = new Date(dateStr + "T00:00:00");
@@ -150,7 +157,7 @@ export default function AftercarePage() {
     intake_id: "",
     procedure_ids: [] as string[],
     procedure_name: "",
-    treatment_date: new Date().toISOString().slice(0, 10),
+    treatment_date: toLocalDateString(),
     notes: "",
     is_walkin: false,
     walkin_name: "",
@@ -164,6 +171,7 @@ export default function AftercarePage() {
   const [treatmentSubmitted, setTreatmentSubmitted] = useState(false);
   const [expandedClientIds, setExpandedClientIds] = useState<Set<string>>(new Set());
   const [customProcedure, setCustomProcedure] = useState("");
+  const [extraAftercareNotes, setExtraAftercareNotes] = useState("");
   // Rebook state (shown after logging a treatment)
   const [rebookChecked, setRebookChecked] = useState(false);
   const [rebookDate, setRebookDate] = useState("");
@@ -405,7 +413,7 @@ export default function AftercarePage() {
         procedure_id: targetProcedure.id,
         procedure_ids: [targetProcedure.id],
         procedure_name: targetProcedure.name,
-        treatment_date: new Date().toISOString().slice(0, 10),
+        treatment_date: toLocalDateString(),
         send_aftercare: true,
         came_via_bot: intake.came_via_bot ?? false,
       }),
@@ -501,6 +509,7 @@ export default function AftercarePage() {
         custom_aftercare_instructions: customAftercareInstructions,
         treatment_date: newTreatment.treatment_date,
         notes: newTreatment.notes,
+        extra_aftercare_notes: extraAftercareNotes.trim() || null,
         is_walkin: capturedIsWalkin,
         walkin_name: capturedWalkinName,
         walkin_email: newTreatment.walkin_email,
@@ -521,7 +530,8 @@ export default function AftercarePage() {
           .catch(() => {});
       }
       setTreatmentSubmitted(true);
-      setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: new Date().toISOString().slice(0, 10), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "", send_aftercare: true, came_via_bot: false });
+      setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: toLocalDateString(), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "", send_aftercare: true, came_via_bot: false });
+      setExtraAftercareNotes("");
       setCustomProcedure("");
       setAddingTreatment(false);
       flash(j.aftercare_sent ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
@@ -1367,6 +1377,19 @@ export default function AftercarePage() {
                     />
                   </div>
 
+                  {/* Extra aftercare notes for this client */}
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-600">Extra notes for this client's aftercare (optional)</label>
+                    <textarea
+                      value={extraAftercareNotes}
+                      onChange={e => setExtraAftercareNotes(e.target.value)}
+                      placeholder="e.g. More swelling than usual today — keep an eye on it and message us if it doesn't improve in 48 hours"
+                      rows={2}
+                      className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-[#0d9488]"
+                    />
+                    <p className="mt-1 text-xs text-slate-400">Added to this client's aftercare email in addition to the normal instructions — for anything unusual about today's visit.</p>
+                  </div>
+
                   {/* Options */}
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
                     <p className="text-xs text-amber-700">💡 Choose whether to send aftercare email to this client.</p>
@@ -1402,7 +1425,7 @@ export default function AftercarePage() {
                             // Default rebook date to 3 months out, same procedures
                             const d = new Date();
                             d.setMonth(d.getMonth() + 3);
-                            setRebookDate(d.toISOString().slice(0, 10));
+                            setRebookDate(toLocalDateString(d));
                             setRebookProcedureIds(newTreatment.procedure_ids);
                           }
                         }}
