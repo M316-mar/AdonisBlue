@@ -447,6 +447,75 @@ export default function NurseDashboardPage() {
               ))}
             </section>
 
+            {(() => {
+              const pendingIntakes = intakes.filter((i) => !i.aftercare_sent_at || !i.survey_sent);
+              return pendingIntakes.length > 0 ? (
+                <section className="rounded-2xl border border-slate-200 bg-white shadow-md">
+                  <button
+                    type="button"
+                    onClick={() => setIntakesOpen((o) => !o)}
+                    className="flex w-full items-center justify-between px-4 py-4 sm:px-6"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-sm">💌</span>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-[#1a2744]">Client Intakes & Follow-ups</p>
+                        <p className="text-xs text-slate-400">{pendingIntakes.length} client{pendingIntakes.length !== 1 ? "s" : ""} need follow-up</p>
+                      </div>
+                    </div>
+                    <span className="text-slate-400 text-sm">{intakesOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {intakesOpen ? (
+                    <div className="border-t border-slate-100 px-4 pb-4 pt-3 sm:px-6">
+                      <p className="mb-3 text-xs leading-relaxed text-slate-600">Know how you did, collect real reviews, and use them on your Google Business, website, or social media. Every review builds your reputation 💙</p>
+                      <div className="mt-2 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 mb-4">
+                        <span className="text-base">💡</span>
+                        <p className="text-xs leading-relaxed text-amber-800">
+                          <strong>Heads up:</strong> The first email from AdonisBlue may land in your client's spam folder. Ask them to mark it as "Not Spam" so future emails go straight to their inbox!
+                        </p>
+                      </div>
+                      <ul className="space-y-3">
+                        {pendingIntakes.map((intake) => (
+                          <li key={intake.id} className="flex flex-col gap-2 rounded-xl border border-slate-100 p-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm font-semibold text-[#1a2744]">{intake.first_name || "Client"}</p>
+                              <p className="text-xs text-slate-500">{intake.service_interested || "Service not specified"} • {new Date(intake.created_at).toLocaleDateString()}</p>
+                              {intake.referred_by ? <p className="text-xs text-teal-600">Found you via {intake.referred_by}</p> : null}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={!!intake.aftercare_sent_at}
+                                onClick={() => router.push("/client-journey")}
+                                className="shrink-0 rounded-full bg-[#1a2744] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#243552] disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {intake.aftercare_sent_at ? "Aftercare sent ✅" : "Send aftercare 💌"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!!intake.survey_sent || surveyLoading === intake.id}
+                                onClick={() => void handleSendSurvey(intake)}
+                                className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {intake.survey_sent ? "Review requested ✅" : surveyLoading === intake.id ? "Sending..." : "Request review ⭐"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleDeleteIntake(intake.id)}
+                                className="shrink-0 rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </section>
+              ) : null;
+            })()}
+
             {/* ── SETUP CHECKLIST — below stats, above clients ── */}
             {progressPct < 100 ? (
               <section className="overflow-hidden rounded-2xl border-2 border-[#0d9488] bg-white shadow-lg">
@@ -624,71 +693,6 @@ export default function NurseDashboardPage() {
               </>
             ) : null}
 
-            {intakes.length > 0 ? (
-              <section className="rounded-2xl border border-slate-200 bg-white shadow-md">
-                <button
-                  type="button"
-                  onClick={() => setIntakesOpen((o) => !o)}
-                  className="flex w-full items-center justify-between px-4 py-4 sm:px-6"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-sm">💌</span>
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-[#1a2744]">Client Intakes & Follow-ups</p>
-                      <p className="text-xs text-slate-400">{intakes.length} client{intakes.length !== 1 ? "s" : ""} — {intakes.filter(i => !i.aftercare_sent_at).length} aftercare pending</p>
-                    </div>
-                  </div>
-                  <span className="text-slate-400 text-sm">{intakesOpen ? "▲" : "▼"}</span>
-                </button>
-                {intakesOpen ? (
-                  <div className="border-t border-slate-100 px-4 pb-4 pt-3 sm:px-6">
-                    <p className="mb-3 text-xs leading-relaxed text-slate-600">Know how you did, collect real reviews, and use them on your Google Business, website, or social media. Every review builds your reputation 💙</p>
-                    <div className="mt-2 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 mb-4">
-                      <span className="text-base">💡</span>
-                      <p className="text-xs leading-relaxed text-amber-800">
-                        <strong>Heads up:</strong> The first email from AdonisBlue may land in your client's spam folder. Ask them to mark it as "Not Spam" so future emails go straight to their inbox!
-                      </p>
-                    </div>
-                    <ul className="space-y-3">
-                      {intakes.map((intake) => (
-                        <li key={intake.id} className="flex flex-col gap-2 rounded-xl border border-slate-100 p-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="text-sm font-semibold text-[#1a2744]">{intake.first_name || "Client"}</p>
-                            <p className="text-xs text-slate-500">{intake.service_interested || "Service not specified"} • {new Date(intake.created_at).toLocaleDateString()}</p>
-                            {intake.referred_by ? <p className="text-xs text-teal-600">Found you via {intake.referred_by}</p> : null}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              disabled={aftercareLoading === intake.id}
-                              onClick={() => intake.aftercare_sent_at ? router.push("/aftercare") : void handleSendAftercare(intake)}
-                              className="shrink-0 rounded-full bg-[#1a2744] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#243552] disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {intake.aftercare_sent_at ? "Aftercare sent ✅" : aftercareLoading === intake.id ? "Sending..." : "Send aftercare 💌"}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={!!intake.survey_sent || surveyLoading === intake.id}
-                              onClick={() => void handleSendSurvey(intake)}
-                              className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {intake.survey_sent ? "Review requested ✅" : surveyLoading === intake.id ? "Sending..." : "Request review ⭐"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleDeleteIntake(intake.id)}
-                              className="shrink-0 rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </section>
-            ) : null}
           </div>
 
           <aside className="lg:col-span-4">
