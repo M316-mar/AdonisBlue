@@ -694,7 +694,7 @@ export default function NurseDashboardPage() {
           <aside className="lg:col-span-4">
             <div className="lg:sticky lg:top-24">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
-                <h3 className="text-base font-semibold text-[#1a2744] sm:text-lg">Your bot</h3>
+                <h3 className="text-base font-semibold text-[#1a2744] sm:text-lg">Your Practice</h3>
                 <dl className="mt-4 space-y-3 text-sm">
                   <div>
                     <dt className="font-medium text-slate-500">Practice name</dt>
@@ -734,18 +734,24 @@ export default function NurseDashboardPage() {
                   >
                     📊 View my insights
                   </Link>
-                  <Link
-                    href="/aftercare"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
-                  >
-                    🩹 Treatment Records
-                  </Link>
-                  <Link
-                    href="/client-journey"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-4 py-2.5 text-center text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
-                  >
-                    🗺️ Client Journey
-                  </Link>
+                  <div>
+                    <Link
+                      href="/aftercare"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                    >
+                      🩹 Treatment Records
+                    </Link>
+                    <p className="mt-1 text-center text-xs text-slate-400">Log today's treatments</p>
+                  </div>
+                  <div>
+                    <Link
+                      href="/client-journey"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-4 py-2.5 text-center text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
+                    >
+                      🗺️ Client Journey
+                    </Link>
+                    <p className="mt-1 text-center text-xs text-slate-400">Manage aftercare & follow-up messages</p>
+                  </div>
                   <Link
                     href="/offers"
                     className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2.5 text-center text-sm font-semibold text-orange-700 transition hover:bg-orange-100"
