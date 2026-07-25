@@ -31,25 +31,25 @@ export async function POST(request: Request) {
     // Normalize email for matching
     const normalizedEmail = typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
 
-    // Check if this client already has a folder (by email, then phone) before creating a new one
+    // Check if this client already has a folder (by email/phone AND matching name) before creating a new one.
+    // Same email but a different name (e.g. a family member) must NOT be merged or overwritten.
+    const normalizedIntakeName = typeof first_name === "string" ? first_name.trim().toLowerCase() : "";
     let existingIntake: { id: string } | null = null;
     if (normalizedEmail) {
       const { data } = await supabase
         .from("intakes")
-        .select("id")
+        .select("id, first_name")
         .eq("nurse_id", nurse_id)
-        .eq("email", normalizedEmail)
-        .maybeSingle();
-      existingIntake = data ?? null;
+        .eq("email", normalizedEmail);
+      existingIntake = (data ?? []).find((i) => i.first_name?.trim().toLowerCase() === normalizedIntakeName) ?? null;
     }
     if (!existingIntake && phone) {
       const { data } = await supabase
         .from("intakes")
-        .select("id")
+        .select("id, first_name")
         .eq("nurse_id", nurse_id)
-        .eq("phone", phone)
-        .maybeSingle();
-      existingIntake = data ?? null;
+        .eq("phone", phone);
+      existingIntake = (data ?? []).find((i) => i.first_name?.trim().toLowerCase() === normalizedIntakeName) ?? null;
     }
 
     if (existingIntake) {

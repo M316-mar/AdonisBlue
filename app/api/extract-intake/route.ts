@@ -63,25 +63,25 @@ ${conversation}`
     intake.email = normalizedEmail;
     intake.phone = normalizedPhone;
 
-    // Check if this client already has a folder (by email, then phone) before creating a new one
+    // Check if this client already has a folder (by email/phone AND matching name) before creating a new one.
+    // Same email but a different name (e.g. a family member) must NOT be merged or overwritten.
+    const normalizedExtractName = typeof intake.first_name === "string" ? intake.first_name.trim().toLowerCase() : "";
     let existingIntake: { id: string } | null = null;
     if (normalizedEmail) {
       const { data } = await supabase
         .from("intakes")
-        .select("id")
+        .select("id, first_name")
         .eq("nurse_id", nurse_id)
-        .eq("email", normalizedEmail)
-        .maybeSingle();
-      existingIntake = data ?? null;
+        .eq("email", normalizedEmail);
+      existingIntake = (data ?? []).find((i) => i.first_name?.trim().toLowerCase() === normalizedExtractName) ?? null;
     }
     if (!existingIntake && normalizedPhone) {
       const { data } = await supabase
         .from("intakes")
-        .select("id")
+        .select("id, first_name")
         .eq("nurse_id", nurse_id)
-        .eq("phone", normalizedPhone)
-        .maybeSingle();
-      existingIntake = data ?? null;
+        .eq("phone", normalizedPhone);
+      existingIntake = (data ?? []).find((i) => i.first_name?.trim().toLowerCase() === normalizedExtractName) ?? null;
     }
 
     if (existingIntake) {

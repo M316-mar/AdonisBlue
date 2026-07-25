@@ -134,25 +134,25 @@ export async function POST(request: Request) {
     let clientPhone: string | null = null;
 
     if (isWalkin && walkinName) {
-      // Check for an existing client (by email, then phone) before creating a new folder
+      // Check for an existing client (by email/phone AND matching name) before creating a new folder.
+      // Same email but a different name (e.g. a family member) must NOT be merged.
+      const normalizedWalkinName = walkinName.trim().toLowerCase();
       let existingIntake: { id: string; first_name: string; email: string | null; phone: string | null } | null = null;
       if (walkinEmail) {
         const { data } = await supabase
           .from("intakes")
           .select("id, first_name, email, phone")
           .eq("nurse_id", user.id)
-          .eq("email", walkinEmail)
-          .maybeSingle();
-        existingIntake = data ?? null;
+          .eq("email", walkinEmail);
+        existingIntake = (data ?? []).find((i) => i.first_name?.trim().toLowerCase() === normalizedWalkinName) ?? null;
       }
       if (!existingIntake && walkinPhone) {
         const { data } = await supabase
           .from("intakes")
           .select("id, first_name, email, phone")
           .eq("nurse_id", user.id)
-          .eq("phone", walkinPhone)
-          .maybeSingle();
-        existingIntake = data ?? null;
+          .eq("phone", walkinPhone);
+        existingIntake = (data ?? []).find((i) => i.first_name?.trim().toLowerCase() === normalizedWalkinName) ?? null;
       }
 
       if (existingIntake) {
