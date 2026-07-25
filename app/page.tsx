@@ -4,10 +4,10 @@ import { useState } from "react";
 import Image from "next/image";
 
 const features = [
-  { emoji: "🤖", title: "Capture clients automatically", description: "Your custom AI chatbot answers questions, collects intake info, and confirms bookings — while you sleep, treat, or take the weekend off." },
-  { emoji: "🩹", title: "Send the right aftercare every time", description: "Log a treatment and the correct aftercare email goes out instantly. Lip filler + Botox in the same visit? One email. Everything covered." },
-  { emoji: "🚨", title: "Never miss a healing emergency", description: "Every aftercare email includes a private healing chat. If a client types an emergency keyword, you get an immediate alert with their name and phone number." },
-  { emoji: "🔁", title: "Bring clients back automatically", description: "6 and 9 month rebooking reminders go out without you lifting a finger. Review request emails send 2–3 days after every treatment." },
+  { emoji: "🤖", title: "Answer clients before they look elsewhere", description: "Your custom AI chatbot answers questions, collects intake info, and confirms bookings — so no one waits, and no one gives up and books with someone else." },
+  { emoji: "🩹", title: "Send real care, not just instructions", description: "Log a treatment and the right aftercare message goes out right away. Not just steps to follow — a message that shows you care. Lip filler and Botox in the same visit? One email, everything covered." },
+  { emoji: "🚨", title: "Make sure no one feels alone while healing", description: "Every aftercare message includes a private healing chat. If something feels wrong, you get an alert right away with their name and number. Your client feels safe, not forgotten." },
+  { emoji: "🔁", title: "Make sure they never forget you", description: "Rebooking reminders go out at 6 and 9 months. Review requests go out 2–3 days after treatment. All without you lifting a finger — so your clients feel remembered, not chased." },
   { emoji: "📊", title: "Know your numbers", description: "See every client who came through AdonisBlue, what they asked, and your conversion rate — proof the system is working." },
   { emoji: "🔗", title: "Works with your booking software", description: "Connects to Vagaro, Jane App, Square, Acuity, Mindbody, and more. Your booking flow stays exactly the same." },
 ];
@@ -177,14 +177,14 @@ export default function Home() {
             <div>
               <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-teal-400/30 bg-teal-400/10 px-4 py-1.5">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-400" />
-                <span className="text-xs font-semibold uppercase tracking-widest text-teal-300">Built for nurse injectors</span>
+                <span className="text-xs font-semibold uppercase tracking-widest text-teal-300">Built to keep your clients coming back</span>
               </div>
               <h1 className="text-balance text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-[3.25rem]">
-                Your injector practice needs a{" "}
-                <span className="bg-gradient-to-r from-teal-300 to-sky-300 bg-clip-text text-transparent">24/7 AI front desk.</span>
+                Clients don't leave because of skill.{" "}
+                <span className="bg-gradient-to-r from-teal-300 to-sky-300 bg-clip-text text-transparent">They leave because no one checks on them after.</span>
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-300">
-                AdonisBlue handles client intake, aftercare, emergency alerts, and rebooking automatically — so you can close your laptop and actually rest.
+                AdonisBlue checks in on every client after their treatment. Real aftercare. Real care. So they feel remembered — and they stay with you.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="#pricing" className="inline-flex min-h-[52px] items-center justify-center rounded-full bg-[#0d9488] px-8 py-3 text-base font-semibold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600">
@@ -400,8 +400,8 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Features</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Your AI front desk, running 24/7 in the background.</h2>
-              <p className="mt-4 text-base leading-relaxed text-slate-500">Designed to feel elegant on the surface and practical in real clinic life.</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">The follow-up your clients never get anywhere else.</h2>
+              <p className="mt-4 text-base leading-relaxed text-slate-500">Every client feels cared for. Every time. Without you lifting a finger.</p>
             </div>
             <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {features.map((feature, i) => {
