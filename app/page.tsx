@@ -195,6 +195,22 @@ export default function Home() {
                 </a>
               </div>
               <p className="mt-4 text-sm text-slate-400">No credit card needed · Cancel anytime · Setup in under an hour</p>
+              <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-300">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-400/20 text-xs font-bold text-teal-300">1</span>
+                  Sign up
+                </div>
+                <span className="text-slate-600">→</span>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-400/20 text-xs font-bold text-teal-300">2</span>
+                  Tell us about your practice (2 min)
+                </div>
+                <span className="text-slate-600">→</span>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-400/20 text-xs font-bold text-teal-300">3</span>
+                  Your AI front desk goes live
+                </div>
+              </div>
               <div className="mt-8 flex items-center gap-3">
                 <div className="flex -space-x-2">
                   {["🧑‍⚕️","👩‍⚕️","💉","🩺"].map((e,i) => (
