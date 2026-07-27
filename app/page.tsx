@@ -612,6 +612,22 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── PRE-CTA REASSURANCE ── */}
+        <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Why nurses stay with AdonisBlue</p>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">You are the injector clients trust. Not just liked. Known.</h2>
+            <div className="mt-8 space-y-5 text-lg leading-relaxed text-slate-500">
+              <p>She asks for you by name. She tells her friends about you. She never thinks twice about coming back.</p>
+              <p>Other injectors blend together. You don&apos;t.</p>
+              <p className="font-medium text-slate-700">That&apos;s not luck. That&apos;s what happens when your clients never feel forgotten after they leave your chair.</p>
+              <p>Your very next client can feel this today. No setup. Nothing new to learn.</p>
+              <p>You don&apos;t change how you treat your clients. You keep doing what you do best. We just make sure no one feels alone after they walk out the door.</p>
+              <p className="font-semibold text-[#1a2744]">You become the name they trust. Not just another option.</p>
+            </div>
+          </div>
+        </section>
+
         {/* ── FINAL CTA — dark like Firefly ── */}
         <section id="final-cta" className="relative overflow-hidden bg-[#0d1628] px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="pointer-events-none absolute inset-0" aria-hidden>
