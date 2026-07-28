@@ -663,7 +663,13 @@ export default function Home() {
               <a key={label} href={href} className="text-sm font-medium text-slate-500 transition hover:text-[#0d9488]">{label}</a>
             ))}
           </nav>
-          <p className="text-sm text-slate-400">© {new Date().getFullYear()} AdonisBlue. All rights reserved.</p>
+          <div className="flex flex-col items-center gap-1">
+            <p className="text-sm text-slate-400">© {new Date().getFullYear()} AdonisBlue. All rights reserved.</p>
+            <div className="flex gap-4">
+              <a href="/privacy" className="text-xs text-slate-400 transition hover:text-[#0d9488]">Privacy Policy</a>
+              <a href="/terms" className="text-xs text-slate-400 transition hover:text-[#0d9488]">Terms of Service</a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
