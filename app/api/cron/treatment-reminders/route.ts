@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     // Get all treatments with procedures that have reminder_days set
     const { data: treatments } = await supabase
       .from("treatments")
-      .select("*, intakes(first_name, email), procedures(name, reminder_days), bots:nurse_id(practice_name, booking_link)")
+      .select("*, intakes(first_name, email, marketing_opt_out), procedures(name, reminder_days), bots:nurse_id(practice_name, booking_link)")
       .eq("reminder_sent", false)
       .not("procedure_id", "is", null);
 
@@ -49,6 +49,7 @@ export async function GET(request: Request) {
       const procedureName = (treatment.procedures as any)?.name || treatment.procedure_name || "your treatment";
 
       if (!clientEmail) continue;
+      if ((treatment.intakes as any)?.marketing_opt_out) continue;
 
       try {
         await resend.emails.send({
@@ -75,7 +76,8 @@ export async function GET(request: Request) {
           <p style="margin:0;color:#94a3b8;font-size:13px;text-align:center;">We can't wait to see you again! 💕</p>
         </td></tr>
         <tr><td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
-          <p style="margin:0;color:#94a3b8;font-size:12px;">Sent with care by ${practiceName} via AdonisBlue</p>
+          <p style="margin:0 0 6px;color:#94a3b8;font-size:12px;">Sent with care by ${practiceName} via AdonisBlue</p>
+          <p style="margin:0;color:#cbd5e1;font-size:11px;"><a href="${SITE_URL}/api/unsubscribe?id=${treatment.intake_id}" style="color:#cbd5e1;text-decoration:underline;">Unsubscribe from reminders</a></p>
         </td></tr>
       </table>
     </td></tr>

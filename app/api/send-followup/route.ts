@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     // Fetch treatments — enforce nurse_id ownership
     const { data: treatments } = await supabase
       .from("treatments")
-      .select("id, procedure_name, treatment_date, intake_id, intakes(first_name, email)")
+      .select("id, procedure_name, treatment_date, intake_id, intakes(first_name, email, marketing_opt_out)")
       .in("id", treatmentIds)
       .eq("nurse_id", user.id);
 
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     let sent = 0;
 
     for (const treatment of treatments) {
-      const intake = treatment.intakes as { first_name?: string; email?: string } | null;
+      const intake = treatment.intakes as { first_name?: string; email?: string; marketing_opt_out?: boolean } | null;
       const clientEmail = intake?.email;
       const clientName = escapeHtml(intake?.first_name || "Beautiful");
       const procedureName = escapeHtml(treatment.procedure_name || "your procedure");
@@ -89,6 +89,7 @@ export async function POST(request: Request) {
           : `Since your recent ${procedureName}`;
 
       if (!clientEmail) continue;
+      if (intake?.marketing_opt_out) continue;
 
       try {
         await resend.emails.send({
@@ -120,7 +121,8 @@ export async function POST(request: Request) {
           </div>
         </td></tr>
         <tr><td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
-          <p style="margin:0;color:#94a3b8;font-size:12px;">Sent with care by ${practiceName} via AdonisBlue</p>
+          <p style="margin:0 0 6px;color:#94a3b8;font-size:12px;">Sent with care by ${practiceName} via AdonisBlue</p>
+          <p style="margin:0;color:#cbd5e1;font-size:11px;"><a href="${SITE_URL}/api/unsubscribe?id=${treatment.intake_id}" style="color:#cbd5e1;text-decoration:underline;">Unsubscribe from reminders</a></p>
         </td></tr>
       </table>
     </td></tr>

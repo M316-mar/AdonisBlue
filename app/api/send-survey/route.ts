@@ -20,6 +20,7 @@ export async function POST(request: Request) {
       .single();
 
     if (!intake) return NextResponse.json({ error: "Intake not found" }, { status: 404 });
+    if (intake.marketing_opt_out) return NextResponse.json({ skipped: true });
 
     // Fetch bot aftercare instructions
     const { data: bot } = await supabase
@@ -62,6 +63,9 @@ export async function POST(request: Request) {
 
       <p style="color: #94a3b8; font-size: 12px; margin-top: 32px;">
         Sent with care by AdonisBlue 💙 — helping nurses take care of their clients, even after they leave.
+      </p>
+      <p style="color: #cbd5e1; font-size: 11px;">
+        <a href="https://www.adonisblue.io/api/unsubscribe?id=${intake_id}" style="color: #cbd5e1; text-decoration: underline;">Unsubscribe from these emails</a>
       </p>
     </div>
   `,

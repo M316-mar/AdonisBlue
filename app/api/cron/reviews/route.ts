@@ -36,6 +36,7 @@ export async function GET(request: Request) {
       .select("*, bots(practice_name, booking_link, instagram, google_review_link)")
       .not("aftercare_sent_at", "is", null)
       .eq("review_request_sent", false)
+      .eq("marketing_opt_out", false)
       .gte("aftercare_sent_at", threeDaysAgo.toISOString())
       .lte("aftercare_sent_at", twoDaysAgo.toISOString())
       .not("email", "is", null);
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
           from: "AdonisBlue <hello@adonisblue.io>",
           to: intake.email,
           subject: `How are you feeling, ${clientName}? 💙`,
-          html: buildReviewEmail({ clientName, practiceName, bookingLink, googleReviewLink, instagram }),
+          html: buildReviewEmail({ clientName, practiceName, bookingLink, googleReviewLink, instagram, intakeId: intake.id }),
         });
 
         await supabase
@@ -85,12 +86,14 @@ function buildReviewEmail({
   bookingLink,
   googleReviewLink,
   instagram,
+  intakeId,
 }: {
   clientName: string;
   practiceName: string;
   bookingLink: string | null;
   googleReviewLink: string | null;
   instagram: string | null;
+  intakeId: string;
 }) {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -128,7 +131,8 @@ function buildReviewEmail({
         <tr>
           <td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
             <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;">Sent with care by ${practiceName} via AdonisBlue</p>
-            <p style="margin:0;color:#cbd5e1;font-size:11px;">You're receiving this because you visited ${practiceName}.</p>
+            <p style="margin:0 0 6px;color:#cbd5e1;font-size:11px;">You're receiving this because you visited ${practiceName}.</p>
+            <p style="margin:0;color:#cbd5e1;font-size:11px;"><a href="${SITE_URL}/api/unsubscribe?id=${intakeId}" style="color:#cbd5e1;text-decoration:underline;">Unsubscribe from these emails</a></p>
           </td>
         </tr>
       </table>
