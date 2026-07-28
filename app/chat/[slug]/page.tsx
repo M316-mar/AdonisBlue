@@ -178,6 +178,8 @@ export default function PublicChatPage() {
   // Pronoun preference — asked once after client provides their name
   const [pronouns, setPronouns] = useState<PronounOption | null>(null);
   const [pronounsAsked, setPronounsAsked] = useState(false);
+  const [consentGiven, setConsentGiven] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
 
   const nurseDisplayName = useMemo(() => {
     if (!bot) return "your provider";
@@ -249,6 +251,15 @@ export default function PublicChatPage() {
     if (!listRef.current) return;
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages, chatOpen, sending]);
+
+  useEffect(() => {
+    if (!slug) return;
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem(`adonisblue_consent_${slug}`) === "true") {
+      setConsentGiven(true);
+    }
+    setConsentChecked(true);
+  }, [slug]);
 
   const sendUserText = useCallback(
     async (text: string) => {
@@ -785,6 +796,35 @@ export default function PublicChatPage() {
       </div>
     </div>
   );
+
+  if (consentChecked && !consentGiven) {
+    return (
+      <div
+        className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 py-10 text-center"
+        style={{ background: "linear-gradient(180deg, #e8e4f0 0%, #e2ecea 50%, #ddeee6 100%)", minHeight: "100dvh" }}
+      >
+        <div className="max-w-sm rounded-2xl bg-white/90 p-6 shadow-lg">
+          <p className="mb-3 text-base font-semibold text-[#1a2744]">Before we chat</p>
+          <p className="mb-5 text-sm leading-relaxed text-slate-600">
+            By continuing, you agree to share the information you provide — including health-related details like allergies or medications, if asked — with {nurseDisplayName} through AdonisBlue, so they can assist you. Read our{" "}
+            <a href="https://www.adonisblue.io/privacy" target="_blank" rel="noopener noreferrer" className="underline text-teal-600">Privacy Policy</a>.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                localStorage.setItem(`adonisblue_consent_${slug}`, "true");
+              }
+              setConsentGiven(true);
+            }}
+            className="w-full rounded-full bg-[#0d9488] px-6 py-3 text-sm font-semibold text-white transition hover:bg-teal-700"
+          >
+            I Agree, Let&apos;s Chat
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

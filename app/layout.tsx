@@ -3,6 +3,7 @@ import { DM_Sans, Geist, Geist_Mono, Inter, Nunito, Playfair_Display } from "nex
 import { Suspense } from "react";
 import ActivityTracker from "@/components/ActivityTracker";
 import SessionSync from "@/components/SessionSync";
+import CookieConsentBanner from "@/components/CookieConsentBanner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -79,6 +80,7 @@ export default function RootLayout({
           <SessionSync />
         </Suspense>
         {children}
+        <CookieConsentBanner />
       </body>
     </html>
   );
