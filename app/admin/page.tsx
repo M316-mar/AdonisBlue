@@ -29,7 +29,16 @@ type FeedbackRow = {
   created_at: string;
 };
 
-type TabId = "nurses" | "subscriptions" | "feedback" | "blueroom" | "newsletter";
+type TabId = "nurses" | "subscriptions" | "feedback" | "blueroom" | "newsletter" | "refunds";
+
+type RefundRow = {
+  id: string;
+  customer_name: string | null;
+  customer_email: string | null;
+  amount: number | null;
+  reason: string | null;
+  created_at: string;
+};
 
 function slugify(input: string): string {
   return input.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "my-practice";
@@ -98,6 +107,11 @@ export default function AdminPage() {
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterSent, setNewsletterSent] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [refunds, setRefunds] = useState<RefundRow[]>([]);
+  const [refundForm, setRefundForm] = useState({ customer_name: "", customer_email: "", amount: "", reason: "" });
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refundSuccess, setRefundSuccess] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -116,12 +130,52 @@ export default function AdminPage() {
           const blueroomJson = await blueroomRes.json();
           setBlueroomPosts(blueroomJson.posts ?? []);
         }
+        const refundRes = await fetch("/api/admin/refund-log");
+        if (refundRes.ok) {
+          const refundJson = await refundRes.json();
+          setRefunds(refundJson.refunds ?? []);
+        }
         setReady(true);
       } catch {
         setReady(true);
       }
     })();
   }, [router]);
+
+  const fetchRefunds = useCallback(async () => {
+    const res = await fetch("/api/admin/refund-log");
+    if (res.ok) {
+      const json = await res.json();
+      setRefunds(json.refunds ?? []);
+    }
+  }, []);
+
+  const handleLogRefund = useCallback(async () => {
+    setRefundError(null);
+    const amount = parseFloat(refundForm.amount);
+    if (!refundForm.amount.trim() || !Number.isFinite(amount)) {
+      setRefundError("Amount is required.");
+      return;
+    }
+    setRefundLoading(true);
+    try {
+      const res = await fetch("/api/admin/refund-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...refundForm, amount }),
+      });
+      if (res.ok) {
+        setRefundForm({ customer_name: "", customer_email: "", amount: "", reason: "" });
+        setRefundSuccess(true);
+        setTimeout(() => setRefundSuccess(false), 3000);
+        await fetchRefunds();
+      } else {
+        setRefundError("Failed to save refund.");
+      }
+    } finally {
+      setRefundLoading(false);
+    }
+  }, [refundForm, fetchRefunds]);
 
   const handleFreezeToggle = useCallback(async (nurse: NurseRow) => {
     const nextFrozen = !nurse.frozen;
@@ -204,6 +258,7 @@ export default function AdminPage() {
     { id: "feedback", label: `💬 Feedback (${feedback.length})` },
     { id: "blueroom", label: "💙 Blue Room" },
     { id: "newsletter", label: "📧 Newsletter" },
+    { id: "refunds", label: "💸 Refunds" },
   ];
 
   return (
@@ -634,6 +689,120 @@ export default function AdminPage() {
                   {newsletterLoading ? "Sending…" : "📧 Send newsletter to all nurses"}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        {/* ── Refunds tab ── */}
+        {tab === "refunds" && (
+          <div className="space-y-6">
+            {/* Checklist */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+              <h2 className="mb-4 text-lg font-bold text-white">💸 Refund Process</h2>
+              <ol className="space-y-3">
+                {[
+                  "Calculate the prorated amount — days remaining in their billing period ÷ total days in the period × amount paid",
+                  "Go to the Stripe Dashboard → Customers → find the customer → Payments → Refund",
+                  "Cancel or downgrade their subscription (if not already done)",
+                  "Log it below so you have a record",
+                  "Send them a quick confirmation email letting them know it's done",
+                ].map((step, i) => (
+                  <li key={i} className="flex items-start gap-3 text-sm text-slate-300">
+                    <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-teal-400/20 text-xs font-bold text-teal-300">{i + 1}</span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            {/* Log refund form */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+              <h3 className="mb-4 text-sm font-bold text-white">Log a refund</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">Customer name</label>
+                  <input
+                    value={refundForm.customer_name}
+                    onChange={e => setRefundForm(p => ({ ...p, customer_name: e.target.value }))}
+                    placeholder="Jane Doe"
+                    className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400/50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">Customer email</label>
+                  <input
+                    value={refundForm.customer_email}
+                    onChange={e => setRefundForm(p => ({ ...p, customer_email: e.target.value }))}
+                    placeholder="jane@example.com"
+                    type="email"
+                    className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400/50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">Amount ($) <span className="text-red-400">*</span></label>
+                  <input
+                    value={refundForm.amount}
+                    onChange={e => setRefundForm(p => ({ ...p, amount: e.target.value }))}
+                    placeholder="85.00"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400/50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">Reason</label>
+                  <input
+                    value={refundForm.reason}
+                    onChange={e => setRefundForm(p => ({ ...p, reason: e.target.value }))}
+                    placeholder="e.g. Cancelled within 24h"
+                    className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400/50"
+                  />
+                </div>
+              </div>
+              {refundError && <p className="mt-3 text-xs text-red-400">{refundError}</p>}
+              <button
+                type="button"
+                disabled={refundLoading}
+                onClick={() => void handleLogRefund()}
+                className="mt-4 rounded-full bg-teal-400 px-6 py-2.5 text-sm font-bold text-[#0d1628] transition hover:bg-teal-300 disabled:opacity-50"
+              >
+                {refundLoading ? "Saving…" : refundSuccess ? "Logged! ✅" : "Log refund"}
+              </button>
+            </div>
+
+            {/* Past refunds table */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+              <div className="border-b border-white/10 px-5 py-3">
+                <p className="text-sm font-bold text-white">Past refunds ({refunds.length})</p>
+              </div>
+              {refunds.length === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-500">No refunds logged yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[600px] text-sm">
+                    <thead>
+                      <tr className="border-b border-white/10 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <th className="px-4 py-2 text-left">Date</th>
+                        <th className="px-4 py-2 text-left">Customer</th>
+                        <th className="px-4 py-2 text-left">Email</th>
+                        <th className="px-4 py-2 text-left">Amount</th>
+                        <th className="px-4 py-2 text-left">Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.06]">
+                      {refunds.map(r => (
+                        <tr key={r.id} className="hover:bg-white/[0.03]">
+                          <td className="px-4 py-3 text-xs text-slate-400">{new Date(r.created_at).toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-slate-200">{r.customer_name || "—"}</td>
+                          <td className="px-4 py-3 text-slate-400">{r.customer_email || "—"}</td>
+                          <td className="px-4 py-3 font-semibold text-teal-300">{r.amount != null ? `$${r.amount.toFixed(2)}` : "—"}</td>
+                          <td className="px-4 py-3 text-slate-400">{r.reason || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
