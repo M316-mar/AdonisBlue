@@ -552,7 +552,7 @@ export default function Home() {
             {/* Guarantee row */}
             <div className="mt-10 flex flex-col items-center gap-6 sm:flex-row sm:justify-center sm:gap-10">
               {[
-                { icon:"🛡️", title:"30-day money back guarantee", sub:"See results or we refund you. No questions asked." },
+                { icon:"🛡️", title:"Cancel anytime", sub:"Get a prorated refund for any unused time." },
                 { icon:"💰", title:"A front desk costs $2,000/mo", sub:"AdonisBlue starts at $85. One booking pays for it." },
                 { icon:"⚡", title:"Set up in 5 minutes", sub:"No tech skills. No credit card to start." },
               ].map(item => (
