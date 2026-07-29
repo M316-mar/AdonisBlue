@@ -24,7 +24,7 @@ export default function TermsPage() {
             <strong>[PLACEHOLDER: your legal name, since no LLC is formed yet — update to your LLC name once formed]</strong>, providing tools for aesthetic nurse injectors ("Practitioners," "you," "your account") to manage client communication, intake, aftercare, and follow-up.
           </p>
           <p className="mt-3 text-slate-500 leading-relaxed">
-            Contact: <strong>[PLACEHOLDER: support/legal email, e.g. hello@adonisblue.io]</strong>
+            Contact: <a href="mailto:hi@adonisblue.io" className="text-[#0d9488] underline">hi@adonisblue.io</a>
           </p>
           <p className="mt-3 text-slate-500 leading-relaxed">
             By creating an account or using AdonisBlue, you agree to these Terms of Service ("Terms"). If you don&apos;t agree, don&apos;t use the service.
@@ -133,7 +133,7 @@ export default function TermsPage() {
         <section className="mb-12">
           <h2 className="mb-3 text-xl font-semibold text-[#1a2744]">13. Contact</h2>
           <p className="text-slate-500 leading-relaxed">
-            Questions about these Terms? Contact us at <strong>[PLACEHOLDER: email]</strong>.
+            Questions about these Terms? Contact us at <a href="mailto:hi@adonisblue.io" className="text-[#0d9488] underline">hi@adonisblue.io</a>.
           </p>
         </section>
 

@@ -17,6 +17,10 @@ const faqItems = [
   { q: "I'm not techy.", a: "If you can fill out a form and send a text, you can set up AdonisBlue. Most nurses are live in under an hour." },
   { q: "I already use Vagaro / Jane / Square.", a: "Good. AdonisBlue connects to all of them. Your booking flow doesn't change — it just gets smarter." },
   { q: "I have a small practice.", a: "That's exactly who this is for. Solo injectors get the most out of automation because they don't have a front desk person handling this." },
+  { q: "Is AdonisBlue HIPAA compliant?", a: "We follow industry best practices for data protection including encryption in transit and at rest. We do not store medical records or treatment notes. However, we are not currently HIPAA-certified. We recommend not entering any PHI (protected health information) into the chatbot." },
+  { q: "Does this work with my booking software?", a: "AdonisBlue works alongside Vagaro, Jane, Square, Acuity, Mindbody, and most booking platforms. You embed the chatbot on your website or link to it from your Instagram bio — no integration required." },
+  { q: "Can I cancel anytime?", a: "Yes. There are no contracts, no lock-in, and no cancellation fees. Cancel from your dashboard and your subscription ends at the next billing cycle." },
+  { q: "How does the AI chatbot work?", a: "The chatbot uses AI trained on aesthetic treatment aftercare best practices. It answers common client questions about healing, aftercare, prep instructions, and pricing — so you don't have to respond to the same messages all day. You remain in control and can step in anytime." },
 ];
 
 function FaqAccordion() {
@@ -134,7 +138,7 @@ function NewsletterForm() {
         <p className="w-full text-center text-xs text-red-500">Something went wrong. Please try again.</p>
       )}
       {status === "idle" || status === "error" ? (
-        <p className="w-full text-center text-xs text-slate-400">Join 200+ nurse injectors already subscribed</p>
+        <p className="w-full text-center text-xs text-slate-400">Built for aesthetic nurses who care about follow-up</p>
       ) : null}
     </form>
   );
@@ -147,7 +151,7 @@ export default function Home() {
 
       {/* ── ANNOUNCEMENT BAR ── */}
       <div className="bg-gradient-to-r from-[#1a2744] via-[#0d9488] to-[#1a2744] px-4 py-2.5 text-center">
-        <p className="text-xs font-semibold text-white sm:text-sm">🎉 Now live — 6 & 9 month automatic client reminder emails. <a href="#pricing" className="underline underline-offset-2 hover:text-teal-200">Start free →</a></p>
+        <p className="text-xs font-semibold text-white sm:text-sm">🎉 Now live — 6 & 9 month automatic client reminder emails. <a href="/auth" className="underline underline-offset-2 hover:text-teal-200">Start free →</a></p>
       </div>
 
       {/* ── NAV ── */}
@@ -172,7 +176,7 @@ export default function Home() {
       <main>
 
         {/* ── HERO — dark navy like Firefly ── */}
-        <section className="relative overflow-hidden px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-28" style={{ background: "#0d1628" }}>
+        <section className="relative overflow-hidden px-4 py-16 pb-28 sm:px-6 sm:py-20 sm:pb-32 lg:px-8 lg:py-28 lg:pb-36" style={{ background: "#0d1628" }}>
           <div className="relative mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
             <div>
               <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-teal-400/30 bg-teal-400/10 px-4 py-1.5">
@@ -211,13 +215,8 @@ export default function Home() {
                   Your AI front desk goes live
                 </div>
               </div>
-              <div className="mt-8 flex items-center gap-3">
-                <div className="flex -space-x-2">
-                  {["🧑‍⚕️","👩‍⚕️","💉","🩺"].map((e,i) => (
-                    <div key={i} className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#0d1628] bg-[#1a2744] text-sm">{e}</div>
-                  ))}
-                </div>
-                <p className="text-sm text-slate-400"><span className="font-semibold text-white">200+ nurses</span> already using AdonisBlue</p>
+              <div className="mt-8">
+                <p className="text-sm text-slate-400">Built for aesthetic nurses who care about follow-up</p>
               </div>
             </div>
             {/* Aurora glass chat widget preview */}
@@ -663,8 +662,17 @@ export default function Home() {
               <a key={label} href={href} className="text-sm font-medium text-slate-500 transition hover:text-[#0d9488]">{label}</a>
             ))}
           </nav>
-          <div className="flex flex-col items-center gap-1">
-            <p className="text-sm text-slate-400">© {new Date().getFullYear()} AdonisBlue. All rights reserved.</p>
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-4">
+              <a href="mailto:hi@adonisblue.io" className="text-sm text-slate-400 transition hover:text-[#0d9488]">hi@adonisblue.io</a>
+              <a href="#" aria-label="Instagram" className="text-slate-400 transition hover:text-[#0d9488]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none"/></svg>
+              </a>
+              <a href="#" aria-label="TikTok" className="text-slate-400 transition hover:text-[#0d9488]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z"/></svg>
+              </a>
+            </div>
+            <p className="text-xs text-slate-400">© {new Date().getFullYear()} AdonisBlue. All rights reserved.</p>
             <div className="flex gap-4">
               <a href="/privacy" className="text-xs text-slate-400 transition hover:text-[#0d9488]">Privacy Policy</a>
               <a href="/terms" className="text-xs text-slate-400 transition hover:text-[#0d9488]">Terms of Service</a>

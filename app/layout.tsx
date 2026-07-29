@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     description: "Automatic aftercare, healing check-ins, and follow-up that makes every client feel cared for — not just treated.",
     url: "https://www.adonisblue.io",
     siteName: "AdonisBlue",
-    images: [{ url: "/Alona.png", width: 512, height: 512, alt: "AdonisBlue" }],
+    images: [{ url: "/Alona.png", width: 1200, height: 630, alt: "AdonisBlue" }],
     type: "website",
   },
   twitter: {

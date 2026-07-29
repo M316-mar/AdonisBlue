@@ -23,7 +23,7 @@ export default function PrivacyPage() {
             This Privacy Policy explains how AdonisBlue ("we," "us," "our") collects, uses, and protects information — both about <strong>Practitioners</strong> (nurse injectors who create AdonisBlue accounts) and their <strong>Clients</strong> (the people who interact with a Practitioner&apos;s AI chat widget or receive emails through AdonisBlue).
           </p>
           <p className="mt-3 text-slate-500 leading-relaxed">
-            Contact: <strong>[PLACEHOLDER: privacy contact email, e.g. privacy@adonisblue.io]</strong>
+            Contact: <a href="mailto:hi@adonisblue.io" className="text-[#0d9488] underline">hi@adonisblue.io</a>
           </p>
         </section>
 
@@ -71,20 +71,23 @@ export default function PrivacyPage() {
               <thead>
                 <tr className="border-b border-slate-200">
                   <th className="py-2 pr-6 text-left font-semibold text-slate-700">Provider</th>
-                  <th className="py-2 text-left font-semibold text-slate-700">Purpose</th>
+                  <th className="py-2 pr-6 text-left font-semibold text-slate-700">Purpose</th>
+                  <th className="py-2 text-left font-semibold text-slate-700">Data Shared</th>
                 </tr>
               </thead>
               <tbody>
                 {[
-                  ["Supabase", "Database hosting and account authentication"],
-                  ["Resend", "Sending emails (aftercare, reminders, notifications)"],
-                  ["Stripe", "Payment processing"],
-                  ["Anthropic", "AI-generated chat responses and content"],
-                  ["[PLACEHOLDER: Twilio, once SMS is live]", "SMS alerts"],
-                ].map(([provider, purpose]) => (
+                  ["Supabase", "Database hosting and account authentication", "Account data, client records"],
+                  ["Stripe", "Payment processing", "Email, billing address"],
+                  ["Resend", "Transactional emails", "Email address, name"],
+                  ["Anthropic", "AI chatbot responses", "Anonymized client questions"],
+                  ["Vercel", "Website hosting", "IP address, browser data"],
+                  ["Google Analytics", "Website analytics", "IP address, page views"],
+                ].map(([provider, purpose, data]) => (
                   <tr key={provider} className="border-b border-slate-100">
                     <td className="py-2 pr-6 font-medium">{provider}</td>
-                    <td className="py-2">{purpose}</td>
+                    <td className="py-2 pr-6">{purpose}</td>
+                    <td className="py-2 text-slate-400">{data}</td>
                   </tr>
                 ))}
               </tbody>
@@ -101,7 +104,7 @@ export default function PrivacyPage() {
         <section className="mb-8">
           <h2 className="mb-3 text-xl font-semibold text-[#1a2744]">5. Data Retention</h2>
           <p className="text-slate-500 leading-relaxed">
-            We retain Practitioner and Client data for as long as the Practitioner&apos;s account is active. If an account is cancelled, we will delete or anonymize associated data within <strong>[PLACEHOLDER: e.g. 90 days]</strong>, except where we&apos;re required to keep it longer by law.
+            We retain Practitioner and Client data for as long as the Practitioner&apos;s account is active. If an account is cancelled, we will delete or anonymize associated data within <strong>90 days</strong>, except where we&apos;re required to keep it longer by law.
           </p>
         </section>
 
@@ -115,7 +118,7 @@ export default function PrivacyPage() {
         <section className="mb-8">
           <h2 className="mb-3 text-xl font-semibold text-[#1a2744]">7. Your Rights</h2>
           <p className="mb-3 text-slate-500 leading-relaxed">
-            <strong>If you are a California resident</strong>, you have rights under the CCPA/CPRA, including the right to know what personal information we&apos;ve collected, to request deletion, and to opt out of the sale of personal information (we do not sell personal information). To exercise these rights, contact us at <strong>[PLACEHOLDER: email]</strong>.
+            <strong>If you are a California resident</strong>, you have rights under the CCPA/CPRA, including the right to know what personal information we&apos;ve collected, to request deletion, and to opt out of the sale of personal information (we do not sell personal information). To exercise these rights, contact us at <a href="mailto:hi@adonisblue.io" className="text-[#0d9488] underline">hi@adonisblue.io</a>.
           </p>
           <p className="mb-3 text-slate-500 leading-relaxed">
             <strong>If you are a Client of a Practitioner using AdonisBlue</strong> and want your information corrected or deleted, you can contact your Practitioner directly, or reach out to us and we&apos;ll assist.
@@ -142,7 +145,7 @@ export default function PrivacyPage() {
         <section className="mb-8">
           <h2 className="mb-3 text-xl font-semibold text-[#1a2744]">10. Cookies &amp; Tracking</h2>
           <p className="text-slate-500 leading-relaxed">
-            Our website may use basic cookies and a live chat widget (Tawk.to) to operate and improve the site. <strong>[PLACEHOLDER: add a cookie banner if you use analytics like Google Analytics — currently not confirmed either way]</strong>.
+            Our website uses basic cookies to operate the site, and Google Analytics to understand how visitors use it. We display a cookie consent notice on first visit.
           </p>
         </section>
 
