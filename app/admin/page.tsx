@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 type NurseRow = {
   practice_name: string | null;
   bot_name: string | null;
+  email: string | null;
   slug: string | null;
   launched: boolean | null;
   frozen: boolean | null;
@@ -354,6 +355,7 @@ export default function AdminPage() {
                 <thead>
                   <tr className="border-b border-white/10 text-xs font-semibold uppercase tracking-wide text-slate-400">
                     <th className="px-4 py-3">Practice</th>
+                    <th className="px-4 py-3">Email</th>
                     <th className="px-4 py-3">Bot URL</th>
                     <th className="px-4 py-3">Bot Status</th>
                     <th className="px-4 py-3">Plan</th>
@@ -377,6 +379,7 @@ export default function AdminPage() {
                             {nurse.practice_name?.trim() || "—"}
                           </div>
                         </td>
+                        <td className="px-4 py-3 text-slate-300 text-xs">{nurse.email || "—"}</td>
                         <td className="px-4 py-3">
                           <Link href={`/chat/${botSlug(nurse)}`} target="_blank" className="text-teal-400 hover:underline">
                             /chat/{botSlug(nurse)}

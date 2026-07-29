@@ -8,7 +8,7 @@ export async function GET() {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const [botsRes, intakesRes, conversationsRes, feedbackRes] = await Promise.all([
+    const [botsRes, intakesRes, conversationsRes, feedbackRes, usersRes] = await Promise.all([
       supabase
         .from("bots")
         .select("practice_name, bot_name, slug, launched, frozen, created_at, nurse_id, plan, trial_ends_at, subscription_status")
@@ -23,12 +23,17 @@ export async function GET() {
         .from("feedback")
         .select("*")
         .order("created_at", { ascending: false }),
+      supabase.auth.admin.listUsers({ perPage: 1000 }),
     ]);
 
     const bots = botsRes.data ?? [];
     const intakes = intakesRes.data ?? [];
     const conversations = conversationsRes.data ?? [];
     const feedbackRows = feedbackRes.data ?? [];
+    const emailByUserId = new Map<string, string>();
+    for (const u of usersRes.data?.users ?? []) {
+      if (u.email) emailByUserId.set(u.id, u.email);
+    }
 
     const nurses = bots.map(bot => {
       const nurseIntakes = intakes.filter(i => i.nurse_id === bot.nurse_id);
@@ -45,6 +50,7 @@ export async function GET() {
 
       return {
         ...bot,
+        email: emailByUserId.get(bot.nurse_id) ?? null,
         plan: bot.plan ?? "trial",
         trial_ends_at: trialEndsAt,
         subscription_status: bot.subscription_status ?? "trial",
