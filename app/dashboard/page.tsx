@@ -317,6 +317,7 @@ export default function NurseDashboardPage() {
   const handleFreezeToggle = useCallback(async () => {
     if (!bot) return;
     const nextFrozen = !bot.frozen;
+    if (nextFrozen && !window.confirm("Freeze your account? Your bot will be paused and clients will see an 'unavailable' message until you unfreeze.")) return;
     setFreezeLoading(true);
     try {
       const { data } = await supabase.auth.getSession();
@@ -634,7 +635,7 @@ export default function NurseDashboardPage() {
                     <div>
                       <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-teal-300/30 bg-teal-300/10 px-3 py-1">
                         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-300" />
-                        <span className="text-xs font-semibold uppercase tracking-widest text-teal-300">Coming Soon</span>
+                        <span className="text-xs font-semibold uppercase tracking-widest text-teal-300">Now Live</span>
                       </div>
                       <h2 className="text-lg font-bold text-white">The Blue Room 💙</h2>
                       <p className="mt-1 text-sm leading-relaxed text-slate-200">
@@ -655,7 +656,7 @@ export default function NurseDashboardPage() {
                       >
                         Enter The Blue Room 💙
                       </Link>
-                      <p className="text-xs text-teal-200/70 text-center">Be first in when we launch</p>
+                      <p className="text-xs text-teal-200/70 text-center">Join your community of aesthetic nurses.</p>
                     </div>
                   </div>
                 </div>
@@ -675,7 +676,7 @@ export default function NurseDashboardPage() {
                   </button>
                   {embedOpen && (
                     <div className="border-t border-slate-100 px-5 pb-5 pt-4">
-                      <p className="text-xs leading-relaxed text-slate-500">Copy this code and paste it anywhere in your website&apos;s HTML. Your bot will appear automatically — updates apply instantly, no changes needed on your site.</p>
+                      <p className="text-xs leading-relaxed text-slate-500">Copy this code and paste it before the closing <code className="rounded bg-slate-100 px-1 text-[#1a2744]">&lt;/body&gt;</code> tag on your website. Your bot will appear automatically — updates apply instantly, no changes needed on your site.</p>
                       <div className="mt-3 rounded-xl bg-[#1a2744] px-3 py-3">
                         <code className="block break-all text-xs leading-relaxed text-teal-200">
                           {`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`}
@@ -867,12 +868,12 @@ export default function NurseDashboardPage() {
                         className={`inline-flex w-full items-center justify-center rounded-full border-2 px-4 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
                           bot?.frozen
                             ? "border-teal-400 bg-teal-50 text-teal-700 hover:bg-teal-100"
-                            : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                            : "border-slate-300 bg-slate-50 text-slate-500 hover:bg-slate-100"
                         }`}
                       >
                         {freezeLoading ? "Saving…" : bot?.frozen ? "❄️ Unfreeze my account" : "❄️ Freeze my account"}
                       </button>
-                      <p className={`text-xs px-1 font-semibold ${bot?.frozen ? "text-amber-600" : "text-slate-500"}`}>
+                      <p className={`text-xs px-1 font-semibold ${bot?.frozen ? "text-amber-600" : "text-slate-400"}`}>
                         {bot?.frozen
                           ? "Your bot is paused. Clients cannot chat until you unfreeze."
                           : "Temporarily pauses your bot — clients will see an 'unavailable' message instead of the chat."}
@@ -883,14 +884,16 @@ export default function NurseDashboardPage() {
                             ✓ Membership canceled — you keep access until the end of your billing period.
                           </p>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => void handleCancelMembership()}
-                            disabled={cancelBusy}
-                            className="inline-flex w-full items-center justify-center rounded-full border-2 border-red-300 px-4 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-50"
-                          >
-                            {cancelBusy ? "Canceling…" : "Cancel membership"}
-                          </button>
+                          <div className="border-t border-slate-100 pt-1.5">
+                            <button
+                              type="button"
+                              onClick={() => void handleCancelMembership()}
+                              disabled={cancelBusy}
+                              className="inline-flex w-full items-center justify-center rounded-full border-2 border-red-200 bg-red-50 px-4 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-100 disabled:opacity-50"
+                            >
+                              {cancelBusy ? "Canceling…" : "Cancel membership"}
+                            </button>
+                          </div>
                         )
                       )}
                     </div>
@@ -915,7 +918,7 @@ export default function NurseDashboardPage() {
           </p>
         </div>
 
-        {showWelcome ? (
+        {showWelcome && !showLaunchCelebration ? (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="welcome-modal-title">
             <button type="button" className="absolute inset-0 bg-black/50" aria-label="Close" onClick={dismissWelcome} />
             <div className="relative z-[101] w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
