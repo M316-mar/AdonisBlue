@@ -31,20 +31,27 @@ export default function PrivacyPage() {
           <h2 className="mb-3 text-xl font-semibold text-[#1a2744]">2. Information We Collect</h2>
           <p className="mb-2 font-medium text-slate-700">From Practitioners (account holders):</p>
           <ul className="mb-4 list-disc pl-6 text-slate-500 leading-relaxed space-y-1">
-            <li>Name, email, phone, practice name, booking link, and other account setup information</li>
-            <li>Payment information (processed by Stripe — we do not store full card numbers)</li>
+            <li>Name and email address</li>
+            <li>Password (stored as a secure hash — we never store it in plain text)</li>
+            <li>Practice name and booking URL</li>
             <li>Procedures offered and associated aftercare/prep content you configure</li>
+            <li>Payment information (processed by Stripe — we do not store full card numbers)</li>
           </ul>
           <p className="mb-2 font-medium text-slate-700">From Clients (via the chat widget, intake forms, or manual entry by the Practitioner):</p>
           <ul className="mb-4 list-disc pl-6 text-slate-500 leading-relaxed space-y-1">
-            <li>Name, email, phone number</li>
-            <li>Procedure interest and treatment history</li>
-            <li>Health-related intake information you or your Practitioner chooses to collect, which may include allergies, blood thinner use, and prior procedure history</li>
+            <li>Name, email address, and phone number</li>
+            <li>Treatment questions asked through the chat widget</li>
+            <li>Intake form responses, including procedure interest and appointment preferences</li>
+            <li>Health-related intake information a Practitioner chooses to collect, which may include allergies, blood thinner use, and prior procedure history</li>
             <li>Messages sent through the healing/aftercare chat, including anything shared about symptoms or concerns after a treatment</li>
           </ul>
           <p className="mb-2 font-medium text-slate-700">Automatically collected:</p>
           <ul className="list-disc pl-6 text-slate-500 leading-relaxed space-y-1">
-            <li>Basic technical information (IP address, browser type, general usage data) for security and service operation</li>
+            <li>IP address</li>
+            <li>Browser type and version</li>
+            <li>Device type and operating system</li>
+            <li>Cookie identifiers and session tokens</li>
+            <li>Pages visited, features used, and general usage patterns</li>
           </ul>
         </section>
 
