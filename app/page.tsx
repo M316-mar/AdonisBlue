@@ -176,7 +176,7 @@ export default function Home() {
       <main className="pb-20">
 
         {/* ── HERO — dark navy like Firefly ── */}
-        <section className="relative overflow-hidden px-4 pt-8 pb-48 sm:px-6 sm:pt-12 sm:pb-48 lg:px-8 lg:pt-24 lg:pb-48" style={{ background: "#0d1628" }}>
+        <section className="relative overflow-hidden px-4 pt-8 pb-20 sm:px-6 sm:pt-12 sm:pb-20 lg:px-8 lg:pt-24 lg:pb-20" style={{ background: "#0d1628", minHeight: "calc(100vh - 60px)", paddingBottom: "80px" }}>
           <div className="relative mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
             <div>
               <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-teal-400/30 bg-teal-400/10 px-4 py-1.5">
