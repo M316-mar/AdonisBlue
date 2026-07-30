@@ -159,7 +159,7 @@ export default function PrivacyPage() {
         <section className="mb-12">
           <h2 className="mb-3 text-xl font-semibold text-[#1a2744]">12. Contact Us</h2>
           <p className="text-slate-500 leading-relaxed">
-            Questions about this policy? Contact us at <strong>[PLACEHOLDER: email]</strong>.
+            Questions about this policy? Contact us at <a href="mailto:hi@adonisblue.io" className="text-[#0d9488] underline">hi@adonisblue.io</a>.
           </p>
         </section>
 

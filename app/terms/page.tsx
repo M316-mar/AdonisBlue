@@ -21,7 +21,7 @@ export default function TermsPage() {
           <h2 className="mb-3 text-xl font-semibold text-[#1a2744]">1. Who We Are</h2>
           <p className="text-slate-500 leading-relaxed">
             AdonisBlue ("AdonisBlue," "we," "us," or "our") is a software-as-a-service platform operated by{" "}
-            <strong>[PLACEHOLDER: your legal name, since no LLC is formed yet — update to your LLC name once formed]</strong>, providing tools for aesthetic nurse injectors ("Practitioners," "you," "your account") to manage client communication, intake, aftercare, and follow-up.
+            <strong>Valentina Martinez</strong>, providing tools for aesthetic nurse injectors ("Practitioners," "you," "your account") to manage client communication, intake, aftercare, and follow-up.
           </p>
           <p className="mt-3 text-slate-500 leading-relaxed">
             Contact: <a href="mailto:hi@adonisblue.io" className="text-[#0d9488] underline">hi@adonisblue.io</a>
@@ -70,7 +70,7 @@ export default function TermsPage() {
             <li>AdonisBlue offers a free trial period (currently 14 days, subject to change) before a paid subscription begins.</li>
             <li>Paid plans are billed monthly or annually through our payment processor, Stripe, in advance.</li>
             <li>You may cancel your subscription at any time; cancellation takes effect at the end of your current billing period unless otherwise stated.</li>
-            <li><strong>[PLACEHOLDER: your refund policy — e.g., "Fees already paid are non-refundable except as required by law" or whatever you decide]</strong></li>
+            <li>You may cancel anytime and receive a prorated refund for any unused time remaining in your billing period.</li>
             <li>We may change our pricing with notice; continued use after a price change constitutes acceptance of the new pricing.</li>
           </ul>
         </section>
@@ -91,7 +91,7 @@ export default function TermsPage() {
           <p className="text-slate-500 leading-relaxed">
             You retain ownership of your client data. We process it on your behalf to provide the service, as described in our{" "}
             <Link href="/privacy" className="text-[#0d9488] underline">Privacy Policy</Link>. Upon account cancellation, we will delete or anonymize your data within{" "}
-            <strong>[PLACEHOLDER: a retention period you choose, e.g. 90 days]</strong>, except where retention is required by law.
+            <strong>90 days</strong>, except where retention is required by law.
           </p>
         </section>
 
@@ -119,7 +119,7 @@ export default function TermsPage() {
         <section className="mb-8">
           <h2 className="mb-3 text-xl font-semibold text-[#1a2744]">11. Governing Law</h2>
           <p className="text-slate-500 leading-relaxed">
-            These Terms are governed by the laws of the State of <strong>[PLACEHOLDER: your state, e.g. Texas]</strong>, without regard to conflict-of-law principles.
+            These Terms are governed by the laws of the State of <strong>Texas</strong>, without regard to conflict-of-law principles.
           </p>
         </section>
 
