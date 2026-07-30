@@ -129,12 +129,16 @@ export default function NurseDashboardPage() {
   const [freezeLoading, setFreezeLoading] = useState(false);
   const [showEmailNotice, setShowEmailNotice] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [embedCopied, setEmbedCopied] = useState(false);
+  const [hasBooking, setHasBooking] = useState(false);
+  const [hasOffer, setHasOffer] = useState(false);
 
   useEffect(() => {
     setShowEmailNotice(!localStorage.getItem("emailNoticesDismissed"));
     if (!localStorage.getItem("adonisblue-welcome-seen")) {
       setShowWelcome(true);
     }
+    setEmbedCopied(localStorage.getItem("ab-embed-copied") === "1");
   }, []);
 
   const dismissWelcome = useCallback(() => {
@@ -175,6 +179,24 @@ export default function NurseDashboardPage() {
           if (!cancelled && intakesRes.ok) {
             const intakesJson = await intakesRes.json();
             setIntakes(intakesJson.intakes ?? []);
+          }
+
+          // Fetch booking connect status
+          const bookingRes = await fetch("/api/booking-connect", {
+            headers: { authorization: `Bearer ${token}` },
+          });
+          if (!cancelled && bookingRes.ok) {
+            const bookingJson = await bookingRes.json() as { has_secret?: boolean };
+            setHasBooking(Boolean(bookingJson.has_secret));
+          }
+
+          // Fetch offers count
+          const offersRes = await fetch("/api/offers", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!cancelled && offersRes.ok) {
+            const offersJson = await offersRes.json() as { offers?: unknown[] };
+            setHasOffer(Array.isArray(offersJson.offers) && offersJson.offers.length > 0);
           }
         }
       }
@@ -221,6 +243,17 @@ export default function NurseDashboardPage() {
 
   const totalClients = useMemo(() => intakes.length, [intakes]);
   const aftercareSent = useMemo(() => intakes.filter((i) => i.aftercare_sent_at).length, [intakes]);
+
+  const SETUP_STEPS = useMemo(() => [
+    { id: "bot", label: "Create your bot", href: "/onboarding", done: bot?.launched === true },
+    { id: "embed", label: "Add your bot to your website", href: "#embed", done: embedCopied },
+    { id: "booking", label: "Connect your booking software", href: "/booking-connect", done: hasBooking },
+    { id: "treatment", label: "Log your first treatment", href: "/aftercare", done: aftercareSent > 0 },
+    { id: "offer", label: "Send your first offer", href: "/offers", done: hasOffer },
+  ], [bot?.launched, embedCopied, hasBooking, aftercareSent, hasOffer]);
+
+  const setupDoneCount = useMemo(() => SETUP_STEPS.filter((s) => s.done).length, [SETUP_STEPS]);
+  const setupAllDone = setupDoneCount === SETUP_STEPS.length;
   const reviewsRequested = useMemo(() => intakes.filter((i) => i.survey_sent).length, [intakes]);
   const remindersScheduled = useMemo(
     () => intakes.filter((i) => i.aftercare_sent_at && !i.reminder_6m_sent).length,
@@ -422,6 +455,78 @@ export default function NurseDashboardPage() {
                 </p>
               </div>
             </section>
+
+            {/* ── Getting started checklist ── */}
+            {!setupAllDone ? (
+              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md">
+                <div className="px-5 py-4 border-b border-slate-100">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-teal-600">Getting started</p>
+                      <p className="mt-0.5 text-sm font-semibold text-[#1a2744]">{setupDoneCount} of {SETUP_STEPS.length} steps complete</p>
+                    </div>
+                    <span className="text-sm font-bold text-teal-600">{Math.round((setupDoneCount / SETUP_STEPS.length) * 100)}%</span>
+                  </div>
+                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-teal-500 transition-[width] duration-500"
+                      style={{ width: `${Math.round((setupDoneCount / SETUP_STEPS.length) * 100)}%` }}
+                      role="progressbar"
+                      aria-valuenow={setupDoneCount}
+                      aria-valuemin={0}
+                      aria-valuemax={SETUP_STEPS.length}
+                    />
+                  </div>
+                </div>
+                <ul className="divide-y divide-slate-100">
+                  {(() => {
+                    const firstIncomplete = SETUP_STEPS.findIndex((s) => !s.done);
+                    return SETUP_STEPS.map((step, i) => {
+                      const isCurrent = i === firstIncomplete;
+                      const isUpcoming = i > firstIncomplete && !step.done;
+                      return (
+                        <li key={step.id} className={`relative flex items-center gap-4 px-5 py-3.5 ${isCurrent ? "bg-teal-50" : step.done ? "bg-slate-50/60" : "bg-white"}`}>
+                          {!step.done && (
+                            <Link href={step.href} className="absolute inset-0 z-[1]" aria-label={step.label} />
+                          )}
+                          <span className="relative z-[2] flex h-7 w-7 shrink-0 items-center justify-center" aria-hidden>
+                            {step.done ? (
+                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-500 text-white text-sm font-bold">✓</span>
+                            ) : isCurrent ? (
+                              <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-teal-500 bg-white">
+                                <span className="h-2.5 w-2.5 rounded-full bg-teal-500" />
+                              </span>
+                            ) : (
+                              <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-200 bg-white" />
+                            )}
+                          </span>
+                          <span className={`relative z-[2] flex-1 text-sm font-medium pointer-events-none ${step.done ? "text-slate-400 line-through decoration-slate-300" : isCurrent ? "text-[#1a2744]" : "text-slate-400"}`}>
+                            {step.label}
+                          </span>
+                          {!step.done && (
+                            <Link
+                              href={step.href}
+                              tabIndex={-1}
+                              className={`relative z-[2] shrink-0 rounded-full px-3 py-1 text-xs font-bold transition ${isCurrent ? "bg-teal-600 text-white hover:bg-teal-700" : "border border-slate-200 bg-white text-slate-400"}`}
+                            >
+                              {isCurrent ? "Start →" : isUpcoming ? "Upcoming" : "Start →"}
+                            </Link>
+                          )}
+                        </li>
+                      );
+                    });
+                  })()}
+                </ul>
+              </section>
+            ) : (
+              <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-sky-50 px-5 py-4 shadow-sm">
+                <span className="text-3xl">🎉</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-base font-bold text-[#1a2744]">You&apos;re all set! AdonisBlue is running.</p>
+                  <p className="text-sm text-slate-600">Everything is connected. Your practice is on autopilot. 💙</p>
+                </div>
+              </div>
+            )}
 
             <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
               {[
@@ -684,7 +789,7 @@ export default function NurseDashboardPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => void navigator.clipboard.writeText(`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`)}
+                        onClick={() => { void navigator.clipboard.writeText(`<script async src="https://adonisblue.io/embed.js" data-bot-slug="${botChatSlug}"></script>`); localStorage.setItem("ab-embed-copied", "1"); setEmbedCopied(true); }}
                         className="mt-3 w-full rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
                       >
                         Copy embed code
