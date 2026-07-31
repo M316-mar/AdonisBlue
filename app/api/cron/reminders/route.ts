@@ -50,7 +50,7 @@ export async function GET(request: Request) {
 
     try {
       await resend.emails.send({
-        from: "AdonisBlue <hello@adonisblue.io>",
+        from: "AdonisBlue <hi@adonisblue.io>",
         to: intake.email,
         subject: `${clientName}, your lips are calling 💋`,
         html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 6 }),
@@ -70,7 +70,7 @@ export async function GET(request: Request) {
 
     try {
       await resend.emails.send({
-        from: "AdonisBlue <hello@adonisblue.io>",
+        from: "AdonisBlue <hi@adonisblue.io>",
         to: intake.email,
         subject: `It's been a while, ${clientName} — time to glow again ✨`,
         html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 9 }),

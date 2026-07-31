@@ -57,7 +57,7 @@ export async function GET(request: Request) {
 
       try {
         await resend.emails.send({
-          from: "AdonisBlue <hello@adonisblue.io>",
+          from: "AdonisBlue <hi@adonisblue.io>",
           to: intake.email,
           subject: `How are you feeling, ${clientName}? 💙`,
           html: buildReviewEmail({ clientName, practiceName, bookingLink, googleReviewLink, instagram, intakeId: intake.id }),

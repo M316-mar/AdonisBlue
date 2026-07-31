@@ -85,7 +85,7 @@ export async function POST(request: Request) {
 
     // Email the nurse
     await resend.emails.send({
-      from: "AdonisBlue <hello@adonisblue.io>",
+      from: "AdonisBlue <hi@adonisblue.io>",
       to: nurse_email,
       subject: `💙 New client intake — ${first_name} is ready to book!`,
       html: `

@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
     if (intake.email) {
       await resend.emails.send({
-        from: "AdonisBlue <hello@adonisblue.io>",
+        from: "AdonisBlue <hi@adonisblue.io>",
         to: intake.email,
         subject: `Thank you for your visit! 💙 Your aftercare + a quick favor`,
         html: `

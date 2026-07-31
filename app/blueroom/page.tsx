@@ -720,7 +720,7 @@ export default function BlueRoomPage() {
                         <video src={post.media_url} controls className="w-full rounded-xl max-h-96 bg-black" />
                       ) : (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={post.media_url} alt="" className="w-full rounded-xl max-h-96 object-cover" />
+                        <img src={post.media_url} alt="Post image" className="w-full rounded-xl max-h-96 object-cover" />
                       )}
                     </div>
                   )}
@@ -805,7 +805,7 @@ export default function BlueRoomPage() {
                                   <p className="text-xs leading-relaxed text-slate-700 mt-0.5">{comment.message}</p>
                                   {comment.media_url && (
                                     // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={comment.media_url} alt="" className="mt-2 max-h-40 rounded-xl object-cover border border-slate-100" />
+                                    <img src={comment.media_url} alt="Comment image" className="mt-2 max-h-40 rounded-xl object-cover border border-slate-100" />
                                   )}
                                 </div>
                                 <div className="mt-1 flex items-center gap-3 px-2">
@@ -845,7 +845,7 @@ export default function BlueRoomPage() {
                         {commentMediaPreview[post.id] && (
                           <div className="relative inline-block">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={commentMediaPreview[post.id]!} alt="" className="h-20 w-20 rounded-xl object-cover border border-slate-200" />
+                            <img src={commentMediaPreview[post.id]!} alt="Selected image preview" className="h-20 w-20 rounded-xl object-cover border border-slate-200" />
                             <button
                               type="button"
                               onClick={() => {

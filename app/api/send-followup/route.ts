@@ -93,7 +93,7 @@ export async function POST(request: Request) {
 
       try {
         await resend.emails.send({
-          from: "AdonisBlue <hello@adonisblue.io>",
+          from: "AdonisBlue <hi@adonisblue.io>",
           to: clientEmail,
           subject: `${clientName}, time to glow again? ✨`,
           html: `<!DOCTYPE html>

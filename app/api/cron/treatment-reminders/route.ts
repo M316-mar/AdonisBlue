@@ -53,7 +53,7 @@ export async function GET(request: Request) {
 
       try {
         await resend.emails.send({
-          from: "AdonisBlue <hello@adonisblue.io>",
+          from: "AdonisBlue <hi@adonisblue.io>",
           to: clientEmail,
           subject: `Time to refresh your ${procedureName}? ✨`,
           html: `<!DOCTYPE html>

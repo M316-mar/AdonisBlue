@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 
     if (send_email && client_email) {
       await resend.emails.send({
-        from: "AdonisBlue <hello@adonisblue.io>",
+        from: "AdonisBlue <hi@adonisblue.io>",
         to: client_email,
         subject: `You earned loyalty points at ${practice_name}! 🌟`,
         html: `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>

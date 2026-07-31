@@ -277,7 +277,7 @@ export async function POST(request: Request) {
       }
 
       await resend.emails.send({
-        from: "AdonisBlue <hello@adonisblue.io>",
+        from: "AdonisBlue <hi@adonisblue.io>",
         to: clientEmail,
         subject: `Your aftercare instructions from ${practiceName} 💙`,
         html: `<!DOCTYPE html>

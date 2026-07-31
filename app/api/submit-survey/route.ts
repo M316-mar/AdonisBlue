@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
     if (nurse_email) {
       await resend.emails.send({
-        from: "AdonisBlue <hello@adonisblue.io>",
+        from: "AdonisBlue <hi@adonisblue.io>",
         to: nurse_email,
         subject: `⭐ New review — ${ratingNum}/5 stars!`,
         html: `

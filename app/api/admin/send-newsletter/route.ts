@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         <tr>
           <td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
             <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;">You're receiving this because you're an AdonisBlue member.</p>
-            <p style="margin:0;color:#cbd5e1;font-size:11px;">AdonisBlue · hello@adonisblue.io</p>
+            <p style="margin:0;color:#cbd5e1;font-size:11px;">AdonisBlue · hi@adonisblue.io</p>
           </td>
         </tr>
       </table>
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     for (const email of nurseEmails) {
       try {
         await resend.emails.send({
-          from: "AdonisBlue <hello@adonisblue.io>",
+          from: "AdonisBlue <hi@adonisblue.io>",
           to: email,
           subject,
           html,

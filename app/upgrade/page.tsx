@@ -173,7 +173,7 @@ export default function UpgradePage() {
           <p className="text-xs text-slate-500 leading-relaxed">
             🔒 Payments are processed securely by Stripe. We never store your card details.
             <br />
-            Questions? Email us at <a href="mailto:hello@adonisblue.io" className="font-semibold text-[#0d9488]">hello@adonisblue.io</a>
+            Questions? Email us at <a href="mailto:hi@adonisblue.io" className="font-semibold text-[#0d9488]">hi@adonisblue.io</a>
           </p>
         </div>
       </main>

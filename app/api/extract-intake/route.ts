@@ -110,7 +110,7 @@ ${conversation}`
     const emailTo = botData?.notification_email || nurse_email;
 
     await resend.emails.send({
-      from: "AdonisBlue <hello@adonisblue.io>",
+      from: "AdonisBlue <hi@adonisblue.io>",
       to: emailTo,
       subject: `💙 New client intake — ${intake.first_name || "A new client"} has been sent your booking link!`,
       html: `

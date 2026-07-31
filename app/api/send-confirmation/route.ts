@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     }
 
     await resend.emails.send({
-      from: "AdonisBlue <hello@adonisblue.io>",
+      from: "AdonisBlue <hi@adonisblue.io>",
       to: toEmail,
       subject,
       html,
@@ -84,7 +84,7 @@ function buildEmail({ title, body, ctaLabel, ctaUrl, footer }: {
         <tr>
           <td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
             <p style="margin:0 0 6px;color:#94a3b8;font-size:12px;">${footer}</p>
-            <p style="margin:0;color:#cbd5e1;font-size:11px;">AdonisBlue · hello@adonisblue.io</p>
+            <p style="margin:0;color:#cbd5e1;font-size:11px;">AdonisBlue · hi@adonisblue.io</p>
           </td>
         </tr>
       </table>

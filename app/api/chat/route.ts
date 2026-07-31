@@ -297,7 +297,7 @@ export async function POST(request: Request) {
           // Send email
           if (alertEmail) {
             await resend.emails.send({
-              from: "AdonisBlue <hello@adonisblue.io>",
+              from: "AdonisBlue <hi@adonisblue.io>",
               to: alertEmail,
               subject,
               html: emailHtml,

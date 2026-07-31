@@ -236,7 +236,7 @@ export async function POST(request: Request) {
       // Send email if we have any address
       if (alertEmailAddress) {
         await resend.emails.send({
-          from: "AdonisBlue <hello@adonisblue.io>",
+          from: "AdonisBlue <hi@adonisblue.io>",
           to: alertEmailAddress,
           subject: `⚠️ URGENT: ${clientName} needs attention after ${procedureName}`,
           html: `<!DOCTYPE html>

@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
     if (intake.email) {
       await resend.emails.send({
-        from: "AdonisBlue <hello@adonisblue.io>",
+        from: "AdonisBlue <hi@adonisblue.io>",
         to: intake.email,
         subject: `Your aftercare instructions from ${practiceName} 💙`,
         html: `<!DOCTYPE html>
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         </tr>
         <tr>
           <td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
-            <p style="margin:0;color:#94a3b8;font-size:12px;">Sent with care by ${practiceName} via AdonisBlue · hello@adonisblue.io</p>
+            <p style="margin:0;color:#94a3b8;font-size:12px;">Sent with care by ${practiceName} via AdonisBlue · hi@adonisblue.io</p>
           </td>
         </tr>
       </table>

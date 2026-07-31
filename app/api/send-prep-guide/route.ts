@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     const serviceText = intake.service_interested ? ` for your ${intake.service_interested}` : "";
 
     await resend.emails.send({
-      from: "AdonisBlue <hello@adonisblue.io>",
+      from: "AdonisBlue <hi@adonisblue.io>",
       to: intake.email,
       subject: `See you soon, ${clientName}! Here's how to prepare 💙`,
       html: `<!DOCTYPE html>
