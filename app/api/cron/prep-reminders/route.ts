@@ -4,6 +4,15 @@ import { NextResponse } from "next/server";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const DEFAULT_PREP_INSTRUCTIONS = [
   "Please arrive with a clean face — no makeup, moisturiser, or SPF.",
   "Avoid alcohol for 24 hours before your appointment.",
@@ -74,7 +83,7 @@ export async function GET(request: Request) {
       .eq("nurse_id", intake.nurse_id)
       .single();
 
-    const practiceName = bot?.practice_name || "your provider";
+    const practiceName = escapeHtml(bot?.practice_name || "your provider");
     const rawInstructions: string = bot?.pre_appointment_instructions?.trim() || "";
     const instructionLines: string[] = rawInstructions
       ? rawInstructions.split("\n").map((l: string) => l.trim()).filter(Boolean)
@@ -84,7 +93,7 @@ export async function GET(request: Request) {
       .map(line => `<tr><td style="padding:6px 0;color:#1a2744;font-size:15px;">✅ ${line}</td></tr>`)
       .join("");
 
-    const clientName = intake.first_name || "there";
+    const clientName = escapeHtml(intake.first_name || "there");
     const apptDate = new Date(treatment.treatment_date).toLocaleDateString("en-US", {
       weekday: "long", month: "long", day: "numeric",
     });
@@ -107,7 +116,7 @@ export async function GET(request: Request) {
         <tr><td style="padding:32px;">
           <p style="margin:0 0 8px;color:#1a2744;font-size:17px;font-weight:600;">Hi ${clientName}! 👋</p>
           <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">
-            We're so excited to see you for your ${treatment.procedure_name}! To make sure you get the best results and most comfortable experience, here's how to prepare:
+            We're so excited to see you for your ${escapeHtml(treatment.procedure_name || "")}! To make sure you get the best results and most comfortable experience, here's how to prepare:
           </p>
           <div style="background:#f0fdf4;border-radius:14px;border:1px solid #bbf7d0;padding:20px 24px;margin-bottom:24px;">
             <p style="margin:0 0 12px;color:#0d9488;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Pre-Appointment Checklist</p>

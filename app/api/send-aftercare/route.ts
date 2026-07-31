@@ -4,6 +4,15 @@ import { NextResponse } from "next/server";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export async function POST(request: Request) {
   try {
     const { intake_id, custom_body } = await request.json();
@@ -27,11 +36,11 @@ export async function POST(request: Request) {
       .eq("nurse_id", intake.nurse_id)
       .single();
 
-    const aftercare = (typeof custom_body === "string" && custom_body.trim())
+    const aftercare = escapeHtml((typeof custom_body === "string" && custom_body.trim())
       ? custom_body.trim()
-      : bot?.aftercare_template || bot?.aftercare || "Take care of yourself and stay hydrated!";
-    const practiceName = bot?.practice_name || "your provider";
-    const clientName = intake.first_name || "Beautiful";
+      : bot?.aftercare_template || bot?.aftercare || "Take care of yourself and stay hydrated!");
+    const practiceName = escapeHtml(bot?.practice_name || "your provider");
+    const clientName = escapeHtml(intake.first_name || "Beautiful");
 
     if (intake.email) {
       await resend.emails.send({

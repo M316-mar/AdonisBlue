@@ -4,6 +4,15 @@ import { NextResponse } from "next/server";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export async function GET(request: Request) {
   // Verify this is called by Vercel cron
   const authHeader = request.headers.get("authorization");
@@ -94,6 +103,8 @@ function buildReminderEmail({ clientName, practiceName, bookingLink, months, int
   months: number;
   intakeId: string;
 }) {
+  clientName = escapeHtml(clientName);
+  practiceName = escapeHtml(practiceName);
   const is6 = months === 6;
   const headline = is6
     ? `Your results are fading, ${clientName} — and we miss you 💕`

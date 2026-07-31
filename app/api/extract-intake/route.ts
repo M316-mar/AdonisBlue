@@ -4,6 +4,15 @@ import { NextResponse } from "next/server";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export async function POST(request: Request) {
   try {
     const { conversation, bot_id, nurse_id, nurse_email, practice_name, pronouns } = await request.json();
@@ -115,24 +124,24 @@ ${conversation}`
       subject: `💙 New client intake — ${intake.first_name || "A new client"} has been sent your booking link!`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-          <h2 style="color: #1a2744;">New Client Intake — ${practice_name}</h2>
+          <h2 style="color: #1a2744;">New Client Intake — ${escapeHtml(practice_name)}</h2>
           <p style="color: #475569;">Great news! A new client just completed their intake and we've already sent them your booking link. Here's their information so you're ready when they come in 💙</p>
           
           <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0;">
             <h3 style="color: #0d9488; margin-top: 0;">Client Information</h3>
-            <p><strong>Name:</strong> ${intake.first_name || "Not provided"}</p>
-            <p><strong>Email:</strong> ${intake.email || "Not provided"}</p>
-            <p><strong>Phone:</strong> ${intake.phone || "Not provided"}</p>
-            <p><strong>Service interested in:</strong> ${intake.service_interested || "Not specified"}</p>
-            ${intake.referred_by ? `<p><strong>Found you via:</strong> ${intake.referred_by} 📍</p>` : ""}
+            <p><strong>Name:</strong> ${escapeHtml(intake.first_name || "Not provided")}</p>
+            <p><strong>Email:</strong> ${escapeHtml(intake.email || "Not provided")}</p>
+            <p><strong>Phone:</strong> ${escapeHtml(intake.phone || "Not provided")}</p>
+            <p><strong>Service interested in:</strong> ${escapeHtml(intake.service_interested || "Not specified")}</p>
+            ${intake.referred_by ? `<p><strong>Found you via:</strong> ${escapeHtml(intake.referred_by)} 📍</p>` : ""}
           </div>
 
           <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0;">
             <h3 style="color: #0d9488; margin-top: 0;">Medical Information</h3>
             <p><strong>Had procedures before:</strong> ${intake.had_procedures_before ? "Yes" : "No"}</p>
-            <p><strong>On blood thinners:</strong> ${intake.on_blood_thinners ? `Yes — ${intake.blood_thinner_details || "details not provided"}` : "No"}</p>
-            <p><strong>Allergies:</strong> ${intake.allergies || "None reported"}</p>
-            <p><strong>Medication allergies:</strong> ${intake.medication_allergies || "None reported"}</p>
+            <p><strong>On blood thinners:</strong> ${intake.on_blood_thinners ? `Yes — ${escapeHtml(intake.blood_thinner_details || "details not provided")}` : "No"}</p>
+            <p><strong>Allergies:</strong> ${escapeHtml(intake.allergies || "None reported")}</p>
+            <p><strong>Medication allergies:</strong> ${escapeHtml(intake.medication_allergies || "None reported")}</p>
           </div>
 
           <p style="color: #94a3b8; font-size: 12px; margin-top: 32px;">

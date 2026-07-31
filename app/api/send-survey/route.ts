@@ -4,6 +4,15 @@ import { NextResponse } from "next/server";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export async function POST(request: Request) {
   try {
     const { intake_id } = await request.json();
@@ -29,8 +38,8 @@ export async function POST(request: Request) {
       .eq("nurse_id", intake.nurse_id)
       .single();
 
-    const aftercare = bot?.aftercare || null;
-    const practiceName = bot?.practice_name || "your provider";
+    const aftercare = bot?.aftercare ? escapeHtml(bot.aftercare) : null;
+    const practiceName = escapeHtml(bot?.practice_name || "your provider");
 
     const surveyUrl = `https://www.adonisblue.io/survey/${intake_id}`;
 

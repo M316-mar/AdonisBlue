@@ -4,6 +4,15 @@ import { NextResponse } from "next/server";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const DEFAULT_PREP_INSTRUCTIONS = [
   "Come with a clean face — no makeup",
   "Avoid alcohol 24 hours before your appointment",
@@ -55,7 +64,7 @@ export async function POST(request: Request) {
       .eq("nurse_id", user.id)
       .single();
 
-    const practiceName = bot?.practice_name || "your provider";
+    const practiceName = escapeHtml(bot?.practice_name || "your provider");
 
     // Priority: custom_instructions from request > bot's saved instructions > hardcoded defaults
     const rawInstructions: string =
@@ -75,8 +84,8 @@ export async function POST(request: Request) {
       )
       .join("");
 
-    const clientName = intake.first_name || "there";
-    const serviceText = intake.service_interested ? ` for your ${intake.service_interested}` : "";
+    const clientName = escapeHtml(intake.first_name || "there");
+    const serviceText = intake.service_interested ? ` for your ${escapeHtml(intake.service_interested)}` : "";
 
     await resend.emails.send({
       from: "AdonisBlue <hi@adonisblue.io>",
