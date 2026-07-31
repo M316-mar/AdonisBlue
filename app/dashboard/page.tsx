@@ -215,12 +215,27 @@ export default function NurseDashboardPage() {
     s1.src = "https://embed.tawk.to/6a57c832096ab21d402a63f3/1jtjec19d";
     s1.charset = "UTF-8";
     s1.setAttribute("crossorigin", "*");
+    // Push Tawk bubble to bottom-left so it never overlaps the Help button (bottom-right)
+    const style = document.createElement("style");
+    style.id = "tawk-position-override";
+    style.textContent = `
+      #tawkchat-minified-box,
+      #tawkchat-minified-wrapper,
+      .tawk-min-container,
+      .tawk-button-circle {
+        left: 24px !important;
+        right: auto !important;
+        bottom: 24px !important;
+      }
+    `;
+    document.head.appendChild(style);
+
     s1.onload = () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tawk = (window as any).Tawk_API;
       if (tawk) {
         tawk.onLoad = function () {
-          tawk.hideWidget();
+          tawk.minimize();
         };
       }
     };
@@ -1162,7 +1177,7 @@ export default function NurseDashboardPage() {
       ) : null}
 
       {/* ── Consolidated help button (bottom-right) ── */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+      <div className="fixed top-6 right-6 sm:top-auto sm:bottom-6 sm:right-6 z-[9999] flex flex-col items-end gap-2">
         {helpMenuOpen && (
           <div className="flex flex-col items-end gap-2 mb-1">
             {feedbackOpen ? (
@@ -1214,7 +1229,6 @@ export default function NurseDashboardPage() {
               onClick={() => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const tawk = (window as any).Tawk_API;
-                tawk?.showWidget?.();
                 tawk?.maximize?.();
                 setHelpMenuOpen(false);
               }}
