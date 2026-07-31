@@ -220,7 +220,7 @@ export default function NurseDashboardPage() {
       const tawk = (window as any).Tawk_API;
       if (tawk) {
         tawk.onLoad = function () {
-          tawk.minimize();
+          tawk.hideWidget();
         };
       }
     };
@@ -1214,6 +1214,7 @@ export default function NurseDashboardPage() {
               onClick={() => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const tawk = (window as any).Tawk_API;
+                tawk?.showWidget?.();
                 tawk?.maximize?.();
                 setHelpMenuOpen(false);
               }}
