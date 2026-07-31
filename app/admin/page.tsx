@@ -99,6 +99,8 @@ export default function AdminPage() {
   const [nurses, setNurses] = useState<NurseRow[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [freezeLoading, setFreezeLoading] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const [tab, setTab] = useState<TabId>("nurses");
   const [blueroomPosts, setBlueroomPosts] = useState<{id:string;title:string;content:string;category:string;emoji:string;created_at:string;}[]>([]);
   const [newPost, setNewPost] = useState({ title: "", content: "", category: "general", emoji: "💙" });
@@ -178,6 +180,25 @@ export default function AdminPage() {
     }
   }, [refundForm, fetchRefunds]);
 
+  const handleDelete = useCallback(async (nurse: NurseRow) => {
+    if (!window.confirm(`Delete ${nurse.practice_name?.trim() || nurse.email || "this nurse"}? This cannot be undone.`)) return;
+    setDeleteLoading(nurse.nurse_id);
+    try {
+      const res = await fetch("/api/admin/freeze-account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nurse_id: nurse.nurse_id }),
+      });
+      if (res.ok) {
+        setNurses(prev => prev.filter(n => n.nurse_id !== nurse.nurse_id));
+      } else {
+        alert("Delete failed — check the API.");
+      }
+    } finally {
+      setDeleteLoading(null);
+    }
+  }, []);
+
   const handleFreezeToggle = useCallback(async (nurse: NurseRow) => {
     const nextFrozen = !nurse.frozen;
     setFreezeLoading(nurse.nurse_id);
@@ -238,6 +259,16 @@ export default function AdminPage() {
   const totalFrozen = nurses.filter(n => n.frozen).length;
   const totalIntakes = nurses.reduce((sum, n) => sum + (n.total_intakes || 0), 0);
   const totalReviews = nurses.reduce((sum, n) => sum + (n.reviews_sent || 0), 0);
+
+  const filteredNurses = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return nurses;
+    return nurses.filter(n =>
+      (n.practice_name ?? "").toLowerCase().includes(q) ||
+      (n.email ?? "").toLowerCase().includes(q) ||
+      botSlug(n).toLowerCase().includes(q)
+    );
+  }, [nurses, search]);
 
   const trialNurses = useMemo(() => nurses.filter(n => (n.plan ?? "trial") === "trial" && !isTrialExpired(n)), [nurses]);
   const starterNurses = useMemo(() => nurses.filter(n => (n.plan ?? "trial") === "starter"), [nurses]);
@@ -349,89 +380,156 @@ export default function AdminPage() {
 
         {/* ── Nurses tab ── */}
         {tab === "nurses" && (
-          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-white/10 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    <th className="px-4 py-3">Practice</th>
-                    <th className="px-4 py-3">Email</th>
-                    <th className="px-4 py-3">Bot URL</th>
-                    <th className="px-4 py-3">Bot Status</th>
-                    <th className="px-4 py-3">Plan</th>
-                    <th className="px-4 py-3">Trial Ends</th>
-                    <th className="px-4 py-3">Convos</th>
-                    <th className="px-4 py-3">Clients</th>
-                    <th className="px-4 py-3">Last Active</th>
-                    <th className="px-4 py-3">Joined</th>
-                    <th className="px-4 py-3">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.06]">
-                  {nurses.map(nurse => {
-                    const expired = isTrialExpired(nurse);
-                    const daysLeft = trialDaysLeft(nurse);
-                    return (
-                      <tr key={nurse.nurse_id} className={`align-middle transition hover:bg-white/[0.03] ${expired ? "bg-red-900/10" : ""}`}>
-                        <td className="px-4 py-3 font-medium text-white">
-                          <div className="flex items-center gap-2">
-                            {expired && <span title="Trial expired">⚠️</span>}
-                            {nurse.practice_name?.trim() || "—"}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-slate-300 text-xs">{nurse.email || "—"}</td>
-                        <td className="px-4 py-3">
-                          <Link href={`/chat/${botSlug(nurse)}`} target="_blank" className="text-teal-400 hover:underline">
-                            /chat/{botSlug(nurse)}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                            nurse.frozen
-                              ? "border-amber-400/30 bg-amber-400/10 text-amber-300"
-                              : nurse.launched
-                              ? "border-green-400/30 bg-green-400/10 text-green-300"
-                              : "border-slate-400/30 bg-slate-400/10 text-slate-400"
-                          }`}>
-                            {nurse.frozen ? "🔒 Frozen" : nurse.launched ? "🟢 Active" : "⚪ Not launched"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <PlanBadge plan={nurse.plan ?? "trial"} expired={expired} />
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-400">
-                          {(nurse.plan ?? "trial") === "trial" && !expired && (
-                            <span className="text-amber-300 font-semibold">{daysLeft}d left</span>
-                          )}
-                          {expired && <span className="text-red-400">Expired</span>}
-                          {(nurse.plan ?? "trial") !== "trial" && <span className="text-teal-400">Paid</span>}
-                        </td>
-                        <td className="px-4 py-3 text-slate-300">{nurse.total_conversations || 0}</td>
-                        <td className="px-4 py-3 text-slate-300">{nurse.total_intakes || 0}</td>
-                        <td className="px-4 py-3 text-slate-400 text-xs">{new Date(nurse.last_active).toLocaleDateString()}</td>
-                        <td className="px-4 py-3 text-slate-400 text-xs">{new Date(nurse.created_at).toLocaleDateString()}</td>
-                        <td className="px-4 py-3">
-                          <button
-                            type="button"
-                            disabled={freezeLoading === nurse.nurse_id}
-                            onClick={() => void handleFreezeToggle(nurse)}
-                            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+          <div className="space-y-3">
+            {/* Search + Export row */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <input
+                type="search"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by practice name, email, or bot URL…"
+                className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400/50 sm:max-w-sm"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const rows = [
+                    ["Practice", "Email", "Bot URL", "Plan", "Trial Ends", "Convos", "Clients", "Joined"].join(","),
+                    ...filteredNurses.map(n => [
+                      `"${(n.practice_name?.trim() || n.email || "").replace(/"/g, '""')}"`,
+                      `"${(n.email || "").replace(/"/g, '""')}"`,
+                      `/chat/${botSlug(n)}`,
+                      n.plan ?? "trial",
+                      n.trial_ends_at ? new Date(n.trial_ends_at).toLocaleDateString() : "",
+                      n.total_conversations || 0,
+                      n.total_intakes || 0,
+                      new Date(n.created_at).toLocaleDateString(),
+                    ].join(",")),
+                  ].join("\n");
+                  const blob = new Blob([rows], { type: "text/csv" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `nurses-${new Date().toISOString().split("T")[0]}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="shrink-0 rounded-full border border-teal-400/30 bg-teal-400/10 px-4 py-2 text-sm font-semibold text-teal-300 transition hover:bg-teal-400/20"
+              >
+                ↓ Export CSV
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1100px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-white/10 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      <th className="px-4 py-3">Practice</th>
+                      <th className="px-4 py-3">Email</th>
+                      <th className="px-4 py-3">Bot URL</th>
+                      <th className="px-4 py-3">Bot Status</th>
+                      <th className="px-4 py-3">Plan</th>
+                      <th className="px-4 py-3">Trial Ends</th>
+                      <th className="px-4 py-3">Convos</th>
+                      <th className="px-4 py-3">Clients</th>
+                      <th className="px-4 py-3">Last Active</th>
+                      <th className="px-4 py-3">Joined</th>
+                      <th className="px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.06]">
+                    {filteredNurses.map(nurse => {
+                      const expired = isTrialExpired(nurse);
+                      const daysLeft = trialDaysLeft(nurse);
+                      const trialAlmostDone = !expired && (nurse.plan ?? "trial") === "trial" && daysLeft <= 3;
+                      const displayName = nurse.practice_name?.trim() || nurse.email || "—";
+                      return (
+                        <tr
+                          key={nurse.nurse_id}
+                          className={`align-middle transition hover:bg-white/[0.03] ${
+                            expired ? "bg-red-900/10" : trialAlmostDone ? "bg-yellow-400/[0.07]" : ""
+                          }`}
+                        >
+                          <td className="px-4 py-3 font-medium text-white">
+                            <div className="flex items-center gap-2">
+                              {expired && <span title="Trial expired">⚠️</span>}
+                              {trialAlmostDone && <span title="Trial ending soon">🟡</span>}
+                              {displayName}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-300 text-xs">{nurse.email || "—"}</td>
+                          <td className="px-4 py-3">
+                            <Link href={`/chat/${botSlug(nurse)}`} target="_blank" className="text-teal-400 hover:underline">
+                              /chat/{botSlug(nurse)}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
                               nurse.frozen
-                                ? "border border-teal-400/30 bg-teal-400/10 text-teal-300 hover:bg-teal-400/20"
-                                : "border border-amber-400/30 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20"
-                            }`}
-                          >
-                            {freezeLoading === nurse.nurse_id ? "Saving…" : nurse.frozen ? "Unfreeze" : "Freeze"}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {nurses.length === 0 && (
-                <p className="py-12 text-center text-sm text-slate-500">No nurses yet.</p>
-              )}
+                                ? "border-amber-400/30 bg-amber-400/10 text-amber-300"
+                                : nurse.launched
+                                ? "border-green-400/30 bg-green-400/10 text-green-300"
+                                : "border-slate-400/30 bg-slate-400/10 text-slate-400"
+                            }`}>
+                              {nurse.frozen ? "🔒 Frozen" : nurse.launched ? "🟢 Active" : "⚪ Not launched"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <PlanBadge plan={nurse.plan ?? "trial"} expired={expired} />
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-400">
+                            {(nurse.plan ?? "trial") === "trial" && !expired && (
+                              <span className={`font-semibold ${trialAlmostDone ? "text-yellow-300" : "text-amber-300"}`}>{daysLeft}d left</span>
+                            )}
+                            {expired && <span className="text-red-400">Expired</span>}
+                            {(nurse.plan ?? "trial") !== "trial" && <span className="text-teal-400">Paid</span>}
+                          </td>
+                          <td className="px-4 py-3 text-slate-300">{nurse.total_conversations || 0}</td>
+                          <td className="px-4 py-3 text-slate-300">{nurse.total_intakes || 0}</td>
+                          <td className="px-4 py-3 text-slate-400 text-xs">{new Date(nurse.last_active).toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-slate-400 text-xs">{new Date(nurse.created_at).toLocaleDateString()}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1.5">
+                              <Link
+                                href={`/onboarding?nurse_id=${nurse.nurse_id}`}
+                                className="rounded-full border border-slate-400/30 bg-slate-400/10 px-2.5 py-1 text-xs font-semibold text-slate-300 transition hover:bg-slate-400/20"
+                              >
+                                Edit
+                              </Link>
+                              <button
+                                type="button"
+                                disabled={freezeLoading === nurse.nurse_id}
+                                onClick={() => void handleFreezeToggle(nurse)}
+                                className={`rounded-full px-2.5 py-1 text-xs font-semibold transition disabled:opacity-50 ${
+                                  nurse.frozen
+                                    ? "border border-teal-400/30 bg-teal-400/10 text-teal-300 hover:bg-teal-400/20"
+                                    : "border border-amber-400/30 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20"
+                                }`}
+                              >
+                                {freezeLoading === nurse.nurse_id ? "…" : nurse.frozen ? "Unfreeze" : "Freeze"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={deleteLoading === nurse.nurse_id}
+                                onClick={() => void handleDelete(nurse)}
+                                className="rounded-full border border-red-400/30 bg-red-400/10 px-2.5 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-400/20 disabled:opacity-50"
+                              >
+                                {deleteLoading === nurse.nurse_id ? "…" : "Delete"}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {filteredNurses.length === 0 && (
+                  <p className="py-12 text-center text-sm text-slate-500">
+                    {search ? "No nurses match your search." : "No nurses yet."}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         )}
