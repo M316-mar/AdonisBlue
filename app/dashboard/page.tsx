@@ -219,9 +219,7 @@ export default function NurseDashboardPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tawk = (window as any).Tawk_API;
       if (tawk) {
-        tawk.onLoad = function () {
-          tawk.minimize();
-        };
+        tawk.onLoad = function () {};
       }
     };
     document.head.appendChild(s1);
@@ -1208,20 +1206,6 @@ export default function NurseDashboardPage() {
         </button>
       </div>
 
-      {/* ── Live support button (bottom-right) ── */}
-      <div className="fixed bottom-6 right-6 z-[9999]">
-        <button
-          type="button"
-          onClick={() => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const tawk = (window as any).Tawk_API;
-            tawk?.maximize?.();
-          }}
-          className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700"
-        >
-          💬 Help
-        </button>
-      </div>
     </div>
   );
 }
