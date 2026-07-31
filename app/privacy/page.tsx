@@ -46,10 +46,10 @@ export default function PrivacyPage() {
             <li>Healing chat messages, including anything shared about symptoms or concerns after a treatment</li>
           </ul>
           <p className="mb-2 font-medium text-slate-700">Automatically collected:</p>
-          <ul className="list-disc pl-6 text-slate-500 leading-relaxed space-y-1">
+          <ul className="mb-4 list-disc pl-6 text-slate-500 leading-relaxed space-y-1">
             <li>IP address</li>
             <li>Browser type and version</li>
-            <li>Device type and operating system</li>
+            <li>Device and operating system</li>
             <li>Cookies and session tokens</li>
             <li>Usage patterns and page interactions</li>
           </ul>
