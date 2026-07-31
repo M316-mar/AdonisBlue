@@ -83,16 +83,17 @@ export async function POST(request: Request) {
       });
     }
 
-    // Email the nurse
-    await resend.emails.send({
-      from: "AdonisBlue <hi@adonisblue.io>",
-      to: nurse_email,
-      subject: `💙 New client intake — ${first_name} is ready to book!`,
-      html: `
+    // Email the nurse (only if we actually have an address to send to)
+    if (nurse_email) {
+      await resend.emails.send({
+        from: "AdonisBlue <hi@adonisblue.io>",
+        to: nurse_email,
+        subject: `💙 New client intake — ${first_name} is ready to book!`,
+        html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #1a2744;">New Client Intake — ${practice_name}</h2>
           <p style="color: #475569;">A new client just completed their intake form and is ready to book!</p>
-          
+
           <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0;">
             <h3 style="color: #0d9488; margin-top: 0;">Client Information</h3>
             <p><strong>Name:</strong> ${first_name}</p>
@@ -114,7 +115,8 @@ export async function POST(request: Request) {
           </p>
         </div>
       `,
-    });
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (e) {

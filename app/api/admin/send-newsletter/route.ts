@@ -18,13 +18,19 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Get all active nurse emails from auth
+    // Get all active nurse emails from auth, excluding anyone who opted out of the newsletter
     const { data: users } = await supabase.auth.admin.listUsers();
-    const nurseEmails = (users?.users ?? [])
-      .filter(u => u.email)
-      .map(u => u.email as string);
+    const { data: optOutBots } = await supabase
+      .from("bots")
+      .select("nurse_id")
+      .eq("newsletter_opt_out", true);
+    const optedOutIds = new Set((optOutBots ?? []).map(b => b.nurse_id));
 
-    if (nurseEmails.length === 0) {
+    const recipients = (users?.users ?? [])
+      .filter(u => u.email && !optedOutIds.has(u.id))
+      .map(u => ({ id: u.id, email: u.email as string }));
+
+    if (recipients.length === 0) {
       return NextResponse.json({ error: "No nurses to send to" }, { status: 400 });
     }
 
@@ -35,7 +41,7 @@ export async function POST(request: Request) {
       .map((p: string) => `<p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.7;">${p.trim().replace(/\n/g, "<br/>")}</p>`)
       .join("");
 
-    const html = `<!DOCTYPE html>
+    const buildHtml = (nurseId: string) => `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>${subject}</title></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -72,7 +78,8 @@ export async function POST(request: Request) {
         <tr>
           <td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
             <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;">You're receiving this because you're an AdonisBlue member.</p>
-            <p style="margin:0;color:#cbd5e1;font-size:11px;">AdonisBlue · hi@adonisblue.io</p>
+            <p style="margin:0 0 6px;color:#cbd5e1;font-size:11px;">AdonisBlue · hi@adonisblue.io</p>
+            <p style="margin:0;color:#cbd5e1;font-size:11px;"><a href="${SITE_URL}/api/unsubscribe-newsletter?id=${nurseId}" style="color:#cbd5e1;text-decoration:underline;">Unsubscribe from this newsletter</a></p>
           </td>
         </tr>
       </table>
@@ -83,17 +90,17 @@ export async function POST(request: Request) {
 
     // Send to all nurses
     let sentCount = 0;
-    for (const email of nurseEmails) {
+    for (const recipient of recipients) {
       try {
         await resend.emails.send({
           from: "AdonisBlue <hi@adonisblue.io>",
-          to: email,
+          to: recipient.email,
           subject,
-          html,
+          html: buildHtml(recipient.id),
         });
         sentCount++;
       } catch (e) {
-        console.error(`Failed to send to ${email}:`, e);
+        console.error(`Failed to send to ${recipient.email}:`, e);
       }
     }
 

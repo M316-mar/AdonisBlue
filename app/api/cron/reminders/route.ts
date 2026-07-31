@@ -28,6 +28,7 @@ export async function GET(request: Request) {
     .select("*, bots(practice_name, booking_link, primary_color)")
     .not("aftercare_sent_at", "is", null)
     .eq("reminder_6m_sent", false)
+    .eq("marketing_opt_out", false)
     .lte("aftercare_sent_at", sixMonthsAgo.toISOString())
     .not("email", "is", null);
 
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
     .select("*, bots(practice_name, booking_link, primary_color)")
     .not("aftercare_sent_at", "is", null)
     .eq("reminder_9m_sent", false)
+    .eq("marketing_opt_out", false)
     .lte("aftercare_sent_at", nineMonthsAgo.toISOString())
     .not("email", "is", null);
 
@@ -53,7 +55,7 @@ export async function GET(request: Request) {
         from: "AdonisBlue <hi@adonisblue.io>",
         to: intake.email,
         subject: `${clientName}, your lips are calling 💋`,
-        html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 6 }),
+        html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 6, intakeId: intake.id }),
       });
       await supabase.from("intakes").update({ reminder_6m_sent: true }).eq("id", intake.id);
       sent++;
@@ -73,7 +75,7 @@ export async function GET(request: Request) {
         from: "AdonisBlue <hi@adonisblue.io>",
         to: intake.email,
         subject: `It's been a while, ${clientName} — time to glow again ✨`,
-        html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 9 }),
+        html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 9, intakeId: intake.id }),
       });
       await supabase.from("intakes").update({ reminder_9m_sent: true }).eq("id", intake.id);
       sent++;
@@ -85,11 +87,12 @@ export async function GET(request: Request) {
   return NextResponse.json({ success: true, sent });
 }
 
-function buildReminderEmail({ clientName, practiceName, bookingLink, months }: {
+function buildReminderEmail({ clientName, practiceName, bookingLink, months, intakeId }: {
   clientName: string;
   practiceName: string;
   bookingLink: string | null;
   months: number;
+  intakeId: string;
 }) {
   const is6 = months === 6;
   const headline = is6
@@ -129,7 +132,8 @@ function buildReminderEmail({ clientName, practiceName, bookingLink, months }: {
         <tr>
           <td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
             <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;">Sent with care by ${practiceName} via AdonisBlue</p>
-            <p style="margin:0;color:#cbd5e1;font-size:11px;">You're receiving this because you visited ${practiceName}.</p>
+            <p style="margin:0 0 6px;color:#cbd5e1;font-size:11px;">You're receiving this because you visited ${practiceName}.</p>
+            <p style="margin:0;color:#cbd5e1;font-size:11px;"><a href="https://www.adonisblue.io/api/unsubscribe?id=${intakeId}" style="color:#cbd5e1;text-decoration:underline;">Unsubscribe from these emails</a></p>
           </td>
         </tr>
       </table>

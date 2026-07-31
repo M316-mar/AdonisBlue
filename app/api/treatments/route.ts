@@ -276,7 +276,7 @@ export async function POST(request: Request) {
         </div>`;
       }
 
-      await resend.emails.send({
+      const aftercareSendResult = await resend.emails.send({
         from: "AdonisBlue <hi@adonisblue.io>",
         to: clientEmail,
         subject: `Your aftercare instructions from ${practiceName} 💙`,
@@ -309,15 +309,19 @@ export async function POST(request: Request) {
 </body></html>`,
       });
 
-      await supabase
-        .from("treatments")
-        .update({
-          aftercare_sent: true,
-          aftercare_sent_at: new Date().toISOString(),
-        })
-        .eq("id", treatment.id);
+      if (aftercareSendResult.error) {
+        console.error("Aftercare email failed to send:", aftercareSendResult.error);
+      } else {
+        await supabase
+          .from("treatments")
+          .update({
+            aftercare_sent: true,
+            aftercare_sent_at: new Date().toISOString(),
+          })
+          .eq("id", treatment.id);
 
-      aftercareSent = true;
+        aftercareSent = true;
+      }
     }
 
     // clientPhone intentionally not returned — not needed by client
