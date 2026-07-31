@@ -1,3 +1,6 @@
+// POST  — freeze / unfreeze a nurse account (sets bots.frozen)
+// DELETE — hard-delete a nurse and all related data (irreversible)
+
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
@@ -13,12 +16,15 @@ async function getAuthedUser(request: Request) {
   return user ?? null;
 }
 
-async function isAdmin(userId: string) {
-  const supabase = createClient(
+function serviceClient() {
+  return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
-  const { data } = await supabase
+}
+
+async function isAdmin(userId: string) {
+  const { data } = await serviceClient()
     .from("admins")
     .select("user_id")
     .eq("user_id", userId)
@@ -26,6 +32,51 @@ async function isAdmin(userId: string) {
   return Boolean(data);
 }
 
+// ── DELETE: hard-delete nurse + all related data ───────────────────────────
+export async function DELETE(request: Request) {
+  try {
+    const user = await getAuthedUser(request);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await isAdmin(user.id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { nurse_id } = await request.json() as { nurse_id?: string };
+    if (!nurse_id) return NextResponse.json({ error: "nurse_id is required" }, { status: 400 });
+
+    const db = serviceClient();
+    const errors: string[] = [];
+
+    // Delete children first to avoid FK constraint violations
+    const tables = [
+      "conversations",
+      "intakes",
+      "treatments",
+      "offers",
+      "procedures",
+      "bots",
+      "nurses",
+    ] as const;
+
+    for (const table of tables) {
+      const { error } = await db.from(table).delete().eq("nurse_id", nurse_id);
+      if (error) errors.push(`${table}: ${error.message}`);
+    }
+
+    // Remove the Supabase auth account last (so the nurse can't log back in
+    // while DB cleanup is still running, and so we have nurse_id available above)
+    const { error: authError } = await db.auth.admin.deleteUser(nurse_id);
+    if (authError) errors.push(`auth: ${authError.message}`);
+
+    if (errors.length > 0) {
+      return NextResponse.json({ error: "Partial failure", details: errors }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
+// ── POST: freeze / unfreeze ────────────────────────────────────────────────
 export async function POST(request: Request) {
   try {
     const user = await getAuthedUser(request);
