@@ -215,21 +215,6 @@ export default function NurseDashboardPage() {
     s1.src = "https://embed.tawk.to/6a57c832096ab21d402a63f3/1jtjec19d";
     s1.charset = "UTF-8";
     s1.setAttribute("crossorigin", "*");
-    // Push Tawk bubble to bottom-left so it never overlaps the Help button (bottom-right)
-    const style = document.createElement("style");
-    style.id = "tawk-position-override";
-    style.textContent = `
-      #tawkchat-minified-box,
-      #tawkchat-minified-wrapper,
-      .tawk-min-container,
-      .tawk-button-circle {
-        left: 24px !important;
-        right: auto !important;
-        bottom: 24px !important;
-      }
-    `;
-    document.head.appendChild(style);
-
     s1.onload = () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tawk = (window as any).Tawk_API;
@@ -1176,74 +1161,65 @@ export default function NurseDashboardPage() {
         </div>
       ) : null}
 
-      {/* ── Consolidated help button (bottom-right) ── */}
-      <div className="fixed top-6 right-6 sm:top-auto sm:bottom-6 sm:right-6 z-[9999] flex flex-col items-end gap-2">
-        {helpMenuOpen && (
-          <div className="flex flex-col items-end gap-2 mb-1">
-            {feedbackOpen ? (
-              <div className="w-[min(100vw-3rem,20rem)] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/10">
-                <p className="text-sm font-semibold text-[#1a2744]">💡 Share an idea</p>
-                <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                  Have a feature idea or suggestion? We&apos;d love to hear it!
-                </p>
-                <textarea
-                  value={feedbackText}
-                  onChange={(e) => setFeedbackText(e.target.value)}
-                  rows={4}
-                  className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-base text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#0d9488]/40 focus:bg-white focus:ring-2 focus:ring-[#0d9488]/20"
-                  placeholder="What feature would make AdonisBlue even better for you?"
-                />
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void (async () => {
-                        const res = await fetch("/api/send-feedback", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ feedback: feedbackText.trim(), nurse_name: nurseName }),
-                        });
-                        if (res.ok) { setFeedbackText(""); setFeedbackOpen(false); }
-                      })();
-                    }}
-                    className="flex-1 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
-                  >
-                    Submit
-                  </button>
-                  <button type="button" onClick={() => setFeedbackOpen(false)} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : (
+      {/* ── Feedback button (bottom-left) ── */}
+      <div className="fixed bottom-6 left-6 z-[9999] flex flex-col items-start gap-2">
+        {feedbackOpen && (
+          <div className="w-[min(100vw-3rem,20rem)] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/10">
+            <p className="text-sm font-semibold text-[#1a2744]">💡 Share an idea</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              Have a feature idea or suggestion? We&apos;d love to hear it!
+            </p>
+            <textarea
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
+              rows={4}
+              className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-base text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#0d9488]/40 focus:bg-white focus:ring-2 focus:ring-[#0d9488]/20"
+              placeholder="What feature would make AdonisBlue even better for you?"
+            />
+            <div className="mt-3 flex gap-2">
               <button
                 type="button"
-                onClick={() => setFeedbackOpen(true)}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-md transition hover:bg-slate-50"
+                onClick={() => {
+                  void (async () => {
+                    const res = await fetch("/api/send-feedback", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ feedback: feedbackText.trim(), nurse_name: nurseName }),
+                    });
+                    if (res.ok) { setFeedbackText(""); setFeedbackOpen(false); }
+                  })();
+                }}
+                className="flex-1 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
               >
-                💡 Share an idea
+                Submit
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const tawk = (window as any).Tawk_API;
-                tawk?.maximize?.();
-                setHelpMenuOpen(false);
-              }}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-md transition hover:bg-slate-50"
-            >
-              💬 Live support
-            </button>
+              <button type="button" onClick={() => setFeedbackOpen(false)} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+                Close
+              </button>
+            </div>
           </div>
         )}
         <button
           type="button"
-          onClick={() => { setHelpMenuOpen(o => !o); setFeedbackOpen(false); }}
+          onClick={() => setFeedbackOpen(o => !o)}
           className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700"
         >
-          {helpMenuOpen ? "✕ Close" : "💬 Help"}
+          {feedbackOpen ? "✕ Close" : "💡 Share an idea"}
+        </button>
+      </div>
+
+      {/* ── Live support button (bottom-right) ── */}
+      <div className="fixed bottom-6 right-6 z-[9999]">
+        <button
+          type="button"
+          onClick={() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const tawk = (window as any).Tawk_API;
+            tawk?.maximize?.();
+          }}
+          className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700"
+        >
+          💬 Help
         </button>
       </div>
     </div>
