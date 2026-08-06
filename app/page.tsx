@@ -145,6 +145,7 @@ function NewsletterForm() {
 }
 
 export default function Home() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div className="min-h-full bg-white font-sans text-slate-800 antialiased">
@@ -167,10 +168,39 @@ export default function Home() {
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <a href="/auth" className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:border-teal-300 hover:text-[#0d9488]">Log in</a>
+            <a href="/auth" className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:border-teal-300 hover:text-[#0d9488] sm:inline-flex">Log in</a>
             <a href="/auth" className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-teal-200 transition hover:bg-teal-700">Get Started</a>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((o) => !o)}
+              className="ml-1 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-[#1a2744] lg:hidden"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
+              )}
+            </button>
           </div>
         </div>
+        {mobileMenuOpen && (
+          <div className="border-t border-slate-100 bg-white px-4 py-4 lg:hidden">
+            <nav className="flex flex-col gap-4">
+              {[["#daily-flow","How it Works"],["#features","Features"],["#pricing","Pricing"],["#faq","FAQ"]].map(([href,label]) => (
+                <a
+                  key={label}
+                  href={href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-sm font-medium text-slate-600 transition hover:text-[#0d9488]"
+                >
+                  {label}
+                </a>
+              ))}
+              <a href="/auth" onClick={() => setMobileMenuOpen(false)} className="text-sm font-semibold text-[#0d9488]">Log in</a>
+            </nav>
+          </div>
+        )}
       </header>
 
       <main className="pb-20">

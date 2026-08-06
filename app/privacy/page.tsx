@@ -136,9 +136,9 @@ export default function PrivacyPage() {
         </section>
 
         <section className="mb-8">
-          <h2 className="mb-3 text-xl font-semibold text-[#1a2744]">8. Health Information — Important Note</h2>
+          <h2 className="mb-3 text-xl font-semibold text-[#1a2744]">8. Health Information</h2>
           <p className="text-slate-500 leading-relaxed">
-            AdonisBlue may collect health-adjacent information (e.g., allergies, blood thinner use) as part of client intake. Whether this information is subject to HIPAA depends on factors specific to each Practitioner&apos;s business (e.g., whether they bill insurance) and how AdonisBlue is characterized as a vendor. This section should be finalized with an attorney&apos;s guidance before AdonisBlue is used with real paying clients at scale, and this policy should be updated to reflect the actual determination (e.g., whether AdonisBlue operates as a HIPAA Business Associate, and what that requires).
+            As part of client intake, a Practitioner may collect health-adjacent details — such as allergies, blood thinner use, or prior procedure history — to help them provide safe care. We treat this information with the same security measures described in Section 6 above: encrypted storage, restricted access, and use limited strictly to helping the Practitioner serve that client. We do not use this information for advertising, and we do not sell it. As AdonisBlue grows, we continue to review our legal obligations around health-related data, and we will update this policy if that changes how we handle it.
           </p>
         </section>
 
