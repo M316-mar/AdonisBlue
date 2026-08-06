@@ -5,6 +5,7 @@ import Image from "next/image";
 
 const features = [
   { emoji: "🤖", title: "Answer clients before they look elsewhere", description: "Your custom AI chatbot answers questions, collects intake info, and confirms bookings — so no one waits, and no one gives up and books with someone else." },
+  { emoji: "📋", title: "Get them ready before they even arrive", description: "The moment an appointment is booked, your client gets a clear prep guide — what to avoid, what to bring, how to show up ready. No paper cards, no guessing." },
   { emoji: "🩹", title: "Send real care, not just instructions", description: "Log a treatment and the right aftercare message goes out right away. Not just steps to follow — a message that shows you care. Lip filler and Botox in the same visit? One email, everything covered." },
   { emoji: "🚨", title: "Make sure no one feels alone while healing", description: "Every aftercare message includes a private healing chat. If something feels wrong, you get an alert right away with their name and number. Your client feels safe, not forgotten." },
   { emoji: "🔁", title: "Make sure they never forget you", description: "Rebooking reminders go out at 6 and 9 months. Review requests go out 2–3 days after treatment. All without you lifting a finger — so your clients feel remembered, not chased." },
@@ -18,6 +19,7 @@ const faqItems = [
   { q: "I already use Vagaro / Jane / Square.", a: "Good. AdonisBlue connects to all of them. Your booking flow doesn't change — it just gets smarter." },
   { q: "I have a small practice.", a: "That's exactly who this is for. Solo injectors get the most out of automation because they don't have a front desk person handling this." },
   { q: "Is AdonisBlue HIPAA compliant?", a: "We follow industry best practices for data protection including encryption in transit and at rest. We do not store medical records or treatment notes. However, we are not currently HIPAA-certified. We recommend not entering any PHI (protected health information) into the chatbot." },
+  { q: "Does this replace me or my nurse?", a: "No — and it's not meant to. AdonisBlue is not a 911 line and doesn't replace your medical judgment. It answers routine questions quickly and makes sure nothing falls through the cracks. If a client's message sounds urgent, AdonisBlue tells them to call 911 or go to the nearest ER right away — and alerts you immediately so you're never caught off guard." },
   { q: "Does this work with my booking software?", a: "AdonisBlue works alongside Vagaro, Jane, Square, Acuity, Mindbody, and most booking platforms. You embed the chatbot on your website or link to it from your Instagram bio — no integration required." },
   { q: "Can I cancel anytime?", a: "Yes. There are no contracts, no lock-in, and no cancellation fees. Cancel from your dashboard and your subscription ends at the next billing cycle." },
   { q: "How does the AI chatbot work?", a: "The chatbot uses AI trained on aesthetic treatment aftercare best practices. It answers common client questions about healing, aftercare, prep instructions, and pricing — so you don't have to respond to the same messages all day. You remain in control and can step in anytime." },
@@ -409,6 +411,20 @@ export default function Home() {
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Your clients don't leave because you're not good enough. They leave because they feel forgotten.</h2>
             <p className="mt-6 text-lg leading-relaxed text-slate-500">She got her treatment. She paid. She left. Then no one checked on her again. So she found a new injector — one who made her feel like she mattered. That's happening to your clients right now. Not because of your skill. Because of what happens after.</p>
+          </div>
+        </section>
+
+        {/* ── FOUNDER STORY ── */}
+        <section className="bg-slate-50 px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Why I built this</p>
+            <div className="mt-4 space-y-4 text-lg leading-relaxed text-slate-600">
+              <p>I created AdonisBlue because I&apos;ve lived this problem myself, and watched someone I love live it too.</p>
+              <p>I get lip filler sometimes, and more than once, I couldn&apos;t reach anyone after my appointment — no one to reassure me or tell me if what I was feeling was normal.</p>
+              <p>My mom went through the same thing, as a client. When she needed her doctor, she couldn&apos;t reach him — only his nurses, who then had to wait for him to get back to them, with no clear idea of when that would happen.</p>
+              <p>I&apos;ve noticed this isn&apos;t rare. It&apos;s not one bad practice — it&apos;s most of the industry, everywhere. So much energy goes into bringing new clients in, and so little into actually caring for the ones who already said yes.</p>
+              <p className="font-semibold text-[#1a2744]">I believe that has to change. AdonisBlue exists so a client is never left wondering if anyone&apos;s paying attention.</p>
+            </div>
           </div>
         </section>
 
