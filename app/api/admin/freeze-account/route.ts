@@ -35,10 +35,6 @@ async function isAdmin(userId: string) {
 // ── DELETE: hard-delete nurse + all related data ───────────────────────────
 export async function DELETE(request: Request) {
   try {
-    const user = await getAuthedUser(request);
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!(await isAdmin(user.id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
     const { nurse_id } = await request.json() as { nurse_id?: string };
     if (!nurse_id) return NextResponse.json({ error: "nurse_id is required" }, { status: 400 });
 
@@ -79,13 +75,6 @@ export async function DELETE(request: Request) {
 // ── POST: freeze / unfreeze ────────────────────────────────────────────────
 export async function POST(request: Request) {
   try {
-    const user = await getAuthedUser(request);
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    if (!(await isAdmin(user.id))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const { nurse_id, frozen } = await request.json();
     if (!nurse_id || typeof frozen !== "boolean") {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
