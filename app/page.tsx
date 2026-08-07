@@ -216,8 +216,8 @@ export default function Home() {
                 <span className="text-xs font-semibold uppercase tracking-widest text-teal-300">Built to keep your clients coming back</span>
               </div>
               <h1 className="text-balance text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-[3.25rem]">
-                Clients don't leave because of skill.{" "}
-                <span className="bg-gradient-to-r from-teal-300 to-sky-300 bg-clip-text text-transparent">They leave because no one checks on them after.</span>
+                Getting a new client feels like a win.{" "}
+                <span className="bg-gradient-to-r from-teal-300 to-sky-300 bg-clip-text text-transparent">Getting her to come back — that&apos;s the real one.</span>
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-300">
                 AdonisBlue checks in on every client after their treatment. Real aftercare. Real care. So they feel remembered — and they stay with you.
@@ -406,25 +406,28 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── PROBLEM SECTION ── */}
+        {/* ── PAIN POINT SECTION ── */}
         <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Your clients don't leave because you're not good enough. They leave because they feel forgotten.</h2>
-            <p className="mt-6 text-lg leading-relaxed text-slate-500">She got her treatment. She paid. She left. Then no one checked on her again. So she found a new injector — one who made her feel like she mattered. That's happening to your clients right now. Not because of your skill. Because of what happens after.</p>
+            <h2 className="text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">You want clients coming back. Not just more new ones.</h2>
+            <p className="mt-6 text-lg leading-relaxed text-slate-500">I want to retain my clients and see reschedules — not just keep getting new ones, because they won&apos;t come back on their own.</p>
+            <p className="mt-4 text-lg leading-relaxed text-slate-500">Sound familiar? You&apos;re not doing anything wrong. Most aesthetic practices are built to attract, not to keep. So the same clients who loved their results quietly drift away — not because they didn&apos;t like you, but because nobody reminded them you were still there.</p>
           </div>
         </section>
 
-        {/* ── FOUNDER STORY ── */}
-        <section className="bg-slate-50 px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Why I built this</p>
-            <div className="mt-4 space-y-4 text-lg leading-relaxed text-slate-600">
-              <p>I created AdonisBlue because I&apos;ve lived this problem myself, and watched someone I love live it too.</p>
-              <p>I get lip filler sometimes, and more than once, I couldn&apos;t reach anyone after my appointment — no one to reassure me or tell me if what I was feeling was normal.</p>
-              <p>My mom went through the same thing, as a client. When she needed her doctor, she couldn&apos;t reach him — only his nurses, who then had to wait for him to get back to them, with no clear idea of when that would happen.</p>
-              <p>I&apos;ve noticed this isn&apos;t rare. It&apos;s not one bad practice — it&apos;s most of the industry, everywhere. So much energy goes into bringing new clients in, and so little into actually caring for the ones who already said yes.</p>
-              <p className="font-semibold text-[#1a2744]">I believe that has to change. AdonisBlue exists so a client is never left wondering if anyone&apos;s paying attention.</p>
-            </div>
+        {/* ── BRIEF STORY TOUCH ── */}
+        <section className="bg-slate-50 px-4 py-14 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-lg leading-relaxed text-slate-600">I&apos;m a client in this world too. I get my lips done, and I love it — but after the appointment, there&apos;s no follow-up, no check-in, nothing. When I have a question, it&apos;s rarely answered, if at all.</p>
+            <p className="mt-4 text-lg font-semibold text-[#1a2744]">That gap is what AdonisBlue was built to close.</p>
+          </div>
+        </section>
+
+        {/* ── SOLUTION INTRO ── */}
+        <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Your clients get answered. You get informed. Nothing falls through.</h2>
+            <p className="mt-6 text-lg leading-relaxed text-slate-500">AdonisBlue talks to your clients any time — day or night — so they get real answers, and you get told the moment something actually needs your attention. Your clients feel like they matter beyond the one appointment they already paid for.</p>
           </div>
         </section>
 
@@ -483,6 +486,23 @@ export default function Home() {
                 );
               })}
             </ul>
+          </div>
+        </section>
+
+        {/* ── TRUST REINFORCEMENT ── */}
+        <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Why you&apos;ll stay with AdonisBlue</p>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">You are the injector clients trust. Not just liked. Known.</h2>
+            <div className="mt-8 space-y-5 text-lg leading-relaxed text-slate-500">
+              <p>She asks for you by name. She tells her friends about you. She never thinks twice about coming back.</p>
+              <p>Other injectors blend together. You don&apos;t.</p>
+              <p className="font-medium text-slate-700">That&apos;s not luck. That&apos;s what happens when your clients never feel forgotten after they leave your chair.</p>
+              <p>Your very next client can feel this today. No setup. Nothing new to learn.</p>
+              <p>You don&apos;t change how you treat your clients. You keep doing what you do best. We just make sure no one feels alone after they walk out the door.</p>
+              <p>We don&apos;t replace you or your staff — we work alongside you, so the whole practice runs smoother.</p>
+              <p className="font-semibold text-[#1a2744]">You become the name they trust. Not just another option.</p>
+            </div>
           </div>
         </section>
 
@@ -657,18 +677,38 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── PRE-CTA REASSURANCE ── */}
+        {/* ── OBJECTIONS ── */}
+        <section className="bg-slate-50 px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-2xl">
+            <h2 className="text-center text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">&quot;But what about...&quot;</h2>
+            <div className="mt-10 space-y-6">
+              {[
+                { q: "I already use booking software.", a: "Perfect. You don't have to switch anything. AdonisBlue works alongside what you already use." },
+                { q: "I'm not tech-savvy.", a: "You don't need to be. If you can send a text, you can use this." },
+                { q: "I don't have time to learn something new.", a: "Setup takes about 5 minutes. After that, it runs on its own." },
+                { q: "Will this feel robotic to my clients?", a: "No. It's built to sound like you care, because that's the whole point." },
+                { q: "Is this a replacement for me or my judgment?", a: "Never. AdonisBlue isn't a 911 line. It handles the routine stuff fast, and the moment something sounds urgent, it tells your client to seek real care and alerts you right away." },
+                { q: "Is this a replacement for my staff?", a: "Never. It's meant to work alongside them." },
+              ].map((item) => (
+                <div key={item.q} className="rounded-2xl border border-slate-200 bg-white p-6">
+                  <p className="font-semibold text-[#1a2744]">&quot;{item.q}&quot;</p>
+                  <p className="mt-2 text-slate-500">{item.a}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── FOUNDER STORY (moved here, right before final CTA) ── */}
         <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Why nurses stay with AdonisBlue</p>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">You are the injector clients trust. Not just liked. Known.</h2>
-            <div className="mt-8 space-y-5 text-lg leading-relaxed text-slate-500">
-              <p>She asks for you by name. She tells her friends about you. She never thinks twice about coming back.</p>
-              <p>Other injectors blend together. You don&apos;t.</p>
-              <p className="font-medium text-slate-700">That&apos;s not luck. That&apos;s what happens when your clients never feel forgotten after they leave your chair.</p>
-              <p>Your very next client can feel this today. No setup. Nothing new to learn.</p>
-              <p>You don&apos;t change how you treat your clients. You keep doing what you do best. We just make sure no one feels alone after they walk out the door.</p>
-              <p className="font-semibold text-[#1a2744]">You become the name they trust. Not just another option.</p>
+          <div className="mx-auto max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Why I built this</p>
+            <div className="mt-4 space-y-4 text-lg leading-relaxed text-slate-600">
+              <p>I created AdonisBlue because I&apos;ve lived this problem myself, and watched people I love live it too.</p>
+              <p>I get lip fillers done, and I love it! Afterwards, I just couldn&apos;t reach anyone. No one to reassure me or tell me if what I was feeling was normal.</p>
+              <p>Family members of mine have had esthetic procedures too — from lip fillers to major surgeries — and I noticed the same thing every time. As a client, they couldn&apos;t get a hold of the nurse or doctor who did the procedure. When they needed answers, even the front office couldn&apos;t help, because they had to wait for the person who actually did the procedure to get back to them, with no clear idea of when that would happen.</p>
+              <p>I&apos;ve noticed this isn&apos;t rare. It&apos;s not one bad practice — it&apos;s most of the industry, everywhere. So much energy goes into bringing new clients in, and so little into actually caring for the ones who already said yes.</p>
+              <p className="font-semibold text-[#1a2744]">I believe that has to change. AdonisBlue exists so a client is never left wondering if anyone&apos;s paying attention.</p>
             </div>
           </div>
         </section>
@@ -680,7 +720,7 @@ export default function Home() {
             <div className="absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-400/10 blur-[80px]" />
           </div>
           <div className="relative mx-auto max-w-3xl text-center">
-            <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Your clients are reaching out right now. AdonisBlue is there to answer.</h2>
+            <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Give it a try. See if it keeps your flow. If it fits, you&apos;ll know.</h2>
             <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-slate-300">Start your 14-day free trial and have your AI front desk running today.</p>
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
               <a href="/auth" className="inline-flex min-h-[52px] w-full min-w-[200px] items-center justify-center rounded-full bg-[#0d9488] px-8 py-3.5 text-base font-bold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600 sm:w-auto">
