@@ -22,10 +22,10 @@ const CHECKLIST: { id: ChecklistId; label: string; alwaysDone?: boolean }[] = [
   { id: "practice", label: "Tell us about your practice" },
   { id: "services", label: "Choose your services" },
   { id: "booking", label: "Add your booking link" },
-  { id: "botStyle", label: "Set your bot colors and name" },
+  { id: "botStyle", label: "Set your assistant's colors and name" },
   { id: "policies", label: "Add your policies and agreements" },
-  { id: "preview", label: "Preview your bot" },
-  { id: "share", label: "Share your bot with your clients" },
+  { id: "preview", label: "Preview your assistant" },
+  { id: "share", label: "Share your assistant with your clients" },
 ];
 
 type BotRow = {
@@ -132,6 +132,7 @@ export default function NurseDashboardPage() {
   const [embedCopied, setEmbedCopied] = useState(false);
   const [hasBooking, setHasBooking] = useState(false);
   const [hasOffer, setHasOffer] = useState(false);
+  const [showAccountManagement, setShowAccountManagement] = useState(false);
 
   useEffect(() => {
     setShowEmailNotice(!localStorage.getItem("emailNoticesDismissed"));
@@ -244,13 +245,17 @@ export default function NurseDashboardPage() {
 
   const SETUP_STEPS = useMemo(() => [
     { id: "bot", label: "Create your bot", href: "/onboarding", done: bot?.launched === true },
-    { id: "embed", label: "Add your bot to your website", href: "#embed", done: embedCopied },
+    { id: "embed", label: "Add your assistant to your website", href: "#embed", done: embedCopied },
     { id: "booking", label: "Connect your booking software", href: "/booking-connect", done: hasBooking },
     { id: "treatment", label: "Log your first treatment", href: "/aftercare", done: aftercareSent > 0 },
     { id: "offer", label: "Send your first offer", href: "/offers", done: hasOffer },
   ], [bot?.launched, embedCopied, hasBooking, aftercareSent, hasOffer]);
 
   const setupDoneCount = useMemo(() => SETUP_STEPS.filter((s) => s.done).length, [SETUP_STEPS]);
+  const pendingFollowUpCount = useMemo(
+    () => intakes.filter((i) => !i.aftercare_sent_at || !i.survey_sent).length,
+    [intakes]
+  );
   const setupAllDone = setupDoneCount === SETUP_STEPS.length;
   const reviewsRequested = useMemo(() => intakes.filter((i) => i.survey_sent).length, [intakes]);
   const remindersScheduled = useMemo(
@@ -348,7 +353,7 @@ export default function NurseDashboardPage() {
   const handleFreezeToggle = useCallback(async () => {
     if (!bot) return;
     const nextFrozen = !bot.frozen;
-    if (nextFrozen && !window.confirm("Freeze your account? Your bot will be paused and clients will see an 'unavailable' message until you unfreeze.")) return;
+    if (nextFrozen && !window.confirm("Freeze your account? Your assistant will be paused and clients will see an 'unavailable' message until you unfreeze.")) return;
     setFreezeLoading(true);
     try {
       const { data } = await supabase.auth.getSession();
@@ -446,10 +451,12 @@ export default function NurseDashboardPage() {
               <div className="relative">
                 <p className="text-sm font-semibold uppercase tracking-wider text-teal-300/90">Your dashboard</p>
                 <h1 className="mt-2 text-balance text-xl font-semibold leading-snug text-white sm:text-2xl lg:text-[1.65rem]">
-                  Welcome back, {nurseFirstName} <span aria-hidden>✨</span>
+                  Welcome back, {nurseFirstName}
                 </h1>
-                <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate-200 sm:text-base">
-                  As someone who truly cares about your clients&apos; experience, you&apos;re exactly the kind of injector AdonisBlue was built for. Let&apos;s make today count. 🦋
+                <p className="mt-2 text-sm leading-relaxed text-slate-300 sm:text-base">
+                  {pendingFollowUpCount > 0
+                    ? `${pendingFollowUpCount} client${pendingFollowUpCount !== 1 ? "s" : ""} due for follow-up today.`
+                    : "Nothing needs you right now. Your assistant is live and watching."}
                 </p>
               </div>
             </section>
@@ -666,7 +673,7 @@ export default function NurseDashboardPage() {
                   {CHECKLIST.map((item) => {
                     const isDone = done[item.id];
                     const isActiveBotStep = item.id === "share" && launched;
-                    const label = isActiveBotStep ? "Bot is active ✅" : item.label;
+                    const label = isActiveBotStep ? "Assistant is active ✅" : item.label;
                     const onboardingHref = onboardingHrefForChecklist(item.id);
                     return (
                       <li
@@ -696,7 +703,7 @@ export default function NurseDashboardPage() {
                           {isActiveBotStep ? (
                             <div className="flex items-center gap-2">
                               <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Active</span>
-                              <Link href={`/chat/${botChatSlug}`} className="inline-flex items-center rounded-full bg-[#0d9488] px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-700">View bot</Link>
+                              <Link href={`/chat/${botChatSlug}`} className="inline-flex items-center rounded-full bg-[#0d9488] px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-700">Preview assistant</Link>
                             </div>
                           ) : item.alwaysDone ? (
                             <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-[#0d9488]">Done</span>
@@ -716,14 +723,14 @@ export default function NurseDashboardPage() {
                 <span className="text-3xl">🎉</span>
                 <div className="min-w-0 flex-1">
                   <p className="text-base font-bold text-[#1a2744]">You&apos;re all set!</p>
-                  <p className="text-sm text-slate-600">Your bot is live and your practice is fully set up. Share your link and start getting clients.</p>
+                  <p className="text-sm text-slate-600">Your assistant is live and your practice is fully set up. Share your link and start getting clients.</p>
                 </div>
                 <div className="mt-3 flex shrink-0 gap-2 sm:ml-auto sm:mt-0">
                   <Link href="/onboarding?step=1" className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50">
-                    Edit my bot
+                    Edit my assistant
                   </Link>
                   <Link href={`/chat/${botChatSlug}`} className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700">
-                    View my bot →
+                    Preview my assistant →
                   </Link>
                 </div>
               </div>
@@ -731,37 +738,18 @@ export default function NurseDashboardPage() {
 
             {launched ? (
               <>
-                {/* ── The Blue Room (main content) ── */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2744] via-[#0d4f6b] to-[#0d9488] px-5 py-6 shadow-lg">
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_80%_0%,rgba(56,189,248,0.15),transparent)]" aria-hidden />
-                  <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-teal-300/30 bg-teal-300/10 px-3 py-1">
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-300" />
-                        <span className="text-xs font-semibold uppercase tracking-widest text-teal-300">Now Live</span>
-                      </div>
-                      <h2 className="text-lg font-bold text-white">The Blue Room 💙</h2>
-                      <p className="mt-1 text-sm leading-relaxed text-slate-200">
-                        Your private community of nurse injectors. Share tips, get support, stay on top of the latest aesthetic trends, and grow together.
-                      </p>
-                      <ul className="mt-3 grid grid-cols-2 gap-1.5">
-                        {["Trending procedures","New techniques","Holiday offer templates","Peer support","Industry news","Members only content"].map(item => (
-                          <li key={item} className="flex items-center gap-1.5 text-xs font-medium text-teal-100">
-                            <span className="text-teal-300">✓</span>{item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:shrink-0 sm:items-end">
-                      <Link
-                        href="/blueroom"
-                        className="inline-flex w-full items-center justify-center rounded-full bg-white px-5 py-2.5 text-sm font-bold text-[#1a2744] shadow-lg transition hover:bg-teal-50 sm:w-auto"
-                      >
-                        Enter The Blue Room 💙
-                      </Link>
-                      <p className="text-xs text-teal-200/70 text-center">Join your community of aesthetic nurses.</p>
-                    </div>
+                {/* ── The Blue Room (main content) — de-emphasized, secondary to core actions ── */}
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#1a2744]">The Blue Room</p>
+                    <p className="text-xs text-slate-500">Your private community of nurse injectors.</p>
                   </div>
+                  <Link
+                    href="/blueroom"
+                    className="shrink-0 rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                  >
+                    Enter →
+                  </Link>
                 </div>
 
                 {/* ── Add to your website (collapsible, main content) ── */}
@@ -840,60 +828,54 @@ export default function NurseDashboardPage() {
                     href="/onboarding?step=1"
                     className="inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
                   >
-                    Edit my bot
+                    Edit my assistant
                   </Link>
                   {launched ? (
                     <Link
                       href={`/chat/${botChatSlug}`}
                       className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50"
                     >
-                      View my bot
+                      Preview my assistant
                     </Link>
                   ) : null}
                 </div>
                 <div className="mt-3 border-t border-slate-100 pt-3 flex flex-col gap-2">
                   <Link
-                    href="/insights"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-4 py-2.5 text-center text-sm font-semibold text-[#0d9488] transition hover:bg-teal-100"
+                    href="/aftercare"
+                    className="inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
                   >
-                    📊 View my insights
+                    Log a treatment
                   </Link>
-                  <div>
-                    <Link
-                      href="/aftercare"
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
-                    >
-                      🩹 Treatment Records
-                    </Link>
-                    <p className="mt-1 text-center text-xs text-slate-400">Log today's treatments</p>
-                  </div>
-                  <div>
-                    <Link
-                      href="/client-journey"
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-4 py-2.5 text-center text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
-                    >
-                      🗺️ Client Journey
-                    </Link>
-                    <p className="mt-1 text-center text-xs text-slate-400">Manage aftercare & follow-up messages</p>
-                  </div>
+                  <Link
+                    href="/insights"
+                    className="inline-flex w-full items-center justify-center text-center text-sm font-medium text-slate-500 transition hover:text-[#0d9488]"
+                  >
+                    View my insights
+                  </Link>
+                  <Link
+                    href="/client-journey"
+                    className="inline-flex w-full items-center justify-center text-center text-sm font-medium text-slate-500 transition hover:text-[#0d9488]"
+                  >
+                    See who's due for follow-up
+                  </Link>
                   <Link
                     href="/offers"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2.5 text-center text-sm font-semibold text-orange-700 transition hover:bg-orange-100"
+                    className="inline-flex w-full items-center justify-center text-center text-sm font-medium text-slate-500 transition hover:text-[#0d9488]"
                   >
-                    🎉 Offers &amp; Specials
+                    Offers & Specials
                   </Link>
                   <Link
                     href="/booking-connect"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-center text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                    className="inline-flex w-full items-center justify-center text-center text-sm font-medium text-slate-500 transition hover:text-[#0d9488]"
                   >
-                    🔗 Connect Booking Software
+                    Connect Booking Software
                   </Link>
                   {process.env.NEXT_PUBLIC_SHOW_LOYALTY === "true" && (
                     <Link
                       href="/loyalty"
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-purple-200 bg-purple-50 px-4 py-2.5 text-center text-sm font-semibold text-purple-700 transition hover:bg-purple-100"
+                      className="inline-flex w-full items-center justify-center text-center text-sm font-medium text-slate-500 transition hover:text-[#0d9488]"
                     >
-                      🌟 Referrals & Loyalty
+                      Referrals & Loyalty
                     </Link>
                   )}
                 </div>
@@ -963,7 +945,17 @@ export default function NurseDashboardPage() {
                         {portalBusy ? "Opening portal…" : "Manage plan →"}
                       </button>
                     )}
-                    <div className="mt-2 border-t border-slate-100 pt-2 space-y-1.5">
+                    <div className="mt-2 border-t border-slate-100 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAccountManagement((v) => !v)}
+                        className="mb-1.5 w-full text-center text-xs font-semibold text-slate-400 hover:text-slate-600"
+                      >
+                        {showAccountManagement ? "Hide account options ▲" : "Manage account ▾"}
+                      </button>
+                    </div>
+                    {showAccountManagement && (
+                    <div className="space-y-1.5">
                       <button
                         type="button"
                         disabled={freezeLoading}
@@ -978,8 +970,8 @@ export default function NurseDashboardPage() {
                       </button>
                       <p className={`text-xs px-1 font-semibold ${bot?.frozen ? "text-amber-600" : "text-slate-400"}`}>
                         {bot?.frozen
-                          ? "Your bot is paused. Clients cannot chat until you unfreeze."
-                          : "Temporarily pauses your bot — clients will see an 'unavailable' message instead of the chat."}
+                          ? "Your assistant is paused. Clients cannot chat until you unfreeze."
+                          : "Temporarily pauses your assistant — clients will see an 'unavailable' message instead of the chat."}
                       </p>
                       {(plan === "starter" || plan === "pro") && (
                         cancelDone ? (
@@ -1000,6 +992,7 @@ export default function NurseDashboardPage() {
                         )
                       )}
                     </div>
+                    )}
                   </div>
                 );
               })()}
@@ -1029,11 +1022,11 @@ export default function NurseDashboardPage() {
               <p className="mt-1 text-sm text-slate-500">Here&apos;s all you need to know:</p>
               <ul className="mt-4 space-y-3">
                 {[
-                  { icon: "🤖", text: "Your bot link — Share it on Instagram or your website. Clients can chat 24/7." },
+                  { icon: "🔗", text: "Your assistant link — Share it on Instagram or your website. Clients can chat 24/7." },
                   { icon: "🩹", text: "Aftercare — Log a treatment after each appointment. The right email goes out automatically." },
                   { icon: "🚨", text: "Emergency alerts — If a client types a concerning symptom, you get an immediate email." },
-                  { icon: "📊", text: "Insights — See how many clients your bot captured." },
-                  { icon: "❄️", text: "Freeze — Going on vacation? Freeze your bot so clients see a pause message." },
+                  { icon: "📊", text: "Insights — See how many clients your assistant captured." },
+                  { icon: "❄️", text: "Freeze — Going on vacation? Freeze your assistant so clients see a pause message." },
                 ].map(({ icon, text }) => (
                   <li key={icon} className="flex gap-2.5 text-sm text-slate-700">
                     <span className="mt-0.5 shrink-0">{icon}</span>
