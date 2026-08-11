@@ -184,9 +184,9 @@ export default function AdminPage() {
     if (!window.confirm(`Delete ${nurse.practice_name?.trim() || nurse.email || "this nurse"}? This cannot be undone.`)) return;
     setDeleteLoading(nurse.nurse_id);
     try {
-      const res = await fetch("/api/admin/freeze-account", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch("/api/admin/delete-nurse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": "AdonisBlue2026!" },
         body: JSON.stringify({ nurse_id: nurse.nurse_id }),
       });
       if (res.ok) {
