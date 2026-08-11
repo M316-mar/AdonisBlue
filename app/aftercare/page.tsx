@@ -43,11 +43,11 @@ type Intake = {
 // ─── Seed data ────────────────────────────────────────────────────────────────
 
 const DEFAULT_PROCEDURES = [
-  { name: "Lip Filler", aftercare_instructions: "Avoid touching or pressing your lips for 24 hours.\nApply ice wrapped in a cloth to reduce swelling — 10 minutes on, 10 minutes off.\nStay hydrated and avoid salty foods.\nAvoid strenuous exercise for 24-48 hours.\nSleep on your back with your head elevated.\nAvoid alcohol for 24 hours.\nAvoid extreme heat (saunas, hot yoga) for 2 weeks.\nDo not massage the area unless instructed.\nResults settle in 2 weeks — follow up if concerned.", reminder_days: 180 },
-  { name: "Botox / Neuromodulator", aftercare_instructions: "Do not touch, rub, or massage the treated area for 4 hours.\nStay upright for 4 hours after treatment.\nAvoid strenuous exercise for 24 hours.\nAvoid alcohol for 24 hours.\nAvoid extreme heat for 24 hours.\nDo not lie face down for 4 hours.\nResults appear in 3-14 days — full effect at 2 weeks.\nFollow up in 2 weeks if needed.", reminder_days: 90 },
-  { name: "Cheek Filler", aftercare_instructions: "Avoid touching the treated area for 6 hours.\nApply ice gently to reduce swelling.\nAvoid strenuous exercise for 24-48 hours.\nSleep elevated for the first night.\nAvoid alcohol and blood thinners for 24 hours.\nAvoid extreme heat for 2 weeks.\nResults settle fully in 2-4 weeks.", reminder_days: 180 },
-  { name: "PRP / Biostimulator", aftercare_instructions: "Keep the area clean and dry for 24 hours.\nAvoid makeup for 24 hours.\nDo not exercise strenuously for 24 hours.\nAvoid direct sun exposure for 1 week.\nUse SPF 30+ daily.\nExpect some redness and swelling for 1-3 days — this is normal.\nResults improve over 4-6 weeks.", reminder_days: 120 },
-  { name: "Skin Booster", aftercare_instructions: "Avoid touching the area for 6 hours.\nStay hydrated — drink plenty of water.\nAvoid makeup for 12 hours.\nAvoid strenuous exercise for 24 hours.\nExpect small bumps to resolve within 24-48 hours.\nUse gentle skincare for 48 hours.\nGlow check-in in 4 weeks!", reminder_days: 28 },
+  { name: "Lip Filler", reminder_days: 180, aftercare_instructions: "You did great today. Lips swell more than anywhere else, so here's what's coming and what to do about it.\n\nToday and tomorrow\nUse a cold compress — 15 minutes on, then a break. Always wrap it in a clean cloth, never ice directly on your lips. Sleep with your head slightly elevated tonight if you can.\nHands off. Don't press or massage, and if you feel a small lump, don't try to work it out yourself — message me and I'll look at it.\n\nFor the next 24 hours\nNo hot showers, saunas, steam rooms, or hot tubs — lukewarm only\nNo hard workouts; a walk is fine\nSkip alcohol\nSkip makeup and lipstick for the first 12 hours\nDrink water and go easy on salty food, it helps the swelling\n\nFor the next 2 weeks\nNo facials, peels, laser, or facial massage. Reschedule routine dental work if you can.\n\nWhat's normal\nReal swelling. Your lips will look bigger than the final result — that's expected, and it peaks around 24 to 48 hours before it starts coming down. Bruising, tenderness, and small lumps you can feel are all normal early on. Give it two full weeks before you judge the result, and don't panic on day two. Everyone does, and everyone's fine.\n\nCall me right away if\nThe skin on or around your lips turns white, pale, or blotchy\nThe pain is severe and getting worse instead of better\nYou see any change in your vision\nYou notice increasing redness, warmth, or a fever\n\n[YOUR PHONE] — call me any time, including nights and weekends. These are rare, but I want to hear about them immediately, not tomorrow.\n\nYour healing chat below is open 24/7 too. If something feels off and you're not sure, ask. That's what it's for.\n\n— [YOUR NAME]" },
+  { name: "Botox / Neuromodulator", reminder_days: 90, aftercare_instructions: "Thank you for coming in today. Here's everything you need for the next couple of days — nothing complicated, just the things that actually matter.\n\nFor the next 4 hours\nStay upright. Sitting, standing, walking, driving — all fine. Just no lying flat, no naps, and nothing that puts your head below your heart for long stretches (think downward dog or leaning way over a laptop).\nDon't rub, press, or massage the treated areas. If you're putting makeup back on, be gentle.\n\nFor the next 24 hours\nSkip the gym, running, and anything that gets your heart rate up\nSkip alcohol — it can make bruising worse\nAvoid ibuprofen, aspirin, fish oil, and vitamin E if you can, for the same reason\nKeep hats, headbands, and goggles off your forehead\n\nFor the next 48 hours\nNo saunas, steam rooms, hot tubs, or hot yoga. Keep showers lukewarm.\n\nFor the next 2 weeks\nHold off on facials, peels, microneedling, and facial massage.\n\nWhat's normal\nSmall bumps right after that settle within a few hours. Mild redness or a little bruising at the injection points. You'll start seeing results around day 3 to 5, and the full effect lands around day 10 to 14. If it looks uneven at day 5, that's usually just it settling — give it the full two weeks.\n\nCall me if\nYou have any change in your vision, or pain around your eyes\nYou have trouble breathing or swallowing\nYou notice drooping of an eyelid or eyebrow\nAnything feels wrong and you want a real answer\n\n[YOUR PHONE] — text or call, I'd genuinely rather hear from you than have you sitting at home wondering.\n\nYou can also reply right here in your healing chat any time, day or night, and you'll get an answer.\n\n— [YOUR NAME]" },
+  { name: "Cheek Filler", reminder_days: 270, aftercare_instructions: "Thanks for trusting me with this today. Here's what to do over the next couple of days.\n\nToday and tomorrow\nCool compress if you're swollen — 15 minutes at a time, wrapped in a cloth, never ice directly on skin. Try to sleep on your back tonight so you're not pressing your cheeks into the pillow.\nDon't massage or press the treated areas. If you feel a firm spot, leave it alone and tell me about it.\n\nFor the next 24 hours\nKeep showers and baths lukewarm — no saunas, steam, or hot tubs\nNo strenuous exercise; light walking is fine\nSkip alcohol\nHold off on makeup for the first 12 hours\n\nFor the next 2 weeks\nNo facials, chemical peels, microdermabrasion, laser, or facial massage. If you have dental work scheduled, push it out if you can.\n\nWhat's normal\nSwelling that peaks around 24 to 48 hours, some bruising, and a firm or slightly uneven feel early on. Cheeks often look fuller than the final result for the first week. Two weeks is when you'll see what you actually paid for.\n\nCall me right away if\nThe skin looks white, pale, blotchy, or dusky\nThe pain is severe or getting worse\nYou have any vision changes or eye pain\nYou see spreading redness, warmth, pus, or you're running a fever\n\n[YOUR PHONE] — any hour. Don't wait until morning.\n\nOr just reply in your healing chat and I'll get back to you.\n\n— [YOUR NAME]" },
+  { name: "Nose Filler", reminder_days: 270, aftercare_instructions: "Nose filler is beautiful work but it's the area I watch most closely, so please read this whole thing.\n\nToday and tomorrow\nNothing touches your nose. No pressing, no massaging, no picking at it. Sleep on your back with your head elevated.\nIf you wear glasses or sunglasses, keep them off your nose for at least 48 hours — ask me about taping them up if you need them for work.\nCool compress nearby, not directly on the bridge, 15 minutes at a time with a cloth barrier.\n\nFor the next 24 to 48 hours\nNo hot showers, saunas, steam, or hot tubs\nNo exercise\nSkip alcohol\nNo makeup on the area for the first 12 hours\n\nFor the next 2 weeks\nNo facials, peels, laser, or massage anywhere near the area. No other injectables in the same region until we've talked.\n\nWhat's normal\nMild swelling, tenderness, and small bruises. The shape settles over about two weeks.\n\nStop and call me immediately if\nThe skin on your nose or between your eyes turns white, pale, or grey\nYou have blurred vision, double vision, or any pain behind your eyes\nThe pain is severe or getting noticeably worse\nThe skin looks mottled or develops a dusky, bruise-like pattern that keeps spreading\n\n[YOUR PHONE] — call, don't text, and call at any hour. If you can't reach me and you have vision changes, go to the emergency room. I will never be annoyed that you called. I would be devastated if you waited.\n\nYour healing chat is also open 24/7 for anything that doesn't feel urgent.\n\n— [YOUR NAME]" },
+  { name: "Skin Booster", reminder_days: 28, aftercare_instructions: "Easy one — skin boosters have the gentlest recovery of anything I do. Here's the short version.\n\nToday\nYou'll likely have small raised bumps where the product went in. They're normal and usually settle within 24 to 48 hours. Don't massage them unless I specifically told you to.\nKeep the area clean, skip makeup for the first 12 hours, and use a cool compress if you feel puffy.\n\nFor the next 24 hours\nNo strenuous exercise or heavy sweating\nNo saunas, steam rooms, or hot tubs\nSkip alcohol\nLukewarm water only when you wash your face\n\nFor the next 3 to 5 days\nPause retinol, exfoliating acids, and scrubs. Go gentle with your skincare and wear SPF 30 or higher — your skin's a little more sensitive right now.\n\nFor the next 2 weeks\nNo facials, peels, microneedling, or laser.\n\nWhat's normal\nSmall bumps, mild redness, occasional pinpoint bruising. Hydration and glow build gradually — most people see the real difference around week 2 to 4, and it keeps improving if we do the full series.\n\nCall me if\nRedness, warmth, or swelling gets worse after day 2 instead of better\nYou develop pus, or a fever\nAny bump is painful rather than just visible\nAnything at all feels wrong\n\n[YOUR PHONE], or reply in your healing chat below any time.\n\n— [YOUR NAME]" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -311,6 +311,10 @@ export default function AftercarePage() {
 
   const handleSaveProcedure = useCallback(async () => {
     if (!editingProcedure?.name?.trim()) return;
+    if (!editingProcedure?.reminder_days) {
+      flash("Please set a reminder interval (in days) before saving.");
+      return;
+    }
     setSaving(true);
     const res = await fetch("/api/procedures", {
       method: "POST",
@@ -777,7 +781,7 @@ export default function AftercarePage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditingProcedure({ name: "", aftercare_instructions: "", reminder_days: 180 })}
+                    onClick={() => setEditingProcedure({ name: "", aftercare_instructions: "", reminder_days: 0 })}
                     style={{ touchAction: "manipulation" }}
                     className="min-h-[48px] rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-bold text-[#1a2744] transition hover:bg-slate-50 active:scale-[0.97]"
                   >
@@ -791,7 +795,7 @@ export default function AftercarePage() {
               <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={() => setEditingProcedure({ name: "", aftercare_instructions: "", reminder_days: 180 })}
+                  onClick={() => setEditingProcedure({ name: "", aftercare_instructions: "", reminder_days: 0 })}
                   style={{ touchAction: "manipulation" }}
                   className="min-h-[44px] rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50 active:scale-[0.97]"
                 >
@@ -822,16 +826,17 @@ export default function AftercarePage() {
                     <label className="text-xs font-semibold text-slate-600 shrink-0">Reminder after (days):</label>
                     <input
                       type="number"
-                      value={editingProcedure.reminder_days ?? 180}
-                      onChange={e => setEditingProcedure(p => ({ ...p, reminder_days: parseInt(e.target.value) }))}
+                      value={editingProcedure.reminder_days || ""}
+                      onChange={e => setEditingProcedure(p => ({ ...p, reminder_days: parseInt(e.target.value) || 0 }))}
+                      placeholder="e.g. 90"
                       className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-800 outline-none focus:border-[#0d9488]"
                     />
-                    <span className="text-xs text-slate-400">e.g. 90 for Botox, 180 for filler</span>
+                    <span className="text-xs text-slate-400">Required — e.g. 90 for Botox, 180 for filler, 28 for skin boosters</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled={saving}
+                      disabled={saving || !editingProcedure?.reminder_days}
                       onClick={() => void handleSaveProcedure()}
                       style={{ touchAction: "manipulation" }}
                       className="min-h-[44px] rounded-full bg-[#0d9488] px-6 py-2 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50 active:scale-[0.97]"
