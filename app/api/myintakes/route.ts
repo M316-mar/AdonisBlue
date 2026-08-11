@@ -23,9 +23,39 @@ export async function GET(request: Request) {
       .select("*")
       .eq("nurse_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(100);
 
-    return NextResponse.json({ intakes: data ?? [] });
+    const intakes = data ?? [];
+
+    if (intakes.length === 0) return NextResponse.json({ intakes: [] });
+
+    // Fetch all treatments for these intakes to check archive status
+    const intakeIds = intakes.map((i) => i.id as string);
+    const { data: treatments } = await supabase
+      .from("treatments")
+      .select("intake_id, archived")
+      .in("intake_id", intakeIds);
+
+    // Group treatments by intake_id
+    const byIntake = new Map<string, { allArchived: boolean }>();
+    for (const t of treatments ?? []) {
+      const id = t.intake_id as string;
+      const existing = byIntake.get(id);
+      if (!existing) {
+        byIntake.set(id, { allArchived: t.archived === true });
+      } else {
+        byIntake.set(id, { allArchived: existing.allArchived && t.archived === true });
+      }
+    }
+
+    // Keep intakes that have no treatments (new clients) or have at least one non-archived treatment
+    const active = intakes.filter((i) => {
+      const entry = byIntake.get(i.id as string);
+      if (!entry) return true; // no treatments — still active
+      return !entry.allArchived;
+    });
+
+    return NextResponse.json({ intakes: active });
   } catch (e) {
     return NextResponse.json({ intakes: [] });
   }
