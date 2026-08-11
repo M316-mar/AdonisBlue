@@ -89,6 +89,175 @@ const PROCEDURES = [
   "Other",
 ] as const;
 
+const DEFAULT_PROCEDURE_DEFAULTS: Record<string, { aftercare_instructions: string; reminder_days: number }> = {
+  "Botox / Neuromodulator": {
+    reminder_days: 90,
+    aftercare_instructions: `Thank you for coming in today. Here's everything you need for the next couple of days — nothing complicated, just the things that actually matter.
+
+For the next 4 hours
+Stay upright. Sitting, standing, walking, driving — all fine. Just no lying flat, no naps, and nothing that puts your head below your heart for long stretches (think downward dog or leaning way over a laptop).
+Don't rub, press, or massage the treated areas. If you're putting makeup back on, be gentle.
+
+For the next 24 hours
+Skip the gym, running, and anything that gets your heart rate up
+Skip alcohol — it can make bruising worse
+Avoid ibuprofen, aspirin, fish oil, and vitamin E if you can, for the same reason
+Keep hats, headbands, and goggles off your forehead
+
+For the next 48 hours
+No saunas, steam rooms, hot tubs, or hot yoga. Keep showers lukewarm.
+
+For the next 2 weeks
+Hold off on facials, peels, microneedling, and facial massage.
+
+What's normal
+Small bumps right after that settle within a few hours. Mild redness or a little bruising at the injection points. You'll start seeing results around day 3 to 5, and the full effect lands around day 10 to 14. If it looks uneven at day 5, that's usually just it settling — give it the full two weeks.
+
+Call me if
+You have any change in your vision, or pain around your eyes
+You have trouble breathing or swallowing
+You notice drooping of an eyelid or eyebrow
+Anything feels wrong and you want a real answer
+
+[YOUR PHONE] — text or call, I'd genuinely rather hear from you than have you sitting at home wondering.
+
+You can also reply right here in your healing chat any time, day or night, and you'll get an answer.
+
+— [YOUR NAME]`,
+  },
+  "Lip Filler": {
+    reminder_days: 180,
+    aftercare_instructions: `You did great today. Lips swell more than anywhere else, so here's what's coming and what to do about it.
+
+Today and tomorrow
+Use a cold compress — 15 minutes on, then a break. Always wrap it in a clean cloth, never ice directly on your lips. Sleep with your head slightly elevated tonight if you can.
+Hands off. Don't press or massage, and if you feel a small lump, don't try to work it out yourself — message me and I'll look at it.
+
+For the next 24 hours
+No hot showers, saunas, steam rooms, or hot tubs — lukewarm only
+No hard workouts; a walk is fine
+Skip alcohol
+Skip makeup and lipstick for the first 12 hours
+Drink water and go easy on salty food, it helps the swelling
+
+For the next 2 weeks
+No facials, peels, laser, or facial massage. Reschedule routine dental work if you can.
+
+What's normal
+Real swelling. Your lips will look bigger than the final result — that's expected, and it peaks around 24 to 48 hours before it starts coming down. Bruising, tenderness, and small lumps you can feel are all normal early on. Give it two full weeks before you judge the result, and don't panic on day two. Everyone does, and everyone's fine.
+
+Call me right away if
+The skin on or around your lips turns white, pale, or blotchy
+The pain is severe and getting worse instead of better
+You see any change in your vision
+You notice increasing redness, warmth, or a fever
+
+[YOUR PHONE] — call me any time, including nights and weekends. These are rare, but I want to hear about them immediately, not tomorrow.
+
+Your healing chat below is open 24/7 too. If something feels off and you're not sure, ask. That's what it's for.
+
+— [YOUR NAME]`,
+  },
+  "Cheek Filler": {
+    reminder_days: 270,
+    aftercare_instructions: `Thanks for trusting me with this today. Here's what to do over the next couple of days.
+
+Today and tomorrow
+Cool compress if you're swollen — 15 minutes at a time, wrapped in a cloth, never ice directly on skin. Try to sleep on your back tonight so you're not pressing your cheeks into the pillow.
+Don't massage or press the treated areas. If you feel a firm spot, leave it alone and tell me about it.
+
+For the next 24 hours
+Keep showers and baths lukewarm — no saunas, steam, or hot tubs
+No strenuous exercise; light walking is fine
+Skip alcohol
+Hold off on makeup for the first 12 hours
+
+For the next 2 weeks
+No facials, chemical peels, microdermabrasion, laser, or facial massage. If you have dental work scheduled, push it out if you can.
+
+What's normal
+Swelling that peaks around 24 to 48 hours, some bruising, and a firm or slightly uneven feel early on. Cheeks often look fuller than the final result for the first week. Two weeks is when you'll see what you actually paid for.
+
+Call me right away if
+The skin looks white, pale, blotchy, or dusky
+The pain is severe or getting worse
+You have any vision changes or eye pain
+You see spreading redness, warmth, pus, or you're running a fever
+
+[YOUR PHONE] — any hour. Don't wait until morning.
+
+Or just reply in your healing chat and I'll get back to you.
+
+— [YOUR NAME]`,
+  },
+  "Nose Filler": {
+    reminder_days: 270,
+    aftercare_instructions: `Nose filler is beautiful work but it's the area I watch most closely, so please read this whole thing.
+
+Today and tomorrow
+Nothing touches your nose. No pressing, no massaging, no picking at it. Sleep on your back with your head elevated.
+If you wear glasses or sunglasses, keep them off your nose for at least 48 hours — ask me about taping them up if you need them for work.
+Cool compress nearby, not directly on the bridge, 15 minutes at a time with a cloth barrier.
+
+For the next 24 to 48 hours
+No hot showers, saunas, steam, or hot tubs
+No exercise
+Skip alcohol
+No makeup on the area for the first 12 hours
+
+For the next 2 weeks
+No facials, peels, laser, or massage anywhere near the area. No other injectables in the same region until we've talked.
+
+What's normal
+Mild swelling, tenderness, and small bruises. The shape settles over about two weeks.
+
+Stop and call me immediately if
+The skin on your nose or between your eyes turns white, pale, or grey
+You have blurred vision, double vision, or any pain behind your eyes
+The pain is severe or getting noticeably worse
+The skin looks mottled or develops a dusky, bruise-like pattern that keeps spreading
+
+[YOUR PHONE] — call, don't text, and call at any hour. If you can't reach me and you have vision changes, go to the emergency room. I will never be annoyed that you called. I would be devastated if you waited.
+
+Your healing chat is also open 24/7 for anything that doesn't feel urgent.
+
+— [YOUR NAME]`,
+  },
+  "Skin Booster": {
+    reminder_days: 28,
+    aftercare_instructions: `Easy one — skin boosters have the gentlest recovery of anything I do. Here's the short version.
+
+Today
+You'll likely have small raised bumps where the product went in. They're normal and usually settle within 24 to 48 hours. Don't massage them unless I specifically told you to.
+Keep the area clean, skip makeup for the first 12 hours, and use a cool compress if you feel puffy.
+
+For the next 24 hours
+No strenuous exercise or heavy sweating
+No saunas, steam rooms, or hot tubs
+Skip alcohol
+Lukewarm water only when you wash your face
+
+For the next 3 to 5 days
+Pause retinol, exfoliating acids, and scrubs. Go gentle with your skincare and wear SPF 30 or higher — your skin's a little more sensitive right now.
+
+For the next 2 weeks
+No facials, peels, microneedling, or laser.
+
+What's normal
+Small bumps, mild redness, occasional pinpoint bruising. Hydration and glow build gradually — most people see the real difference around week 2 to 4, and it keeps improving if we do the full series.
+
+Call me if
+Redness, warmth, or swelling gets worse after day 2 instead of better
+You develop pus, or a fever
+Any bump is painful rather than just visible
+Anything at all feels wrong
+
+[YOUR PHONE], or reply in your healing chat below any time.
+
+— [YOUR NAME]`,
+  },
+};
+
 type Procedure = (typeof PROCEDURES)[number];
 
 const COLOR_PRESETS = [
@@ -1226,16 +1395,21 @@ function OnboardingInner() {
       });
       if (services.length > 0) {
         await Promise.allSettled(
-          services.map((name) =>
-            fetch("/api/procedures", {
+          services.map((name) => {
+            const defaults = DEFAULT_PROCEDURE_DEFAULTS[name];
+            return fetch("/api/procedures", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
               },
-              body: JSON.stringify({ name, description: "" }),
-            })
-          )
+              body: JSON.stringify({
+                name,
+                description: "",
+                ...(defaults ? { aftercare_instructions: defaults.aftercare_instructions, reminder_days: defaults.reminder_days } : {}),
+              }),
+            });
+          })
         );
       }
 

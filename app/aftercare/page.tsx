@@ -1830,6 +1830,17 @@ export default function AftercarePage() {
         {tab === "emergency" && (
           <div className="space-y-4">
 
+            {/* HARD WARNING — no alert address configured */}
+            {!alertEmail && (
+              <div className="rounded-2xl border-2 border-red-500 bg-red-100 px-5 py-4 text-sm text-red-900 shadow-md">
+                <p className="font-bold mb-1">⚠️ No alert address set — you will not be notified.</p>
+                <p className="leading-relaxed">
+                  Emergency keywords typed by a client will NOT reach you until you add an alert email.{" "}
+                  <button type="button" onClick={() => setTab("alerts")} className="underline font-bold hover:text-red-950">Add one now in the Alerts tab →</button>
+                </p>
+              </div>
+            )}
+
             {/* Explanatory banner */}
             <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
               <p className="font-semibold mb-1">🚨 How emergency monitoring works</p>
