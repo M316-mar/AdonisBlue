@@ -81,6 +81,7 @@ function ROICalculator() {
         </div>
       </div>
       <p className="text-center text-xs text-slate-400">Based on 30% client recovery · avg booking $250</p>
+      <p className="text-center text-xs italic text-slate-400">* Estimate based on 30% client recovery rate. Results vary by practice size and engagement.</p>
       <a href="/auth" className="block w-full rounded-full bg-[#0d9488] py-3 text-center text-sm font-bold text-white transition hover:bg-teal-700">Start free →</a>
     </div>
   );
@@ -381,7 +382,7 @@ export default function Home() {
               {[
                 { stat: "24/7", sub: "Client coverage", desc: "Never miss an inquiry again, day or night" },
                 { stat: "5 min", sub: "Setup time", desc: "From signup to live bot in under 5 minutes" },
-                { stat: "2×", sub: "More bookings", desc: "Clients who get instant answers book faster" },
+                { stat: "↑", sub: "More returning clients", desc: "Clients who feel cared for come back" },
                 { stat: "0", sub: "Missed questions", desc: "Every client question gets a clear answer" },
               ].map((item) => (
                 <div key={item.sub} className="group p-6 transition hover:bg-teal-50 sm:p-8">
