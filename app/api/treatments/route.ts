@@ -127,6 +127,28 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    // Hard block: never allow "send aftercare" for a procedure that hasn't been approved.
+    // This must happen before the treatment is inserted — the client-side check is a courtesy, not a guarantee.
+    if (sendAftercare) {
+      const earlyProcedureIds: string[] = Array.isArray(body.procedure_ids)
+        ? body.procedure_ids.filter((id: unknown) => typeof id === "string" && UUID_REGEX.test(id))
+        : (typeof body.procedure_id === "string" && UUID_REGEX.test(body.procedure_id) ? [body.procedure_id] : []);
+
+      if (earlyProcedureIds.length > 0) {
+        const { data: approvalCheck } = await supabase
+          .from("procedures")
+          .select("id, name, approved_at")
+          .in("id", earlyProcedureIds);
+        const unapproved = (approvalCheck ?? []).filter((p) => !p.approved_at);
+        if (unapproved.length > 0) {
+          return NextResponse.json(
+            { error: "unapproved_procedures", procedures: unapproved.map((p) => p.name) },
+            { status: 422 }
+          );
+        }
+      }
+    }
+
     // ── Handle walk-in — create intake first ───────────────────────────────
     let resolvedIntakeId = intakeId;
     let clientEmail: string | null = null;

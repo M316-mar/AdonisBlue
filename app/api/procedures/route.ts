@@ -48,9 +48,15 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    // Approval is set server-side only — never trust a client-supplied timestamp or user id.
+    const { approved, ...rest } = body;
+    const approvalFields = approved
+      ? { approved_at: new Date().toISOString(), approved_by: user.id }
+      : { approved_at: null, approved_by: null };
+
     const { data, error } = await supabase
       .from("procedures")
-      .upsert({ ...body, nurse_id: user.id }, { onConflict: "id" })
+      .upsert({ ...rest, ...approvalFields, nurse_id: user.id }, { onConflict: "id" })
       .select()
       .single();
 
