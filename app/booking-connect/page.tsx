@@ -123,6 +123,7 @@ export default function BookingConnectPage() {
   const [token, setToken] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [secretRevealed, setSecretRevealed] = useState(false);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async (authToken: string) => {
@@ -400,9 +401,20 @@ export default function BookingConnectPage() {
 
                 {connectData.has_secret && (
                   <div className="mb-4 rounded-xl bg-[#0d1628] p-3">
-                    <p className="mb-1 text-xs text-slate-400">Your {platform.name} webhook URL:</p>
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-xs text-slate-400">Your {platform.name} webhook URL:</p>
+                      <button
+                        type="button"
+                        onClick={() => setSecretRevealed((v) => !v)}
+                        className="text-xs font-semibold text-teal-300 underline"
+                      >
+                        {secretRevealed ? "Hide" : "Show"}
+                      </button>
+                    </div>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <code className="flex-1 break-all text-xs text-teal-300">{platformUrl}</code>
+                      <code className="flex-1 break-all text-xs text-teal-300">
+                        {secretRevealed ? platformUrl : platformUrl.replace(/[^/]{4}(?=[^/]{4}$)|[^/](?=[^/]{4}\/)/g, "•")}
+                      </code>
                       <button
                         type="button"
                         onClick={() => {

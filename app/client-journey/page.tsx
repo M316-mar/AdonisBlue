@@ -425,10 +425,13 @@ export default function ClientJourneyPage() {
           <Link href="/dashboard">
             <Image src="/Alona.png" alt="AdonisBlue" width={36} height={36} className="rounded-xl" />
           </Link>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-sm font-bold text-[#1a2744] sm:text-base truncate">🗺️ Client Journey</h1>
             <p className="hidden text-xs text-slate-500 sm:block">Manage every touchpoint in your client&apos;s experience</p>
           </div>
+          <Link href="/dashboard" className="shrink-0 text-sm font-semibold text-[#1a2744] hover:text-[#0d9488]">
+            ← Dashboard
+          </Link>
         </div>
       </header>
 
@@ -466,7 +469,13 @@ export default function ClientJourneyPage() {
               <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
                 <p className="text-4xl mb-3">👤</p>
                 <p className="font-bold text-[#1a2744]">No client records yet</p>
-                <p className="mt-1 text-sm text-slate-500">Log a treatment in the Client Hub to see client history here.</p>
+                <p className="mt-1 text-sm text-slate-500">Log a treatment to see client history here.</p>
+                <Link
+                  href="/aftercare"
+                  className="mt-4 inline-flex items-center justify-center rounded-full bg-[#0d9488] px-5 py-2 text-sm font-semibold text-white transition hover:bg-teal-700"
+                >
+                  Log a treatment →
+                </Link>
               </div>
             )}
             {clientGroups.map(([key, clientTreatments]) => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { supabase } from "@/lib/supabase";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
@@ -1447,9 +1448,9 @@ function OnboardingInner() {
       <header className="shrink-0 bg-white border-b border-slate-100 px-4 py-4 sm:px-6">
         <div className="mx-auto max-w-4xl">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold text-[#1a2744]">
-              AdonisBlue
-            </span>
+            <Link href="/dashboard" className="text-sm font-semibold text-[#1a2744] hover:text-[#0d9488]">
+              ← AdonisBlue
+            </Link>
             <span className="text-xs font-medium text-slate-400">
               Step {draft.step} of {TOTAL_STEPS}
             </span>

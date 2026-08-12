@@ -142,6 +142,12 @@ export default function NurseDashboardPage() {
     setEmbedCopied(localStorage.getItem("ab-embed-copied") === "1");
   }, []);
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash === "#embed") {
+      setEmbedOpen(true);
+    }
+  }, []);
+
   const dismissWelcome = useCallback(() => {
     localStorage.setItem("adonisblue-welcome-seen", "true");
     setShowWelcome(false);
@@ -273,16 +279,32 @@ export default function NurseDashboardPage() {
     try {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
-      if (!token) return;
-      const res = await fetch("/api/billing-portal", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const j = await res.json() as { url?: string; error?: string };
-      if (res.ok && j.url) {
-        window.location.href = j.url;
-      } else {
-        alert(j.error ?? "Could not open billing portal. Please try again.");
+      if (!token) {
+        setPortalBusy(false);
+        return;
+      }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      try {
+        const res = await fetch("/api/billing-portal", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        const j = await res.json() as { url?: string; error?: string };
+        if (res.ok && j.url) {
+          window.location.href = j.url;
+        } else {
+          alert(j.error ?? "Could not open billing portal. Please try again.");
+        }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        if (err instanceof Error && err.name === "AbortError") {
+          alert("This is taking longer than expected. Please check your connection and try again.");
+        } else {
+          alert("Something went wrong opening the billing portal. Please try again.");
+        }
       }
     } finally {
       setPortalBusy(false);
@@ -399,7 +421,7 @@ export default function NurseDashboardPage() {
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800 antialiased">
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
-          <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
+          <Link href="/dashboard" className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
             <Image src="/Alona.png" alt="AdonisBlue" width={48} height={48} className="h-10 w-10 sm:h-12 sm:w-12" />
             <span className="truncate text-base font-semibold tracking-tight text-[#1a2744] sm:text-lg">AdonisBlue</span>
           </Link>
@@ -729,7 +751,7 @@ export default function NurseDashboardPage() {
                   <Link href="/onboarding?step=1" className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50">
                     Edit my assistant
                   </Link>
-                  <Link href={`/chat/${botChatSlug}`} className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700">
+                  <Link href={`/chat/${botChatSlug}`} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700">
                     Preview my assistant →
                   </Link>
                 </div>
@@ -753,7 +775,7 @@ export default function NurseDashboardPage() {
                 </div>
 
                 {/* ── Add to your website (collapsible, main content) ── */}
-                <section className="rounded-2xl border border-slate-200 bg-white shadow-md overflow-hidden">
+                <section id="embed" className="rounded-2xl border border-slate-200 bg-white shadow-md overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setEmbedOpen(o => !o)}
@@ -833,6 +855,8 @@ export default function NurseDashboardPage() {
                   {launched ? (
                     <Link
                       href={`/chat/${botChatSlug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50"
                     >
                       Preview my assistant

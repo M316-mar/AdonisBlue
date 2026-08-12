@@ -312,7 +312,7 @@ export default function OffersPage() {
           <div>
             <h1 className="text-xl font-bold text-[#1a2744] sm:text-2xl">Your Offers &amp; Specials 🎉</h1>
             <p className="mt-0.5 text-sm text-slate-500">
-              Set up a special offer and your AI bot will automatically tell clients about it.
+              Set up a special offer and your assistant will automatically tell clients about it.
               It turns on and off by itself based on the dates you set.
             </p>
           </div>
@@ -334,7 +334,7 @@ export default function OffersPage() {
             <li>✓ Give it a fun name clients will remember</li>
             <li>✓ Set a real end date — limited time = more bookings</li>
             <li>✓ Be specific about the discount so clients know exactly what they get</li>
-            <li>✓ Your AI bot handles the rest automatically!</li>
+            <li>✓ Your assistant handles the rest automatically!</li>
           </ul>
         </div>
 
@@ -403,7 +403,7 @@ export default function OffersPage() {
                           )}
                         </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
+                      <div className="flex shrink-0 items-center gap-4">
                         {/* Toggle */}
                         <button
                           type="button"
@@ -416,14 +416,19 @@ export default function OffersPage() {
                             className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${offer.active ? "left-5" : "left-0.5"}`}
                           />
                         </button>
-                        {/* Delete */}
+                        {/* Delete — visually separated from the toggle, icon-only to reduce accidental taps */}
                         <button
                           type="button"
                           disabled={deletingId === offer.id}
                           onClick={() => void handleDelete(offer.id)}
-                          className="rounded-full border border-red-100 px-3 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                          aria-label="Delete offer"
+                          className="rounded-full p-1.5 text-slate-300 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
                         >
-                          {deletingId === offer.id ? "…" : "Delete"}
+                          {deletingId === offer.id ? "…" : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -567,8 +572,8 @@ export default function OffersPage() {
                 )}
                 <p className="mt-2 text-xs text-slate-500">
                   {form.ongoing
-                    ? "Your AI bot will mention this offer to every new client — no expiry date."
-                    : "Your AI bot will only mention this offer between the dates you set."}
+                    ? "Your assistant will mention this offer to every new client — no expiry date."
+                    : "Your assistant will only mention this offer between the dates you set."}
                 </p>
               </div>
 
