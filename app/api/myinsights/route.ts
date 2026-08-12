@@ -46,8 +46,9 @@ export async function GET(request: Request) {
         .eq("nurse_id", nurse_id),
       supabase
         .from("treatments")
-        .select("procedure_name, aftercare_sent, reminder_sent, created_at")
-        .eq("nurse_id", nurse_id),
+        .select("procedure_name, aftercare_sent, reminder_sent, created_at, archived")
+        .eq("nurse_id", nurse_id)
+        .eq("archived", false),
       supabase
         .from("healing_chats")
         .select("id")
