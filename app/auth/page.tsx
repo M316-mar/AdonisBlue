@@ -187,6 +187,13 @@ export default function AuthPage() {
       return;
     }
 
+    // Fire-and-forget — never let a notification failure affect the signup flow
+    fetch("/api/notify-new-signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: signupEmail.trim(), full_name: signupName.trim() }),
+    }).catch(() => {});
+
     setSignupSuccessMessage("Welcome to AdonisBlue! Please check your email to confirm your account.");
   }
 
