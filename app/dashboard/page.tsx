@@ -880,7 +880,7 @@ export default function NurseDashboardPage() {
                     href="/client-journey"
                     className="inline-flex w-full items-center justify-center text-center text-sm font-medium text-slate-500 transition hover:text-[#0d9488]"
                   >
-                    See who's due for follow-up
+                    Send Emails &amp; Alerts
                   </Link>
                   <Link
                     href="/offers"
