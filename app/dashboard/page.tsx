@@ -6,27 +6,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-type ChecklistId =
-  | "account"
-  | "practice"
-  | "services"
-  | "booking"
-  | "photos"
-  | "botStyle"
-  | "policies"
-  | "preview"
-  | "share";
-
-const CHECKLIST: { id: ChecklistId; label: string; alwaysDone?: boolean }[] = [
-  { id: "account", label: "Create your account", alwaysDone: true },
-  { id: "practice", label: "Tell us about your practice" },
-  { id: "services", label: "Choose your services" },
-  { id: "booking", label: "Add your booking link" },
-  { id: "botStyle", label: "Set your assistant's colors and name" },
-  { id: "policies", label: "Add your policies and agreements" },
-  { id: "preview", label: "Preview your assistant" },
-  { id: "share", label: "Share your assistant with your clients" },
-];
 
 type BotRow = {
   slug?: string | null;
@@ -67,33 +46,6 @@ function slugify(input: string): string {
   return s || "my-practice";
 }
 
-function onboardingHrefForChecklist(id: ChecklistId): string {
-  switch (id) {
-    case "practice":   return "/onboarding?step=1";
-    case "services":   return "/onboarding?step=2";
-    case "booking":    return "/onboarding?step=2";
-    case "photos":     return "/onboarding?step=4";
-    case "botStyle":   return "/onboarding?step=4";
-    case "policies":   return "/onboarding?step=2";
-    case "preview":    return "/onboarding?step=4";
-    case "share":      return "/dashboard#embed";
-    default:           return "/onboarding";
-  }
-}
-
-function computeChecklistDone(bot: BotRow | null): Record<ChecklistId, boolean> {
-  return {
-    account: true,
-    practice: Boolean(bot?.practice_name?.trim()),
-    services: Array.isArray(bot?.services) && bot.services.length > 0,
-    booking: Boolean(bot?.booking_link?.trim()),
-    photos: Array.isArray(bot?.photos) && bot.photos.length > 0,
-    botStyle: Boolean(bot?.bot_name?.trim()),
-    policies: Boolean(bot?.cancellation_policy?.trim()) || Boolean(bot?.aftercare?.trim()),
-    preview: bot?.launched === true,
-    share: bot?.launched === true,
-  };
-}
 
 function displayNameFromUser(user: { user_metadata?: { full_name?: string }; email?: string } | null): string {
   if (!user) return "there";
@@ -235,7 +187,6 @@ export default function NurseDashboardPage() {
     };
   }, []);
 
-  const done = useMemo(() => computeChecklistDone(bot), [bot]);
   const launched = bot?.launched === true;
   const botChatSlug = useMemo(() => {
     if (bot?.slug) return bot.slug;
@@ -243,26 +194,13 @@ export default function NurseDashboardPage() {
     return slugify(raw);
   }, [bot?.slug, bot?.bot_name, bot?.practice_name]);
 
-  const completedCount = useMemo(() => CHECKLIST.filter((item) => done[item.id]).length, [done]);
-  const progressPct = Math.round((completedCount / CHECKLIST.length) * 100);
-
   const totalClients = useMemo(() => intakes.length, [intakes]);
   const aftercareSent = useMemo(() => intakes.filter((i) => i.aftercare_sent_at).length, [intakes]);
 
-  const SETUP_STEPS = useMemo(() => [
-    { id: "bot", label: "Create your bot", href: "/onboarding", done: bot?.launched === true },
-    { id: "embed", label: "Add your assistant to your website", href: "#embed", done: embedCopied },
-    { id: "booking", label: "Connect your booking software", href: "/booking-connect", done: hasBooking },
-    { id: "treatment", label: "Log your first treatment", href: "/aftercare", done: aftercareSent > 0 },
-    { id: "offer", label: "Send your first offer", href: "/offers", done: hasOffer },
-  ], [bot?.launched, embedCopied, hasBooking, aftercareSent, hasOffer]);
-
-  const setupDoneCount = useMemo(() => SETUP_STEPS.filter((s) => s.done).length, [SETUP_STEPS]);
   const pendingFollowUpCount = useMemo(
     () => intakes.filter((i) => !i.aftercare_sent_at || !i.survey_sent).length,
     [intakes]
   );
-  const setupAllDone = setupDoneCount === SETUP_STEPS.length;
   const reviewsRequested = useMemo(() => intakes.filter((i) => i.survey_sent).length, [intakes]);
   const remindersScheduled = useMemo(
     () => intakes.filter((i) => i.aftercare_sent_at && !i.reminder_6m_sent).length,
@@ -483,103 +421,23 @@ export default function NurseDashboardPage() {
               </div>
             </section>
 
-            {/* ── Getting started checklist ── */}
-            {!setupAllDone ? (
-              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md">
-                <div className="px-5 py-4 border-b border-slate-100">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-widest text-teal-600">Getting started</p>
-                      <p className="mt-0.5 text-sm font-semibold text-[#1a2744]">{setupDoneCount} of {SETUP_STEPS.length} steps complete</p>
-                    </div>
-                    <span className="text-sm font-bold text-teal-600">{Math.round((setupDoneCount / SETUP_STEPS.length) * 100)}%</span>
-                  </div>
-                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-teal-500 transition-[width] duration-500"
-                      style={{ width: `${Math.round((setupDoneCount / SETUP_STEPS.length) * 100)}%` }}
-                      role="progressbar"
-                      aria-valuenow={setupDoneCount}
-                      aria-valuemin={0}
-                      aria-valuemax={SETUP_STEPS.length}
-                    />
-                  </div>
-                </div>
-                <ul className="divide-y divide-slate-100">
-                  {(() => {
-                    const firstIncomplete = SETUP_STEPS.findIndex((s) => !s.done);
-                    return SETUP_STEPS.map((step, i) => {
-                      const isCurrent = i === firstIncomplete;
-                      const isUpcoming = i > firstIncomplete && !step.done;
-                      return (
-                        <li key={step.id} className={`relative flex items-center gap-4 px-5 py-3.5 ${isCurrent ? "bg-teal-50" : step.done ? "bg-slate-50/60" : "bg-white"}`}>
-                          {!step.done && (
-                            <Link href={step.href} className="absolute inset-0 z-[1]" aria-label={step.label} />
-                          )}
-                          <span className="relative z-[2] flex h-7 w-7 shrink-0 items-center justify-center" aria-hidden>
-                            {step.done ? (
-                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-500 text-white text-sm font-bold">✓</span>
-                            ) : isCurrent ? (
-                              <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-teal-500 bg-white">
-                                <span className="h-2.5 w-2.5 rounded-full bg-teal-500" />
-                              </span>
-                            ) : (
-                              <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-200 bg-white" />
-                            )}
-                          </span>
-                          <span className={`relative z-[2] flex-1 text-sm font-medium pointer-events-none ${step.done ? "text-slate-400 line-through decoration-slate-300" : isCurrent ? "text-[#1a2744]" : "text-slate-400"}`}>
-                            {step.label}
-                          </span>
-                          {!step.done && (
-                            <Link
-                              href={step.href}
-                              tabIndex={-1}
-                              className={`relative z-[2] shrink-0 rounded-full px-3 py-1 text-xs font-bold transition ${isCurrent ? "bg-teal-600 text-white hover:bg-teal-700" : "border border-slate-200 bg-white text-slate-400"}`}
-                            >
-                              {isCurrent ? "Start →" : isUpcoming ? "Upcoming" : "Start →"}
-                            </Link>
-                          )}
-                        </li>
-                      );
-                    });
-                  })()}
-                </ul>
-              </section>
+            {/* ── Assistant setup status ── */}
+            {!launched ? (
+              <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                <p className="text-sm font-semibold text-[#1a2744]">Let&apos;s get your assistant set up</p>
+                <p className="mt-1 text-sm text-slate-500">Your AI front desk is a few steps away.</p>
+                <Link
+                  href="/onboarding?step=1"
+                  className="mt-3 inline-flex items-center rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
+                >
+                  Set up my assistant →
+                </Link>
+              </div>
             ) : (
-              <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-sky-50 px-5 py-4 shadow-sm">
-                <span className="text-3xl">🎉</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-base font-bold text-[#1a2744]">You&apos;re all set! AdonisBlue is running.</p>
-                  <p className="text-sm text-slate-600">Everything is connected. Your practice is on autopilot. 💙</p>
-                </div>
+              <div className="rounded-2xl border border-teal-100 bg-teal-50 px-5 py-4 shadow-sm">
+                <p className="text-sm text-[#1a2744]">You&apos;re all set! Your assistant is live and your practice is fully set up. Share your link and start getting clients.</p>
               </div>
             )}
-
-            <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-              {[
-                { label: "Total Clients", value: totalClients, emoji: "💌", color: "#0d9488" },
-                { label: "Aftercare Sent", value: aftercareSent, emoji: "✅", color: "#0d9488" },
-                { label: "Reviews Requested", value: reviewsRequested, emoji: "⭐", color: "#0d9488" },
-                { label: "Auto Reminders", value: remindersScheduled, emoji: "🔔", color: "#0d9488" },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-md sm:px-5 sm:py-5"
-                >
-                  <div
-                    className="pointer-events-none absolute inset-0 opacity-60"
-                    style={{
-                      background: "radial-gradient(ellipse 80% 60% at 80% 0%, rgba(13,148,136,0.25), transparent)",
-                    }}
-                    aria-hidden
-                  />
-                  <div className="relative">
-                    <p className="text-2xl font-bold tabular-nums text-[#1a2744] sm:text-3xl">{stat.value}</p>
-                    <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">{stat.emoji} {stat.label}</p>
-                  </div>
-                </div>
-              ))}
-            </section>
 
             {(() => {
               const pendingIntakes = intakes.filter((i) => !i.aftercare_sent_at || !i.survey_sent);
@@ -650,113 +508,6 @@ export default function NurseDashboardPage() {
               ) : null;
             })()}
 
-            {/* ── SETUP CHECKLIST — below stats, above clients ── */}
-            {progressPct < 100 ? (
-              <section className="overflow-hidden rounded-2xl border-2 border-[#0d9488] bg-white shadow-lg">
-                {/* Header */}
-                <div className="relative overflow-hidden bg-gradient-to-r from-[#1a2744] to-[#0d4f6b] px-5 py-4 sm:px-6">
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_100%_0%,rgba(13,148,136,0.3),transparent)]" aria-hidden />
-                  <div className="relative flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-widest text-teal-300">Get your bot live</p>
-                      <h2 className="mt-0.5 text-lg font-bold text-white sm:text-xl">
-                        Setup checklist — {progressPct}% complete
-                      </h2>
-                      <p className="mt-1 text-sm text-slate-300">
-                        {CHECKLIST.length - completedCount} step{CHECKLIST.length - completedCount !== 1 ? "s" : ""} remaining before your AI front desk is live
-                      </p>
-                    </div>
-                    <div className="hidden shrink-0 flex-col items-center sm:flex">
-                      <div className="relative flex h-16 w-16 items-center justify-center">
-                        <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 36 36">
-                          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#ffffff18" strokeWidth="3" />
-                          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#0d9488" strokeWidth="3"
-                            strokeDasharray={`${progressPct} ${100 - progressPct}`} strokeLinecap="round" />
-                        </svg>
-                        <span className="text-sm font-bold text-white">{progressPct}%</span>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Progress bar */}
-                  <div className="relative mt-3 h-2 w-full overflow-hidden rounded-full bg-white/20">
-                    <div
-                      className="h-full rounded-full bg-teal-400 transition-[width] duration-500 ease-out"
-                      style={{ width: `${progressPct}%` }}
-                      role="progressbar"
-                      aria-valuenow={progressPct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label="Setup progress"
-                    />
-                  </div>
-                </div>
-                {/* Steps */}
-                <ul className="divide-y divide-slate-100">
-                  {CHECKLIST.map((item) => {
-                    const isDone = done[item.id];
-                    const isActiveBotStep = item.id === "share" && launched;
-                    const label = isActiveBotStep ? "Assistant is active ✅" : item.label;
-                    const onboardingHref = onboardingHrefForChecklist(item.id);
-                    return (
-                      <li
-                        key={item.id}
-                        className={`relative flex items-center justify-between gap-4 px-5 py-3.5 sm:px-6 transition-colors ${
-                          isDone ? "bg-slate-50/60" : "bg-white hover:bg-slate-50 cursor-pointer"
-                        }`}
-                      >
-                        {!isActiveBotStep && !item.alwaysDone ? (
-                          <Link
-                            href={onboardingHref}
-                            className="absolute inset-0 z-[1] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0d9488]"
-                            aria-label={`Continue setup: ${item.label}`}
-                          />
-                        ) : null}
-                        <div className="relative z-[2] flex min-w-0 flex-1 items-center gap-3 pointer-events-none">
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center text-base" aria-hidden>
-                            {isDone
-                              ? <span className="select-none text-lg">✅</span>
-                              : <span className="block h-6 w-6 rounded-full border-2 border-slate-300 bg-white" />}
-                          </span>
-                          <span className={`text-sm font-medium leading-snug ${isDone && !isActiveBotStep ? "text-slate-400 line-through decoration-slate-300" : "text-[#1a2744]"}`}>
-                            {label}
-                          </span>
-                        </div>
-                        <div className="relative z-[2] shrink-0">
-                          {isActiveBotStep ? (
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Active</span>
-                              <Link href={`/chat/${botChatSlug}`} className="inline-flex items-center rounded-full bg-[#0d9488] px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-700">Preview assistant</Link>
-                            </div>
-                          ) : item.alwaysDone ? (
-                            <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-[#0d9488]">Done</span>
-                          ) : (
-                            <Link href={onboardingHref} tabIndex={-1} className="inline-flex items-center rounded-full bg-[#0d9488] px-4 py-1.5 text-xs font-bold text-white transition hover:bg-teal-700">
-                              {isDone ? "Edit →" : "Start →"}
-                            </Link>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ) : (
-              <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-sky-50 px-5 py-4 shadow-sm">
-                <span className="text-3xl">🎉</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-base font-bold text-[#1a2744]">You&apos;re all set!</p>
-                  <p className="text-sm text-slate-600">Your assistant is live and your practice is fully set up. Share your link and start getting clients.</p>
-                </div>
-                <div className="mt-3 flex shrink-0 gap-2 sm:ml-auto sm:mt-0">
-                  <Link href="/onboarding?step=1" className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50">
-                    Edit my assistant
-                  </Link>
-                  <Link href={`/chat/${botChatSlug}`} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700">
-                    Preview my assistant →
-                  </Link>
-                </div>
-              </div>
-            )}
 
             {launched ? (
               <>
@@ -878,7 +629,7 @@ export default function NurseDashboardPage() {
                   </Link>
                   <Link
                     href="/client-journey"
-                    className="inline-flex w-full items-center justify-center text-center text-sm font-medium text-slate-500 transition hover:text-[#0d9488]"
+                    className="inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
                   >
                     Send Emails &amp; Alerts
                   </Link>
@@ -919,6 +670,31 @@ export default function NurseDashboardPage() {
                 >
                   Set up Instagram automation →
                 </Link>
+              </div>
+
+              {/* ── Stats ── */}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {[
+                  { label: "Total Clients", value: totalClients, emoji: "💌" },
+                  { label: "Aftercare Sent", value: aftercareSent, emoji: "✅" },
+                  { label: "Reviews Requested", value: reviewsRequested, emoji: "⭐" },
+                  { label: "Auto Reminders", value: remindersScheduled, emoji: "🔔" },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
+                  >
+                    <div
+                      className="pointer-events-none absolute inset-0 opacity-60"
+                      style={{ background: "radial-gradient(ellipse 80% 60% at 80% 0%, rgba(13,148,136,0.25), transparent)" }}
+                      aria-hidden
+                    />
+                    <div className="relative">
+                      <p className="text-xl font-bold tabular-nums text-[#1a2744]">{stat.value}</p>
+                      <p className="mt-0.5 text-xs font-medium text-slate-500">{stat.emoji} {stat.label}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {/* ── My Plan ── */}
