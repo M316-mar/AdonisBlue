@@ -559,6 +559,151 @@ export default function NurseDashboardPage() {
               </>
             ) : null}
 
+            {/* ── Instagram Automation, Stats, My Plan ── */}
+            <div className="max-w-2xl space-y-4">
+              {/* ── Instagram Automation ── */}
+              <div className="rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50 to-rose-50 p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">📱</span>
+                  <h3 className="text-sm font-bold text-[#1a2744]">Instagram Automation</h3>
+                </div>
+                <p className="text-xs leading-relaxed text-slate-500 mb-3">
+                  Let clients comment a keyword on your posts and automatically receive your bot link in a DM — hands free.
+                </p>
+                <Link
+                  href="/instagram-automation"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-pink-200 bg-white px-4 py-2 text-xs font-bold text-pink-600 transition hover:bg-pink-50"
+                >
+                  Set up Instagram automation →
+                </Link>
+              </div>
+
+              {/* ── Stats ── */}
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: "Total Clients", value: totalClients, emoji: "💌" },
+                  { label: "Aftercare Sent", value: aftercareSent, emoji: "✅" },
+                  { label: "Reviews Requested", value: reviewsRequested, emoji: "⭐" },
+                  { label: "Auto Reminders", value: remindersScheduled, emoji: "🔔" },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
+                  >
+                    <div
+                      className="pointer-events-none absolute inset-0 opacity-60"
+                      style={{ background: "radial-gradient(ellipse 80% 60% at 80% 0%, rgba(13,148,136,0.25), transparent)" }}
+                      aria-hidden
+                    />
+                    <div className="relative">
+                      <p className="text-xl font-bold tabular-nums text-[#1a2744]">{stat.value}</p>
+                      <p className="mt-0.5 text-xs font-medium text-slate-500">{stat.emoji} {stat.label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── My Plan ── */}
+              {(() => {
+                const plan = (bot?.plan ?? "trial").toLowerCase();
+                const trialEndsAt = bot?.trial_ends_at
+                  ? new Date(bot.trial_ends_at)
+                  : null;
+                const daysLeft = trialEndsAt
+                  ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                  : null;
+                const expired = plan === "trial" && trialEndsAt !== null && trialEndsAt.getTime() < Date.now();
+                const planLabel = plan === "starter" || plan === "pro" ? "💳 Starter" : "🆓 Trial";
+                const planColor = plan === "starter" || plan === "pro"
+                  ? "text-teal-600 bg-teal-50 border-teal-200"
+                  : expired
+                  ? "text-red-600 bg-red-50 border-red-200"
+                  : "text-amber-600 bg-amber-50 border-amber-200";
+                return (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+                    <h3 className="text-sm font-semibold text-[#1a2744]">My Plan</h3>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-bold ${planColor}`}>{planLabel}</span>
+                      {expired && <span className="text-xs font-semibold text-red-500">Trial expired</span>}
+                    </div>
+                    {plan === "trial" && !expired && daysLeft !== null && (
+                      <p className="mt-1.5 text-xs text-slate-500">
+                        <span className="font-semibold text-amber-600">{daysLeft} day{daysLeft !== 1 ? "s" : ""}</span> left in your free trial
+                      </p>
+                    )}
+                    {expired && (
+                      <p className="mt-1.5 text-xs text-red-500">Your trial has ended. Upgrade to keep your bot running.</p>
+                    )}
+                    {plan === "trial" || plan === "free" ? (
+                      <Link
+                        href="/upgrade"
+                        className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                      >
+                        Upgrade to Starter →
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={portalBusy}
+                        onClick={() => void handleManagePlan()}
+                        className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700 disabled:opacity-60"
+                      >
+                        {portalBusy ? "Opening portal…" : "Manage plan →"}
+                      </button>
+                    )}
+                    <div className="mt-2 border-t border-slate-100 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAccountManagement((v) => !v)}
+                        className="mb-1.5 w-full text-center text-xs font-semibold text-slate-400 hover:text-slate-600"
+                      >
+                        {showAccountManagement ? "Hide account options ▲" : "Manage account ▾"}
+                      </button>
+                    </div>
+                    {showAccountManagement && (
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          disabled={freezeLoading}
+                          onClick={() => void handleFreezeToggle()}
+                          className={`inline-flex w-full items-center justify-center rounded-full border-2 px-4 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                            bot?.frozen
+                              ? "border-teal-400 bg-teal-50 text-teal-700 hover:bg-teal-100"
+                              : "border-slate-300 bg-slate-50 text-slate-500 hover:bg-slate-100"
+                          }`}
+                        >
+                          {freezeLoading ? "Saving…" : bot?.frozen ? "❄️ Unfreeze my account" : "❄️ Freeze my account"}
+                        </button>
+                        <p className={`text-xs px-1 font-semibold ${bot?.frozen ? "text-amber-600" : "text-slate-400"}`}>
+                          {bot?.frozen
+                            ? "Your assistant is paused. Clients cannot chat until you unfreeze."
+                            : "Temporarily pauses your assistant — clients will see an 'unavailable' message instead of the chat."}
+                        </p>
+                        {(plan === "starter" || plan === "pro") && (
+                          cancelDone ? (
+                            <p className="text-center text-xs font-semibold text-teal-700 rounded-full border-2 border-teal-300 bg-teal-50 px-4 py-1.5">
+                              ✓ Membership canceled — you keep access until the end of your billing period.
+                            </p>
+                          ) : (
+                            <div className="border-t border-slate-100 pt-1.5">
+                              <button
+                                type="button"
+                                onClick={() => void handleCancelMembership()}
+                                disabled={cancelBusy}
+                                className="inline-flex w-full items-center justify-center rounded-full border-2 border-red-200 bg-red-50 px-4 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-100 disabled:opacity-50"
+                              >
+                                {cancelBusy ? "Canceling…" : "Cancel membership"}
+                              </button>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
           </div>
 
           <aside className="lg:col-span-4">
@@ -655,147 +800,6 @@ export default function NurseDashboardPage() {
                   )}
                 </div>
               </div>
-              {/* ── Instagram Automation ── */}
-              <div className="mt-4 rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50 to-rose-50 p-4 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">📱</span>
-                  <h3 className="text-sm font-bold text-[#1a2744]">Instagram Automation</h3>
-                </div>
-                <p className="text-xs leading-relaxed text-slate-500 mb-3">
-                  Let clients comment a keyword on your posts and automatically receive your bot link in a DM — hands free.
-                </p>
-                <Link
-                  href="/instagram-automation"
-                  className="inline-flex w-full items-center justify-center rounded-full border border-pink-200 bg-white px-4 py-2 text-xs font-bold text-pink-600 transition hover:bg-pink-50"
-                >
-                  Set up Instagram automation →
-                </Link>
-              </div>
-
-              {/* ── Stats ── */}
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {[
-                  { label: "Total Clients", value: totalClients, emoji: "💌" },
-                  { label: "Aftercare Sent", value: aftercareSent, emoji: "✅" },
-                  { label: "Reviews Requested", value: reviewsRequested, emoji: "⭐" },
-                  { label: "Auto Reminders", value: remindersScheduled, emoji: "🔔" },
-                ].map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
-                  >
-                    <div
-                      className="pointer-events-none absolute inset-0 opacity-60"
-                      style={{ background: "radial-gradient(ellipse 80% 60% at 80% 0%, rgba(13,148,136,0.25), transparent)" }}
-                      aria-hidden
-                    />
-                    <div className="relative">
-                      <p className="text-xl font-bold tabular-nums text-[#1a2744]">{stat.value}</p>
-                      <p className="mt-0.5 text-xs font-medium text-slate-500">{stat.emoji} {stat.label}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* ── My Plan ── */}
-              {(() => {
-                const plan = (bot?.plan ?? "trial").toLowerCase();
-                const trialEndsAt = bot?.trial_ends_at
-                  ? new Date(bot.trial_ends_at)
-                  : null;
-                const daysLeft = trialEndsAt
-                  ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-                  : null;
-                const expired = plan === "trial" && trialEndsAt !== null && trialEndsAt.getTime() < Date.now();
-                const planLabel = plan === "starter" || plan === "pro" ? "💳 Starter" : "🆓 Trial";
-                const planColor = plan === "starter" || plan === "pro"
-                  ? "text-teal-600 bg-teal-50 border-teal-200"
-                  : expired
-                  ? "text-red-600 bg-red-50 border-red-200"
-                  : "text-amber-600 bg-amber-50 border-amber-200";
-                return (
-                  <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
-                    <h3 className="text-sm font-semibold text-[#1a2744]">My Plan</h3>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-bold ${planColor}`}>{planLabel}</span>
-                      {expired && <span className="text-xs font-semibold text-red-500">Trial expired</span>}
-                    </div>
-                    {plan === "trial" && !expired && daysLeft !== null && (
-                      <p className="mt-1.5 text-xs text-slate-500">
-                        <span className="font-semibold text-amber-600">{daysLeft} day{daysLeft !== 1 ? "s" : ""}</span> left in your free trial
-                      </p>
-                    )}
-                    {expired && (
-                      <p className="mt-1.5 text-xs text-red-500">Your trial has ended. Upgrade to keep your bot running.</p>
-                    )}
-                    {plan === "trial" || plan === "free" ? (
-                      <Link
-                        href="/upgrade"
-                        className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
-                      >
-                        Upgrade to Starter →
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={portalBusy}
-                        onClick={() => void handleManagePlan()}
-                        className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700 disabled:opacity-60"
-                      >
-                        {portalBusy ? "Opening portal…" : "Manage plan →"}
-                      </button>
-                    )}
-                    <div className="mt-2 border-t border-slate-100 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowAccountManagement((v) => !v)}
-                        className="mb-1.5 w-full text-center text-xs font-semibold text-slate-400 hover:text-slate-600"
-                      >
-                        {showAccountManagement ? "Hide account options ▲" : "Manage account ▾"}
-                      </button>
-                    </div>
-                    {showAccountManagement && (
-                    <div className="space-y-1.5">
-                      <button
-                        type="button"
-                        disabled={freezeLoading}
-                        onClick={() => void handleFreezeToggle()}
-                        className={`inline-flex w-full items-center justify-center rounded-full border-2 px-4 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
-                          bot?.frozen
-                            ? "border-teal-400 bg-teal-50 text-teal-700 hover:bg-teal-100"
-                            : "border-slate-300 bg-slate-50 text-slate-500 hover:bg-slate-100"
-                        }`}
-                      >
-                        {freezeLoading ? "Saving…" : bot?.frozen ? "❄️ Unfreeze my account" : "❄️ Freeze my account"}
-                      </button>
-                      <p className={`text-xs px-1 font-semibold ${bot?.frozen ? "text-amber-600" : "text-slate-400"}`}>
-                        {bot?.frozen
-                          ? "Your assistant is paused. Clients cannot chat until you unfreeze."
-                          : "Temporarily pauses your assistant — clients will see an 'unavailable' message instead of the chat."}
-                      </p>
-                      {(plan === "starter" || plan === "pro") && (
-                        cancelDone ? (
-                          <p className="text-center text-xs font-semibold text-teal-700 rounded-full border-2 border-teal-300 bg-teal-50 px-4 py-1.5">
-                            ✓ Membership canceled — you keep access until the end of your billing period.
-                          </p>
-                        ) : (
-                          <div className="border-t border-slate-100 pt-1.5">
-                            <button
-                              type="button"
-                              onClick={() => void handleCancelMembership()}
-                              disabled={cancelBusy}
-                              className="inline-flex w-full items-center justify-center rounded-full border-2 border-red-200 bg-red-50 px-4 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-100 disabled:opacity-50"
-                            >
-                              {cancelBusy ? "Canceling…" : "Cancel membership"}
-                            </button>
-                          </div>
-                        )
-                      )}
-                    </div>
-                    )}
-                  </div>
-                );
-              })()}
 
             </div>
           </aside>
