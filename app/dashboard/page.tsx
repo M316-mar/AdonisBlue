@@ -401,8 +401,8 @@ export default function NurseDashboardPage() {
           <p className="text-sm text-teal-800 flex-1">After every appointment, log your treatment in Treatment Records so AdonisBlue can send aftercare emails and rebooking reminders automatically.</p>
           <a href="/aftercare" className="shrink-0 text-sm font-semibold text-teal-700 hover:text-teal-900 whitespace-nowrap">Log a treatment →</a>
         </div>
-        <div className="grid gap-6 lg:grid-cols-12 lg:gap-8 lg:items-start">
-          <div className="space-y-6 lg:col-span-8">
+        <div className="grid gap-6 md:grid-cols-12 md:gap-8 md:items-start">
+          <div className="space-y-6 md:col-span-8">
             <section className="relative overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 shadow-lg sm:px-6 sm:py-8">
               <div
                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_85%_0%,rgba(13,148,136,0.22),transparent),radial-gradient(ellipse_60%_50%_at_0%_100%,rgba(56,189,248,0.12),transparent)] opacity-90"
@@ -697,6 +697,15 @@ export default function NurseDashboardPage() {
                             </div>
                           )
                         )}
+                        <div className="border-t border-slate-100 pt-1.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setDeleteDialogOpen(true)}
+                            className="text-xs font-medium text-red-600 underline decoration-red-600/40 underline-offset-2 transition hover:text-red-700"
+                          >
+                            Delete account
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -706,8 +715,8 @@ export default function NurseDashboardPage() {
 
           </div>
 
-          <aside className="lg:col-span-4">
-            <div className="lg:sticky lg:top-24">
+          <aside className="md:col-span-4">
+            <div className="md:sticky md:top-24">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
                 <h3 className="text-base font-semibold text-[#1a2744] sm:text-lg">Your Practice</h3>
                 <dl className="mt-4 space-y-3 text-sm">
@@ -803,19 +812,6 @@ export default function NurseDashboardPage() {
 
             </div>
           </aside>
-        </div>
-
-        <div className="mt-8 border-t border-slate-200 pt-6 lg:mt-10 lg:pt-8">
-          <p className="text-xs text-slate-500">
-            Want to delete your account?{" "}
-            <button
-              type="button"
-              onClick={() => setDeleteDialogOpen(true)}
-              className="text-xs font-medium text-red-600 underline decoration-red-600/40 underline-offset-2 transition hover:text-red-700"
-            >
-              Delete account
-            </button>
-          </p>
         </div>
 
         {showWelcome && !showLaunchCelebration ? (
