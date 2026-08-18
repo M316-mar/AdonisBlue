@@ -167,23 +167,31 @@ export default function NurseDashboardPage() {
     };
   }, [router]);
 
-  // Load Tawk.to live support chat — dashboard only
+  // Load Tawk.to live support chat — dashboard only.
+  // Tawk injects its own widget directly into document.body, outside React's control,
+  // so simply removing the <script> tag on unmount does NOT hide the widget once it's
+  // already loaded — it just stays visible on every other page during client-side
+  // navigation. Fix: use Tawk's own show/hide API, and only load the script once ever.
   useEffect(() => {
-    const s1 = document.createElement("script");
-    s1.async = true;
-    s1.src = "https://embed.tawk.to/6a57c832096ab21d402a63f3/1jtjec19d";
-    s1.charset = "UTF-8";
-    s1.setAttribute("crossorigin", "*");
-    s1.onload = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existing = (window as any).Tawk_API;
+    if (existing && typeof existing.showWidget === "function") {
+      // Already loaded from a previous visit to this page — just show it again
+      existing.showWidget();
+    } else {
+      const s1 = document.createElement("script");
+      s1.async = true;
+      s1.src = "https://embed.tawk.to/6a57c832096ab21d402a63f3/1jtjec19d";
+      s1.charset = "UTF-8";
+      s1.setAttribute("crossorigin", "*");
+      document.head.appendChild(s1);
+    }
+    return () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tawk = (window as any).Tawk_API;
-      if (tawk) {
-        tawk.onLoad = function () {};
+      if (tawk && typeof tawk.hideWidget === "function") {
+        tawk.hideWidget();
       }
-    };
-    document.head.appendChild(s1);
-    return () => {
-      try { document.head.removeChild(s1); } catch {}
     };
   }, []);
 
