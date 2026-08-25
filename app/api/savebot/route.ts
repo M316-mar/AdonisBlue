@@ -1,5 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 /**
  * DATA PRESERVATION RULE — This route NEVER overwrites existing data with
@@ -104,6 +116,65 @@ export async function POST(request: Request) {
     }
 
     const db = createClient(url, serviceKey);
+
+    // Check previous launched state before upsert if we're setting launched=true
+    let wasAlreadyLaunched = true;
+    if (update["launched"] === true) {
+      const { data: existing } = await db
+        .from("bots")
+        .select("launched, practice_name, city, state, plan")
+        .eq("nurse_id", user.id)
+        .maybeSingle();
+      wasAlreadyLaunched = existing?.launched === true;
+
+      // Send launch notification only on first launch
+      if (!wasAlreadyLaunched) {
+        const practiceName = typeof body["practice_name"] === "string" && body["practice_name"].trim()
+          ? body["practice_name"].trim()
+          : existing?.practice_name ?? "";
+        const city = typeof body["city"] === "string" && body["city"].trim()
+          ? body["city"].trim()
+          : existing?.city ?? "";
+        const state = typeof body["state"] === "string" && body["state"].trim()
+          ? body["state"].trim()
+          : existing?.state ?? "";
+        const plan = typeof body["plan"] === "string" && body["plan"].trim()
+          ? body["plan"].trim()
+          : existing?.plan ?? "trial";
+
+        const nurseEmail = user.email ?? "Unknown";
+        const safePractice = escapeHtml(practiceName || "Unknown");
+        const safeEmail = escapeHtml(nurseEmail);
+        const safeCity = escapeHtml(city || "—");
+        const safeState = escapeHtml(state || "—");
+        const safePlan = escapeHtml(plan);
+        const safeNurseName = escapeHtml(user.user_metadata?.full_name ?? user.email ?? "Unknown");
+        const now = new Date().toLocaleString("en-US", { timeZone: "America/New_York", dateStyle: "full", timeStyle: "short" });
+
+        resend.emails.send({
+          from: "AdonisBlue <hi@adonisblue.io>",
+          to: "hi@adonisblue.io",
+          subject: `🎉 New nurse joined AdonisBlue: ${safePractice}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+              <h2 style="color: #1a2744;">🎉 A new nurse just launched their assistant!</h2>
+              <table style="border-collapse: collapse; width: 100%;">
+                <tr><td style="padding: 8px 0; color: #666; width: 140px;">Name</td><td style="padding: 8px 0;"><strong>${safeNurseName}</strong></td></tr>
+                <tr><td style="padding: 8px 0; color: #666;">Email</td><td style="padding: 8px 0;">${safeEmail}</td></tr>
+                <tr><td style="padding: 8px 0; color: #666;">Practice</td><td style="padding: 8px 0;">${safePractice}</td></tr>
+                <tr><td style="padding: 8px 0; color: #666;">Location</td><td style="padding: 8px 0;">${safeCity}, ${safeState}</td></tr>
+                <tr><td style="padding: 8px 0; color: #666;">Plan</td><td style="padding: 8px 0;">${safePlan}</td></tr>
+                <tr><td style="padding: 8px 0; color: #666;">Date/Time</td><td style="padding: 8px 0;">${escapeHtml(now)}</td></tr>
+              </table>
+              <p style="margin-top: 24px;">
+                <a href="https://www.adonisblue.io/admin" style="background:#1a2744;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">View in Admin →</a>
+              </p>
+            </div>
+          `,
+        }).catch(() => {}); // fire-and-forget
+      }
+    }
+
     const { error } = await db.from("bots").upsert(update, { onConflict: "nurse_id" });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

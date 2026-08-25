@@ -35,6 +35,8 @@ export async function GET() {
       if (u.email) emailByUserId.set(u.id, u.email);
     }
 
+    const botByNurseId = new Map(bots.map(b => [b.nurse_id, b]));
+
     const nurses = bots.map(bot => {
       const nurseIntakes = intakes.filter(i => i.nurse_id === bot.nurse_id);
       const nurseConversations = conversations.filter(c => c.nurse_id === bot.nurse_id);
@@ -59,8 +61,33 @@ export async function GET() {
         reviews_sent: nurseIntakes.filter(i => i.survey_sent).length,
         aftercare_sent: nurseIntakes.filter(i => i.aftercare_sent_at).length,
         last_active: lastIntake?.created_at ?? bot.created_at,
+        onboarding_complete: true,
       };
     });
+
+    // Include auth users who signed up but never completed onboarding (no bots row)
+    for (const u of usersRes.data?.users ?? []) {
+      if (botByNurseId.has(u.id)) continue; // already included above
+      nurses.push({
+        nurse_id: u.id,
+        email: u.email ?? null,
+        practice_name: null,
+        bot_name: null,
+        slug: null,
+        launched: false,
+        frozen: false,
+        created_at: u.created_at,
+        plan: "trial",
+        trial_ends_at: new Date(new Date(u.created_at).getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        subscription_status: "trial",
+        total_intakes: 0,
+        total_conversations: 0,
+        reviews_sent: 0,
+        aftercare_sent: 0,
+        last_active: u.created_at,
+        onboarding_complete: false,
+      } as any);
+    }
 
     return NextResponse.json({ nurses, feedback: feedbackRows });
   } catch {
