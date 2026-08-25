@@ -418,35 +418,38 @@ export default function NurseDashboardPage() {
                 aria-hidden
               />
               <div className="relative">
-                <p className="text-sm font-semibold uppercase tracking-wider text-teal-300/90">Your dashboard</p>
-                <h1 className="mt-2 text-balance text-xl font-semibold leading-snug text-white sm:text-2xl lg:text-[1.65rem]">
-                  {bot ? <>Welcome back, {nurseFirstName} ✨</> : <>Welcome, {nurseFirstName} 👋</>}
+                <h1 className="text-balance text-xl font-semibold leading-snug text-white sm:text-2xl lg:text-[1.65rem]">
+                  {!bot
+                    ? <>Welcome, {nurseFirstName} 👋</>
+                    : bot.launched
+                    ? <>Welcome back, {nurseFirstName} ✨</>
+                    : <>Almost there, {nurseFirstName}! 🦋</>}
                 </h1>
                 <p className="mt-2 text-sm leading-relaxed text-slate-300 sm:text-base">
-                  {pendingFollowUpCount > 0
-                    ? `${pendingFollowUpCount} client${pendingFollowUpCount !== 1 ? "s" : ""} due for follow-up today.`
-                    : "Nothing needs you right now. Your assistant is live and watching."}
+                  {!bot
+                    ? "Let's get your AI front desk set up — it only takes 5 minutes."
+                    : bot.launched
+                    ? "✅ You're all set! Your assistant is live and ready."
+                    : "Your setup isn't complete yet. Finish it to go live."}
                 </p>
+                {!bot && (
+                  <Link
+                    href="/onboarding"
+                    className="mt-4 inline-flex items-center rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
+                  >
+                    Start setup →
+                  </Link>
+                )}
+                {bot && !bot.launched && (
+                  <Link
+                    href="/onboarding"
+                    className="mt-4 inline-flex items-center rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
+                  >
+                    Continue setup →
+                  </Link>
+                )}
               </div>
             </section>
-
-            {/* ── Assistant setup status ── */}
-            {!launched ? (
-              <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-                <p className="text-sm font-semibold text-[#1a2744]">Let&apos;s get your assistant set up</p>
-                <p className="mt-1 text-sm text-slate-500">Your AI front desk is a few steps away.</p>
-                <Link
-                  href="/onboarding?step=1"
-                  className="mt-3 inline-flex items-center rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
-                >
-                  Set up my assistant →
-                </Link>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-teal-100 bg-teal-50 px-5 py-4 shadow-sm">
-                <p className="text-sm text-[#1a2744]">You&apos;re all set! Your assistant is live and your practice is fully set up. Share your link and start getting clients.</p>
-              </div>
-            )}
 
             {(() => {
               const pendingIntakes = intakes.filter((i) => !i.aftercare_sent_at || !i.survey_sent);
