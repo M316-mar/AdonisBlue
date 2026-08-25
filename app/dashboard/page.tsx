@@ -420,7 +420,7 @@ export default function NurseDashboardPage() {
               <div className="relative">
                 <p className="text-sm font-semibold uppercase tracking-wider text-teal-300/90">Your dashboard</p>
                 <h1 className="mt-2 text-balance text-xl font-semibold leading-snug text-white sm:text-2xl lg:text-[1.65rem]">
-                  Welcome back, {nurseFirstName}
+                  {bot ? <>Welcome back, {nurseFirstName} ✨</> : <>Welcome, {nurseFirstName} 👋</>}
                 </h1>
                 <p className="mt-2 text-sm leading-relaxed text-slate-300 sm:text-base">
                   {pendingFollowUpCount > 0
