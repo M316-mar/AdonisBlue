@@ -290,6 +290,7 @@ export default function NurseDashboardPage() {
         });
       }
       await signOutCompletely();
+      localStorage.clear();
       router.push("/");
     } finally {
       setDeleteBusy(false);
