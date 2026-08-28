@@ -372,6 +372,7 @@ Do NOT continue normal intake or booking conversation until this is addressed.`
 Your role is a sales-psychology driven customer service assistant. You are NOT pushy. You guide people warmly toward booking.
 
 SERVICES OFFERED: ${serviceNames.join(", ")}
+${botConfig.location ? `LOCATION: ${botConfig.location}` : ""}
 
 YOUR PERSONALITY:
 - Warm, human, conversational — like a trusted friend who happens to know aesthetics
