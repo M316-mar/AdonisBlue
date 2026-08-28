@@ -323,6 +323,7 @@ type Draft = {
   tiktok: string;
   facebook: string;
   website: string;
+  location: string;
   notificationEmail: string;
   // Step 4
   botName: string;
@@ -351,6 +352,7 @@ function emptyDraft(userId: string): Draft {
     tiktok: "",
     facebook: "",
     website: "",
+    location: "",
     notificationEmail: "",
     botName: "",
     greeting: "",
@@ -884,6 +886,20 @@ function StepGetFound({
 
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-[#1a2744]">
+          📍 Your location{" "}
+          <span className="font-normal text-slate-400">(optional)</span>
+        </label>
+        <input
+          className={field}
+          placeholder="e.g. Houston, TX · 123 Main St · By appointment only"
+          value={draft.location}
+          onChange={(e) => onChange({ location: e.target.value })}
+        />
+        <p className="text-xs text-slate-400">Your AI assistant will share this when clients ask where you&apos;re located.</p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-[#1a2744]">
           Notification email{" "}
           <span className="font-normal text-slate-400">(optional)</span>
         </label>
@@ -1356,6 +1372,7 @@ function OnboardingInner() {
         tiktok: draft.tiktok.trim() || null,
         instagram: draft.instagram.trim() || null,
         website: draft.website.trim() || null,
+        location: draft.location.trim() || null,
         bot_name: draft.botName.trim() || draft.practiceName.trim(),
         slug,
         greeting:
