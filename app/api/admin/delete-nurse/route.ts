@@ -1,5 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
   try {
@@ -15,6 +18,18 @@ export async function POST(request: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
+
+    // Capture email + practice name BEFORE any deletes — both become unrecoverable once the account is gone
+    let nurseEmail: string | null = null;
+    let practiceName: string | null = null;
+    try {
+      const { data: authUser } = await db.auth.admin.getUserById(nurse_id);
+      nurseEmail = authUser?.user?.email ?? null;
+      const { data: botRow } = await db.from("bots").select("practice_name").eq("nurse_id", nurse_id).single();
+      practiceName = botRow?.practice_name ?? null;
+    } catch {
+      // If this lookup fails, proceed with deletion anyway — just skip the notification
+    }
 
     // Delete in dependency order (children first, parents last)
     await db.from("healing_chats").delete().eq("nurse_id", nurse_id);
@@ -51,6 +66,21 @@ export async function POST(request: Request) {
     const { error: authDeleteError } = await db.auth.admin.deleteUser(nurse_id);
     if (authDeleteError) {
       console.error("[delete-nurse] auth.admin.deleteUser failed:", authDeleteError.message);
+    }
+
+    if (nurseEmail) {
+      resend.emails.send({
+        from: "AdonisBlue <hi@adonisblue.io>",
+        to: nurseEmail,
+        subject: "Your AdonisBlue account has been deleted",
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+            <h2 style="color: #1a2744;">Your account has been deleted</h2>
+            <p style="color: #475569;">Your AdonisBlue account${practiceName ? ` (${practiceName})` : ""} and all associated data have been permanently deleted.</p>
+            <p style="color: #475569;">If you have any questions about this, reply to this email or contact us at hi@adonisblue.io.</p>
+          </div>
+        `,
+      }).catch(() => {});
     }
 
     return NextResponse.json({ ok: true });

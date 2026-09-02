@@ -1,5 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
   try {
@@ -13,6 +16,9 @@ export async function POST(request: Request) {
     );
     const { data: { user } } = await supabaseAuth.auth.getUser(token);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // Capture the email now — it won't be retrievable once the account is deleted below
+    const nurseEmail = user.email;
 
     // Service-role client — bypasses RLS so every delete actually lands
     const db = createClient(
@@ -99,6 +105,21 @@ export async function POST(request: Request) {
     if (authDeleteError) {
       console.error("[delete-account] auth.admin.deleteUser failed:", authDeleteError.message);
       // Still return success to client — all data rows are gone
+    }
+
+    if (nurseEmail) {
+      resend.emails.send({
+        from: "AdonisBlue <hi@adonisblue.io>",
+        to: nurseEmail,
+        subject: "Your AdonisBlue account has been deleted",
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+            <h2 style="color: #1a2744;">Your account has been deleted</h2>
+            <p style="color: #475569;">This confirms your AdonisBlue account and all associated data have been permanently deleted, as you requested.</p>
+            <p style="color: #475569;">If you didn't request this, please contact us immediately at hi@adonisblue.io.</p>
+          </div>
+        `,
+      }).catch(() => {});
     }
 
     return NextResponse.json({ success: true });

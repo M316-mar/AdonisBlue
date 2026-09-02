@@ -3,6 +3,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function getAuthedUser(request: Request) {
   const token = request.headers.get("authorization")?.replace("Bearer ", "");
@@ -92,6 +95,31 @@ export async function POST(request: Request) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    try {
+      const { data: authUser } = await supabase.auth.admin.getUserById(nurse_id);
+      const nurseEmail = authUser?.user?.email;
+      if (nurseEmail) {
+        resend.emails.send({
+          from: "AdonisBlue <hi@adonisblue.io>",
+          to: nurseEmail,
+          subject: frozen ? "Your AdonisBlue account has been frozen" : "Your AdonisBlue account is active again",
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+              <h2 style="color: #1a2744;">${frozen ? "Your account has been frozen" : "You're back online"}</h2>
+              <p style="color: #475569;">
+                ${frozen
+                  ? "Your AdonisBlue account is now frozen. Clients visiting your assistant will see an \"unavailable\" message until you unfreeze your account."
+                  : "Your AdonisBlue account has been unfrozen and your assistant is live again — clients can reach it as normal."}
+              </p>
+              <p style="color: #475569;">If this wasn't expected, contact us right away at hi@adonisblue.io.</p>
+            </div>
+          `,
+        }).catch(() => {});
+      }
+    } catch {
+      // Never let a notification failure affect the freeze/unfreeze action itself
     }
 
     return NextResponse.json({ success: true });
