@@ -85,6 +85,7 @@ export default function NurseDashboardPage() {
   const [hasBooking, setHasBooking] = useState(false);
   const [hasOffer, setHasOffer] = useState(false);
   const [showAccountManagement, setShowAccountManagement] = useState(false);
+  const [checkinDueToday, setCheckinDueToday] = useState(0);
 
   useEffect(() => {
     setShowEmailNotice(!localStorage.getItem("emailNoticesDismissed"));
@@ -156,6 +157,19 @@ export default function NurseDashboardPage() {
           if (!cancelled && offersRes.ok) {
             const offersJson = await offersRes.json() as { offers?: unknown[] };
             setHasOffer(Array.isArray(offersJson.offers) && offersJson.offers.length > 0);
+          }
+
+          // Fetch check-in due-today count for sidebar badge
+          const checkinRes = await fetch("/api/checkin-reminders", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!cancelled && checkinRes.ok) {
+            const checkinJson = await checkinRes.json() as { reminders?: { due_date: string; status: string }[] };
+            const today = new Date().toISOString().slice(0, 10);
+            const dueToday = (checkinJson.reminders ?? []).filter(
+              (r) => r.due_date === today && r.status !== "done"
+            ).length;
+            setCheckinDueToday(dueToday);
           }
         }
       }
@@ -786,6 +800,17 @@ export default function NurseDashboardPage() {
                     className="inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
                   >
                     Log a treatment
+                  </Link>
+                  <Link
+                    href="/checkin"
+                    className="relative inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                  >
+                    Client Check-Ins
+                    {checkinDueToday > 0 && (
+                      <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-white">
+                        {checkinDueToday}
+                      </span>
+                    )}
                   </Link>
                   <Link
                     href="/insights"

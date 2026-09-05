@@ -227,6 +227,31 @@ export async function POST(request: Request) {
 
     if (error) return NextResponse.json({ error: "Failed to save treatment" }, { status: 500 });
 
+    // ── Auto-create check-in reminder ──────────────────────────────────────
+    try {
+      let checkinDays = 14;
+      if (procedureId) {
+        const { data: proc } = await supabase
+          .from("procedures")
+          .select("checkin_days")
+          .eq("id", procedureId)
+          .maybeSingle();
+        if (proc?.checkin_days != null) checkinDays = proc.checkin_days;
+      }
+      const dueDate = new Date(treatmentDate + "T00:00:00Z");
+      dueDate.setUTCDate(dueDate.getUTCDate() + checkinDays);
+      const dueDateStr = dueDate.toISOString().slice(0, 10);
+      await supabase.from("checkin_reminders").insert({
+        nurse_id: user.id,
+        treatment_id: treatment.id,
+        intake_id: resolvedIntakeId,
+        due_date: dueDateStr,
+        status: "pending",
+      });
+    } catch {
+      // Never block treatment save on reminder creation failure
+    }
+
     // ── Get bot info ───────────────────────────────────────────────────────
     const { data: bot } = await supabase
       .from("bots")
