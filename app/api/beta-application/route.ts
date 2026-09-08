@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     const provider_type = typeof body.provider_type === "string" ? body.provider_type.trim() : "";
     const message_frequency = typeof body.message_frequency === "string" ? body.message_frequency.trim() : "";
     const recent_example = typeof body.recent_example === "string" ? body.recent_example.trim() : "";
+    const booking_bottleneck = typeof body.booking_bottleneck === "string" ? body.booking_bottleneck.trim() : "";
     const top_time_takers: string[] = Array.isArray(body.top_time_takers)
       ? body.top_time_takers.filter((v: unknown) => typeof v === "string" && v.trim())
       : [];
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
     if (!provider_type) missing.push("provider_type");
     if (!message_frequency) missing.push("message_frequency");
     if (!recent_example) missing.push("recent_example");
+    if (!booking_bottleneck) missing.push("booking_bottleneck");
     if (top_time_takers.length === 0) missing.push("top_time_takers");
     if (!most_wanted_help) missing.push("most_wanted_help");
     if (!feedback_willingness) missing.push("feedback_willingness");
@@ -74,6 +76,7 @@ export async function POST(request: Request) {
       provider_type,
       message_frequency,
       recent_example,
+      booking_bottleneck,
       top_time_takers,
       most_wanted_help,
       feedback_willingness,
@@ -102,6 +105,7 @@ export async function POST(request: Request) {
             ${row("Provider Type", escapeHtml(provider_type))}
             ${row("Message Frequency", escapeHtml(message_frequency))}
             ${row("Recent Example", escapeHtml(recent_example))}
+            ${row("Biggest Booking Bottleneck", escapeHtml(booking_bottleneck))}
             ${row("Top Time Takers", top_time_takers.map(escapeHtml).join(", "))}
             ${row("Most Wanted Help", escapeHtml(most_wanted_help))}
             ${row("Feedback Willingness", escapeHtml(feedback_willingness))}

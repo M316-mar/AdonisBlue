@@ -48,6 +48,7 @@ type Fields = {
   provider_type: string;
   message_frequency: string;
   recent_example: string;
+  booking_bottleneck: string;
   top_time_takers: string[];
   most_wanted_help: string;
   feedback_willingness: string;
@@ -64,6 +65,7 @@ const empty: Fields = {
   provider_type: "",
   message_frequency: "",
   recent_example: "",
+  booking_bottleneck: "",
   top_time_takers: [],
   most_wanted_help: "",
   feedback_willingness: "",
@@ -186,6 +188,7 @@ export default function BetaPage() {
     if (!fields.provider_type) e.provider_type = "Please select an option.";
     if (!fields.message_frequency) e.message_frequency = "Please select an option.";
     if (!fields.recent_example.trim()) e.recent_example = "Please share a recent example.";
+    if (!fields.booking_bottleneck.trim()) e.booking_bottleneck = "Please answer this question.";
     if (fields.top_time_takers.length === 0) e.top_time_takers = "Please select at least one.";
     if (!fields.most_wanted_help.trim()) e.most_wanted_help = "Please answer this question.";
     if (!fields.feedback_willingness) e.feedback_willingness = "Please select an option.";
@@ -223,6 +226,7 @@ export default function BetaPage() {
           provider_type: fields.provider_type,
           message_frequency: fields.message_frequency,
           recent_example: fields.recent_example.trim(),
+          booking_bottleneck: fields.booking_bottleneck.trim(),
           top_time_takers: fields.top_time_takers,
           most_wanted_help: fields.most_wanted_help.trim(),
           feedback_willingness: fields.feedback_willingness,
@@ -402,6 +406,17 @@ export default function BetaPage() {
                 placeholder="For example: I was with a client and did not see the message until later."
               />
               {errors.recent_example && <p className="text-xs text-red-500">{errors.recent_example}</p>}
+            </div>
+
+            <div className={FIELD} data-error={!!errors.booking_bottleneck || undefined}>
+              <label className={LABEL}>What is the single biggest bottleneck keeping you from booking these clients right now? <span className="text-red-400">*</span></label>
+              <textarea
+                className={errors.booking_bottleneck ? TEXTAREA_ERROR : TEXTAREA}
+                value={fields.booking_bottleneck}
+                onChange={(e) => set("booking_bottleneck", e.target.value)}
+                rows={3}
+              />
+              {errors.booking_bottleneck && <p className="text-xs text-red-500">{errors.booking_bottleneck}</p>}
             </div>
 
             {/* Top time takers */}
