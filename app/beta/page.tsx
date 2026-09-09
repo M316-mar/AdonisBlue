@@ -236,6 +236,9 @@ export default function BetaPage() {
       });
 
       if (res.ok) {
+        if (typeof window !== "undefined" && (window as any).fbq) {
+          (window as any).fbq("track", "Lead");
+        }
         router.push("/beta/thank-you");
       } else {
         const json = await res.json().catch(() => ({}));
