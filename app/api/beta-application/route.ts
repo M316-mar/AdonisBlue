@@ -115,7 +115,9 @@ export async function POST(request: Request) {
           <p style="margin-top:24px;"><a href="https://www.adonisblue.io/admin" style="background:#1a2744;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">View in Admin →</a></p>
         </div>
       `,
-    }).catch(() => {});
+    }).catch((emailError) => {
+      console.error("[beta-application] email notification failed:", emailError);
+    });
 
     return NextResponse.json({ success: true });
   } catch (e) {
