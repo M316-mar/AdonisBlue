@@ -45,6 +45,8 @@ type Fields = {
   business_name: string;
   email: string;
   instagram_handle: string;
+  phone_number: string;
+  preferred_contact: string;
   provider_type: string;
   message_frequency: string;
   recent_example: string;
@@ -52,7 +54,6 @@ type Fields = {
   top_time_takers: string[];
   most_wanted_help: string;
   feedback_willingness: string;
-  why_beta: string;
   dream_feature: string;
   agreed: boolean;
 };
@@ -62,6 +63,8 @@ const empty: Fields = {
   business_name: "",
   email: "",
   instagram_handle: "",
+  phone_number: "",
+  preferred_contact: "",
   provider_type: "",
   message_frequency: "",
   recent_example: "",
@@ -69,7 +72,6 @@ const empty: Fields = {
   top_time_takers: [],
   most_wanted_help: "",
   feedback_willingness: "",
-  why_beta: "",
   dream_feature: "",
   agreed: false,
 };
@@ -185,6 +187,8 @@ export default function BetaPage() {
     if (!fields.business_name.trim()) e.business_name = "Please enter your business name.";
     if (!fields.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email))
       e.email = "Please enter a valid email address.";
+    if (!fields.preferred_contact) e.preferred_contact = "Please select one.";
+    if (fields.preferred_contact === "Phone" && !fields.phone_number.trim()) e.phone_number = "Please add your phone number so we can call you.";
     if (!fields.provider_type) e.provider_type = "Please select an option.";
     if (!fields.message_frequency) e.message_frequency = "Please select an option.";
     if (!fields.recent_example.trim()) e.recent_example = "Please share a recent example.";
@@ -192,7 +196,6 @@ export default function BetaPage() {
     if (fields.top_time_takers.length === 0) e.top_time_takers = "Please select at least one.";
     if (!fields.most_wanted_help.trim()) e.most_wanted_help = "Please answer this question.";
     if (!fields.feedback_willingness) e.feedback_willingness = "Please select an option.";
-    if (!fields.why_beta.trim()) e.why_beta = "Please tell us why you want to join.";
     if (!fields.agreed) e.agreed = "Please check this box to continue.";
 
     setErrors(e);
@@ -223,6 +226,8 @@ export default function BetaPage() {
           business_name: fields.business_name.trim(),
           email: fields.email.trim(),
           instagram_handle: fields.instagram_handle.trim() || null,
+          phone_number: fields.phone_number.trim() || null,
+          preferred_contact: fields.preferred_contact,
           provider_type: fields.provider_type,
           message_frequency: fields.message_frequency,
           recent_example: fields.recent_example.trim(),
@@ -230,7 +235,6 @@ export default function BetaPage() {
           top_time_takers: fields.top_time_takers,
           most_wanted_help: fields.most_wanted_help.trim(),
           feedback_willingness: fields.feedback_willingness,
-          why_beta: fields.why_beta.trim(),
           dream_feature: fields.dream_feature.trim() || null,
         }),
       });
@@ -366,6 +370,35 @@ export default function BetaPage() {
               />
             </div>
 
+            {/* Phone number */}
+            <div className={FIELD} data-error={!!errors.phone_number || undefined}>
+              <label className={LABEL}>Phone number <span className="text-slate-400 font-normal">(optional)</span></label>
+              <input
+                type="tel"
+                className={errors.phone_number ? INPUT_ERROR : INPUT}
+                value={fields.phone_number}
+                onChange={(e) => set("phone_number", e.target.value)}
+                placeholder="(555) 123-4567"
+              />
+              {errors.phone_number && <p className="text-xs text-red-500">{errors.phone_number}</p>}
+            </div>
+
+            {/* Preferred contact method */}
+            <div className={FIELD} data-error={!!errors.preferred_contact || undefined}>
+              <label className={LABEL}>Is it better to reach you by email or phone? <span className="text-red-400">*</span></label>
+              <div className="space-y-2">
+                {["Email", "Phone"].map((opt) => (
+                  <OptionCard
+                    key={opt}
+                    label={opt}
+                    selected={fields.preferred_contact === opt}
+                    onClick={() => set("preferred_contact", opt)}
+                  />
+                ))}
+              </div>
+              {errors.preferred_contact && <p className="text-xs text-red-500">{errors.preferred_contact}</p>}
+            </div>
+
             {/* Provider type */}
             <div className={FIELD} data-error={!!errors.provider_type || undefined}>
               <label className={LABEL}>Do you work as a solo injector or independent aesthetic provider? <span className="text-red-400">*</span></label>
@@ -468,18 +501,6 @@ export default function BetaPage() {
                 ))}
               </div>
               {errors.feedback_willingness && <p className="text-xs text-red-500">{errors.feedback_willingness}</p>}
-            </div>
-
-            {/* Why beta */}
-            <div className={FIELD} data-error={!!errors.why_beta || undefined}>
-              <label className={LABEL}>Why do you want to be part of the AdonisBlue beta? <span className="text-red-400">*</span></label>
-              <textarea
-                className={errors.why_beta ? TEXTAREA_ERROR : TEXTAREA}
-                rows={4}
-                value={fields.why_beta}
-                onChange={(e) => set("why_beta", e.target.value)}
-              />
-              {errors.why_beta && <p className="text-xs text-red-500">{errors.why_beta}</p>}
             </div>
 
             {/* Dream feature */}

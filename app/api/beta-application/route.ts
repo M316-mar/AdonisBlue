@@ -30,6 +30,8 @@ export async function POST(request: Request) {
     const business_name = typeof body.business_name === "string" ? body.business_name.trim() : "";
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const instagram_handle = typeof body.instagram_handle === "string" ? body.instagram_handle.trim() : null;
+    const phone_number = typeof body.phone_number === "string" ? body.phone_number.trim() : null;
+    const preferred_contact = typeof body.preferred_contact === "string" ? body.preferred_contact.trim() : "";
     const provider_type = typeof body.provider_type === "string" ? body.provider_type.trim() : "";
     const message_frequency = typeof body.message_frequency === "string" ? body.message_frequency.trim() : "";
     const recent_example = typeof body.recent_example === "string" ? body.recent_example.trim() : "";
@@ -47,6 +49,8 @@ export async function POST(request: Request) {
     if (!full_name) missing.push("full_name");
     if (!business_name) missing.push("business_name");
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) missing.push("email");
+    if (!preferred_contact) missing.push("preferred_contact");
+    if (preferred_contact === "Phone" && !phone_number) missing.push("phone_number");
     if (!provider_type) missing.push("provider_type");
     if (!message_frequency) missing.push("message_frequency");
     if (!recent_example) missing.push("recent_example");
@@ -54,7 +58,6 @@ export async function POST(request: Request) {
     if (top_time_takers.length === 0) missing.push("top_time_takers");
     if (!most_wanted_help) missing.push("most_wanted_help");
     if (!feedback_willingness) missing.push("feedback_willingness");
-    if (!why_beta) missing.push("why_beta");
 
     if (missing.length > 0) {
       return NextResponse.json(
@@ -73,6 +76,8 @@ export async function POST(request: Request) {
       business_name,
       email,
       instagram_handle: instagram_handle || null,
+      phone_number: phone_number || null,
+      preferred_contact,
       provider_type,
       message_frequency,
       recent_example,
@@ -102,6 +107,8 @@ export async function POST(request: Request) {
             ${row("Business Name", escapeHtml(business_name))}
             ${row("Email", escapeHtml(email))}
             ${row("Instagram", instagram_handle ? escapeHtml(instagram_handle) : "—")}
+            ${row("Phone", phone_number ? escapeHtml(phone_number) : "—")}
+            ${row("Preferred Contact", escapeHtml(preferred_contact))}
             ${row("Provider Type", escapeHtml(provider_type))}
             ${row("Message Frequency", escapeHtml(message_frequency))}
             ${row("Recent Example", escapeHtml(recent_example))}
@@ -109,7 +116,6 @@ export async function POST(request: Request) {
             ${row("Top Time Takers", top_time_takers.map(escapeHtml).join(", "))}
             ${row("Most Wanted Help", escapeHtml(most_wanted_help))}
             ${row("Feedback Willingness", escapeHtml(feedback_willingness))}
-            ${row("Why Beta", escapeHtml(why_beta))}
             ${row("Dream Feature", dream_feature ? escapeHtml(dream_feature) : "—")}
           </table>
           <p style="margin-top:24px;"><a href="https://www.adonisblue.io/admin" style="background:#1a2744;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">View in Admin →</a></p>
