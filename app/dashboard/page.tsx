@@ -4,7 +4,7 @@ import { signOutCompletely, supabase } from "@/lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
 type BotRow = {
@@ -89,6 +89,8 @@ export default function NurseDashboardPage() {
   const [secretaryCheckins, setSecretaryCheckins] = useState<Array<{ id: string; client_name: string }>>([]);
   const [secretarySent, setSecretarySent] = useState<Set<string>>(new Set());
   const [secretarySending, setSecretarySending] = useState<string | null>(null);
+  const [secretaryPos, setSecretaryPos] = useState<{ x: number; y: number } | null>(null);
+  const secretaryDragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number; dragged: boolean } | null>(null);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [bookingCopied, setBookingCopied] = useState(false);
   const [showLaunchCelebration, setShowLaunchCelebration] = useState(false);
@@ -1005,7 +1007,14 @@ export default function NurseDashboardPage() {
       ) : null}
 
       {/* ── Secretary widget (bottom-right, above Tawk bubble) ── */}
-      <div className="fixed bottom-24 right-6 z-[9998] flex flex-col items-end gap-2">
+      <div
+        className="fixed z-[9998] flex flex-col items-end gap-2"
+        style={
+          secretaryPos
+            ? { left: secretaryPos.x, top: secretaryPos.y, right: "auto", bottom: "auto" }
+            : { bottom: "6rem", right: "1.5rem" }
+        }
+      >
         {secretaryOpen && (
           <div className="flex w-[min(100vw-3rem,360px)] flex-col rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/10" style={{ maxHeight: "min(520px, calc(100vh - 8rem))" }}>
             {/* Panel header */}
@@ -1124,6 +1133,10 @@ export default function NurseDashboardPage() {
         <button
           type="button"
           onClick={() => {
+            if (secretaryDragRef.current?.dragged) {
+              secretaryDragRef.current = null;
+              return;
+            }
             const opening = !secretaryOpen;
             setSecretaryOpen(opening);
             if (opening && !secretaryMessage) {
@@ -1158,7 +1171,43 @@ export default function NurseDashboardPage() {
               })();
             }
           }}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0d9488] shadow-lg shadow-teal-900/20 transition hover:bg-teal-700"
+          onMouseDown={(e) => {
+            const rect = e.currentTarget.parentElement!.getBoundingClientRect();
+            secretaryDragRef.current = {
+              startX: e.clientX,
+              startY: e.clientY,
+              startPosX: rect.left,
+              startPosY: rect.top,
+              dragged: false,
+            };
+
+            const handleMouseMove = (moveEvent: MouseEvent) => {
+              if (!secretaryDragRef.current) return;
+              const dx = moveEvent.clientX - secretaryDragRef.current.startX;
+              const dy = moveEvent.clientY - secretaryDragRef.current.startY;
+              if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+                secretaryDragRef.current.dragged = true;
+              }
+              const newX = Math.min(
+                Math.max(secretaryDragRef.current.startPosX + dx, 8),
+                window.innerWidth - 60
+              );
+              const newY = Math.min(
+                Math.max(secretaryDragRef.current.startPosY + dy, 8),
+                window.innerHeight - 60
+              );
+              setSecretaryPos({ x: newX, y: newY });
+            };
+
+            const handleMouseUp = () => {
+              window.removeEventListener("mousemove", handleMouseMove);
+              window.removeEventListener("mouseup", handleMouseUp);
+            };
+
+            window.addEventListener("mousemove", handleMouseMove);
+            window.addEventListener("mouseup", handleMouseUp);
+          }}
+          className="flex h-12 w-12 cursor-grab items-center justify-center rounded-full bg-[#0d9488] shadow-lg shadow-teal-900/20 transition hover:bg-teal-700 active:cursor-grabbing"
           aria-label="Open secretary"
         >
           <Image src="/Alona.png" alt="Secretary" width={28} height={28} className="rounded-lg" />
