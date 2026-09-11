@@ -74,6 +74,21 @@ export default function NurseDashboardPage() {
 
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
+
+  // ── Secretary widget state ─────────────────────────────────────────────────
+  const [secretaryOpen, setSecretaryOpen] = useState(false);
+  const [secretaryIntroSeen, setSecretaryIntroSeen] = useState(false);
+  const [secretaryLoading, setSecretaryLoading] = useState(false);
+  const [secretaryMessage, setSecretaryMessage] = useState<string | null>(null);
+  const [secretaryActions, setSecretaryActions] = useState<Array<{
+    treatment_id: string; intake_id: string; client_name: string; treatment_date: string; procedure_name: string;
+  }>>([]);
+  const [secretaryIncidents, setSecretaryIncidents] = useState<Array<{
+    id: string; client_name: string | null; client_phone: string | null; flagged_message: string | null; created_at: string;
+  }>>([]);
+  const [secretaryCheckins, setSecretaryCheckins] = useState<Array<{ id: string; client_name: string }>>([]);
+  const [secretarySent, setSecretarySent] = useState<Set<string>>(new Set());
+  const [secretarySending, setSecretarySending] = useState<string | null>(null);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [bookingCopied, setBookingCopied] = useState(false);
   const [showLaunchCelebration, setShowLaunchCelebration] = useState(false);
@@ -988,6 +1003,167 @@ export default function NurseDashboardPage() {
           </div>
         </div>
       ) : null}
+
+      {/* ── Secretary widget (bottom-right, above Tawk bubble) ── */}
+      <div className="fixed bottom-24 right-6 z-[9998] flex flex-col items-end gap-2">
+        {secretaryOpen && (
+          <div className="flex w-[min(100vw-3rem,360px)] flex-col rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/10" style={{ maxHeight: "min(520px, calc(100vh - 8rem))" }}>
+            {/* Panel header */}
+            <div className="flex items-center justify-between rounded-t-2xl bg-[#1a2744] px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Image src="/Alona.png" alt="Secretary" width={24} height={24} className="rounded-lg" />
+                <span className="text-sm font-semibold text-white">Your Secretary</span>
+              </div>
+              <button type="button" onClick={() => setSecretaryOpen(false)} className="text-white/60 hover:text-white text-lg leading-none">✕</button>
+            </div>
+
+            {/* Panel body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {/* Intro (shown only once per session, before loading) */}
+              {!secretaryIntroSeen && (
+                <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-sm text-slate-600 leading-relaxed">
+                  Hi, I&apos;m your AdonisBlue secretary. I help things run smoothly, but <strong>{nurseFirstName}</strong> is always the one who really takes care of you.
+                </div>
+              )}
+
+              {secretaryLoading && (
+                <p className="text-xs text-slate-400 text-center py-2">Checking your schedule…</p>
+              )}
+
+              {secretaryMessage && (
+                <div className="rounded-xl bg-teal-50 border border-teal-100 p-3 text-sm text-[#1a2744] leading-relaxed">
+                  {secretaryMessage}
+                </div>
+              )}
+
+              {/* Action buttons — one per real prep reminder */}
+              {secretaryActions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Prep reminders to send</p>
+                  {secretaryActions.map((action) => {
+                    const key = action.intake_id;
+                    const sent = secretarySent.has(key);
+                    const sending = secretarySending === key;
+                    return (
+                      <div key={key}>
+                        {sent ? (
+                          <p className="rounded-xl bg-green-50 border border-green-100 px-3 py-2 text-sm text-green-700">
+                            ✅ Sent to {action.client_name}
+                          </p>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={sending}
+                            onClick={() => {
+                              void (async () => {
+                                setSecretarySending(key);
+                                try {
+                                  const { data: sessionData } = await supabase.auth.getSession();
+                                  const token = sessionData.session?.access_token;
+                                  if (!token) return;
+                                  const res = await fetch("/api/send-prep-guide", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                    body: JSON.stringify({ intake_id: action.intake_id }),
+                                  });
+                                  if (res.ok) {
+                                    setSecretarySent((prev) => new Set([...prev, key]));
+                                    // Log to secretary_action_log (fire and forget)
+                                    fetch("/api/secretary/log", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                      body: JSON.stringify({
+                                        action_type: "prep_reminder",
+                                        target_intake_id: action.intake_id,
+                                        target_treatment_id: action.treatment_id,
+                                      }),
+                                    }).catch(() => {});
+                                  }
+                                } finally {
+                                  setSecretarySending(null);
+                                }
+                              })();
+                            }}
+                            className="w-full rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-left text-sm font-medium text-[#0d9488] transition hover:bg-teal-100 disabled:opacity-50"
+                          >
+                            {sending ? "Sending…" : `Send prep reminder to ${action.client_name}`}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Flagged incidents — informational only */}
+              {secretaryIncidents.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Flagged messages (last 48h)</p>
+                  {secretaryIncidents.map((inc) => (
+                    <div key={inc.id} className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-slate-700">
+                      <p className="font-semibold">{inc.client_name ?? "Unknown client"}</p>
+                      {inc.flagged_message && <p className="mt-0.5 text-slate-500 text-xs">&ldquo;{inc.flagged_message}&rdquo;</p>}
+                      {inc.client_phone && <p className="mt-0.5 text-xs text-slate-400">📞 {inc.client_phone}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Check-ins due today — points to /checkin */}
+              {secretaryCheckins.length > 0 && (
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                  <p className="font-semibold text-[#1a2744]">Check-ins due today</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{secretaryCheckins.map(c => c.client_name).join(", ")} — <Link href="/checkin" className="text-[#0d9488] underline" onClick={() => setSecretaryOpen(false)}>Open check-ins →</Link></p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Toggle button */}
+        <button
+          type="button"
+          onClick={() => {
+            const opening = !secretaryOpen;
+            setSecretaryOpen(opening);
+            if (opening && !secretaryMessage) {
+              setSecretaryIntroSeen(false);
+              setSecretaryLoading(true);
+              void (async () => {
+                try {
+                  const { data: sessionData } = await supabase.auth.getSession();
+                  const token = sessionData.session?.access_token;
+                  if (!token) return;
+                  const ctxRes = await fetch("/api/secretary/context", {
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
+                  if (!ctxRes.ok) return;
+                  const ctx = await ctxRes.json();
+                  setSecretaryIncidents(ctx.flaggedIncidents ?? []);
+                  setSecretaryCheckins(ctx.checkinsToday ?? []);
+
+                  const greetRes = await fetch("/api/secretary/greet", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify(ctx),
+                  });
+                  if (!greetRes.ok) return;
+                  const greet = await greetRes.json();
+                  setSecretaryMessage(greet.message ?? null);
+                  setSecretaryActions(greet.actions ?? []);
+                  setSecretaryIntroSeen(true);
+                } finally {
+                  setSecretaryLoading(false);
+                }
+              })();
+            }
+          }}
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0d9488] shadow-lg shadow-teal-900/20 transition hover:bg-teal-700"
+          aria-label="Open secretary"
+        >
+          <Image src="/Alona.png" alt="Secretary" width={28} height={28} className="rounded-lg" />
+        </button>
+      </div>
 
       {/* ── Feedback button (bottom-left) ── */}
       <div className="fixed bottom-6 left-6 z-[9999] flex flex-col items-start gap-2">
