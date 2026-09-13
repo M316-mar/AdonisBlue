@@ -1031,7 +1031,7 @@ export default function NurseDashboardPage() {
               {/* Intro (shown only once per session, before loading) */}
               {!secretaryIntroSeen && (
                 <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-sm text-slate-600 leading-relaxed">
-                  Hi, I&apos;m your AdonisBlue secretary. I help things run smoothly, but <strong>{nurseFirstName}</strong> is always the one who really takes care of you.
+                  Hi, I&apos;m your AdonisBlue secretary. I help things run smoothly, but <strong>{nurseFirstName}</strong> is always the one who really takes care of you. You can drag me anywhere on the screen if I&apos;m ever in your way.
                 </div>
               )}
 
