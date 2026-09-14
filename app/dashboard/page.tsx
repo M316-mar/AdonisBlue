@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ClientContactCard } from "@/components/ClientContactCard";
 
 
 type BotRow = {
@@ -1131,9 +1132,8 @@ export default function NurseDashboardPage() {
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Flagged messages (last 48h)</p>
                   {secretaryIncidents.map((inc) => (
                     <div key={inc.id} className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-slate-700">
-                      <p className="font-semibold">{inc.client_name ?? "Unknown client"}</p>
-                      {inc.flagged_message && <p className="mt-0.5 text-slate-500 text-xs">&ldquo;{inc.flagged_message}&rdquo;</p>}
-                      {inc.client_phone && <p className="mt-0.5 text-xs text-slate-400">📞 {inc.client_phone}</p>}
+                      <ClientContactCard name={inc.client_name ?? "Unknown client"} phone={inc.client_phone ?? null} email={null} />
+                      {inc.flagged_message && <p className="mt-1 text-slate-500 text-xs">&ldquo;{inc.flagged_message}&rdquo;</p>}
                     </div>
                   ))}
                 </div>

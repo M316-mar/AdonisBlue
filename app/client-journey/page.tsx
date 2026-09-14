@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { ClientContactCard } from "@/components/ClientContactCard";
 
 // ─── Seed data ────────────────────────────────────────────────────────────────
 
@@ -714,13 +715,11 @@ export default function ClientJourneyPage() {
                     className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50 transition"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="shrink-0 h-9 w-9 rounded-full bg-gradient-to-br from-teal-400 to-[#1a2744] flex items-center justify-center text-white text-sm font-bold">
-                        {clientName.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-[#1a2744] truncate">{clientName}</p>
-                        {clientEmail && <p className="text-xs text-slate-500 truncate">{clientEmail}</p>}
-                      </div>
+                      <ClientContactCard
+                        name={clientName}
+                        phone={rep.intakes?.phone ?? null}
+                        email={clientEmail || null}
+                      />
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">

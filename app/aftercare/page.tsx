@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { ClientContactCard } from "@/components/ClientContactCard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -558,9 +559,20 @@ export default function AftercarePage() {
                           </option>
                         ))}
                       </select>
-                      {newTreatment.intake_id && intakes.find(i => i.id === newTreatment.intake_id)?.came_via_bot && (
-                        <p className="mt-1 text-xs text-blue-600 font-semibold">🤖 This client came via AdonisBlue bot — auto-detected!</p>
-                      )}
+                      {newTreatment.intake_id && (() => {
+                        const selected = intakes.find(i => i.id === newTreatment.intake_id);
+                        if (!selected) return null;
+                        return (
+                          <div className="mt-2">
+                            <ClientContactCard
+                              name={`${selected.first_name} ${selected.last_name || ""}`.trim()}
+                              phone={selected.phone ?? null}
+                              email={selected.email ?? null}
+                              badge={selected.came_via_bot ? <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-blue-600">🤖 Via bot</span> : undefined}
+                            />
+                          </div>
+                        );
+                      })()}
                     </div>
                   ) : (
                     <div className="space-y-2">
