@@ -103,6 +103,8 @@ export default function NurseDashboardPage() {
   const [hasOffer, setHasOffer] = useState(false);
   const [showAccountManagement, setShowAccountManagement] = useState(false);
   const [checkinDueToday, setCheckinDueToday] = useState(0);
+  const [notifications, setNotifications] = useState<{ id: string; client_name: string; flagged_message: string; created_at: string }[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useEffect(() => {
     setShowEmailNotice(!localStorage.getItem("emailNoticesDismissed"));
@@ -187,6 +189,15 @@ export default function NurseDashboardPage() {
               (r) => r.due_date === today && r.status !== "done"
             ).length;
             setCheckinDueToday(dueToday);
+          }
+
+          // Fetch notifications (flagged incidents last 7 days)
+          const notifRes = await fetch("/api/notifications", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!cancelled && notifRes.ok) {
+            const notifJson = await notifRes.json() as { notifications?: { id: string; client_name: string; flagged_message: string; created_at: string }[] };
+            setNotifications(notifJson.notifications ?? []);
           }
         }
       }
@@ -404,6 +415,38 @@ export default function NurseDashboardPage() {
             <span className="truncate text-base font-semibold tracking-tight text-[#1a2744] sm:text-lg">AdonisBlue</span>
           </Link>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-4">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen((o) => !o)}
+                className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-[#1a2744] transition hover:bg-slate-50"
+                aria-label="Notifications"
+              >
+                🔔
+                {notifications.length > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+              {notificationsOpen && (
+                <div className="absolute right-0 top-11 z-50 w-80 max-w-[90vw] rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+                  <p className="mb-2 px-1 text-sm font-semibold text-[#1a2744]">Notifications</p>
+                  {notifications.length === 0 ? (
+                    <p className="px-1 py-4 text-center text-sm text-slate-400">Nothing new right now.</p>
+                  ) : (
+                    <div className="max-h-80 space-y-1 overflow-y-auto">
+                      {notifications.map((n) => (
+                        <div key={n.id} className="rounded-xl px-2 py-2 hover:bg-slate-50">
+                          <p className="text-sm font-semibold text-[#1a2744]">{n.client_name}</p>
+                          <p className="line-clamp-2 text-xs text-slate-500">{n.flagged_message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <span className="hidden max-w-[12rem] truncate text-sm font-medium text-[#1a2744] sm:inline sm:max-w-xs md:text-base">
               {nurseName}
             </span>
@@ -811,56 +854,34 @@ export default function NurseDashboardPage() {
                     </Link>
                   ) : null}
                 </div>
-                <div className="mt-3 border-t border-slate-100 pt-3 flex flex-col gap-2">
-                  <Link
-                    href="/aftercare"
-                    className="inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
-                  >
-                    Log a treatment
-                  </Link>
-                  <Link
-                    href="/checkin"
-                    className="relative inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
-                  >
-                    Client Check-Ins
-                    {checkinDueToday > 0 && (
-                      <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-white">
-                        {checkinDueToday}
-                      </span>
-                    )}
-                  </Link>
-                  <Link
-                    href="/insights"
-                    className="inline-flex w-full items-center justify-center text-center text-sm font-medium text-slate-500 transition hover:text-[#0d9488]"
-                  >
-                    View my insights
-                  </Link>
-                  <Link
-                    href="/client-journey"
-                    className="inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
-                  >
-                    Send Emails &amp; Alerts
-                  </Link>
-                  <Link
-                    href="/offers"
-                    className="inline-flex w-full items-center justify-center text-center text-sm font-medium text-slate-500 transition hover:text-[#0d9488]"
-                  >
-                    Offers & Specials
-                  </Link>
-                  <Link
-                    href="/booking-connect"
-                    className="inline-flex w-full items-center justify-center text-center text-sm font-medium text-slate-500 transition hover:text-[#0d9488]"
-                  >
-                    Connect Booking Software
-                  </Link>
-                  {process.env.NEXT_PUBLIC_SHOW_LOYALTY === "true" && (
-                    <Link
-                      href="/loyalty"
-                      className="inline-flex w-full items-center justify-center text-center text-sm font-medium text-slate-500 transition hover:text-[#0d9488]"
-                    >
-                      Referrals & Loyalty
-                    </Link>
-                  )}
+                <div className="mt-3 border-t border-slate-100 pt-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { href: "/aftercare", icon: "🩹", label: "Log Treatment" },
+                      { href: "/checkin", icon: "📞", label: "Check-Ins", badge: checkinDueToday },
+                      { href: "/insights", icon: "📊", label: "Insights" },
+                      { href: "/client-journey", icon: "✉️", label: "Emails & Alerts" },
+                      { href: "/offers", icon: "🎁", label: "Offers" },
+                      { href: "/booking-connect", icon: "🔗", label: "Booking" },
+                      ...(process.env.NEXT_PUBLIC_SHOW_LOYALTY === "true" ? [{ href: "/loyalty", icon: "⭐", label: "Referrals" }] : []),
+                    ].map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className="relative flex flex-col items-center gap-1.5 rounded-2xl p-3 text-center transition hover:bg-slate-50"
+                      >
+                        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-teal-50 text-lg">
+                          {item.icon}
+                        </span>
+                        {"badge" in item && item.badge! > 0 && (
+                          <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-white">
+                            {item.badge}
+                          </span>
+                        )}
+                        <span className="text-xs font-medium text-slate-600">{item.label}</span>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               </div>
 
