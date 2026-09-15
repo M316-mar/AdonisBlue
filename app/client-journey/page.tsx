@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { ClientContactCard } from "@/components/ClientContactCard";
+import { SideNavRail } from "@/components/SideNavRail";
 
 // ─── Seed data ────────────────────────────────────────────────────────────────
 
@@ -616,6 +617,9 @@ export default function ClientJourneyPage() {
   ];
 
   return (
+    <div className="flex min-h-screen">
+      <SideNavRail />
+      <div className="flex-1 min-w-0 sm:pl-20">
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
@@ -1810,6 +1814,8 @@ export default function ClientJourneyPage() {
         )}
 
       </main>
+    </div>
+      </div>
     </div>
   );
 }

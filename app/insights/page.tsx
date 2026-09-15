@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { SideNavRail } from "@/components/SideNavRail";
 
 type InsightsData = {
   totalConversations: number;
@@ -159,6 +160,9 @@ export default function InsightsPage() {
   const momUp = momChange >= 0;
 
   return (
+    <div className="flex min-h-screen">
+      <SideNavRail />
+      <div className="flex-1 min-w-0 sm:pl-20">
     <div className="min-h-screen bg-slate-50 font-sans antialiased">
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
@@ -293,6 +297,8 @@ export default function InsightsPage() {
           </div>
         </div>
       </main>
+    </div>
+      </div>
     </div>
   );
 }

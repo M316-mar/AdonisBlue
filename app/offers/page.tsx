@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { SideNavRail } from "@/components/SideNavRail";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -305,6 +306,9 @@ export default function OffersPage() {
   const inputCls = "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2";
 
   return (
+    <div className="flex min-h-screen">
+      <SideNavRail />
+      <div className="flex-1 min-w-0 sm:pl-20">
     <div className="min-h-dvh bg-slate-50">
       {/* Header */}
       <header className="border-b border-slate-100 bg-white px-4 py-4 sm:px-6">
@@ -604,6 +608,8 @@ export default function OffersPage() {
           </section>
         )}
       </main>
+    </div>
+      </div>
     </div>
   );
 }

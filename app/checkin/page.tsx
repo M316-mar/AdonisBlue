@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { SideNavRail } from "@/components/SideNavRail";
 
 type Reminder = {
   id: string;
@@ -259,6 +260,9 @@ export default function CheckinPage() {
   }
 
   return (
+    <div className="flex min-h-screen">
+      <SideNavRail />
+      <div className="flex-1 min-w-0 sm:pl-20">
     <div className="min-h-screen bg-slate-50 font-sans antialiased">
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
@@ -303,6 +307,8 @@ export default function CheckinPage() {
           </div>
         )}
       </main>
+    </div>
+      </div>
     </div>
   );
 }

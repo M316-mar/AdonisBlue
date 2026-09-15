@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { ClientContactCard } from "@/components/ClientContactCard";
+import { SideNavRail } from "@/components/SideNavRail";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -414,6 +415,9 @@ export default function AftercarePage() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
+    <div className="flex min-h-screen">
+      <SideNavRail />
+      <div className="flex-1 min-w-0 sm:pl-20">
     <div className="min-h-dvh bg-slate-50 font-sans antialiased" style={{ overflowX: "hidden" }}>
 
       {/* Header */}
@@ -1135,6 +1139,8 @@ export default function AftercarePage() {
           )}
         </div>
       </main>
+    </div>
+      </div>
     </div>
   );
 }

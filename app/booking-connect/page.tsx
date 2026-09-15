@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { SideNavRail } from "@/components/SideNavRail";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -230,6 +231,9 @@ export default function BookingConnectPage() {
   }
 
   return (
+    <div className="flex min-h-screen">
+      <SideNavRail />
+      <div className="flex-1 min-w-0 sm:pl-20">
     <div className="min-h-screen bg-[#0d1628]">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-teal-500/30 bg-[#1a2744] px-4 py-3 [padding-top:max(12px,env(safe-area-inset-top))]">
@@ -520,6 +524,8 @@ export default function BookingConnectPage() {
           </div>
         </div>
       </main>
+    </div>
+      </div>
     </div>
   );
 }

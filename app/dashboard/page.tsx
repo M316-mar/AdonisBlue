@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClientContactCard } from "@/components/ClientContactCard";
+import { SideNavRail } from "@/components/SideNavRail";
 
 
 type BotRow = {
@@ -408,6 +409,9 @@ export default function NurseDashboardPage() {
   })();
 
   return (
+    <div className="flex min-h-screen">
+      <SideNavRail />
+      <div className="flex-1 min-w-0 sm:pl-20">
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800 antialiased">
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
@@ -1282,6 +1286,8 @@ export default function NurseDashboardPage() {
         </button>
       </div>
 
+    </div>
+      </div>
     </div>
   );
 }
