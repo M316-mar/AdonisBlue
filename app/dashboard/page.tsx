@@ -107,6 +107,10 @@ export default function NurseDashboardPage() {
   const [checkinDueToday, setCheckinDueToday] = useState(0);
   const [notifications, setNotifications] = useState<{ id: string; client_name: string; flagged_message: string; created_at: string }[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportMessage, setSupportMessage] = useState("");
+  const [supportSending, setSupportSending] = useState(false);
+  const [supportSent, setSupportSent] = useState(false);
 
   useEffect(() => {
     setShowEmailNotice(!localStorage.getItem("emailNoticesDismissed"));
@@ -210,34 +214,6 @@ export default function NurseDashboardPage() {
       cancelled = true;
     };
   }, [router]);
-
-  // Load Tawk.to live support chat — dashboard only.
-  // Tawk injects its own widget directly into document.body, outside React's control,
-  // so simply removing the <script> tag on unmount does NOT hide the widget once it's
-  // already loaded — it just stays visible on every other page during client-side
-  // navigation. Fix: use Tawk's own show/hide API, and only load the script once ever.
-  useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const existing = (window as any).Tawk_API;
-    if (existing && typeof existing.showWidget === "function") {
-      // Already loaded from a previous visit to this page — just show it again
-      existing.showWidget();
-    } else {
-      const s1 = document.createElement("script");
-      s1.async = true;
-      s1.src = "https://embed.tawk.to/6a57c832096ab21d402a63f3/1jtjec19d";
-      s1.charset = "UTF-8";
-      s1.setAttribute("crossorigin", "*");
-      document.head.appendChild(s1);
-    }
-    return () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tawk = (window as any).Tawk_API;
-      if (tawk && typeof tawk.hideWidget === "function") {
-        tawk.hideWidget();
-      }
-    };
-  }, []);
 
   const launched = bot?.launched === true;
   const botChatSlug = useMemo(() => {
@@ -468,27 +444,6 @@ export default function NurseDashboardPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-28 lg:px-8 lg:py-10 lg:pb-28">
-        {showEmailNotice && (
-          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start justify-between gap-3">
-            <p className="text-xs text-amber-800">📬 <strong>Heads up:</strong> The first email from AdonisBlue may land in your client&apos;s spam folder. Ask them to mark it as &quot;Not Spam&quot; so future emails go straight to their inbox!</p>
-            <button
-              type="button"
-              aria-label="Dismiss notice"
-              onClick={() => {
-                localStorage.setItem("emailNoticesDismissed", "true");
-                setShowEmailNotice(false);
-              }}
-              className="shrink-0 text-amber-400 hover:text-amber-600 text-xs"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-        <div className="mb-4 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 flex items-center gap-3">
-          <span className="text-lg shrink-0">💉</span>
-          <p className="text-sm text-teal-800 flex-1">After every appointment, log your treatment in Treatment Records so AdonisBlue can send aftercare emails and rebooking reminders automatically.</p>
-          <a href="/aftercare" className="shrink-0 text-sm font-semibold text-teal-700 hover:text-teal-900 whitespace-nowrap">Log a treatment →</a>
-        </div>
         <div className="grid gap-6 md:grid-cols-12 md:gap-8 md:items-start">
           <div className="space-y-6 md:col-span-8">
             <section className="relative overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 shadow-lg sm:px-6 sm:py-8">
@@ -529,6 +484,28 @@ export default function NurseDashboardPage() {
                 )}
               </div>
             </section>
+
+            {showEmailNotice && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start justify-between gap-3">
+                <p className="text-xs text-amber-800">📬 <strong>Heads up:</strong> The first email from AdonisBlue may land in your client&apos;s spam folder. Ask them to mark it as &quot;Not Spam&quot; so future emails go straight to their inbox!</p>
+                <button
+                  type="button"
+                  aria-label="Dismiss notice"
+                  onClick={() => {
+                    localStorage.setItem("emailNoticesDismissed", "true");
+                    setShowEmailNotice(false);
+                  }}
+                  className="shrink-0 text-amber-400 hover:text-amber-600 text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 flex items-center gap-3">
+              <span className="text-lg shrink-0">💉</span>
+              <p className="text-sm text-teal-800 flex-1">After every appointment, log your treatment in Treatment Records so AdonisBlue can send aftercare emails and rebooking reminders automatically.</p>
+              <a href="/aftercare" className="shrink-0 text-sm font-semibold text-teal-700 hover:text-teal-900 whitespace-nowrap">Log a treatment →</a>
+            </div>
 
             {(() => {
               const pendingIntakes = intakes.filter((i) => !i.aftercare_sent_at || !i.survey_sent);
@@ -1032,7 +1009,7 @@ export default function NurseDashboardPage() {
         </div>
       ) : null}
 
-      {/* ── Secretary widget (bottom-right, above Tawk bubble) ── */}
+      {/* ── Secretary widget (bottom-right) ── */}
       <div
         className="fixed z-[9998] flex flex-col items-end gap-2"
         style={
@@ -1150,6 +1127,61 @@ export default function NurseDashboardPage() {
                   <p className="mt-0.5 text-xs text-slate-500">{secretaryCheckins.map(c => c.client_name).join(", ")} — <Link href="/checkin" className="text-[#0d9488] underline" onClick={() => setSecretaryOpen(false)}>Open check-ins →</Link></p>
                 </div>
               )}
+
+              {/* Support contact form */}
+              <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                {!supportOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => setSupportOpen(true)}
+                    className="w-full text-left text-xs text-slate-400 hover:text-teal-600 transition"
+                  >
+                    💬 Contact AdonisBlue support
+                  </button>
+                ) : supportSent ? (
+                  <p className="text-xs text-teal-700 font-semibold">✅ Message sent! We'll get back to you shortly.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs font-semibold text-[#1a2744]">💬 Contact support</p>
+                    <textarea
+                      rows={3}
+                      value={supportMessage}
+                      onChange={(e) => setSupportMessage(e.target.value)}
+                      placeholder="Describe your issue or question…"
+                      className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-[#1a2744] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={supportSending || !supportMessage.trim()}
+                        onClick={() => {
+                          setSupportSending(true);
+                          void fetch("/api/send-feedback", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ feedback: supportMessage.trim(), nurse_name: nurseName }),
+                          }).then(() => {
+                            setSupportSent(true);
+                            setSupportSending(false);
+                          }).catch(() => {
+                            setSupportSending(false);
+                          });
+                        }}
+                        className="flex-1 rounded-full bg-[#0d9488] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                      >
+                        {supportSending ? "Sending…" : "Send"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setSupportOpen(false); setSupportMessage(""); }}
+                        className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -1239,8 +1271,8 @@ export default function NurseDashboardPage() {
         </button>
       </div>
 
-      {/* ── Feedback button (bottom-left) ── */}
-      <div className="fixed bottom-6 left-6 z-[9999] flex flex-col items-start gap-2">
+      {/* ── Feedback button (bottom-right, beside secretary) ── */}
+      <div className="fixed bottom-6 right-24 z-[9999] flex flex-col items-end gap-2">
         {feedbackOpen && (
           <div className="w-[min(100vw-3rem,20rem)] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/10">
             <p className="text-sm font-semibold text-[#1a2744]">💡 Share an idea</p>
