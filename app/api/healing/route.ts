@@ -346,8 +346,11 @@ YOUR ROLE:
     });
 
     const aiData = await aiRes.json();
+    const textBlock = Array.isArray(aiData.content)
+      ? aiData.content.find((block: { type?: string; text?: string }) => block?.type === "text")
+      : null;
     const aiMessage =
-      aiData.content?.[0]?.text ||
+      textBlock?.text ||
       "I'm here to help with your recovery! Could you tell me more about what you're experiencing?";
 
     return NextResponse.json({ message: aiMessage, flagged: isFlagged });

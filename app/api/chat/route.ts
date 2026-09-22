@@ -470,7 +470,10 @@ FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisk
     });
 
     const data = await res.json();
-    const reply = data.content?.[0]?.text || "I'm here to help! Could you tell me a little more?";
+    const textBlock = Array.isArray(data.content)
+      ? data.content.find((block: { type?: string; text?: string }) => block?.type === "text")
+      : null;
+    const reply = textBlock?.text || "I'm here to help! Could you tell me a little more?";
     // Detect intake completion server-side
     const intakeComplete =
       reply.toLowerCase().includes("i've got everything noted") ||
