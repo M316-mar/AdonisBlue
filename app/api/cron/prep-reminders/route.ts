@@ -79,7 +79,7 @@ export async function GET(request: Request) {
     // Fetch nurse's bot for practice name + custom prep instructions
     const { data: bot } = await supabase
       .from("bots")
-      .select("practice_name, pre_appointment_instructions")
+      .select("practice_name, pre_appointment_instructions, slug")
       .eq("nurse_id", intake.nurse_id)
       .single();
 
@@ -132,6 +132,13 @@ export async function GET(request: Request) {
             <p style="margin:4px 0 0;color:#0d9488;font-size:14px;">${practiceName}</p>
           </div>
         </td></tr>
+        ${bot?.slug ? `<tr>
+          <td style="background:#f0fdfa;padding:24px 32px;border-top:1px solid #e2e8f0;text-align:center;">
+            <p style="margin:0 0 12px;color:#1a2744;font-size:14px;font-weight:600;">Have concerns or questions?</p>
+            <a href="https://www.adonisblue.io/chat/${bot.slug}" style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:999px;font-size:14px;font-weight:600;">💬 Chat with ${practiceName}'s assistant</a>
+            <p style="margin:12px 0 0;color:#94a3b8;font-size:12px;">Anything urgent will notify ${practiceName} to reach out to you right away.</p>
+          </td>
+        </tr>` : ""}
         <tr><td style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;text-align:center;">
           <p style="margin:0;color:#94a3b8;font-size:12px;">Sent with love by AdonisBlue 💙</p>
         </td></tr>

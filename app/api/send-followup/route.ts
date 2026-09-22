@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
     const { data: bot } = await supabase
       .from("bots")
-      .select("practice_name, booking_link")
+      .select("practice_name, booking_link, slug")
       .eq("nurse_id", user.id)
       .single();
 
@@ -120,6 +120,13 @@ export async function POST(request: Request) {
             <a href="${SITE_URL}/healing/${treatment.id}" style="display:inline-block;background:#1a2744;color:#fff;font-size:13px;font-weight:600;text-decoration:none;padding:10px 24px;border-radius:50px;">Open recovery chat</a>
           </div>
         </td></tr>
+        ${bot?.slug ? `<tr>
+          <td style="background:#f0fdfa;padding:24px 32px;border-top:1px solid #e2e8f0;text-align:center;">
+            <p style="margin:0 0 12px;color:#1a2744;font-size:14px;font-weight:600;">Have concerns or questions?</p>
+            <a href="https://www.adonisblue.io/chat/${bot.slug}" style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:999px;font-size:14px;font-weight:600;">💬 Chat with ${practiceName}'s assistant</a>
+            <p style="margin:12px 0 0;color:#94a3b8;font-size:12px;">Anything urgent will notify ${practiceName} to reach out to you right away.</p>
+          </td>
+        </tr>` : ""}
         <tr><td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
           <p style="margin:0 0 6px;color:#94a3b8;font-size:12px;">Sent with care by ${practiceName} via AdonisBlue</p>
           <p style="margin:0;color:#cbd5e1;font-size:11px;"><a href="${SITE_URL}/api/unsubscribe?id=${treatment.intake_id}" style="color:#cbd5e1;text-decoration:underline;">Unsubscribe from reminders</a></p>
