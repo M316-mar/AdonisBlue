@@ -230,6 +230,9 @@ export default function Home() {
                 <a href="#daily-flow" className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-white/20 px-8 py-3 text-base font-semibold text-white transition hover:border-teal-300 hover:text-teal-300">
                   See how it works
                 </a>
+                <a href="/ask" className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-teal-400/40 bg-teal-400/10 px-8 py-3 text-base font-semibold text-teal-300 transition hover:bg-teal-400/20 hover:text-teal-200">
+                  💬 Chat with our AI
+                </a>
               </div>
               <p className="mt-4 text-sm text-slate-400">No credit card needed · Cancel anytime · Setup in under an hour</p>
               <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-300">
