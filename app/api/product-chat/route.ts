@@ -62,9 +62,16 @@ export async function POST(request: Request) {
       console.error("[product-chat] Anthropic API error:", res.status, JSON.stringify(data));
     }
 
-    const reply: string = data.content?.[0]?.text
+    // Claude Sonnet 5 can return multiple content blocks (e.g. a "thinking" block
+    // before the actual "text" block) — find the real text block rather than
+    // assuming it's always at index 0.
+    const textBlock = Array.isArray(data.content)
+      ? data.content.find((block: { type?: string; text?: string }) => block?.type === "text")
+      : null;
+
+    const reply: string = textBlock?.text
       || (() => {
-        console.error("[product-chat] Empty content in Anthropic response:", JSON.stringify(data));
+        console.error("[product-chat] No text block found in Anthropic response:", JSON.stringify(data));
         return "I'm here! What can I tell you about AdonisBlue?";
       })();
 
