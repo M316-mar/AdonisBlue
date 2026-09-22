@@ -4,7 +4,7 @@ import { signOutCompletely, supabase } from "@/lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClientContactCard } from "@/components/ClientContactCard";
 import { SideNavRail } from "@/components/SideNavRail";
 
@@ -77,8 +77,7 @@ export default function NurseDashboardPage() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
 
-  // ── Secretary widget state ─────────────────────────────────────────────────
-  const [secretaryOpen, setSecretaryOpen] = useState(false);
+  // ── Secretary panel state ──────────────────────────────────────────────────
   const [secretaryIntroSeen, setSecretaryIntroSeen] = useState(false);
   const [secretaryLoading, setSecretaryLoading] = useState(false);
   const [secretaryMessage, setSecretaryMessage] = useState<string | null>(null);
@@ -91,8 +90,6 @@ export default function NurseDashboardPage() {
   const [secretaryCheckins, setSecretaryCheckins] = useState<Array<{ id: string; client_name: string }>>([]);
   const [secretarySent, setSecretarySent] = useState<Set<string>>(new Set());
   const [secretarySending, setSecretarySending] = useState<string | null>(null);
-  const [secretaryPos, setSecretaryPos] = useState<{ x: number; y: number } | null>(null);
-  const secretaryDragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number; dragged: boolean } | null>(null);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [bookingCopied, setBookingCopied] = useState(false);
   const [showLaunchCelebration, setShowLaunchCelebration] = useState(false);
@@ -214,6 +211,37 @@ export default function NurseDashboardPage() {
       cancelled = true;
     };
   }, [router]);
+
+  useEffect(() => {
+    if (!ready) return;
+    void (async () => {
+      setSecretaryLoading(true);
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (!token) return;
+        const ctxRes = await fetch("/api/secretary/context", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!ctxRes.ok) return;
+        const ctx = await ctxRes.json();
+        setSecretaryIncidents(ctx.flaggedIncidents ?? []);
+        setSecretaryCheckins(ctx.checkinsToday ?? []);
+        const greetRes = await fetch("/api/secretary/greet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(ctx),
+        });
+        if (!greetRes.ok) return;
+        const greet = await greetRes.json();
+        setSecretaryMessage(greet.message ?? null);
+        setSecretaryActions(greet.actions ?? []);
+        setSecretaryIntroSeen(true);
+      } finally {
+        setSecretaryLoading(false);
+      }
+    })();
+  }, [ready]);
 
   const launched = bot?.launched === true;
   const botChatSlug = useMemo(() => {
@@ -784,85 +812,204 @@ export default function NurseDashboardPage() {
           </div>
 
           <aside className="md:col-span-4">
-            <div className="md:sticky md:top-24">
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5">
-                <h3 className="text-base font-semibold text-[#1a2744] sm:text-lg">Your Practice</h3>
-                <dl className="mt-4 space-y-3 text-sm">
-                  <div>
-                    <dt className="font-medium text-slate-500">Practice name</dt>
-                    <dd className="mt-0.5 font-medium text-[#1a2744]">{bot?.practice_name?.trim() || "—"}</dd>
+            <div className="md:sticky md:top-24 space-y-3">
+
+              {/* ── Compact Bot Widget ── */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-lg">🤖</span>
+                  <h3 className="text-sm font-semibold text-[#1a2744]">AI Bot Assistant</h3>
+                  {launched ? (
+                    <span className="ml-auto rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-600">LIVE</span>
+                  ) : (
+                    <span className="ml-auto rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600">DRAFT</span>
+                  )}
+                </div>
+                <p className="mb-0.5 text-xs font-medium text-slate-500">Practice</p>
+                <p className="mb-3 text-sm font-semibold text-[#1a2744]">{bot?.practice_name?.trim() || "—"}</p>
+                {bot?.booking_link?.trim() && (
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="min-w-0 truncate text-xs font-medium text-[#0d9488]" title={bot.booking_link.trim()}>
+                      {bot.booking_link.trim().length > 28 ? `${bot.booking_link.trim().slice(0, 25)}…` : bot.booking_link.trim()}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(bot!.booking_link!.trim());
+                        setBookingCopied(true);
+                        setTimeout(() => setBookingCopied(false), 2000);
+                      }}
+                      className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 transition hover:bg-teal-50 hover:text-teal-600"
+                    >
+                      {bookingCopied ? "Copied!" : "Copy"}
+                    </button>
                   </div>
-                  <div>
-                    <dt className="font-medium text-slate-500">Booking link</dt>
-                    <dd className="mt-0.5 flex items-center gap-2">
-                      <span className="min-w-0 truncate font-medium text-[#0d9488]" title={bot?.booking_link?.trim() || undefined}>
-                        {(() => {
-                          const link = bot?.booking_link?.trim() || "";
-                          if (!link) return "—";
-                          return link.length > 30 ? `${link.slice(0, 27)}…` : link;
-                        })()}
-                      </span>
-                      {bot?.booking_link?.trim() && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void navigator.clipboard.writeText(bot.booking_link!.trim());
-                            setBookingCopied(true);
-                            setTimeout(() => setBookingCopied(false), 2000);
-                          }}
-                          className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 transition hover:bg-teal-50 hover:text-teal-600"
-                        >
-                          {bookingCopied ? "Copied!" : "Copy"}
-                        </button>
-                      )}
-                    </dd>
-                  </div>
-                </dl>
-                <div className="mt-5 flex flex-col gap-2">
+                )}
+                <div className="flex flex-col gap-2">
                   <Link
                     href="/onboarding?step=1"
-                    className="inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                    className="inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
                   >
-                    Edit my assistant
+                    Edit assistant
                   </Link>
                   {launched ? (
                     <Link
                       href={`/chat/${botChatSlug}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                      className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-center text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
                     >
-                      Preview my assistant
+                      Preview →
                     </Link>
                   ) : null}
                 </div>
-                <div className="mt-3 border-t border-slate-100 pt-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { href: "/aftercare", icon: "🩹", label: "Log Treatment" },
-                      { href: "/checkin", icon: "📞", label: "Check-Ins", badge: checkinDueToday },
-                      { href: "/insights", icon: "📊", label: "Insights" },
-                      { href: "/client-journey", icon: "✉️", label: "Emails & Alerts" },
-                      { href: "/offers", icon: "🎁", label: "Offers" },
-                      { href: "/booking-connect", icon: "🔗", label: "Booking" },
-                      ...(process.env.NEXT_PUBLIC_SHOW_LOYALTY === "true" ? [{ href: "/loyalty", icon: "⭐", label: "Referrals" }] : []),
-                    ].map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className="relative flex flex-col items-center gap-1.5 rounded-2xl p-3 text-center transition hover:bg-slate-50"
+              </div>
+
+              {/* ── AI Secretary Panel (always visible) ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+                <div className="flex items-center gap-2 bg-[#1a2744] px-4 py-3">
+                  <Image src="/Alona.png" alt="Secretary" width={24} height={24} className="rounded-lg" />
+                  <span className="text-sm font-semibold text-white">Your Secretary</span>
+                </div>
+                <div className="space-y-3 p-4">
+                  {!secretaryIntroSeen && (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm leading-relaxed text-slate-600">
+                      Hi, I&apos;m your AdonisBlue secretary. I help things run smoothly, but <strong>{nurseFirstName}</strong> is always the one who really takes care of you.
+                    </div>
+                  )}
+                  {secretaryLoading && (
+                    <p className="py-2 text-center text-xs text-slate-400">Checking your schedule…</p>
+                  )}
+                  {secretaryMessage && (
+                    <div className="rounded-xl border border-teal-100 bg-teal-50 p-3 text-sm leading-relaxed text-[#1a2744]">
+                      {secretaryMessage}
+                    </div>
+                  )}
+                  {secretaryActions.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Prep reminders to send</p>
+                      {secretaryActions.map((action) => {
+                        const key = action.intake_id;
+                        const sent = secretarySent.has(key);
+                        const sending = secretarySending === key;
+                        return (
+                          <div key={key}>
+                            {sent ? (
+                              <p className="rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-sm text-green-700">
+                                ✅ Sent to {action.client_name}
+                              </p>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={sending}
+                                onClick={() => {
+                                  void (async () => {
+                                    setSecretarySending(key);
+                                    try {
+                                      const { data: sessionData } = await supabase.auth.getSession();
+                                      const token = sessionData.session?.access_token;
+                                      if (!token) return;
+                                      const res = await fetch("/api/send-prep-guide", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                        body: JSON.stringify({ intake_id: action.intake_id }),
+                                      });
+                                      if (res.ok) {
+                                        setSecretarySent((prev) => new Set([...prev, key]));
+                                        fetch("/api/secretary/log", {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                          body: JSON.stringify({
+                                            action_type: "prep_reminder",
+                                            target_intake_id: action.intake_id,
+                                            target_treatment_id: action.treatment_id,
+                                          }),
+                                        }).catch(() => {});
+                                      }
+                                    } finally {
+                                      setSecretarySending(null);
+                                    }
+                                  })();
+                                }}
+                                className="w-full rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-left text-sm font-medium text-[#0d9488] transition hover:bg-teal-100 disabled:opacity-50"
+                              >
+                                {sending ? "Sending…" : `Send prep reminder to ${action.client_name}`}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {secretaryIncidents.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Flagged messages (last 48h)</p>
+                      {secretaryIncidents.map((inc) => (
+                        <div key={inc.id} className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-slate-700">
+                          <ClientContactCard name={inc.client_name ?? "Unknown client"} phone={inc.client_phone ?? null} email={null} />
+                          {inc.flagged_message && <p className="mt-1 text-xs text-slate-500">&ldquo;{inc.flagged_message}&rdquo;</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {secretaryCheckins.length > 0 && (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                      <p className="font-semibold text-[#1a2744]">Check-ins due today</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{secretaryCheckins.map(c => c.client_name).join(", ")} — <Link href="/checkin" className="text-[#0d9488] underline">Open check-ins →</Link></p>
+                    </div>
+                  )}
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                    {!supportOpen ? (
+                      <button
+                        type="button"
+                        onClick={() => setSupportOpen(true)}
+                        className="w-full text-left text-xs text-slate-400 transition hover:text-teal-600"
                       >
-                        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-teal-50 text-lg">
-                          {item.icon}
-                        </span>
-                        {"badge" in item && item.badge! > 0 && (
-                          <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-white">
-                            {item.badge}
-                          </span>
-                        )}
-                        <span className="text-xs font-medium text-slate-600">{item.label}</span>
-                      </Link>
-                    ))}
+                        💬 Contact AdonisBlue support
+                      </button>
+                    ) : supportSent ? (
+                      <p className="text-xs font-semibold text-teal-700">✅ Message sent! We&apos;ll get back to you shortly.</p>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-xs font-semibold text-[#1a2744]">💬 Contact support</p>
+                        <textarea
+                          rows={3}
+                          value={supportMessage}
+                          onChange={(e) => setSupportMessage(e.target.value)}
+                          placeholder="Describe your issue or question…"
+                          className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-[#1a2744] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={supportSending || !supportMessage.trim()}
+                            onClick={() => {
+                              setSupportSending(true);
+                              void fetch("/api/send-feedback", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ feedback: supportMessage.trim(), nurse_name: nurseName }),
+                              }).then(() => {
+                                setSupportSent(true);
+                                setSupportSending(false);
+                              }).catch(() => {
+                                setSupportSending(false);
+                              });
+                            }}
+                            className="flex-1 rounded-full bg-[#0d9488] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                          >
+                            {supportSending ? "Sending…" : "Send"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setSupportOpen(false); setSupportMessage(""); }}
+                            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1009,269 +1156,7 @@ export default function NurseDashboardPage() {
         </div>
       ) : null}
 
-      {/* ── Secretary widget (bottom-right) ── */}
-      <div
-        className="fixed z-[9998] flex flex-col items-end gap-2"
-        style={
-          secretaryPos
-            ? { left: secretaryPos.x, top: secretaryPos.y, right: "auto", bottom: "auto" }
-            : { bottom: "6rem", right: "1.5rem" }
-        }
-      >
-        {secretaryOpen && (
-          <div className="flex w-[min(100vw-3rem,360px)] flex-col rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/10" style={{ maxHeight: "min(520px, calc(100vh - 8rem))" }}>
-            {/* Panel header */}
-            <div className="flex items-center justify-between rounded-t-2xl bg-[#1a2744] px-4 py-3">
-              <div className="flex items-center gap-2">
-                <Image src="/Alona.png" alt="Secretary" width={24} height={24} className="rounded-lg" />
-                <span className="text-sm font-semibold text-white">Your Secretary</span>
-              </div>
-              <button type="button" onClick={() => setSecretaryOpen(false)} className="text-white/60 hover:text-white text-lg leading-none">✕</button>
-            </div>
-
-            {/* Panel body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {/* Intro (shown only once per session, before loading) */}
-              {!secretaryIntroSeen && (
-                <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-sm text-slate-600 leading-relaxed">
-                  Hi, I&apos;m your AdonisBlue secretary. I help things run smoothly, but <strong>{nurseFirstName}</strong> is always the one who really takes care of you. You can drag me anywhere on the screen if I&apos;m ever in your way.
-                </div>
-              )}
-
-              {secretaryLoading && (
-                <p className="text-xs text-slate-400 text-center py-2">Checking your schedule…</p>
-              )}
-
-              {secretaryMessage && (
-                <div className="rounded-xl bg-teal-50 border border-teal-100 p-3 text-sm text-[#1a2744] leading-relaxed">
-                  {secretaryMessage}
-                </div>
-              )}
-
-              {/* Action buttons — one per real prep reminder */}
-              {secretaryActions.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Prep reminders to send</p>
-                  {secretaryActions.map((action) => {
-                    const key = action.intake_id;
-                    const sent = secretarySent.has(key);
-                    const sending = secretarySending === key;
-                    return (
-                      <div key={key}>
-                        {sent ? (
-                          <p className="rounded-xl bg-green-50 border border-green-100 px-3 py-2 text-sm text-green-700">
-                            ✅ Sent to {action.client_name}
-                          </p>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={sending}
-                            onClick={() => {
-                              void (async () => {
-                                setSecretarySending(key);
-                                try {
-                                  const { data: sessionData } = await supabase.auth.getSession();
-                                  const token = sessionData.session?.access_token;
-                                  if (!token) return;
-                                  const res = await fetch("/api/send-prep-guide", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                                    body: JSON.stringify({ intake_id: action.intake_id }),
-                                  });
-                                  if (res.ok) {
-                                    setSecretarySent((prev) => new Set([...prev, key]));
-                                    // Log to secretary_action_log (fire and forget)
-                                    fetch("/api/secretary/log", {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                                      body: JSON.stringify({
-                                        action_type: "prep_reminder",
-                                        target_intake_id: action.intake_id,
-                                        target_treatment_id: action.treatment_id,
-                                      }),
-                                    }).catch(() => {});
-                                  }
-                                } finally {
-                                  setSecretarySending(null);
-                                }
-                              })();
-                            }}
-                            className="w-full rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-left text-sm font-medium text-[#0d9488] transition hover:bg-teal-100 disabled:opacity-50"
-                          >
-                            {sending ? "Sending…" : `Send prep reminder to ${action.client_name}`}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Flagged incidents — informational only */}
-              {secretaryIncidents.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Flagged messages (last 48h)</p>
-                  {secretaryIncidents.map((inc) => (
-                    <div key={inc.id} className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-slate-700">
-                      <ClientContactCard name={inc.client_name ?? "Unknown client"} phone={inc.client_phone ?? null} email={null} />
-                      {inc.flagged_message && <p className="mt-1 text-slate-500 text-xs">&ldquo;{inc.flagged_message}&rdquo;</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Check-ins due today — points to /checkin */}
-              {secretaryCheckins.length > 0 && (
-                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                  <p className="font-semibold text-[#1a2744]">Check-ins due today</p>
-                  <p className="mt-0.5 text-xs text-slate-500">{secretaryCheckins.map(c => c.client_name).join(", ")} — <Link href="/checkin" className="text-[#0d9488] underline" onClick={() => setSecretaryOpen(false)}>Open check-ins →</Link></p>
-                </div>
-              )}
-
-              {/* Support contact form */}
-              <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                {!supportOpen ? (
-                  <button
-                    type="button"
-                    onClick={() => setSupportOpen(true)}
-                    className="w-full text-left text-xs text-slate-400 hover:text-teal-600 transition"
-                  >
-                    💬 Contact AdonisBlue support
-                  </button>
-                ) : supportSent ? (
-                  <p className="text-xs text-teal-700 font-semibold">✅ Message sent! We'll get back to you shortly.</p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-xs font-semibold text-[#1a2744]">💬 Contact support</p>
-                    <textarea
-                      rows={3}
-                      value={supportMessage}
-                      onChange={(e) => setSupportMessage(e.target.value)}
-                      placeholder="Describe your issue or question…"
-                      className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-[#1a2744] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        disabled={supportSending || !supportMessage.trim()}
-                        onClick={() => {
-                          setSupportSending(true);
-                          void fetch("/api/send-feedback", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ feedback: supportMessage.trim(), nurse_name: nurseName }),
-                          }).then(() => {
-                            setSupportSent(true);
-                            setSupportSending(false);
-                          }).catch(() => {
-                            setSupportSending(false);
-                          });
-                        }}
-                        className="flex-1 rounded-full bg-[#0d9488] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
-                      >
-                        {supportSending ? "Sending…" : "Send"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setSupportOpen(false); setSupportMessage(""); }}
-                        className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Toggle button */}
-        <button
-          type="button"
-          onClick={() => {
-            if (secretaryDragRef.current?.dragged) {
-              secretaryDragRef.current = null;
-              return;
-            }
-            const opening = !secretaryOpen;
-            setSecretaryOpen(opening);
-            if (opening && !secretaryMessage) {
-              setSecretaryIntroSeen(false);
-              setSecretaryLoading(true);
-              void (async () => {
-                try {
-                  const { data: sessionData } = await supabase.auth.getSession();
-                  const token = sessionData.session?.access_token;
-                  if (!token) return;
-                  const ctxRes = await fetch("/api/secretary/context", {
-                    headers: { Authorization: `Bearer ${token}` },
-                  });
-                  if (!ctxRes.ok) return;
-                  const ctx = await ctxRes.json();
-                  setSecretaryIncidents(ctx.flaggedIncidents ?? []);
-                  setSecretaryCheckins(ctx.checkinsToday ?? []);
-
-                  const greetRes = await fetch("/api/secretary/greet", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                    body: JSON.stringify(ctx),
-                  });
-                  if (!greetRes.ok) return;
-                  const greet = await greetRes.json();
-                  setSecretaryMessage(greet.message ?? null);
-                  setSecretaryActions(greet.actions ?? []);
-                  setSecretaryIntroSeen(true);
-                } finally {
-                  setSecretaryLoading(false);
-                }
-              })();
-            }
-          }}
-          onMouseDown={(e) => {
-            const rect = e.currentTarget.parentElement!.getBoundingClientRect();
-            secretaryDragRef.current = {
-              startX: e.clientX,
-              startY: e.clientY,
-              startPosX: rect.left,
-              startPosY: rect.top,
-              dragged: false,
-            };
-
-            const handleMouseMove = (moveEvent: MouseEvent) => {
-              if (!secretaryDragRef.current) return;
-              const dx = moveEvent.clientX - secretaryDragRef.current.startX;
-              const dy = moveEvent.clientY - secretaryDragRef.current.startY;
-              if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-                secretaryDragRef.current.dragged = true;
-              }
-              const newX = Math.min(
-                Math.max(secretaryDragRef.current.startPosX + dx, 8),
-                window.innerWidth - 60
-              );
-              const newY = Math.min(
-                Math.max(secretaryDragRef.current.startPosY + dy, 8),
-                window.innerHeight - 60
-              );
-              setSecretaryPos({ x: newX, y: newY });
-            };
-
-            const handleMouseUp = () => {
-              window.removeEventListener("mousemove", handleMouseMove);
-              window.removeEventListener("mouseup", handleMouseUp);
-            };
-
-            window.addEventListener("mousemove", handleMouseMove);
-            window.addEventListener("mouseup", handleMouseUp);
-          }}
-          className="flex h-12 w-12 cursor-grab items-center justify-center rounded-full bg-[#0d9488] shadow-lg shadow-teal-900/20 transition hover:bg-teal-700 active:cursor-grabbing"
-          aria-label="Open secretary"
-        >
-          <Image src="/Alona.png" alt="Secretary" width={28} height={28} className="rounded-lg" />
-        </button>
-      </div>
-
-      {/* ── Feedback button (bottom-right, beside secretary) ── */}
+      {/* ── Feedback button (bottom-right) ── */}
       <div className="fixed bottom-6 right-24 z-[9999] flex flex-col items-end gap-2">
         {feedbackOpen && (
           <div className="w-[min(100vw-3rem,20rem)] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/10">

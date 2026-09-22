@@ -8,10 +8,10 @@ const NAV_ITEMS = [
   { href: "/dashboard", icon: "🏠", label: "Home" },
   { href: "/aftercare", icon: "🩹", label: "Log" },
   { href: "/checkin", icon: "📞", label: "Check-Ins" },
-  { href: "/insights", icon: "📊", label: "Insights" },
   { href: "/client-journey", icon: "✉️", label: "Emails" },
   { href: "/offers", icon: "🎁", label: "Offers" },
   { href: "/booking-connect", icon: "🔗", label: "Booking" },
+  { href: "/insights", icon: "📊", label: "Insights" },
 ] as const;
 
 function NavItem({ href, icon, label, active }: { href: string; icon: string; label: string; active: boolean }) {
