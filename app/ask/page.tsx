@@ -141,7 +141,7 @@ export default function AskPage() {
             </svg>
           </button>
         </div>
-        <p className="mt-2 text-center text-xs text-slate-500">$85/mo · Beta spots open · <a href="mailto:hi@adonisblue.io" className="text-teal-400 hover:underline">hi@adonisblue.io</a></p>
+        <p className="mt-2 text-center text-xs text-slate-500">Beta spots open · <a href="mailto:hi@adonisblue.io" className="text-teal-400 hover:underline">hi@adonisblue.io</a></p>
       </div>
     </div>
   );

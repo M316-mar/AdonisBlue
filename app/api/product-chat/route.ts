@@ -50,14 +50,23 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-5",
-        max_tokens: 300,
+        max_tokens: 600,
         system: SYSTEM_PROMPT,
         messages,
       }),
     });
 
     const data = await res.json();
-    const reply: string = data.content?.[0]?.text || "I'm here! What can I tell you about AdonisBlue?";
+
+    if (!res.ok) {
+      console.error("[product-chat] Anthropic API error:", res.status, JSON.stringify(data));
+    }
+
+    const reply: string = data.content?.[0]?.text
+      || (() => {
+        console.error("[product-chat] Empty content in Anthropic response:", JSON.stringify(data));
+        return "I'm here! What can I tell you about AdonisBlue?";
+      })();
 
     // Handoff detection — fire-and-forget email to hi@adonisblue.io
     const handoffTriggered = reply.toLowerCase().includes("valentina reaches out to you directly");
