@@ -262,7 +262,7 @@ export default function PublicChatPage() {
   }, [slug]);
 
   const sendUserText = useCallback(
-    async (text: string) => {
+    async (text: string, pronounOverride?: PronounOption) => {
       const trimmed = text.trim();
       if (!trimmed || !bot || sending) return;
 
@@ -305,7 +305,7 @@ export default function PublicChatPage() {
         emergencyAlertedThisSession,
         emergencyAlertedWithoutContact,
         // Pronoun preference — collected once after name intake
-        pronouns,
+        pronouns: pronounOverride ?? pronouns,
       };
 
       try {
@@ -625,12 +625,8 @@ export default function PublicChatPage() {
                         disabled={sending}
                         onClick={() => {
                           setPronouns(opt);
-                          // Replace picker with a user confirmation bubble
-                          setMessages((prev) =>
-                            prev
-                              .filter((x) => !x.pronounPicker)
-                              .concat({ id: newId(), role: "user", content: opt })
-                          );
+                          setMessages((prev) => prev.filter((x) => !x.pronounPicker));
+                          void sendUserText(opt, opt);
                         }}
                         className="rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50"
                         style={{
