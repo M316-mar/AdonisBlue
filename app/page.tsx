@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Script from "next/script";
 
 const features = [
   { emoji: "🤖", title: "Answer clients before they look elsewhere", description: "Your custom AI chatbot answers questions, collects intake info, and confirms bookings — so no one waits, and no one gives up and books with someone else." },
@@ -166,7 +167,7 @@ export default function Home() {
             <span className="text-lg font-bold tracking-tight text-[#1a2744]">AdonisBlue</span>
           </a>
           <nav className="hidden items-center gap-7 lg:flex">
-            {[["#daily-flow","How it Works"],["#features","Features"],["#pricing","Pricing"],["#faq","FAQ"]].map(([href,label]) => (
+            {[["#daily-flow","How it Works"],["/templates","Free Templates"],["#features","Features"],["#pricing","Pricing"],["#faq","FAQ"]].map(([href,label]) => (
               <a key={label} href={href} className="text-sm font-medium text-slate-600 transition hover:text-[#0d9488]">{label}</a>
             ))}
           </nav>
@@ -190,7 +191,7 @@ export default function Home() {
         {mobileMenuOpen && (
           <div className="border-t border-slate-100 bg-white px-4 py-4 lg:hidden">
             <nav className="flex flex-col gap-4">
-              {[["#daily-flow","How it Works"],["#features","Features"],["#pricing","Pricing"],["#faq","FAQ"]].map(([href,label]) => (
+              {[["#daily-flow","How it Works"],["/templates","Free Templates"],["#features","Features"],["#pricing","Pricing"],["#faq","FAQ"]].map(([href,label]) => (
                 <a
                   key={label}
                   href={href}
@@ -460,6 +461,16 @@ export default function Home() {
                 </div>
               ))}
             </div>
+            <div className="mx-auto mt-12 max-w-md text-center">
+              <p className="text-sm font-semibold text-[#1a2744]">Try it yourself — this is the real thing, live right now.</p>
+              <p className="mt-2 text-sm text-slate-500">Ask it something like: "I accidentally laid down after my Botox" or "my skin feels numb and tingly."</p>
+            </div>
+            <Script
+              async
+              src="https://adonisblue.io/embed.js"
+              data-bot-slug="adonispracticespa"
+              strategy="afterInteractive"
+            />
           </div>
         </section>
 
@@ -748,7 +759,7 @@ export default function Home() {
             <span className="text-base font-semibold text-[#1a2744]">AdonisBlue</span>
           </a>
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2">
-            {[["#daily-flow","How it Works"],["#features","Features"],["#pricing","Pricing"],["#faq","FAQ"]].map(([href,label]) => (
+            {[["#daily-flow","How it Works"],["/templates","Free Templates"],["#features","Features"],["#pricing","Pricing"],["#faq","FAQ"]].map(([href,label]) => (
               <a key={label} href={href} className="text-sm font-medium text-slate-500 transition hover:text-[#0d9488]">{label}</a>
             ))}
           </nav>
