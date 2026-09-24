@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Script from "next/script";
 
 const features = [
   { emoji: "🤖", title: "Answer clients before they look elsewhere", description: "Your custom AI chatbot answers questions, collects intake info, and confirms bookings — so no one waits, and no one gives up and books with someone else." },
@@ -210,50 +209,56 @@ export default function Home() {
       <main className="pb-20">
 
         {/* ── HERO — dark navy like Firefly ── */}
-        <section className="relative overflow-hidden px-4 pt-8 pb-20 sm:px-6 sm:pt-12 sm:pb-20 lg:px-8 lg:pt-24 lg:pb-20" style={{ background: "#0d1628", minHeight: "calc(100vh - 60px)", paddingBottom: "80px" }}>
+        <section className="relative overflow-hidden bg-white px-4 pt-8 pb-20 sm:px-6 sm:pt-12 sm:pb-20 lg:px-8 lg:pt-24 lg:pb-20" style={{ minHeight: "calc(100vh - 60px)", paddingBottom: "80px" }}>
           <div className="relative mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:items-center">
             <div>
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-teal-400/30 bg-teal-400/10 px-4 py-1.5">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-400" />
-                <span className="text-xs font-semibold uppercase tracking-widest text-teal-300">Built to keep your clients coming back</span>
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-4 py-1.5">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-teal-500" />
+                <span className="text-xs font-semibold uppercase tracking-widest text-teal-700">Built to keep your clients coming back</span>
               </div>
-              <h1 className="text-balance text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-[3.25rem]">
+              <h1 className="text-balance text-4xl font-bold leading-tight tracking-tight text-[#1a2744] sm:text-5xl lg:text-[3.25rem]">
                 Getting a new client feels like a win.{" "}
                 <span className="bg-gradient-to-r from-teal-300 to-sky-300 bg-clip-text text-transparent">Getting her to come back — that&apos;s the real one.</span>
               </h1>
-              <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-300">
+              <p className="mt-4 max-w-xl text-base font-medium leading-relaxed text-[#0d9488]">
+                The 24/7 AI Triage &amp; Retention Assistant built specifically for solo aesthetic nurses. Protect your weekends, secure 5-star reviews, and never lose a regular patient to a competitor again—without changing your booking software.
+              </p>
+              <p className="mt-4 max-w-xl text-lg leading-relaxed text-slate-600">
                 AdonisBlue checks in on every client after their treatment. Real aftercare. Real care. So they feel remembered — and they stay with you.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="#pricing" className="inline-flex min-h-[52px] items-center justify-center rounded-full bg-[#0d9488] px-8 py-3 text-base font-semibold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600">
                   Start free — no card needed
                 </a>
-                <a href="#daily-flow" className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-white/20 px-8 py-3 text-base font-semibold text-white transition hover:border-teal-300 hover:text-teal-300">
+                <a href="https://www.adonisblue.io/chat/adonispracticespa" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-slate-300 px-8 py-3 text-base font-semibold text-[#1a2744] transition hover:border-teal-400 hover:text-[#0d9488]">
                   See how it works
                 </a>
-                <a href="/ask" className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-teal-400/40 bg-teal-400/10 px-8 py-3 text-base font-semibold text-teal-300 transition hover:bg-teal-400/20 hover:text-teal-200">
+                <a href="/ask" className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-teal-300 bg-teal-50 px-8 py-3 text-base font-semibold text-teal-700 transition hover:bg-teal-100 hover:text-teal-800">
                   💬 Chat with our AI
                 </a>
+                <a href="/templates" className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-slate-300 px-8 py-3 text-base font-semibold text-[#1a2744] transition hover:border-teal-400 hover:text-[#0d9488]">
+                  📋 Free aftercare templates
+                </a>
               </div>
-              <p className="mt-4 text-sm text-slate-400">No credit card needed · Cancel anytime · Setup in under an hour</p>
-              <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-300">
+              <p className="mt-4 text-sm text-slate-500">No credit card needed · Cancel anytime · Setup in under an hour</p>
+              <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-600">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-400/20 text-xs font-bold text-teal-300">1</span>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">1</span>
                   Sign up
                 </div>
-                <span className="text-slate-600">→</span>
+                <span className="text-slate-400">→</span>
                 <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-400/20 text-xs font-bold text-teal-300">2</span>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">2</span>
                   Tell us about your practice (2 min)
                 </div>
-                <span className="text-slate-600">→</span>
+                <span className="text-slate-400">→</span>
                 <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-400/20 text-xs font-bold text-teal-300">3</span>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">3</span>
                   Your AI front desk goes live
                 </div>
               </div>
               <div className="mt-8">
-                <p className="text-sm text-slate-400">Built for aesthetic nurses who care about follow-up</p>
+                <p className="text-sm text-slate-500">Built for aesthetic nurses who care about follow-up</p>
               </div>
             </div>
             {/* Aurora glass chat widget preview */}
@@ -461,16 +466,6 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <div className="mx-auto mt-12 max-w-md text-center">
-              <p className="text-sm font-semibold text-[#1a2744]">Try it yourself — this is the real thing, live right now.</p>
-              <p className="mt-2 text-sm text-slate-500">Ask it something like: "I accidentally laid down after my Botox" or "my skin feels numb and tingly."</p>
-            </div>
-            <Script
-              async
-              src="https://adonisblue.io/embed.js"
-              data-bot-slug="adonispracticespa"
-              strategy="afterInteractive"
-            />
           </div>
         </section>
 
