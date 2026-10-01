@@ -1,5 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
+import { Resend } from "resend";
 import { NextResponse } from "next/server";
+
+// SQL to add the confirmation_sent_at column (run once in Supabase SQL editor):
+//
+//   ALTER TABLE treatments ADD COLUMN IF NOT EXISTS confirmation_sent_at timestamptz;
+//   GRANT SELECT, UPDATE ON treatments TO service_role;
+//   GRANT SELECT ON treatments TO anon;
+//   GRANT SELECT ON treatments TO authenticated;
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.adonisblue.io";
 
 // NOTE: Rate limiting is instance-local. For multi-instance deployments,
 // replace this Map with a Redis-backed counter (e.g. Upstash Redis).
@@ -9,6 +20,12 @@ const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_CHARS = /[^0-9\s\+\-\(\)]/g;
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 
 // Fields that must never be stored — payment / financial data
 const BLOCKED_FIELDS = new Set([
@@ -325,25 +342,121 @@ export async function POST(request: Request) {
     // Insert treatment record if we have intake_id and appointment_date — but only if
     // this exact appointment hasn't already been recorded (booking platforms commonly
     // fire the same webhook event more than once: on create, update, reminder, etc.)
+    let treatmentId: string | null = null;
+    let confirmationAlreadySent = false;
+
     if (intakeId && appointmentDate) {
       const { data: existingTreatment } = await supabase
         .from("treatments")
-        .select("id")
+        .select("id, confirmation_sent_at")
         .eq("nurse_id", botRow.nurse_id)
         .eq("intake_id", intakeId)
         .eq("treatment_date", appointmentDate)
         .eq("procedure_name", serviceName ?? "Booking appointment")
         .maybeSingle();
 
-      if (!existingTreatment) {
-        await supabase.from("treatments").insert({
-          nurse_id: botRow.nurse_id,
-          intake_id: intakeId,
-          procedure_name: serviceName ?? "Booking appointment",
-          treatment_date: appointmentDate,
-          came_via_bot: false,
-        });
+      if (existingTreatment) {
+        treatmentId = existingTreatment.id as string;
+        confirmationAlreadySent = !!existingTreatment.confirmation_sent_at;
+      } else {
+        const { data: newTreatment } = await supabase
+          .from("treatments")
+          .insert({
+            nurse_id: botRow.nurse_id,
+            intake_id: intakeId,
+            procedure_name: serviceName ?? "Booking appointment",
+            treatment_date: appointmentDate,
+            came_via_bot: false,
+          })
+          .select("id")
+          .single();
+        treatmentId = newTreatment?.id ?? null;
       }
+    }
+
+    // Send booking confirmation email — transactional, so it fires regardless of
+    // marketing_opt_out. Skipped if no client email, no appointment date, or already sent.
+    if (clientEmail && appointmentDate && treatmentId && !confirmationAlreadySent) {
+      void (async () => {
+        try {
+          const safeClient = escapeHtml(clientName);
+          const safePractice = escapeHtml(botRow.practice_name ?? "your provider");
+          const safeService = escapeHtml(serviceName ?? "your appointment");
+
+          // Format the date in a readable way (date-only; we don't have a time zone from the nurse)
+          const apptFormatted = new Date(appointmentDate).toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "UTC", // treatment_date is stored as YYYY-MM-DD, treat as UTC date-only
+          });
+
+          const chatLink = botRow.booking_link
+            ? `<a href="${escapeHtml(botRow.booking_link)}" style="color:#0d9488;text-decoration:none;font-weight:600;">${escapeHtml(botRow.booking_link)}</a>`
+            : null;
+
+          await resend.emails.send({
+            from: "AdonisBlue <hi@adonisblue.io>",
+            to: clientEmail,
+            subject: `You're booked with ${botRow.practice_name ?? "your provider"} 💙`,
+            html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>You're booked!</title></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0;">
+        <tr>
+          <td style="background:#1a2744;padding:28px 32px;text-align:center;">
+            <img src="https://adonisblue.io/Alona.png" alt="AdonisBlue" width="44" height="44" style="border-radius:10px;display:block;margin:0 auto 10px;" />
+            <span style="color:#ffffff;font-size:18px;font-weight:600;">${safePractice}</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:36px 32px;">
+            <h1 style="margin:0 0 8px;color:#1a2744;font-size:22px;font-weight:600;">You're confirmed, ${safeClient}! 🎉</h1>
+            <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.7;">
+              We have you down for <strong>${safeService}</strong> on <strong>${apptFormatted}</strong>. We can't wait to see you!
+            </p>
+            <div style="background:#f0fdfa;border-radius:14px;border:1px solid #99f6e4;padding:20px 24px;margin:0 0 24px;">
+              <p style="margin:0 0 10px;color:#0d9488;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">How to arrive</p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td style="padding:5px 0;color:#1a2744;font-size:14px;line-height:1.6;">✅ Arrive about 10 minutes early so we can get started on time.</td></tr>
+                <tr><td style="padding:5px 0;color:#1a2744;font-size:14px;line-height:1.6;">✅ Come with a clean face — no makeup, moisturiser, or SPF on the treatment area.</td></tr>
+                <tr><td style="padding:5px 0;color:#1a2744;font-size:14px;line-height:1.6;">✅ Stay hydrated in the days leading up to your appointment.</td></tr>
+              </table>
+            </div>
+            <p style="margin:0 0 20px;color:#475569;font-size:14px;line-height:1.7;">
+              You'll receive a full prep guide 1–2 days before your appointment with everything you need to know.
+            </p>
+            ${chatLink ? `<p style="margin:0 0 20px;color:#475569;font-size:14px;line-height:1.7;">Need to reschedule or have a question? Reach out: ${chatLink}</p>` : ""}
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;text-align:center;">
+            <p style="margin:0;color:#94a3b8;font-size:12px;">Sent with care by ${safePractice} via AdonisBlue</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+          });
+
+          const { error: updateError } = await supabase
+            .from("treatments")
+            .update({ confirmation_sent_at: new Date().toISOString() })
+            .eq("id", treatmentId);
+
+          if (updateError) {
+            console.error("[booking-webhook] failed to mark confirmation_sent_at:", updateError.message);
+          }
+        } catch (e) {
+          console.error("[booking-webhook] confirmation email failed:", e instanceof Error ? e.message : String(e));
+        }
+      })();
     }
 
     return NextResponse.json({ ok: true });
