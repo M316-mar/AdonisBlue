@@ -32,12 +32,12 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Find treatments where aftercare was sent 20–28 hours ago and check-in hasn't fired yet.
-  // 20h lower bound gives the daily cron a safe margin; 28h upper bound prevents double-sends
-  // if the cron runs slightly late two days in a row.
+  // Find treatments where aftercare was sent 16–40 hours ago and check-in hasn't fired yet.
+  // 24h-wide window ensures every client falls into exactly one daily run regardless of
+  // what time of day the nurse sent aftercare. wellness_checkin_sent_at IS NULL is the dedup.
   const now = new Date();
-  const windowEnd = new Date(now.getTime() - 20 * 60 * 60 * 1000);   // 20h ago
-  const windowStart = new Date(now.getTime() - 28 * 60 * 60 * 1000); // 28h ago
+  const windowEnd = new Date(now.getTime() - 16 * 60 * 60 * 1000);   // 16h ago
+  const windowStart = new Date(now.getTime() - 40 * 60 * 60 * 1000); // 40h ago
 
   const { data: treatments, error } = await supabase
     .from("treatments")
