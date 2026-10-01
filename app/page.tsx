@@ -217,8 +217,8 @@ export default function Home() {
                 <span className="text-xs font-semibold uppercase tracking-widest text-teal-700">Built to keep your clients coming back</span>
               </div>
               <h1 className="text-balance text-4xl font-bold leading-tight tracking-tight text-[#1a2744] sm:text-5xl lg:text-[3.25rem]">
-                Getting a new client feels like a win.{" "}
-                <span className="bg-gradient-to-r from-teal-300 to-sky-300 bg-clip-text text-transparent">Getting her to come back — that&apos;s the real one.</span>
+                Getting a new client feels good.{" "}
+                <span className="bg-gradient-to-r from-teal-300 to-sky-300 bg-clip-text text-transparent">Getting her to rebook — that&apos;s the goal.</span>
               </h1>
               <p className="mt-4 max-w-xl text-base font-medium leading-relaxed text-[#0d9488]">
                 The 24/7 AI Triage &amp; Retention Assistant built specifically for solo aesthetic nurses. Protect your weekends, secure 5-star reviews, and never lose a regular patient to a competitor again—without changing your booking software.
