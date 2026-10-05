@@ -274,7 +274,7 @@ export default function AdminPage() {
   const starterNurses = useMemo(() => nurses.filter(n => (n.plan ?? "trial") === "starter"), [nurses]);
   const proNurses = useMemo(() => nurses.filter(n => (n.plan ?? "trial") === "pro"), [nurses]);
   const expiredNurses = useMemo(() => nurses.filter(n => isTrialExpired(n)), [nurses]);
-  const monthlyRevenue = starterNurses.length * 85 + proNurses.length * 150;
+  const monthlyRevenue = starterNurses.length * 200 + proNurses.length * 150;
 
   if (!ready) {
     return (
@@ -556,7 +556,7 @@ export default function AdminPage() {
             <div className="rounded-2xl border border-teal-400/20 bg-teal-400/10 px-6 py-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-teal-300">Total monthly revenue</p>
               <p className="mt-1 text-4xl font-bold text-white">${monthlyRevenue}<span className="text-lg text-teal-300">/mo</span></p>
-              <p className="mt-0.5 text-xs text-slate-400">{starterNurses.length} × $85 Starter + {proNurses.length} × $150 Pro</p>
+              <p className="mt-0.5 text-xs text-slate-400">{starterNurses.length} × $200 Starter + {proNurses.length} × $150 Pro</p>
             </div>
 
             {/* Expired trials — needs follow up */}

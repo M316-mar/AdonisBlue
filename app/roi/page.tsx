@@ -10,7 +10,7 @@ export default function ROICalculatorPage() {
   const [hoursOnDMs, setHoursOnDMs] = useState(7);
   const [plan, setPlan] = useState<"starter" | "pro">("starter");
 
-  const planCost = plan === "starter" ? 85 : 150;
+  const planCost = plan === "starter" ? 200 : 150;
 
   const results = useMemo(() => {
     const revenueFromNewClients = newClientsWanted * treatmentPrice;
@@ -60,20 +60,10 @@ export default function ROICalculatorPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-md sm:p-8">
             <h2 className="mb-6 text-lg font-bold text-[#1a2744]">Tell us about your practice</h2>
 
-            {/* Plan selector */}
+            {/* Plan — Starter only */}
             <div className="mb-6">
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Which plan are you considering?</label>
-              <div className="grid grid-cols-2 gap-3">
-                {(["starter", "pro"] as const).map(p => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPlan(p)}
-                    className={`rounded-xl border-2 px-4 py-3 text-sm font-semibold transition ${plan === p ? "border-[#0d9488] bg-teal-50 text-[#0d9488]" : "border-slate-200 bg-white text-slate-600 hover:border-teal-200"}`}
-                  >
-                    {p === "starter" ? "Starter — $85/mo" : "Pro — $150/mo"}
-                  </button>
-                ))}
+              <div className="rounded-xl border-2 border-[#0d9488] bg-teal-50 px-4 py-3 text-sm font-semibold text-[#0d9488]">
+                Starter — $200/mo
               </div>
             </div>
 
@@ -192,7 +182,7 @@ export default function ROICalculatorPage() {
 
         {/* Bottom trust line */}
         <div className="mt-10 text-center">
-          <p className="text-sm text-slate-400">A part-time receptionist costs $1,500–$2,500/month. AdonisBlue starts at $85. One booking pays for it.</p>
+          <p className="text-sm text-slate-400">A part-time receptionist costs $1,500–$2,500/month. AdonisBlue starts at $200. One booking pays for it.</p>
         </div>
       </main>
     </div>

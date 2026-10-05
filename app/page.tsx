@@ -55,7 +55,7 @@ function ROICalculator() {
   const [clients, setClients] = useState(20);
   const extraBookings = Math.round(clients * 0.3);
   const monthlyRevenue = extraBookings * 250;
-  const roi = monthlyRevenue - 85;
+  const roi = monthlyRevenue - 200;
   return (
     <div className="space-y-6">
       <div>
@@ -579,7 +579,7 @@ export default function Home() {
               </div>
               <div className="flex items-center justify-between border-t border-teal-200 bg-teal-50 px-6 py-4">
                 <span className="text-sm font-bold text-[#1a2744]">AdonisBlue Starter</span>
-                <span className="text-sm font-bold text-[#0d9488]">$85/mo</span>
+                <span className="text-sm font-bold text-[#0d9488]">$200/mo</span>
               </div>
             </div>
           </div>
@@ -611,7 +611,7 @@ export default function Home() {
               {/* Starter */}
               <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border-2 border-[#0d9488] bg-gradient-to-b from-teal-50 to-white p-7 shadow-xl shadow-teal-100">
                 <div className="absolute right-4 top-4 rounded-full bg-[#0d9488] px-3 py-1 text-xs font-bold text-white">Everything included</div>
-                <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">$85 / month</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">$200 / month</p>
                 <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Starter</h3>
                 <p className="mt-2 text-sm text-slate-500">Your complete AI front desk. One extra booking a month pays for this.</p>
                 <ul className="mt-6 flex-1 space-y-2.5">

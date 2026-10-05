@@ -13,8 +13,8 @@ const PLANS = [
     color: "border-teal-300 bg-teal-50 ring-2 ring-teal-400",
     badgeColor: "bg-teal-100 text-teal-700",
     btnColor: "bg-[#0d9488] hover:bg-teal-700",
-    monthlyPrice: 85,
-    annualPrice: 850,
+    monthlyPrice: 200,
+    annualPrice: 2000,
     features: [
       "Unlimited client conversations",
       "24/7 AI front desk chatbot",
