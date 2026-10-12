@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     // 14-30 days after aftercare sent; skip anyone already asked or who already submitted
-    const { data: intakes } = await supabase
+    const { data: intakes, error: intakesError } = await supabase
       .from("intakes")
       .select("*, bots(practice_name, booking_link, instagram, google_review_link, facebook_review_link)")
       .not("aftercare_sent_at", "is", null)
@@ -50,6 +50,11 @@ export async function GET(request: Request) {
       .gte("aftercare_sent_at", thirtyDaysAgo.toISOString())
       .lte("aftercare_sent_at", fourteenDaysAgo.toISOString())
       .not("email", "is", null);
+
+    if (intakesError) {
+      console.error("[cron/reviews] Supabase query error:", JSON.stringify(intakesError));
+      return NextResponse.json({ error: String(intakesError.message) }, { status: 500 });
+    }
 
     if (!intakes || intakes.length === 0) {
       return NextResponse.json({ sent: 0 });

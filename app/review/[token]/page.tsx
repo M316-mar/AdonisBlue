@@ -14,34 +14,46 @@ export default async function ReviewPage({ params }: PageProps) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const { data: intake } = await supabase
+  const { data: intake, error: intakeError } = await supabase
     .from("intakes")
-    .select("id, review_submitted_at, nurse_id, first_name, bots(practice_name)")
+    .select("id, review_submitted_at, nurse_id, first_name, bot_id")
     .eq("review_token", token)
-    .single();
+    .maybeSingle();
 
-  const practiceName =
-    (intake?.bots as { practice_name?: string } | null)?.practice_name || "your provider";
+  if (intakeError) {
+    console.error("[review/page] Supabase lookup error for token:", token, JSON.stringify(intakeError));
+    return <InvalidPage message="Something went wrong loading this review link. Please try again." />;
+  }
+
+  if (!intake) {
+    console.error("[review/page] No intake found for token:", token);
+    return <InvalidPage message="This review link isn't valid. It may have expired or never existed." />;
+  }
+
+  if (intake.review_submitted_at) {
+    return <InvalidPage message="This review has already been submitted — thank you so much! 💙" />;
+  }
+
+  // Fetch bot separately — no PostgREST embedded join needed
+  const { data: bot, error: botError } = intake.bot_id
+    ? await supabase.from("bots").select("practice_name").eq("id", intake.bot_id).maybeSingle()
+    : await supabase.from("bots").select("practice_name").eq("nurse_id", intake.nurse_id).maybeSingle();
+
+  if (botError) {
+    console.error("[review/page] Bot lookup error for intake:", intake.id, JSON.stringify(botError));
+  }
+
+  const practiceName = (bot as { practice_name?: string } | null)?.practice_name || "your provider";
 
   // Build a default display name: "First L." if we have a last word, else just first name
   let defaultDisplayName = "";
-  if (intake?.first_name) {
+  if (intake.first_name) {
     const parts = intake.first_name.trim().split(/\s+/);
     if (parts.length >= 2) {
       defaultDisplayName = `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
     } else {
       defaultDisplayName = parts[0];
     }
-  }
-
-  // Invalid token
-  if (!intake) {
-    return <InvalidPage message="This review link isn't valid. It may have expired or never existed." />;
-  }
-
-  // Already used
-  if (intake.review_submitted_at) {
-    return <InvalidPage message="This review has already been submitted — thank you so much! 💙" />;
   }
 
   return (
