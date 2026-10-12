@@ -851,7 +851,7 @@ export default function NurseDashboardPage() {
           </div>
 
           <aside className="md:col-span-4">
-            <div className="md:sticky md:top-24 space-y-3">
+            <div className="space-y-3">
 
               {/* ── Compact Bot Widget ── */}
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
@@ -1053,10 +1053,8 @@ export default function NurseDashboardPage() {
                 </div>
               </div>
 
-            </div>
-
-            {/* ── Your Reviews Widget (below sticky) ── */}
-            <Link href="/reviews" className="block mt-3">
+            {/* ── Your Reviews Widget ── */}
+            <Link href="/reviews" className="block">
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition hover:shadow-xl">
                 <div className="flex items-center gap-2 bg-[#1a2744] px-4 py-3">
                   <span className="text-base">⭐</span>
@@ -1098,6 +1096,8 @@ export default function NurseDashboardPage() {
                 </div>
               </div>
             </Link>
+
+            </div>
 
           </aside>
         </div>
