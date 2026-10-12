@@ -626,13 +626,15 @@ export default function NurseDashboardPage() {
                               >
                                 {intake.review_submitted_at ? "Review received ✅" : intake.survey_sent ? "Review requested ✅" : surveyLoading === intake.id ? "Sending..." : "Request review ⭐"}
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleDeleteIntake(intake.id)}
-                                className="shrink-0 rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
-                              >
-                                Delete
-                              </button>
+                              {!intake.review_submitted_at && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteIntake(intake.id)}
+                                  className="shrink-0 rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
+                                >
+                                  Delete
+                                </button>
+                              )}
                             </div>
                           </li>
                         ))}
@@ -1068,9 +1070,26 @@ export default function NurseDashboardPage() {
                 <div className="p-4">
                   {!reviewSummary || reviewSummary.total === 0 ? (
                     <div className="space-y-2">
-                      <p className="text-xs text-slate-500">Reviews from your clients will show up here.</p>
-                      {!bot?.google_review_link && !bot?.facebook_review_link && (
-                        <p className="text-xs text-[#0d9488]">Add where clients can review you →</p>
+                      {bot?.google_review_link ? (
+                        <>
+                          <p className="text-xs text-slate-500">Your review emails send clients to Google ⭐</p>
+                          <a
+                            href={bot.google_review_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-block text-xs font-semibold text-[#0d9488] underline decoration-dotted hover:text-teal-700"
+                          >
+                            Open my Google reviews ↗
+                          </a>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs text-slate-500">Reviews from your clients will show up here.</p>
+                          {!bot?.facebook_review_link && (
+                            <p className="text-xs text-[#0d9488]">Add where clients can review you →</p>
+                          )}
+                        </>
                       )}
                     </div>
                   ) : (

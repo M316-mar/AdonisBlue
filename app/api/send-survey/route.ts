@@ -39,18 +39,21 @@ export async function POST(request: Request) {
       await supabase.from("intakes").update({ review_token: reviewToken }).eq("id", intake_id);
     }
 
-    // Fetch bot aftercare instructions
-    const { data: bot } = await supabase
+    // Fetch bot fields
+    const { data: bot, error: botError } = await supabase
       .from("bots")
-      .select("aftercare, practice_name, primary_color")
+      .select("aftercare, practice_name, primary_color, google_review_link")
       .eq("nurse_id", intake.nurse_id)
       .single();
+    if (botError) console.error("[send-survey] bot fetch error:", JSON.stringify(botError));
 
     const aftercare = bot?.aftercare ? escapeHtml(bot.aftercare) : null;
     const practiceName = escapeHtml(bot?.practice_name || "your provider");
 
     const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io";
-    const surveyUrl = `${SITE_URL}/review/${reviewToken}`;
+    // If the nurse has a Google review link, send clients there directly
+    const googleReviewLink = (bot?.google_review_link as string | null | undefined) ?? null;
+    const surveyUrl = googleReviewLink || `${SITE_URL}/review/${reviewToken}`;
 
     if (intake.email) {
       await resend.emails.send({

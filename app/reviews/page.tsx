@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ClientContactCard } from "@/components/ClientContactCard";
 import { SideNavRail } from "@/components/SideNavRail";
 
@@ -27,6 +27,14 @@ type Review = {
     email: string | null;
     phone: string | null;
   } | null;
+};
+
+type BotInfo = {
+  slug: string | null;
+  google_review_link: string | null;
+  facebook_review_link: string | null;
+  instagram: string | null;
+  practice_name: string | null;
 };
 
 type Filter = "all" | "needs_attention" | "ok_to_share" | "on_website";
@@ -54,14 +62,32 @@ function Initials({ name }: { name: string }) {
 export default function ReviewsPage() {
   const router = useRouter();
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [bot, setBot] = useState<BotInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // Review link editing
+  const [editingLinks, setEditingLinks] = useState(false);
+  const [googleLinkDraft, setGoogleLinkDraft] = useState("");
+  const [facebookLinkDraft, setFacebookLinkDraft] = useState("");
+  const [linkSaving, setLinkSaving] = useState(false);
 
   // Per-review action state
   const [removeOpen, setRemoveOpen] = useState<string | null>(null);
   const [removeReason, setRemoveReason] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const shareRef = useRef<HTMLDivElement>(null);
+
+  const fetchReviews = useCallback(async (token: string) => {
+    const res = await fetch("/api/reviews", { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) {
+      const j = await res.json() as { reviews?: Review[] };
+      setReviews(j.reviews ?? []);
+    }
+  }, []);
 
   const doAction = useCallback(async (id: string, action: string, extra?: Record<string, unknown>) => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -74,18 +100,11 @@ export default function ReviewsPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action, ...extra }),
       });
-      if (res.ok) {
-        // Refresh reviews after action
-        const refreshRes = await fetch("/api/reviews", { headers: { Authorization: `Bearer ${token}` } });
-        if (refreshRes.ok) {
-          const j = await refreshRes.json() as { reviews?: Review[] };
-          setReviews(j.reviews ?? []);
-        }
-      }
+      if (res.ok) await fetchReviews(token);
     } finally {
       setBusy(null);
     }
-  }, []);
+  }, [fetchReviews]);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,15 +112,68 @@ export default function ReviewsPage() {
       const { data } = await supabase.auth.getSession();
       if (!data.session) { router.replace("/auth"); return; }
       const token = data.session.access_token;
-      const res = await fetch("/api/reviews", { headers: { Authorization: `Bearer ${token}` } });
-      if (!cancelled && res.ok) {
-        const j = await res.json() as { reviews?: Review[] };
-        setReviews(j.reviews ?? []);
+      const [reviewsRes, botRes] = await Promise.all([
+        fetch("/api/reviews", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("/api/mybot", { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (!cancelled) {
+        if (reviewsRes.ok) {
+          const j = await reviewsRes.json() as { reviews?: Review[] };
+          setReviews(j.reviews ?? []);
+        }
+        if (botRes.ok) {
+          const j = await botRes.json() as { bot?: BotInfo };
+          if (j.bot) setBot(j.bot);
+        }
+        setLoading(false);
       }
-      if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [router]);
+
+  // Close share menu on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
+        setShareOpen(null);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleSaveLinks = useCallback(async () => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+    setLinkSaving(true);
+    try {
+      await fetch("/api/savebot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          google_review_link: googleLinkDraft.trim() || null,
+          facebook_review_link: facebookLinkDraft.trim() || null,
+        }),
+      });
+      setBot((b) => b ? { ...b, google_review_link: googleLinkDraft.trim() || null, facebook_review_link: facebookLinkDraft.trim() || null } : b);
+      setEditingLinks(false);
+    } finally {
+      setLinkSaving(false);
+    }
+  }, [googleLinkDraft, facebookLinkDraft]);
+
+  const handleDownloadImage = useCallback(async (review: Review, token: string) => {
+    const res = await fetch(`/api/reviews/image?id=${review.id}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `review-${review.id}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
 
   const visible = reviews.filter((r) => {
     if (r.removed_at) return false;
@@ -115,6 +187,8 @@ export default function ReviewsPage() {
   const avgRating = active.length ? active.reduce((s, r) => s + r.rating, 0) / active.length : null;
   const okToShareCount = active.filter((r) => r.ok_to_share).length;
   const featuredCount = active.filter((r) => r.featured).length;
+
+  const publicPageUrl = bot?.slug ? `https://adonisblue.io/reviews/${bot.slug}` : null;
 
   const FILTERS: { key: Filter; label: string }[] = [
     { key: "all", label: `All (${active.length})` },
@@ -146,6 +220,136 @@ export default function ReviewsPage() {
           </header>
 
           <main className="mx-auto max-w-4xl px-4 py-6 pb-28 sm:px-6 sm:py-8 lg:px-8">
+
+            {/* Public page link */}
+            {publicPageUrl && (
+              <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                <span className="text-xs text-slate-500">Your public reviews page:</span>
+                <a
+                  href={publicPageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-[#0d9488] underline decoration-dotted hover:text-teal-700 truncate max-w-[200px] sm:max-w-none"
+                >
+                  {publicPageUrl}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(publicPageUrl);
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 2000);
+                  }}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
+                >
+                  {linkCopied ? "Copied!" : "Copy my link"}
+                </button>
+              </div>
+            )}
+
+            {/* Review links box */}
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              {!editingLinks ? (
+                <>
+                  {bot?.google_review_link || bot?.facebook_review_link ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        {bot.google_review_link && (
+                          <p className="text-xs text-slate-700 truncate">
+                            <span className="font-semibold text-slate-500">Google: </span>
+                            <a href={bot.google_review_link} target="_blank" rel="noopener noreferrer" className="text-[#0d9488] underline decoration-dotted">{bot.google_review_link}</a>
+                          </p>
+                        )}
+                        {bot.facebook_review_link && (
+                          <p className="text-xs text-slate-700 truncate">
+                            <span className="font-semibold text-slate-500">Facebook: </span>
+                            <a href={bot.facebook_review_link} target="_blank" rel="noopener noreferrer" className="text-[#0d9488] underline decoration-dotted">{bot.facebook_review_link}</a>
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGoogleLinkDraft(bot?.google_review_link ?? "");
+                          setFacebookLinkDraft(bot?.facebook_review_link ?? "");
+                          setEditingLinks(true);
+                        }}
+                        className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-[#1a2744]">Add your Google review link so happy clients can review you on Google</p>
+                      <div>
+                        <input
+                          type="url"
+                          placeholder="https://g.page/r/..."
+                          value={googleLinkDraft}
+                          onChange={(e) => setGoogleLinkDraft(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20"
+                        />
+                        <p className="mt-1 text-[11px] text-slate-400">In your Google Business Profile, tap &ldquo;Ask for reviews&rdquo; and copy that link.</p>
+                      </div>
+                      <input
+                        type="url"
+                        placeholder="Facebook review link (optional)"
+                        value={facebookLinkDraft}
+                        onChange={(e) => setFacebookLinkDraft(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20"
+                      />
+                      <button
+                        type="button"
+                        disabled={linkSaving || (!googleLinkDraft.trim() && !facebookLinkDraft.trim())}
+                        onClick={() => void handleSaveLinks()}
+                        className="rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                      >
+                        {linkSaving ? "Saving…" : "Save"}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-[#1a2744]">Review links</p>
+                  <div>
+                    <input
+                      type="url"
+                      placeholder="https://g.page/r/..."
+                      value={googleLinkDraft}
+                      onChange={(e) => setGoogleLinkDraft(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20"
+                    />
+                    <p className="mt-1 text-[11px] text-slate-400">In your Google Business Profile, tap &ldquo;Ask for reviews&rdquo; and copy that link.</p>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="Facebook review link (optional)"
+                    value={facebookLinkDraft}
+                    onChange={(e) => setFacebookLinkDraft(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={linkSaving}
+                      onClick={() => void handleSaveLinks()}
+                      className="rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                    >
+                      {linkSaving ? "Saving…" : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingLinks(false)}
+                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Summary tiles */}
             <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -196,6 +400,7 @@ export default function ReviewsPage() {
                   const clientName = review.intakes?.first_name || "Client";
                   const isRemoving = removeOpen === review.id;
                   const isBusy = (action: string) => busy === review.id + ":" + action;
+                  const isShareOpen = shareOpen === review.id;
 
                   return (
                     <div key={review.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -251,20 +456,46 @@ export default function ReviewsPage() {
                                     : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                                 }`}
                               >
-                                {isBusy("feature") ? "…" : review.featured ? "✓ On my website" : "Feature on my website"}
+                                {isBusy("feature") ? "…" : review.featured ? "✓ Shown publicly" : "Show publicly"}
                               </button>
                               {review.review_text && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    void navigator.clipboard.writeText(review.review_text ?? "");
-                                    setCopied(review.id);
-                                    setTimeout(() => setCopied(null), 2000);
-                                  }}
-                                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
-                                >
-                                  {copied === review.id ? "Copied!" : "Copy text"}
-                                </button>
+                                <div className="relative" ref={isShareOpen ? shareRef : undefined}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setShareOpen(isShareOpen ? null : review.id)}
+                                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                                  >
+                                    Share ▾
+                                  </button>
+                                  {isShareOpen && (
+                                    <div className="absolute left-0 top-full mt-1 z-20 min-w-[160px] rounded-xl border border-slate-200 bg-white shadow-lg py-1">
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          setShareOpen(null);
+                                          const { data } = await supabase.auth.getSession();
+                                          const token = data.session?.access_token;
+                                          if (token) await handleDownloadImage(review, token);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                                      >
+                                        Download image
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setShareOpen(null);
+                                          void navigator.clipboard.writeText(review.review_text ?? "");
+                                          setCopied(review.id);
+                                          setTimeout(() => setCopied(null), 2000);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                                      >
+                                        {copied === review.id ? "Copied!" : "Copy text"}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </>
                           )}
@@ -294,9 +525,8 @@ export default function ReviewsPage() {
                           )}
                         </div>
 
-                        {/* Footer */}
+                        {/* Footer actions */}
                         <div className="mt-4 border-t border-slate-100 pt-3">
-                          <p className="text-[10px] text-slate-400 mb-2">Reviews can&apos;t be deleted. They stay here as long as your account is active.</p>
                           {!isRemoving ? (
                             <div className="flex flex-wrap gap-3">
                               <button
@@ -360,6 +590,11 @@ export default function ReviewsPage() {
                 })}
               </div>
             )}
+
+            {/* Bottom notice */}
+            <p className="mt-8 text-center text-[11px] text-slate-400">
+              Reviews can&apos;t be deleted. They stay here as long as your account is active.
+            </p>
           </main>
         </div>
       </div>

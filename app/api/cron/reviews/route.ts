@@ -83,14 +83,17 @@ export async function GET(request: Request) {
         }
       }
 
-      const reviewUrl = `${SITE_URL}/review/${reviewToken}`;
+      const googleReviewLink = bots?.google_review_link || null;
+      // If nurse has a Google review link, send clients there directly.
+      // We can't detect Google submissions, so review_request_sent stays as the state.
+      const mainReviewUrl = googleReviewLink || `${SITE_URL}/review/${reviewToken}`;
 
       try {
         await resend.emails.send({
           from: "AdonisBlue <hi@adonisblue.io>",
           to: intake.email,
           subject: `How are you feeling, ${clientName}? 💙`,
-          html: buildReviewEmail({ clientName, practiceName, bookingLink, instagram, intakeId: intake.id, reviewUrl }),
+          html: buildReviewEmail({ clientName, practiceName, bookingLink, instagram, intakeId: intake.id, reviewUrl: mainReviewUrl }),
         });
 
         await supabase
