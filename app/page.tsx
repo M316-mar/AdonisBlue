@@ -600,7 +600,7 @@ export default function Home() {
                 <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Full access, free for 14 days</h3>
                 <p className="mt-2 text-sm text-slate-500">Every feature unlocked. No credit card needed. No commitment.</p>
                 <ul className="mt-6 flex-1 space-y-2.5">
-                  {["Everything in Starter — fully unlocked","Unlimited client conversations","Custom bot name and colors","Aftercare + reminder emails","Embed chat on your website","Cancel before day 14 — pay nothing"].map(l => (
+                  {["Everything in Starter — fully unlocked","Unlimited client conversations","Custom assistant name","Aftercare + reminder emails","Embed chat on your website","Cancel before day 14 — pay nothing"].map(l => (
                     <li key={l} className="flex gap-2 text-sm text-slate-600"><span className="text-[#0d9488]">✓</span>{l}</li>
                   ))}
                 </ul>
@@ -715,10 +715,10 @@ export default function Home() {
             <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Why I built this</p>
             <div className="mt-4 space-y-4 text-lg leading-relaxed text-slate-600">
               <p>I created AdonisBlue because I&apos;ve lived this problem myself, and watched people I love live it too.</p>
-              <p>I get lip fillers done, and I love it! Afterwards, I just couldn&apos;t reach anyone. No one to reassure me or tell me if what I was feeling was normal.</p>
-              <p>Family members of mine have had esthetic procedures too — from lip fillers to major surgeries — and I noticed the same thing every time. As a client, they couldn&apos;t get a hold of the nurse or doctor who did the procedure. When they needed answers, even the front office couldn&apos;t help, because they had to wait for the person who actually did the procedure to get back to them, with no clear idea of when that would happen.</p>
-              <p>I&apos;ve noticed this isn&apos;t rare. It&apos;s not one bad practice — it&apos;s most of the industry, everywhere. So much energy goes into bringing new clients in, and so little into actually caring for the ones who already said yes.</p>
-              <p className="font-semibold text-[#1a2744]">I believe that has to change. AdonisBlue exists so a client is never left wondering if anyone&apos;s paying attention.</p>
+              <p>I get lip filler, and I love it! But afterward, I couldn&apos;t reach anyone. No one to reassure me or tell me if what I was feeling was normal. Especially the first time, when you have even more questions.</p>
+              <p>Family members of mine have had aesthetic procedures too, from lip filler to major surgery, and I noticed the same thing every time. They couldn&apos;t get a hold of the nurse or doctor who did the procedure. Even the front office couldn&apos;t help, because only the person who did the procedure had the answers, and nobody knew when she&apos;d be back.</p>
+              <p>This isn&apos;t rare. So much energy goes into bringing new clients in, and so little into caring for the ones who already said yes.</p>
+              <p className="font-semibold text-[#1a2744]">I believe that has to change. AdonisBlue exists so a client is never left wondering if anyone&apos;s paying attention. If you&apos;re a solo injector who wants every client to feel looked after, I built this for you.</p>
             </div>
           </div>
         </section>
