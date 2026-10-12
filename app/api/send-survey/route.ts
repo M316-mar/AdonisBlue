@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -24,12 +25,19 @@ export async function POST(request: Request) {
 
     const { data: intake } = await supabase
       .from("intakes")
-      .select("*")
+      .select("*, review_token")
       .eq("id", intake_id)
       .single();
 
     if (!intake) return NextResponse.json({ error: "Intake not found" }, { status: 404 });
     if (intake.marketing_opt_out) return NextResponse.json({ skipped: true });
+
+    // Reuse existing review_token or generate one
+    let reviewToken: string = intake.review_token;
+    if (!reviewToken) {
+      reviewToken = crypto.randomBytes(32).toString("base64url");
+      await supabase.from("intakes").update({ review_token: reviewToken }).eq("id", intake_id);
+    }
 
     // Fetch bot aftercare instructions
     const { data: bot } = await supabase
@@ -41,7 +49,8 @@ export async function POST(request: Request) {
     const aftercare = bot?.aftercare ? escapeHtml(bot.aftercare) : null;
     const practiceName = escapeHtml(bot?.practice_name || "your provider");
 
-    const surveyUrl = `https://www.adonisblue.io/survey/${intake_id}`;
+    const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io";
+    const surveyUrl = `${SITE_URL}/review/${reviewToken}`;
 
     if (intake.email) {
       await resend.emails.send({

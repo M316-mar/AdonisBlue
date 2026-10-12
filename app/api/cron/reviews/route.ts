@@ -1,15 +1,23 @@
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 
 type BotFields = {
   practice_name: string | null;
   booking_link: string | null;
   instagram: string | null;
   google_review_link: string | null;
+  facebook_review_link: string | null;
 } | null;
 
 export async function GET(request: Request) {
@@ -25,20 +33,22 @@ export async function GET(request: Request) {
     );
 
     const now = new Date();
-    const twoDaysAgo = new Date(now);
-    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-    const threeDaysAgo = new Date(now);
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const fourteenDaysAgo = new Date(now);
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Find intakes whose aftercare was sent 2-3 days ago and haven't received a review request
+    // 14-30 days after aftercare sent; skip anyone already asked or who already submitted
     const { data: intakes } = await supabase
       .from("intakes")
-      .select("*, bots(practice_name, booking_link, instagram, google_review_link)")
+      .select("*, bots(practice_name, booking_link, instagram, google_review_link, facebook_review_link)")
       .not("aftercare_sent_at", "is", null)
       .eq("review_request_sent", false)
+      .eq("survey_sent", false)
+      .is("review_submitted_at", null)
       .eq("marketing_opt_out", false)
-      .gte("aftercare_sent_at", threeDaysAgo.toISOString())
-      .lte("aftercare_sent_at", twoDaysAgo.toISOString())
+      .gte("aftercare_sent_at", thirtyDaysAgo.toISOString())
+      .lte("aftercare_sent_at", fourteenDaysAgo.toISOString())
       .not("email", "is", null);
 
     if (!intakes || intakes.length === 0) {
@@ -49,18 +59,33 @@ export async function GET(request: Request) {
 
     for (const intake of intakes) {
       const bots = intake.bots as BotFields;
-      const clientName = intake.first_name || "Beautiful";
-      const practiceName = bots?.practice_name || "your provider";
+      const clientName = escapeHtml(intake.first_name || "Beautiful");
+      const practiceName = escapeHtml(bots?.practice_name || "your provider");
       const bookingLink = bots?.booking_link || null;
-      const googleReviewLink = bots?.google_review_link || null;
       const instagram = bots?.instagram || null;
+
+      // Reuse existing token or generate a new one
+      let reviewToken: string = intake.review_token;
+      if (!reviewToken) {
+        reviewToken = crypto.randomBytes(32).toString("base64url");
+        const { error: tokenErr } = await supabase
+          .from("intakes")
+          .update({ review_token: reviewToken })
+          .eq("id", intake.id);
+        if (tokenErr) {
+          console.error(`Failed to save review_token for intake ${intake.id}:`, tokenErr);
+          continue;
+        }
+      }
+
+      const reviewUrl = `${SITE_URL}/review/${reviewToken}`;
 
       try {
         await resend.emails.send({
           from: "AdonisBlue <hi@adonisblue.io>",
           to: intake.email,
           subject: `How are you feeling, ${clientName}? 💙`,
-          html: buildReviewEmail({ clientName, practiceName, bookingLink, googleReviewLink, instagram, intakeId: intake.id }),
+          html: buildReviewEmail({ clientName, practiceName, bookingLink, instagram, intakeId: intake.id, reviewUrl }),
         });
 
         await supabase
@@ -84,16 +109,16 @@ function buildReviewEmail({
   clientName,
   practiceName,
   bookingLink,
-  googleReviewLink,
   instagram,
   intakeId,
+  reviewUrl,
 }: {
   clientName: string;
   practiceName: string;
   bookingLink: string | null;
-  googleReviewLink: string | null;
   instagram: string | null;
   intakeId: string;
+  reviewUrl: string;
 }) {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -111,16 +136,15 @@ function buildReviewEmail({
         <tr>
           <td style="padding:36px 32px;">
             <h1 style="margin:0 0 16px;color:#1a2744;font-size:22px;font-weight:600;line-height:1.3;">Hey ${clientName}, how are you feeling? 💕</h1>
-            <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.7;">It's been a couple of days since your appointment at ${practiceName} and we just wanted to check in. We hope you're loving your results!</p>
+            <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.7;">It's been a couple of weeks since your appointment at ${practiceName} and we just wanted to check in. We hope you're loving your results!</p>
             <p style="margin:0 0 28px;color:#475569;font-size:15px;line-height:1.7;">If you have a moment, we'd love to hear what you thought. Your feedback means the world to us and helps other clients feel confident choosing ${practiceName}.</p>
-            ${googleReviewLink ? `
             <div style="text-align:center;margin-bottom:20px;">
-              <a href="${googleReviewLink}" style="display:inline-block;background:#0d9488;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:50px;">
-                Leave a Google review ⭐
+              <a href="${reviewUrl}" style="display:inline-block;background:#0d9488;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:50px;">
+                Share your experience ⭐
               </a>
-            </div>` : ""}
+            </div>
             ${instagram ? `
-            <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.7;">You can also tag us on Instagram <strong>@${instagram.replace(/^@/, "")}</strong> — we love seeing your glow! 🌸</p>` : ""}
+            <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.7;">You can also tag us on Instagram <strong>@${escapeHtml(instagram.replace(/^@/, ""))}</strong> — we love seeing your glow! 🌸</p>` : ""}
             ${bookingLink ? `
             <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:20px 0;text-align:center;">
               <p style="margin:0 0 12px;color:#1a2744;font-size:14px;font-weight:600;">Ready to book your next visit?</p>
