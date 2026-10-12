@@ -4,6 +4,51 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "edge";
 
+// Normalize any Instagram input to just "@handle"
+function normalizeInstagram(raw: string): string | null {
+  let s = raw.trim();
+  if (!s) return null;
+  // Strip protocol + www
+  s = s.replace(/^https?:\/\/(www\.)?/i, "");
+  // Strip instagram.com/
+  s = s.replace(/^instagram\.com\//i, "");
+  // Strip trailing slash and query string
+  s = s.split("?")[0]!.replace(/\/+$/, "");
+  // Strip leading @
+  s = s.replace(/^@/, "");
+  if (!s) return null;
+  return "@" + s;
+}
+
+function StarSVGs({ rating }: { rating: number }) {
+  const stars = [];
+  for (let i = 1; i <= 5; i++) {
+    const filled = i <= rating;
+    stars.push(
+      <svg
+        key={i}
+        width="52"
+        height="52"
+        viewBox="0 0 24 24"
+        style={{ display: "block" }}
+      >
+        <polygon
+          points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+          fill={filled ? "#B7790A" : "none"}
+          stroke={filled ? "#B7790A" : "#d1b06b"}
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "row", gap: "6px" }}>
+      {stars}
+    </div>
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get("authorization")?.replace("Bearer ", "");
@@ -44,12 +89,12 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
     if (botError) console.error("[api/reviews/image] bot fetch error:", JSON.stringify(botError));
 
-    const practiceName = bot?.practice_name ?? "";
-    const instagram = bot?.instagram ? `@${(bot.instagram as string).replace(/^@/, "")}` : null;
+    const practiceName = (bot?.practice_name as string | null | undefined) ?? "";
+    const rawInstagram = (bot?.instagram as string | null | undefined) ?? "";
+    const instagram = rawInstagram ? normalizeInstagram(rawInstagram) : null;
     const displayName = (review.display_name as string | null) ?? "Client";
     const reviewText = (review.review_text as string | null) ?? "";
     const rating = review.rating as number;
-    const stars = "★".repeat(rating) + "☆".repeat(5 - rating);
 
     return new ImageResponse(
       (
@@ -63,7 +108,7 @@ export async function GET(request: NextRequest) {
             alignItems: "center",
             background: "#e8f5f2",
             padding: "80px",
-            fontFamily: "serif",
+            fontFamily: "sans-serif",
           }}
         >
           <div
@@ -78,7 +123,7 @@ export async function GET(request: NextRequest) {
               boxShadow: "0 8px 48px rgba(0,0,0,0.08)",
             }}
           >
-            <div style={{ fontSize: "48px", color: "#f59e0b", letterSpacing: "4px" }}>{stars}</div>
+            <StarSVGs rating={rating} />
             <p
               style={{
                 fontSize: "40px",
@@ -101,12 +146,12 @@ export async function GET(request: NextRequest) {
                 gap: "8px",
               }}
             >
-              {practiceName && (
+              {practiceName ? (
                 <p style={{ fontSize: "28px", fontWeight: "bold", color: "#1a2744", margin: "0" }}>{practiceName}</p>
-              )}
-              {instagram && (
+              ) : null}
+              {instagram ? (
                 <p style={{ fontSize: "24px", color: "#0d9488", margin: "0" }}>{instagram}</p>
-              )}
+              ) : null}
               <p style={{ fontSize: "20px", color: "#94a3b8", margin: "0" }}>AdonisBlue</p>
             </div>
           </div>

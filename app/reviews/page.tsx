@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ClientContactCard } from "@/components/ClientContactCard";
 import { SideNavRail } from "@/components/SideNavRail";
 
@@ -67,7 +67,7 @@ export default function ReviewsPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [linkCopied, setLinkCopied] = useState(false);
 
-  // Review link editing
+  // Review link editing (bottom card)
   const [editingLinks, setEditingLinks] = useState(false);
   const [googleLinkDraft, setGoogleLinkDraft] = useState("");
   const [facebookLinkDraft, setFacebookLinkDraft] = useState("");
@@ -77,9 +77,7 @@ export default function ReviewsPage() {
   const [removeOpen, setRemoveOpen] = useState<string | null>(null);
   const [removeReason, setRemoveReason] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [shareOpen, setShareOpen] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
-  const shareRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   const fetchReviews = useCallback(async (token: string) => {
     const res = await fetch("/api/reviews", { headers: { Authorization: `Bearer ${token}` } });
@@ -131,17 +129,6 @@ export default function ReviewsPage() {
     return () => { cancelled = true; };
   }, [router]);
 
-  // Close share menu on outside click
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
-        setShareOpen(null);
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
   const handleSaveLinks = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
@@ -163,16 +150,24 @@ export default function ReviewsPage() {
     }
   }, [googleLinkDraft, facebookLinkDraft]);
 
-  const handleDownloadImage = useCallback(async (review: Review, token: string) => {
-    const res = await fetch(`/api/reviews/image?id=${review.id}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `review-${review.id}.png`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownloadImage = useCallback(async (review: Review) => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+    setDownloading(review.id);
+    try {
+      const res = await fetch(`/api/reviews/image?id=${review.id}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `review-${review.id}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloading(null);
+    }
   }, []);
 
   const visible = reviews.filter((r) => {
@@ -194,7 +189,7 @@ export default function ReviewsPage() {
     { key: "all", label: `All (${active.length})` },
     { key: "needs_attention", label: `Needs attention (${active.filter((r) => r.rating <= 3 && !r.reached_out_at).length})` },
     { key: "ok_to_share", label: `OK to share (${okToShareCount})` },
-    { key: "on_website", label: `On my website (${featuredCount})` },
+    { key: "on_website", label: `Shown publicly (${featuredCount})` },
   ];
 
   if (loading) {
@@ -221,134 +216,55 @@ export default function ReviewsPage() {
 
           <main className="mx-auto max-w-4xl px-4 py-6 pb-28 sm:px-6 sm:py-8 lg:px-8">
 
-            {/* Public page link */}
-            {publicPageUrl && (
-              <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                <span className="text-xs text-slate-500">Your public reviews page:</span>
-                <a
-                  href={publicPageUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-semibold text-[#0d9488] underline decoration-dotted hover:text-teal-700 truncate max-w-[200px] sm:max-w-none"
-                >
-                  {publicPageUrl}
-                </a>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(publicPageUrl);
-                    setLinkCopied(true);
-                    setTimeout(() => setLinkCopied(false), 2000);
-                  }}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
-                >
-                  {linkCopied ? "Copied!" : "Copy my link"}
-                </button>
-              </div>
-            )}
-
-            {/* Review links box */}
+            {/* How your reviews get seen — 3-step row */}
             <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-              {!editingLinks ? (
-                <>
-                  {bot?.google_review_link || bot?.facebook_review_link ? (
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex-1 min-w-0 space-y-1">
-                        {bot.google_review_link && (
-                          <p className="text-xs text-slate-700 truncate">
-                            <span className="font-semibold text-slate-500">Google: </span>
-                            <a href={bot.google_review_link} target="_blank" rel="noopener noreferrer" className="text-[#0d9488] underline decoration-dotted">{bot.google_review_link}</a>
-                          </p>
-                        )}
-                        {bot.facebook_review_link && (
-                          <p className="text-xs text-slate-700 truncate">
-                            <span className="font-semibold text-slate-500">Facebook: </span>
-                            <a href={bot.facebook_review_link} target="_blank" rel="noopener noreferrer" className="text-[#0d9488] underline decoration-dotted">{bot.facebook_review_link}</a>
-                          </p>
-                        )}
-                      </div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">How your reviews get seen</p>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr]">
+                {/* Step 1 */}
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#1a2744]">① Choose</p>
+                  <p className="mt-1 text-xs text-slate-600">Turn on &ldquo;Show publicly&rdquo; on the reviews you love.</p>
+                </div>
+                {/* Arrow */}
+                <div className="hidden md:flex items-center justify-center text-slate-300 text-lg">→</div>
+                {/* Step 2 */}
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#1a2744]">② Your page</p>
+                  {publicPageUrl ? (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] text-slate-500 truncate max-w-[140px]">{publicPageUrl}</span>
                       <button
                         type="button"
                         onClick={() => {
-                          setGoogleLinkDraft(bot?.google_review_link ?? "");
-                          setFacebookLinkDraft(bot?.facebook_review_link ?? "");
-                          setEditingLinks(true);
+                          void navigator.clipboard.writeText(publicPageUrl);
+                          setLinkCopied(true);
+                          setTimeout(() => setLinkCopied(false), 2000);
                         }}
-                        className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
+                        className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-100 transition"
                       >
-                        Change
+                        {linkCopied ? "Copied!" : "Copy link"}
                       </button>
+                      <a
+                        href={publicPageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-[#0d9488] hover:bg-slate-50 transition"
+                      >
+                        Open ↗
+                      </a>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      <p className="text-sm font-semibold text-[#1a2744]">Add your Google review link so happy clients can review you on Google</p>
-                      <div>
-                        <input
-                          type="url"
-                          placeholder="https://g.page/r/..."
-                          value={googleLinkDraft}
-                          onChange={(e) => setGoogleLinkDraft(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20"
-                        />
-                        <p className="mt-1 text-[11px] text-slate-400">In your Google Business Profile, tap &ldquo;Ask for reviews&rdquo; and copy that link.</p>
-                      </div>
-                      <input
-                        type="url"
-                        placeholder="Facebook review link (optional)"
-                        value={facebookLinkDraft}
-                        onChange={(e) => setFacebookLinkDraft(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20"
-                      />
-                      <button
-                        type="button"
-                        disabled={linkSaving || (!googleLinkDraft.trim() && !facebookLinkDraft.trim())}
-                        onClick={() => void handleSaveLinks()}
-                        className="rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
-                      >
-                        {linkSaving ? "Saving…" : "Save"}
-                      </button>
-                    </div>
+                    <p className="mt-1 text-[11px] text-slate-400">Set up your practice in settings to get a link.</p>
                   )}
-                </>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-[#1a2744]">Review links</p>
-                  <div>
-                    <input
-                      type="url"
-                      placeholder="https://g.page/r/..."
-                      value={googleLinkDraft}
-                      onChange={(e) => setGoogleLinkDraft(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20"
-                    />
-                    <p className="mt-1 text-[11px] text-slate-400">In your Google Business Profile, tap &ldquo;Ask for reviews&rdquo; and copy that link.</p>
-                  </div>
-                  <input
-                    type="url"
-                    placeholder="Facebook review link (optional)"
-                    value={facebookLinkDraft}
-                    onChange={(e) => setFacebookLinkDraft(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={linkSaving}
-                      onClick={() => void handleSaveLinks()}
-                      className="rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
-                    >
-                      {linkSaving ? "Saving…" : "Save"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingLinks(false)}
-                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
-                    >
-                      Cancel
-                    </button>
-                  </div>
                 </div>
-              )}
+                {/* Arrow */}
+                <div className="hidden md:flex items-center justify-center text-slate-300 text-lg">→</div>
+                {/* Step 3 */}
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#1a2744]">③ Share</p>
+                  <p className="mt-1 text-xs text-slate-600">Put your link in your Instagram bio, Linktree, Google profile, or texts. It updates by itself.</p>
+                </div>
+              </div>
             </div>
 
             {/* Summary tiles */}
@@ -367,7 +283,7 @@ export default function ReviewsPage() {
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-2xl font-bold text-[#1a2744]">{featuredCount}</p>
-                <p className="mt-0.5 text-xs text-slate-500">On my website</p>
+                <p className="mt-0.5 text-xs text-slate-500">Shown publicly</p>
               </div>
             </div>
 
@@ -400,7 +316,6 @@ export default function ReviewsPage() {
                   const clientName = review.intakes?.first_name || "Client";
                   const isRemoving = removeOpen === review.id;
                   const isBusy = (action: string) => busy === review.id + ":" + action;
-                  const isShareOpen = shareOpen === review.id;
 
                   return (
                     <div key={review.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -420,7 +335,7 @@ export default function ReviewsPage() {
                               )}
                               {review.featured && (
                                 <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-700">
-                                  On website
+                                  Shown publicly
                                 </span>
                               )}
                             </div>
@@ -446,56 +361,30 @@ export default function ReviewsPage() {
                         <div className="mt-3 flex flex-wrap gap-2">
                           {review.ok_to_share && (
                             <>
-                              <button
-                                type="button"
-                                disabled={isBusy("feature")}
-                                onClick={() => void doAction(review.id, "feature", { featured: !review.featured })}
-                                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                                  review.featured
-                                    ? "border-teal-300 bg-teal-50 text-teal-700 hover:bg-teal-100"
-                                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                                }`}
-                              >
-                                {isBusy("feature") ? "…" : review.featured ? "✓ Shown publicly" : "Show publicly"}
-                              </button>
+                              <div className="flex flex-col gap-1">
+                                <button
+                                  type="button"
+                                  disabled={isBusy("feature")}
+                                  onClick={() => void doAction(review.id, "feature", { featured: !review.featured })}
+                                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                    review.featured
+                                      ? "border-teal-300 bg-teal-50 text-teal-700 hover:bg-teal-100"
+                                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  {isBusy("feature") ? "…" : review.featured ? "✓ Shown publicly" : "Show publicly"}
+                                </button>
+                                <span className="text-[10px] text-slate-400 px-1">Shows this review on your public reviews page.</span>
+                              </div>
                               {review.review_text && (
-                                <div className="relative" ref={isShareOpen ? shareRef : undefined}>
-                                  <button
-                                    type="button"
-                                    onClick={() => setShareOpen(isShareOpen ? null : review.id)}
-                                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
-                                  >
-                                    Share ▾
-                                  </button>
-                                  {isShareOpen && (
-                                    <div className="absolute left-0 top-full mt-1 z-20 min-w-[160px] rounded-xl border border-slate-200 bg-white shadow-lg py-1">
-                                      <button
-                                        type="button"
-                                        onClick={async () => {
-                                          setShareOpen(null);
-                                          const { data } = await supabase.auth.getSession();
-                                          const token = data.session?.access_token;
-                                          if (token) await handleDownloadImage(review, token);
-                                        }}
-                                        className="w-full px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
-                                      >
-                                        Download image
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setShareOpen(null);
-                                          void navigator.clipboard.writeText(review.review_text ?? "");
-                                          setCopied(review.id);
-                                          setTimeout(() => setCopied(null), 2000);
-                                        }}
-                                        className="w-full px-4 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
-                                      >
-                                        {copied === review.id ? "Copied!" : "Copy text"}
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
+                                <button
+                                  type="button"
+                                  disabled={downloading === review.id}
+                                  onClick={() => void handleDownloadImage(review)}
+                                  className="self-start rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                                >
+                                  {downloading === review.id ? "Downloading…" : "Download image"}
+                                </button>
                               )}
                             </>
                           )}
@@ -595,6 +484,111 @@ export default function ReviewsPage() {
             <p className="mt-8 text-center text-[11px] text-slate-400">
               Reviews can&apos;t be deleted. They stay here as long as your account is active.
             </p>
+
+            {/* Where clients write reviews — bottom card */}
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+              <p className="mb-3 text-sm font-semibold text-[#1a2744]">Where clients write reviews</p>
+              {!editingLinks ? (
+                <>
+                  {bot?.google_review_link || bot?.facebook_review_link ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        {bot.google_review_link && (
+                          <p className="text-xs text-slate-700 truncate">
+                            <span className="font-semibold text-slate-500">Google: </span>
+                            <a href={bot.google_review_link} target="_blank" rel="noopener noreferrer" className="text-[#0d9488] underline decoration-dotted">{bot.google_review_link}</a>
+                          </p>
+                        )}
+                        {bot.facebook_review_link && (
+                          <p className="text-xs text-slate-700 truncate">
+                            <span className="font-semibold text-slate-500">Facebook: </span>
+                            <a href={bot.facebook_review_link} target="_blank" rel="noopener noreferrer" className="text-[#0d9488] underline decoration-dotted">{bot.facebook_review_link}</a>
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGoogleLinkDraft(bot?.google_review_link ?? "");
+                          setFacebookLinkDraft(bot?.facebook_review_link ?? "");
+                          setEditingLinks(true);
+                        }}
+                        className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-xs text-slate-500">Add your Google review link so happy clients can review you on Google.</p>
+                      <div>
+                        <input
+                          type="url"
+                          placeholder="https://g.page/r/..."
+                          value={googleLinkDraft}
+                          onChange={(e) => setGoogleLinkDraft(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20"
+                        />
+                        <p className="mt-1 text-[11px] text-slate-400">In your Google Business Profile, tap &ldquo;Ask for reviews&rdquo; and copy that link.</p>
+                      </div>
+                      <input
+                        type="url"
+                        placeholder="Facebook review link (optional)"
+                        value={facebookLinkDraft}
+                        onChange={(e) => setFacebookLinkDraft(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20"
+                      />
+                      <button
+                        type="button"
+                        disabled={linkSaving || (!googleLinkDraft.trim() && !facebookLinkDraft.trim())}
+                        onClick={() => void handleSaveLinks()}
+                        className="rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                      >
+                        {linkSaving ? "Saving…" : "Save"}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <input
+                      type="url"
+                      placeholder="https://g.page/r/..."
+                      value={googleLinkDraft}
+                      onChange={(e) => setGoogleLinkDraft(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20"
+                    />
+                    <p className="mt-1 text-[11px] text-slate-400">In your Google Business Profile, tap &ldquo;Ask for reviews&rdquo; and copy that link.</p>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="Facebook review link (optional)"
+                    value={facebookLinkDraft}
+                    onChange={(e) => setFacebookLinkDraft(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1a2744] outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]/20"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={linkSaving}
+                      onClick={() => void handleSaveLinks()}
+                      className="rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                    >
+                      {linkSaving ? "Saving…" : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingLinks(false)}
+                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </main>
         </div>
       </div>
