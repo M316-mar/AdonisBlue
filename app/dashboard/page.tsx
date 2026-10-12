@@ -111,6 +111,7 @@ export default function NurseDashboardPage() {
   const [supportMessage, setSupportMessage] = useState("");
   const [supportSending, setSupportSending] = useState(false);
   const [supportSent, setSupportSent] = useState(false);
+  const [noShowDialog, setNoShowDialog] = useState<{ id: string; name: string } | null>(null);
 
   type ReviewSummary = {
     total: number;
@@ -626,13 +627,15 @@ export default function NurseDashboardPage() {
                               >
                                 {intake.review_submitted_at ? "Review received ✅" : intake.survey_sent ? "Review requested ✅" : surveyLoading === intake.id ? "Sending..." : "Request review ⭐"}
                               </button>
-                              {!intake.review_submitted_at && (
+                              {intake.review_submitted_at ? (
+                                <span className="shrink-0 text-xs text-slate-400">Can&apos;t remove — this client left a review.</span>
+                              ) : (
                                 <button
                                   type="button"
-                                  onClick={() => void handleDeleteIntake(intake.id)}
+                                  onClick={() => setNoShowDialog({ id: intake.id, name: intake.first_name || "this client" })}
                                   className="shrink-0 rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
                                 >
-                                  Delete
+                                  No-show? Remove
                                 </button>
                               )}
                             </div>
@@ -1188,6 +1191,44 @@ export default function NurseDashboardPage() {
             </div>
           </div>
         ) : null}
+
+        {noShowDialog && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="noshow-dialog-title">
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/40"
+              aria-label="Close"
+              onClick={() => setNoShowDialog(null)}
+            />
+            <div className="relative z-[101] w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+              <h2 id="noshow-dialog-title" className="text-base font-semibold text-[#1a2744]">
+                Remove {noShowDialog.name}?
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Use this if she never came to her appointment. She won&apos;t get aftercare, check-ins, or review emails. This can&apos;t be undone.
+              </p>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
+                <button
+                  type="button"
+                  onClick={() => setNoShowDialog(null)}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleDeleteIntake(noShowDialog.id);
+                    setNoShowDialog(null);
+                  }}
+                  className="rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+                >
+                  Yes, remove
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       {showLaunchCelebration ? (
