@@ -79,6 +79,7 @@ export async function POST(request: Request) {
       "instagram", "tiktok", "facebook", "website",
       "notification_email", "other_social",
       "logo_image", "logo_data_url", "brand_name_image",
+      "google_review_link", "facebook_review_link",
     ];
     for (const field of nullableStringFields) {
       if (field in body) {

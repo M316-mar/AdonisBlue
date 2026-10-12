@@ -23,6 +23,8 @@ type BotRow = {
   plan?: string | null;
   trial_ends_at?: string | null;
   subscription_status?: string | null;
+  google_review_link?: string | null;
+  facebook_review_link?: string | null;
 };
 
 type IntakeRow = {
@@ -34,6 +36,7 @@ type IntakeRow = {
   referred_by: string | null;
   created_at: string;
   survey_sent?: boolean | null;
+  review_submitted_at?: string | null;
   aftercare_sent_at?: string | null;
   reminder_6m_sent?: boolean | null;
   reminder_9m_sent?: boolean | null;
@@ -108,6 +111,15 @@ export default function NurseDashboardPage() {
   const [supportMessage, setSupportMessage] = useState("");
   const [supportSending, setSupportSending] = useState(false);
   const [supportSent, setSupportSent] = useState(false);
+
+  type ReviewSummary = {
+    total: number;
+    averageRating: number | null;
+    okToShareCount: number;
+    needsAttentionCount: number;
+    newestReview: { rating: number; review_text: string | null; ok_to_share: boolean } | null;
+  };
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
 
   useEffect(() => {
     setShowEmailNotice(!localStorage.getItem("emailNoticesDismissed"));
@@ -201,6 +213,33 @@ export default function NurseDashboardPage() {
           if (!cancelled && notifRes.ok) {
             const notifJson = await notifRes.json() as { notifications?: { id: string; client_name: string; flagged_message: string; created_at: string }[] };
             setNotifications(notifJson.notifications ?? []);
+          }
+
+          // Fetch reviews summary
+          const reviewsRes = await fetch("/api/reviews", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!cancelled && reviewsRes.ok) {
+            const reviewsJson = await reviewsRes.json() as {
+              reviews?: Array<{ rating: number; review_text: string | null; ok_to_share: boolean; removed_at: string | null; reached_out_at: string | null; created_at: string }>
+            };
+            const all = (reviewsJson.reviews ?? []).filter((r) => !r.removed_at);
+            if (all.length > 0) {
+              const total = all.length;
+              const avgRating = all.reduce((s, r) => s + r.rating, 0) / total;
+              const okToShareCount = all.filter((r) => r.ok_to_share).length;
+              const needsAttentionCount = all.filter((r) => r.rating <= 3 && !r.reached_out_at).length;
+              const newest = all[0];
+              setReviewSummary({
+                total,
+                averageRating: Math.round(avgRating * 10) / 10,
+                okToShareCount,
+                needsAttentionCount,
+                newestReview: { rating: newest.rating, review_text: newest.review_text, ok_to_share: newest.ok_to_share },
+              });
+            } else {
+              setReviewSummary({ total: 0, averageRating: null, okToShareCount: 0, needsAttentionCount: 0, newestReview: null });
+            }
           }
         }
       }
@@ -581,11 +620,11 @@ export default function NurseDashboardPage() {
                               </button>
                               <button
                                 type="button"
-                                disabled={!!intake.survey_sent || surveyLoading === intake.id}
+                                disabled={!!intake.review_submitted_at || !!intake.survey_sent || surveyLoading === intake.id}
                                 onClick={() => void handleSendSurvey(intake)}
                                 className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                {intake.survey_sent ? "Review requested ✅" : surveyLoading === intake.id ? "Sending..." : "Request review ⭐"}
+                                {intake.review_submitted_at ? "Review received ✅" : intake.survey_sent ? "Review requested ✅" : surveyLoading === intake.id ? "Sending..." : "Request review ⭐"}
                               </button>
                               <button
                                 type="button"
@@ -1015,6 +1054,51 @@ export default function NurseDashboardPage() {
               </div>
 
             </div>
+
+            {/* ── Your Reviews Widget (below sticky) ── */}
+            <Link href="/reviews" className="block mt-3">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition hover:shadow-xl">
+                <div className="flex items-center gap-2 bg-[#1a2744] px-4 py-3">
+                  <span className="text-base">⭐</span>
+                  <span className="text-sm font-semibold text-white">Your Reviews</span>
+                  {reviewSummary && reviewSummary.needsAttentionCount > 0 && (
+                    <span className="ml-auto rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                      {reviewSummary.needsAttentionCount} need{reviewSummary.needsAttentionCount === 1 ? "s" : ""} attention
+                    </span>
+                  )}
+                </div>
+                <div className="p-4">
+                  {!reviewSummary || reviewSummary.total === 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-slate-500">Reviews from your clients will show up here.</p>
+                      {!bot?.google_review_link && !bot?.facebook_review_link && (
+                        <p className="text-xs text-[#0d9488]">Add where clients can review you →</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-bold text-[#1a2744]">{reviewSummary.averageRating}</span>
+                        <span className="text-sm text-amber-400">{"★".repeat(Math.round(reviewSummary.averageRating ?? 0))}{"☆".repeat(5 - Math.round(reviewSummary.averageRating ?? 0))}</span>
+                        <span className="text-xs text-slate-400">{reviewSummary.total} review{reviewSummary.total !== 1 ? "s" : ""} · {reviewSummary.okToShareCount} shareable</span>
+                      </div>
+                      {reviewSummary.newestReview && (
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600 leading-relaxed">
+                          {reviewSummary.newestReview.ok_to_share && reviewSummary.newestReview.review_text
+                            ? <>&ldquo;{reviewSummary.newestReview.review_text.slice(0, 100)}{reviewSummary.newestReview.review_text.length > 100 ? "…" : ""}&rdquo;</>
+                            : <span className="text-slate-400">{"★".repeat(reviewSummary.newestReview.rating)} Private review</span>
+                          }
+                        </div>
+                      )}
+                      {!bot?.google_review_link && !bot?.facebook_review_link && (
+                        <p className="text-xs text-[#0d9488]">Add where clients can review you →</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Link>
+
           </aside>
         </div>
 

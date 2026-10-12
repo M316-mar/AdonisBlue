@@ -325,6 +325,8 @@ type Draft = {
   website: string;
   location: string;
   notificationEmail: string;
+  googleReviewLink: string;
+  facebookReviewLink: string;
   // Step 4
   botName: string;
   greeting: string;
@@ -354,6 +356,8 @@ function emptyDraft(userId: string): Draft {
     website: "",
     location: "",
     notificationEmail: "",
+    googleReviewLink: "",
+    facebookReviewLink: "",
     botName: "",
     greeting: "",
     brandColor: "#0d9488",
@@ -914,6 +918,31 @@ function StepGetFound({
           We&apos;ll notify you when a new client fills out your intake form.
         </p>
       </div>
+
+      <div className="flex flex-col gap-3">
+        <p className="text-sm font-semibold text-[#1a2744]">Where clients can review you <span className="font-normal text-slate-400">(optional)</span></p>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">Google review link</label>
+          <input
+            type="url"
+            className={field}
+            placeholder="https://g.page/r/..."
+            value={draft.googleReviewLink}
+            onChange={(e) => onChange({ googleReviewLink: e.target.value })}
+          />
+          <p className="text-xs text-slate-400">In your Google Business Profile, tap &ldquo;Ask for reviews&rdquo; and copy that link.</p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">Facebook review link</label>
+          <input
+            type="url"
+            className={field}
+            placeholder="https://www.facebook.com/..."
+            value={draft.facebookReviewLink}
+            onChange={(e) => onChange({ facebookReviewLink: e.target.value })}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -1240,6 +1269,8 @@ function OnboardingInner() {
               facebook: (bot.facebook as string | null) ?? "",
               website: (bot.website as string | null) ?? "",
               notificationEmail: (bot.notification_email as string | null) ?? "",
+              googleReviewLink: (bot.google_review_link as string | null) ?? "",
+              facebookReviewLink: (bot.facebook_review_link as string | null) ?? "",
               // Step 4
               botName: (bot.bot_name as string | null) ?? "",
               greeting: (bot.greeting as string | null) ?? "",
@@ -1368,6 +1399,8 @@ function OnboardingInner() {
         city: draft.city.trim(),
         state: draft.state.trim(),
         notification_email: draft.notificationEmail.trim() || null,
+        google_review_link: draft.googleReviewLink.trim() || null,
+        facebook_review_link: draft.facebookReviewLink.trim() || null,
         facebook: draft.facebook.trim() || null,
         tiktok: draft.tiktok.trim() || null,
         instagram: draft.instagram.trim() || null,
