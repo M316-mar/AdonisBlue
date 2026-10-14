@@ -111,7 +111,7 @@ export async function GET(request: Request) {
           )
         `)
         .eq("nurse_id", user.id)
-        .eq("aftercare_sent", false)
+        .is("aftercare_sent_at", null)
         .eq("archived", false)
         .gte("treatment_date", fourteenDaysAgoDate)
         .lte("treatment_date", yesterdayDate)

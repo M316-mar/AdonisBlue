@@ -53,7 +53,7 @@ type Treatment = {
   intake_id: string | null;
   procedure_name: string;
   treatment_date: string;
-  aftercare_sent: boolean;
+  aftercare_sent_at: string | null;
   notes: string | null;
   came_via_bot: boolean;
   archived: boolean;
@@ -811,7 +811,7 @@ export default function ClientJourneyPage() {
               const hasIntake = !!intakeId && !!clientEmail;
 
               const prepSent = (rep.intakes?.prep_guide_sent ?? false) || (intakeId ? prepSentIds.has(intakeId) : false);
-              const aftercareSent = clientTreatments.some(t => t.aftercare_sent) || (intakeId ? aftercareSentIds.has(intakeId) : false);
+              const aftercareSent = clientTreatments.some(t => t.aftercare_sent_at != null) || (intakeId ? aftercareSentIds.has(intakeId) : false);
               const followupSent = (rep.intakes?.followup_sent ?? false) || (intakeId ? followupSentIds.has(intakeId) : false);
 
               const mostRecentTreatment = clientTreatments.find(t => t.notes !== "Rebooked appointment") ?? clientTreatments[0];
@@ -1005,7 +1005,7 @@ export default function ClientJourneyPage() {
                               {t.notes === "Rebooked appointment" && (
                                 <span className="rounded-full bg-purple-50 border border-purple-200 px-2 py-0.5 text-xs font-semibold text-purple-700">📅 Rebooked</span>
                               )}
-                              {t.aftercare_sent ? (
+                              {t.aftercare_sent_at != null ? (
                                 <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">✅ Aftercare</span>
                               ) : (
                                 <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">⏳ No aftercare</span>

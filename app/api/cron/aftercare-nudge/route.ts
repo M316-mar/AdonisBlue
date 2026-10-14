@@ -42,7 +42,7 @@ export async function GET(request: Request) {
         intake_id,
         intakes(id, first_name)
       `)
-      .eq("aftercare_sent", false)
+      .is("aftercare_sent_at", null)
       .eq("archived", false)
       .gte("treatment_date", fourteenDaysAgo)
       .lte("treatment_date", oneDayAgo)

@@ -377,7 +377,7 @@ export async function POST(request: Request) {
     // clientPhone intentionally not returned — not needed by client
     void clientPhone;
 
-    return NextResponse.json({ treatment, aftercare_sent: aftercareSent });
+    return NextResponse.json({ treatment, aftercare_sent_at: aftercareSent ? new Date().toISOString() : null });
   } catch {
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }

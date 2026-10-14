@@ -46,7 +46,7 @@ export async function GET(request: Request) {
           nurse_id
         )
       `)
-      .eq("aftercare_sent", true)
+      .not("aftercare_sent_at", "is", null)
       .is("wellness_checkin_sent_at", null)
       .gte("aftercare_sent_at", windowStart.toISOString())
       .lte("aftercare_sent_at", windowEnd.toISOString())

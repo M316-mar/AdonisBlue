@@ -46,7 +46,7 @@ export async function GET(request: Request) {
         .eq("nurse_id", nurse_id),
       supabase
         .from("treatments")
-        .select("procedure_name, aftercare_sent, reminder_sent, created_at, archived")
+        .select("procedure_name, aftercare_sent_at, reminder_sent, created_at, archived")
         .eq("nurse_id", nurse_id)
         .eq("archived", false),
       supabase
@@ -75,7 +75,7 @@ export async function GET(request: Request) {
 
     // ── Treatment metrics ─────────────────────────────────────────────────────
     const treatmentsLogged = treatments.length;
-    const aftercareSent = treatments.filter(t => t.aftercare_sent === true).length;
+    const aftercareSent = treatments.filter(t => t.aftercare_sent_at != null).length;
     const remindersSent = treatments.filter(t => t.reminder_sent === true).length;
 
     // ── Review requests ───────────────────────────────────────────────────────

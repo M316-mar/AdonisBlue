@@ -351,7 +351,7 @@ export default function NurseDashboardPage() {
     try {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
-      if (!token) { setCancelBusy(false); return; }
+      if (!token) return;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       try {

@@ -25,7 +25,7 @@ type Treatment = {
   procedure_name: string;
   procedure_id: string | null;
   treatment_date: string;
-  aftercare_sent: boolean;
+  aftercare_sent_at: string | null;
   notes: string;
   came_via_bot: boolean;
   archived: boolean;
@@ -297,7 +297,7 @@ export default function AftercarePage() {
       setExtraAftercareNotes("");
       setCustomProcedure("");
       setAddingTreatment(false);
-      flash(j.aftercare_sent ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
+      flash(j.aftercare_sent_at ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
 
       if (capturedRebookChecked && capturedRebookDate && (capturedIntakeId || capturedIsWalkin)) {
         const rebookProcNames = procedures
@@ -921,7 +921,7 @@ export default function AftercarePage() {
               const rep = groupTreatments[0];
               const clientName = rep.intakes?.first_name ?? "Walk-in Client";
               const clientEmail = rep.intakes?.email ?? "";
-              const hasUnsent = groupTreatments.some(t => !t.aftercare_sent && !aftercareSentIds.has(t.id));
+              const hasUnsent = groupTreatments.some(t => t.aftercare_sent_at == null && !aftercareSentIds.has(t.id));
               const isExpanded = expandedClientIds.has(groupKey) || (!expandedClientIds.has(`collapsed:${groupKey}`) && hasUnsent);
               const toggle = () => setExpandedClientIds(prev => {
                 const next = new Set(prev);
@@ -1042,7 +1042,7 @@ export default function AftercarePage() {
                                 {treatment.notes === "Rebooked appointment" && (
                                   <span className="rounded-full bg-purple-50 border border-purple-200 px-2 py-0.5 text-xs font-semibold text-purple-700">📅 Rebooked</span>
                                 )}
-                                {(treatment.aftercare_sent || aftercareSentIds.has(treatment.id)) ? (
+                                {(treatment.aftercare_sent_at != null || aftercareSentIds.has(treatment.id)) ? (
                                   <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">✅ Aftercare sent</span>
                                 ) : (
                                   <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">⏳ No aftercare</span>
