@@ -74,7 +74,6 @@ export default function NurseDashboardPage() {
   const [bot, setBot] = useState<BotRow | null>(null);
   const [intakes, setIntakes] = useState<IntakeRow[]>([]);
   const [surveyLoading, setSurveyLoading] = useState<string | null>(null);
-  const [aftercareLoading, setAftercareLoading] = useState<string | null>(null);
   const [intakesOpen, setIntakesOpen] = useState(false);
 
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -396,16 +395,6 @@ export default function NurseDashboardPage() {
     setSurveyLoading(null);
   }, []);
 
-  const handleSendAftercare = useCallback(async (intake: IntakeRow) => {
-    setAftercareLoading(intake.id);
-    await fetch("/api/send-aftercare", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ intake_id: intake.id }),
-    });
-    setIntakes((prev) => prev.map((i) => i.id === intake.id ? { ...i, aftercare_sent_at: new Date().toISOString() } : i));
-    setAftercareLoading(null);
-  }, []);
 
   const handleFreezeToggle = useCallback(async () => {
     if (!bot) return;
@@ -614,7 +603,7 @@ export default function NurseDashboardPage() {
                               <button
                                 type="button"
                                 disabled={!!intake.aftercare_sent_at}
-                                onClick={() => router.push("/client-journey")}
+                                onClick={() => router.push(`/client-journey?aftercare=${intake.id}`)}
                                 className="shrink-0 rounded-full bg-[#1a2744] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#243552] disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {intake.aftercare_sent_at ? "Aftercare sent ✅" : "Send aftercare 💌"}

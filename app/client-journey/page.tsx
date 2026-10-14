@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -274,6 +274,8 @@ export default function ClientJourneyPage() {
   const [aftercareModalError, setAftercareModalError] = useState<string | null>(null);
   const [aftercareModalResult, setAftercareModalResult] = useState<AftercareSentResult | null>(null);
   const [aftercareSentResults, setAftercareSentResults] = useState<Map<string, AftercareSentResult>>(new Map());
+  const [aftercarePreviewHtml, setAftercarePreviewHtml] = useState<string | null>(null);
+  const [aftercarePreviewLoading, setAftercarePreviewLoading] = useState(false);
 
   // Review request
   const [reviewClientId, setReviewClientId] = useState("");
@@ -556,7 +558,45 @@ export default function ClientJourneyPage() {
 
   const closeAftercareModal = useCallback(() => {
     setAftercareModal(null);
+    setAftercarePreviewHtml(null);
   }, []);
+
+  // Auto-open modal when navigated to with ?aftercare=<intakeId>
+  const didAutoOpen = useRef(false);
+  useEffect(() => {
+    if (didAutoOpen.current) return;
+    const intakeId = typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("aftercare")
+      : null;
+    if (!intakeId || !ready || intakes.length === 0) return;
+    const intake = intakes.find(i => i.id === intakeId);
+    if (!intake) return;
+    didAutoOpen.current = true;
+    const clientName = [intake.first_name, intake.last_name].filter(Boolean).join(" ") || intake.first_name || "Client";
+    openAftercareModal(intakeId, clientName, intake.service_interested ?? "");
+    router.replace("/client-journey");
+  }, [ready, intakes, openAftercareModal, router]);
+
+  // Fetch real preview HTML from server whenever step 2 is shown
+  useEffect(() => {
+    if (aftercareStep !== 2 || !aftercareModal || !aftercareProcedureId || !token) return;
+    let cancelled = false;
+    setAftercarePreviewHtml(null);
+    setAftercarePreviewLoading(true);
+    const params = new URLSearchParams({
+      procedure_id: aftercareProcedureId,
+      intake_id: aftercareModal.intakeId,
+      ...(aftercareNote.trim() ? { personal_note: aftercareNote.trim() } : {}),
+    });
+    fetch(`/api/send-aftercare?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => { if (!cancelled && data.html) setAftercarePreviewHtml(data.html); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setAftercarePreviewLoading(false); });
+    return () => { cancelled = true; };
+  }, [aftercareStep, aftercareModal, aftercareProcedureId, aftercareNote, token]);
 
   const goToApproveAftercare = useCallback((proc: Procedure) => {
     setAftercareModal(null);
@@ -2001,7 +2041,6 @@ export default function ClientJourneyPage() {
             {aftercareStep === 2 && (() => {
               const proc = procedures.find(p => p.id === aftercareProcedureId);
               if (!proc) return null;
-              const instructions = proc.aftercare_instructions?.trim() || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";
               return (
                 <>
                   <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 shrink-0">
@@ -2009,22 +2048,22 @@ export default function ClientJourneyPage() {
                     <h2 className="text-sm font-bold text-[#1a2744] flex-1 text-right">Here&apos;s what {aftercareModal.clientName} will get</h2>
                   </div>
                   <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
-                    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                      <div className="bg-[#1a2744] px-5 py-3 text-center">
-                        <p className="text-white font-bold text-sm">You&apos;re glowing, {aftercareModal.clientName}! 🌸</p>
-                      </div>
-                      <div className="p-4 space-y-3">
-                        <div className="rounded-xl bg-teal-50 border-l-4 border-teal-500 px-4 py-3">
-                          <p className="text-xs font-bold text-teal-700 mb-2">📋 {proc.name} Aftercare</p>
-                          <p className="text-sm text-[#1a2744] whitespace-pre-wrap leading-relaxed line-clamp-6">{instructions}</p>
-                        </div>
-                        {aftercareNote.trim() && (
-                          <div className="rounded-xl bg-orange-50 border-l-4 border-orange-400 px-4 py-3">
-                            <p className="text-xs font-bold text-orange-700 mb-1">💬 A note just for you</p>
-                            <p className="text-sm text-[#1a2744] whitespace-pre-wrap leading-relaxed">{aftercareNote}</p>
-                          </div>
-                        )}
-                      </div>
+                    <div className="rounded-2xl border border-slate-200 overflow-hidden" style={{ minHeight: 220 }}>
+                      {aftercarePreviewLoading && (
+                        <div className="flex items-center justify-center h-40 text-sm text-slate-400">Loading preview…</div>
+                      )}
+                      {!aftercarePreviewLoading && aftercarePreviewHtml && (
+                        <iframe
+                          srcDoc={aftercarePreviewHtml}
+                          sandbox="allow-same-origin"
+                          className="w-full border-0"
+                          style={{ height: 360 }}
+                          title="Email preview"
+                        />
+                      )}
+                      {!aftercarePreviewLoading && !aftercarePreviewHtml && (
+                        <div className="flex items-center justify-center h-40 text-sm text-slate-400">Preview unavailable</div>
+                      )}
                     </div>
 
                     {aftercareModalError && (
