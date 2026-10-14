@@ -32,50 +32,86 @@ export async function GET(request: Request) {
     const nineMonthsAgo = new Date(now);
     nineMonthsAgo.setMonth(nineMonthsAgo.getMonth() - 9);
 
-    // Step 2B backup-only: exclude intakes where any treatment already got a procedure-specific reminder
-    const { data: remindedTreatments } = await supabase
+    // Backup-only logic:
+    // 1. Query eligible intakes directly (marketing_opt_out=false, email set)
+    // 2. For each, find their most recent treatment
+    // 3. Send 6m/9m ONLY if that treatment's procedure has NO reminder_days
+    // 4. Date is from treatment_date, not aftercare_sent_at
+
+    const { data: eligibleIntakes, error: intakesError } = await supabase
+      .from("intakes")
+      .select("id, first_name, email, nurse_id, reminder_6m_sent, reminder_9m_sent")
+      .not("email", "is", null);
+
+    if (intakesError) {
+      console.error("[cron/reminders] intakes query error:", intakesError.message);
+      return NextResponse.json({ error: String(intakesError.message) }, { status: 500 });
+    }
+
+    if (!eligibleIntakes?.length) {
+      return NextResponse.json({ success: true, sent: 0 });
+    }
+
+    const intakeIds = eligibleIntakes.map((i: any) => i.id);
+
+    // Get all non-archived treatments 6+ months ago for those intakes, with procedure info
+    const { data: candidateTreatments, error: treatmentsError } = await supabase
       .from("treatments")
-      .select("intake_id")
-      .eq("reminder_sent", true);
+      .select("id, treatment_date, intake_id, procedure_id, nurse_id, procedures(reminder_days)")
+      .in("intake_id", intakeIds)
+      .eq("archived", false)
+      .lte("treatment_date", sixMonthsAgo.toISOString().split("T")[0]);
 
-    const excludedIntakeIds = new Set(
-      (remindedTreatments ?? []).map((t: any) => t.intake_id as string),
-    );
+    if (treatmentsError) {
+      console.error("[cron/reminders] treatments query error:", treatmentsError.message);
+      return NextResponse.json({ error: String(treatmentsError.message) }, { status: 500 });
+    }
 
-    const { data: sixMonthDue } = await supabase
-      .from("intakes")
-      .select("id, first_name, email, nurse_id, reminder_6m_sent, reminder_9m_sent")
-      .not("aftercare_sent_at", "is", null)
-      .eq("reminder_6m_sent", false)
-      .eq("marketing_opt_out", false)
-      .lte("aftercare_sent_at", sixMonthsAgo.toISOString())
-      .not("email", "is", null);
+    // Most recent treatment per intake_id (among candidates already 6+ months old)
+    const mostRecentByIntake = new Map<string, typeof candidateTreatments[0]>();
+    for (const t of candidateTreatments ?? []) {
+      const existing = mostRecentByIntake.get(t.intake_id);
+      if (!existing || new Date(t.treatment_date) > new Date(existing.treatment_date)) {
+        mostRecentByIntake.set(t.intake_id, t);
+      }
+    }
 
-    const { data: nineMonthDue } = await supabase
-      .from("intakes")
-      .select("id, first_name, email, nurse_id, reminder_6m_sent, reminder_9m_sent")
-      .not("aftercare_sent_at", "is", null)
-      .eq("reminder_9m_sent", false)
-      .eq("marketing_opt_out", false)
-      .lte("aftercare_sent_at", nineMonthsAgo.toISOString())
-      .not("email", "is", null);
+    type CandidateRow = { treatment: typeof candidateTreatments[0]; intake: typeof eligibleIntakes[0] };
+    const sixMonthDue: CandidateRow[] = [];
+    const nineMonthDue: CandidateRow[] = [];
 
-    // Send 6 month reminders (backup only: skip if procedure-specific reminder was sent)
-    for (const intake of sixMonthDue ?? []) {
-      if (excludedIntakeIds.has(intake.id)) continue;
+    for (const intake of eligibleIntakes) {
+      const mostRecent = mostRecentByIntake.get(intake.id);
+      if (!mostRecent) continue; // no logged treatment in 6+ month window
 
-      // Step 2C: fetch bot separately; skip + log if missing
+      const reminderDays = (mostRecent.procedures as any)?.reminder_days;
+      // Backup only: procedure-specific reminder handles this client
+      if (reminderDays) continue;
+
+      const tDate = new Date(mostRecent.treatment_date);
+
+      if (!intake.reminder_6m_sent && tDate <= sixMonthsAgo) {
+        sixMonthDue.push({ treatment: mostRecent, intake });
+      }
+      if (!intake.reminder_9m_sent && tDate <= nineMonthsAgo) {
+        nineMonthDue.push({ treatment: mostRecent, intake });
+      }
+    }
+
+    // Send 6-month reminders
+    for (const { treatment, intake } of sixMonthDue) {
+      const nurseId = treatment.nurse_id ?? intake.nurse_id;
       const { data: bot } = await supabase
         .from("bots")
-        .select("practice_name, booking_link, primary_color")
-        .eq("nurse_id", intake.nurse_id)
+        .select("practice_name, booking_link")
+        .eq("nurse_id", nurseId)
         .single();
 
       if (!bot) {
         await supabase.from("message_log").insert({
           type: "reminder_6m",
           channel: "email",
-          nurse_id: intake.nurse_id,
+          nurse_id: nurseId,
           intake_id: intake.id,
           status: "skipped",
           error: "bot config not found",
@@ -90,13 +126,14 @@ export async function GET(request: Request) {
 
       const result = await sendEmail({
         type: "reminder_6m",
-        nurse_id: intake.nurse_id,
+        nurse_id: nurseId,
         intake_id: intake.id,
         to: intake.email,
         subject: `${clientName}, your lips are calling 💋`,
         html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 6, intakeId: intake.id }),
         supabase,
       });
+
       if (result.ok) {
         await supabase.from("intakes").update({
           reminder_6m_sent: true,
@@ -108,22 +145,20 @@ export async function GET(request: Request) {
       }
     }
 
-    // Send 9 month reminders (backup only: skip if procedure-specific reminder was sent)
-    for (const intake of nineMonthDue ?? []) {
-      if (excludedIntakeIds.has(intake.id)) continue;
-
-      // Step 2C: fetch bot separately; skip + log if missing
+    // Send 9-month reminders
+    for (const { treatment, intake } of nineMonthDue) {
+      const nurseId = treatment.nurse_id ?? intake.nurse_id;
       const { data: bot } = await supabase
         .from("bots")
-        .select("practice_name, booking_link, primary_color")
-        .eq("nurse_id", intake.nurse_id)
+        .select("practice_name, booking_link")
+        .eq("nurse_id", nurseId)
         .single();
 
       if (!bot) {
         await supabase.from("message_log").insert({
           type: "reminder_9m",
           channel: "email",
-          nurse_id: intake.nurse_id,
+          nurse_id: nurseId,
           intake_id: intake.id,
           status: "skipped",
           error: "bot config not found",
@@ -138,13 +173,14 @@ export async function GET(request: Request) {
 
       const result = await sendEmail({
         type: "reminder_9m",
-        nurse_id: intake.nurse_id,
+        nurse_id: nurseId,
         intake_id: intake.id,
         to: intake.email,
         subject: `It's been a while, ${clientName} — time to glow again ✨`,
         html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 9, intakeId: intake.id }),
         supabase,
       });
+
       if (result.ok) {
         await supabase.from("intakes").update({
           reminder_9m_sent: true,
@@ -161,7 +197,6 @@ export async function GET(request: Request) {
     console.error("[cron/reminders] unexpected error:", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });
   } finally {
-    // Step 2G: heartbeat on every post-auth exit path
     await supabase.from("message_log").insert({
       type: "cron:reminders",
       channel: "email",

@@ -32,18 +32,28 @@ export async function GET(request: Request) {
     const thirtyDaysAgo = new Date(now);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Step 2A: window based on most recent treatment_date, not aftercare_sent_at
-    const { data: recentTreatments } = await supabase
+    // Step 2A: only include intakes where the MOST RECENT treatment date falls
+    // in the 14–30 day window; a more recent treatment (< 14 days ago) excludes them
+    const { data: allTreatments } = await supabase
       .from("treatments")
-      .select("intake_id")
-      .gte("treatment_date", thirtyDaysAgo.toISOString().split("T")[0])
-      .lte("treatment_date", fourteenDaysAgo.toISOString().split("T")[0])
+      .select("intake_id, treatment_date")
       .eq("archived", false)
       .not("intake_id", "is", null);
 
-    const eligibleIntakeIds = [...new Set(
-      (recentTreatments ?? []).map((t: any) => t.intake_id as string),
-    )];
+    const mostRecentDateByIntake = new Map<string, string>();
+    for (const t of allTreatments ?? []) {
+      const existing = mostRecentDateByIntake.get(t.intake_id);
+      if (!existing || t.treatment_date > existing) {
+        mostRecentDateByIntake.set(t.intake_id, t.treatment_date);
+      }
+    }
+
+    const cutStart = thirtyDaysAgo.toISOString().split("T")[0];
+    const cutEnd   = fourteenDaysAgo.toISOString().split("T")[0];
+
+    const eligibleIntakeIds = [...mostRecentDateByIntake.entries()]
+      .filter(([, date]) => date >= cutStart && date <= cutEnd)
+      .map(([id]) => id);
 
     if (eligibleIntakeIds.length === 0) {
       return NextResponse.json({ sent: 0 });
@@ -56,7 +66,6 @@ export async function GET(request: Request) {
       .eq("review_request_sent", false)
       .eq("survey_sent", false)
       .is("review_submitted_at", null)
-      .eq("marketing_opt_out", false)
       .not("email", "is", null);
 
     if (intakesError) {

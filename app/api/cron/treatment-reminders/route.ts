@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   let failedCount = 0;
 
   try {
-    // Step 2B: marketing_opt_out in query via !inner join filter
+    // Step 2B: fetch candidates without cross-table marketing_opt_out filter
     const { data: treatments, error: treatmentsError } = await supabase
       .from("treatments")
       .select(`
@@ -35,13 +35,12 @@ export async function GET(request: Request) {
         nurse_id,
         intake_id,
         procedure_id,
-        intakes!inner(first_name, email, marketing_opt_out),
+        intakes(first_name, email),
         procedures(name, reminder_days)
       `)
       .eq("reminder_sent", false)
       .not("procedure_id", "is", null)
-      .eq("archived", false)
-      .eq("intakes.marketing_opt_out", false);
+      .eq("archived", false);
 
     if (treatmentsError) {
       console.error("[cron/treatment-reminders] query error:", treatmentsError.message);
@@ -52,6 +51,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ sent: 0 });
     }
 
+
     // Step 2B: keep only the most recent treatment per (intake_id, procedure_id)
     const mostRecentMap = new Map<string, typeof treatments[0]>();
     for (const t of treatments) {
@@ -60,6 +60,22 @@ export async function GET(request: Request) {
       if (!existing || new Date(t.treatment_date) > new Date(existing.treatment_date)) {
         mostRecentMap.set(key, t);
       }
+    }
+
+    // Mark all older (non-winner) treatments for the same procedure as reminder_sent=true
+    // so they never drift into a date window and double-fire later
+    const loserIds = treatments
+      .filter(t => {
+        const winner = mostRecentMap.get(`${t.intake_id}:${t.procedure_id}`);
+        return winner && t.id !== winner.id;
+      })
+      .map(t => t.id);
+
+    if (loserIds.length > 0) {
+      await supabase
+        .from("treatments")
+        .update({ reminder_sent: true, reminder_sent_at: new Date().toISOString() })
+        .in("id", loserIds);
     }
 
     const today = new Date();
