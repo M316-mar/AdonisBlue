@@ -48,12 +48,16 @@ export async function GET(request: Request) {
     // Default: show active (not archived). Pass ?archived=true to fetch archived records.
     const showArchived = searchParams.get("archived") === "true";
 
-    const { data: treatments } = await supabase
+    const { data: treatments, error: treatmentsError } = await supabase
       .from("treatments")
-      .select("*, intakes(first_name, email, phone, service_interested, prep_guide_sent, followup_sent)")
+      .select("*, intakes(first_name, email, phone, service_interested, prep_guide_sent)")
       .eq("nurse_id", user.id)
       .eq("archived", showArchived)
       .order("created_at", { ascending: false });
+
+    if (treatmentsError) {
+      console.error("[treatments GET] query error:", treatmentsError.message, treatmentsError.code);
+    }
 
     return NextResponse.json({ treatments: treatments ?? [] });
   } catch {

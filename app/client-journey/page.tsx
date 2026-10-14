@@ -62,7 +62,7 @@ type Treatment = {
     email: string;
     phone: string;
     prep_guide_sent: boolean;
-    followup_sent: boolean;
+    followup_sent?: boolean;
     service_interested?: string;
   } | null;
 };
