@@ -84,13 +84,19 @@ export async function GET(request: Request) {
       </tr>`)
     .join("");
 
-  const failureRows = failures.map((f) => `
+  const failureRows = failures.map((f) => {
+    // Strip msg:... fingerprint — never include client message text in this report
+    const safeError = escapeHtml(
+      (f.error ?? "—").replace(/\s*\bmsg:.+$/i, "").trim() || "—"
+    );
+    return `
     <tr>
       <td style="padding:6px 12px;border-bottom:1px solid #fecaca;font-family:monospace;font-size:12px;color:#334155;">${escapeHtml(f.type)}</td>
       <td style="padding:6px 12px;border-bottom:1px solid #fecaca;font-size:12px;color:#64748b;">${escapeHtml(f.nurse_id ?? "—")}</td>
       <td style="padding:6px 12px;border-bottom:1px solid #fecaca;font-size:12px;color:#64748b;">${escapeHtml(new Date(f.created_at).toISOString())}</td>
-      <td style="padding:6px 12px;border-bottom:1px solid #fecaca;font-size:12px;color:#dc2626;word-break:break-word;max-width:280px;">${escapeHtml(f.error ?? "—")}</td>
-    </tr>`).join("");
+      <td style="padding:6px 12px;border-bottom:1px solid #fecaca;font-size:12px;color:#dc2626;word-break:break-word;max-width:280px;">${safeError}</td>
+    </tr>`;
+  }).join("");
 
   const missedCronHtml = missedCrons.length > 0
     ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:16px;margin:20px 0;">
