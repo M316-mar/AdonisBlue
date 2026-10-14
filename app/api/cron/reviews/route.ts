@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { logError } from "@/lib/logError";
 import { sendEmail } from "@/lib/sendAndLog";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
@@ -141,6 +142,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, sent });
   } catch (e) {
     console.error("[cron/reviews] unexpected error:", e);
+    await logError("cron:reviews", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   } finally {
     // Step 2G: heartbeat on every post-auth exit path

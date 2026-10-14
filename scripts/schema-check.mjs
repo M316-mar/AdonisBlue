@@ -255,16 +255,37 @@ for (const ref of allRefs) {
   }
 }
 
-// ── 6. Output ──────────────────────────────────────────────────────────────────
+// ── 6. Filter out known non-public tables (auth schema, storage, etc.) ────────
+// These are referenced via Supabase helpers, not direct PostgREST .from() calls.
+// Add any table here that lives outside the public schema or is always safe to skip.
+const SKIP_TABLES = new Set([
+  "users",          // auth.users — accessed only via supabase.auth, not .from()
+  "identities",     // auth.identities
+  "sessions",       // auth.sessions
+  "objects",        // storage.objects
+  "buckets",        // storage.buckets
+]);
+
+// Tables added by a pending migration that hasn't been run yet.
+// Remove a table from here once its migration has been applied to the DB.
+const KNOWN_PENDING_TABLES = new Set([
+  // "example_table",
+]);
+
+const filteredMissingTables = [...missingTables].filter(
+  t => !SKIP_TABLES.has(t) && !KNOWN_PENDING_TABLES.has(t)
+);
+
+// ── 7. Output ──────────────────────────────────────────────────────────────────
 const W = "=".repeat(90);
 
 console.log(W);
 console.log("MISSING TABLES (table doesn't exist at all)");
 console.log(W);
-if (missingTables.size === 0) {
+if (filteredMissingTables.length === 0) {
   console.log("✅ None");
 } else {
-  for (const t of [...missingTables].sort()) console.log(`  ❌ ${t}`);
+  for (const t of filteredMissingTables.sort()) console.log(`  ❌ ${t}`);
 }
 
 console.log("\n" + W);
@@ -296,4 +317,13 @@ console.log(W);
 for (const [table, cols] of [...dbSchema.entries()].sort()) {
   console.log(`\n  ${table}:`);
   console.log(`    ${[...cols].sort().join(", ")}`);
+}
+
+// Exit 1 if any real mismatches found — causes `npm run check` to fail in CI/pre-push
+const hasErrors = filteredMissingTables.length > 0 || missingCols.length > 0;
+if (hasErrors) {
+  console.error(`\n❌ schema-check found ${filteredMissingTables.length} missing table(s) and ${missingCols.length} missing column(s). Fix before pushing.`);
+  process.exit(1);
+} else {
+  console.log("\n✅ schema-check passed — all code references match the DB.");
 }

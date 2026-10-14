@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -295,6 +296,7 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     console.error("[send-aftercare]", e);
+    await logError("send-aftercare", String(e));
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

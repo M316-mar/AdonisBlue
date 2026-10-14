@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 
 function escapeHtml(str: string): string {
   return str
@@ -179,6 +180,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ processed: sentCount + failedCount, sent: sentCount, failed: failedCount });
   } catch (e) {
     console.error("[prep-reminders] unexpected error:", e);
+    await logError("cron:prep-reminders", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   } finally {
     // Step 2G: heartbeat on every post-auth exit path

@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 
 function escapeHtml(str: string): string {
   return str
@@ -194,6 +195,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, sent });
   } catch (e) {
     console.error("[cron/reminders] unexpected error:", e);
+    await logError("cron:reminders", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   } finally {
     await supabase.from("message_log").insert({

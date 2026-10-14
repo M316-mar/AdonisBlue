@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 
 function escapeHtml(str: string): string {
   return str
@@ -127,6 +128,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error("[beta-application] unexpected error:", e);
+    await logError("beta-application", String(e));
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

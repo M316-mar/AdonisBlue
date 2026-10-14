@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { logError } from "@/lib/logError";
 
 // Map Stripe price IDs → plan names
 const PRICE_TO_PLAN: Record<string, string> = {
@@ -76,6 +77,7 @@ export async function POST(request: Request) {
       }, { onConflict: "nurse_id" });
       if (upsertErr) {
         console.error("[stripe-webhook] bots upsert failed:", upsertErr.message, "nurse_id:", nurseId);
+        await logError("stripe-webhook", upsertErr.message, nurseId ?? undefined);
         return NextResponse.json({ error: "DB write failed" }, { status: 500 });
       }
     }
@@ -94,6 +96,7 @@ export async function POST(request: Request) {
     }).eq("stripe_customer_id", customerId);
     if (updateErr) {
       console.error("[stripe-webhook] bots update failed:", updateErr.message, "customer_id:", customerId);
+      await logError("stripe-webhook", updateErr.message);
       return NextResponse.json({ error: "DB write failed" }, { status: 500 });
     }
   }

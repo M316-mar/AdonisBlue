@@ -11,6 +11,7 @@ const CRON_NAMES = [
   "cron:treatment-reminders",
   "cron:wellness-checkin",
   "cron:aftercare-nudge",
+  "cron:health-report",
 ];
 
 function escapeHtml(str: string): string {
@@ -49,6 +50,20 @@ export async function GET(request: Request) {
     if (row.status === "sent") byType[row.type].sent++;
     else if (row.status === "failed") byType[row.type].failed++;
     else if (row.status === "skipped") byType[row.type].skipped++;
+  }
+
+  // app_errors: structured errors from logError()
+  const { data: appErrorRows } = await supabase
+    .from("app_errors")
+    .select("area, message, nurse_id, created_at")
+    .gte("created_at", since)
+    .order("created_at", { ascending: false });
+  const appErrors = appErrorRows ?? [];
+
+  // Group app_errors by area
+  const errorsByArea: Record<string, number> = {};
+  for (const e of appErrors) {
+    errorsByArea[e.area] = (errorsByArea[e.area] ?? 0) + 1;
   }
 
   // All failures in detail
@@ -106,7 +121,37 @@ export async function GET(request: Request) {
        </div>`
     : `<p style="color:#16a34a;font-size:13px;">✅ All crons ran on schedule.</p>`;
 
-  const allGood = failures.length === 0 && missedCrons.length === 0;
+  const allGood = failures.length === 0 && missedCrons.length === 0 && appErrors.length === 0;
+
+  // ── Promise checks — one line each ──────────────────────────────────────────
+  function check(label: string, ok: boolean, note?: string): string {
+    const icon = ok ? "✅" : "⚠️";
+    const detail = !ok && note ? ` — ${escapeHtml(note)}` : "";
+    return `<li style="padding:4px 0;font-size:14px;color:#334155;">${icon} ${escapeHtml(label)}${detail}</li>`;
+  }
+
+  const chatSent    = (byType["chat"]?.sent ?? 0);
+  const chatFailed  = (byType["chat"]?.failed ?? 0);
+  const aftercareSent = (byType["aftercare"]?.sent ?? 0);
+  const checkinsSent  = (byType["wellness_checkin"]?.sent ?? 0);
+  const remindersSent = (byType["reminder"]?.sent ?? 0) + (byType["prep_reminder"]?.sent ?? 0) + (byType["treatment_reminder"]?.sent ?? 0);
+  const reviewsSent   = (byType["review_request"]?.sent ?? 0);
+  const emergencyAlerts = logRows.filter(r => r.type === "emergency_alert" && r.status === "sent").length;
+  const emergencyFails  = logRows.filter(r => r.type === "emergency_alert" && r.status === "failed").length;
+  const paymentsSaved = logRows.filter(r => r.type === "payment" && r.status === "sent").length;
+
+  const promiseChecksHtml = `
+    <ul style="list-style:none;margin:0;padding:0;">
+      ${check("Chat replies", chatFailed === 0, chatFailed > 0 ? `${chatFailed} failed` : undefined)}
+      ${check("Emergency alerts", emergencyFails === 0, emergencyFails > 0 ? `${emergencyFails} failed` : undefined)}
+      ${check("Aftercare sent", true, aftercareSent > 0 ? `${aftercareSent} sent` : "none sent (may be normal)")}
+      ${check("Check-ins sent", true, checkinsSent > 0 ? `${checkinsSent} sent` : "none sent (may be normal)")}
+      ${check("Reminders sent", true, remindersSent > 0 ? `${remindersSent} sent` : "none sent (may be normal)")}
+      ${check("Review requests", true, reviewsSent > 0 ? `${reviewsSent} sent` : "none sent (may be normal)")}
+      ${check("New payments saved", true, paymentsSaved > 0 ? `${paymentsSaved} saved` : "none (may be normal)")}
+      ${check("Cron heartbeats", missedCrons.length === 0, missedCrons.length > 0 ? `missed: ${missedCrons.join(", ")}` : undefined)}
+      ${check("Errors (app_errors)", appErrors.length === 0, appErrors.length > 0 ? `${appErrors.length} total — areas: ${Object.entries(errorsByArea).map(([a, n]) => `${a}(${n})`).join(", ")}` : undefined)}
+    </ul>`;
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
@@ -119,6 +164,11 @@ export async function GET(request: Request) {
           <p style="margin:6px 0 0;color:#94a3b8;font-size:13px;">${new Date().toUTCString()}</p>
         </td></tr>
         <tr><td style="padding:32px;">
+
+          <h2 style="margin:0 0 12px;color:#1a2744;font-size:15px;font-weight:700;">Promise checks</h2>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:24px;">
+            ${promiseChecksHtml}
+          </div>
 
           ${allGood ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;margin-bottom:20px;text-align:center;"><p style="margin:0;color:#16a34a;font-size:15px;font-weight:700;">All good ✅ — no failures, all crons ran.</p></div>` : ""}
 

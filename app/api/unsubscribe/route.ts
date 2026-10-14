@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { logError } from "@/lib/logError";
 
 export async function GET(request: Request) {
   const html = (message: string) => `<!DOCTYPE html>
@@ -56,6 +57,7 @@ export async function GET(request: Request) {
     );
   } catch (e) {
     console.error("[unsubscribe] unexpected error:", e);
+    await logError("unsubscribe", String(e));
     return new NextResponse(html("Something went wrong. Please try again."), {
       status: 500,
       headers: { "Content-Type": "text/html" },

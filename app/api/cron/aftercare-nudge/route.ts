@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 
 function escapeHtml(str: string): string {
   return str
@@ -184,6 +185,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ sent, skipped });
   } catch (e) {
     console.error("[aftercare-nudge] unexpected error:", e);
+    await logError("cron:aftercare-nudge", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   } finally {
     // Step 2G: heartbeat on every post-auth exit path

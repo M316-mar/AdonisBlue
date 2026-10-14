@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.adonisblue.io";
 
@@ -167,6 +168,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ processed: sentCount + failedCount, sent: sentCount, failed: failedCount });
   } catch (e) {
     console.error("[wellness-checkin] unexpected error:", e);
+    await logError("cron:wellness-checkin", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   } finally {
     // Step 2G: heartbeat on every post-auth exit path
