@@ -95,6 +95,16 @@ type Incident = {
   timestamp: string;
 };
 
+type AftercareSentResult = {
+  sent_at: string;
+  treatment_date: string;
+  procedure_name: string;
+  reminder_days: number | null;
+  client_name: string;
+  marketing_opt_out: boolean;
+  review_submitted_at: string | null;
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function intakesForProcedure(intakes: Intake[], procedureName: string): Intake[] {
@@ -252,6 +262,18 @@ export default function ClientJourneyPage() {
   const [aftercareSentIds, setAftercareSentIds] = useState<Set<string>>(new Set());
   const [followupSending, setFollowupSending] = useState<string | null>(null);
   const [followupSentIds, setFollowupSentIds] = useState<Set<string>>(new Set());
+
+  // Aftercare modal
+  const [aftercareModal, setAftercareModal] = useState<{ intakeId: string; clientName: string; serviceInterested: string } | null>(null);
+  const [aftercareStep, setAftercareStep] = useState<1 | 2 | "success">(1);
+  const [aftercareProcedureId, setAftercareProcedureId] = useState<string | null>(null);
+  const [aftercareDate, setAftercareDate] = useState(new Date().toISOString().slice(0, 10));
+  const [aftercareNote, setAftercareNote] = useState("");
+  const [aftercareNoteOpen, setAftercareNoteOpen] = useState(false);
+  const [aftercareModalSending, setAftercareModalSending] = useState(false);
+  const [aftercareModalError, setAftercareModalError] = useState<string | null>(null);
+  const [aftercareModalResult, setAftercareModalResult] = useState<AftercareSentResult | null>(null);
+  const [aftercareSentResults, setAftercareSentResults] = useState<Map<string, AftercareSentResult>>(new Map());
 
   // Review request
   const [reviewClientId, setReviewClientId] = useState("");
@@ -513,28 +535,72 @@ export default function ClientJourneyPage() {
     }
   }, [token]);
 
-  const sendAftercareEmail = useCallback(async (intakeId: string, clientName: string) => {
-    setAftercareSending(intakeId);
+  const openAftercareModal = useCallback((intakeId: string, clientName: string, serviceInterested: string) => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const match = procedures.find(p =>
+      p.approved_at && serviceInterested && (
+        serviceInterested.toLowerCase().includes(p.name.toLowerCase()) ||
+        p.name.toLowerCase().includes((serviceInterested ?? "").toLowerCase().split(" ")[0] ?? "")
+      )
+    );
+    setAftercareProcedureId(match?.id ?? null);
+    setAftercareDate(todayStr);
+    setAftercareNote("");
+    setAftercareNoteOpen(false);
+    setAftercareModalSending(false);
+    setAftercareModalError(null);
+    setAftercareModalResult(null);
+    setAftercareStep(1);
+    setAftercareModal({ intakeId, clientName, serviceInterested });
+  }, [procedures]);
+
+  const closeAftercareModal = useCallback(() => {
+    setAftercareModal(null);
+  }, []);
+
+  const goToApproveAftercare = useCallback((proc: Procedure) => {
+    setAftercareModal(null);
+    setTab("aftercare");
+    setEditingProcedure({ ...proc });
+  }, []);
+
+  const sendAftercareFromModal = useCallback(async () => {
+    if (!aftercareModal || !aftercareProcedureId) return;
+    setAftercareModalSending(true);
+    setAftercareModalError(null);
     try {
       const res = await fetch("/api/send-aftercare", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intake_id: intakeId }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          intake_id: aftercareModal.intakeId,
+          procedure_id: aftercareProcedureId,
+          treatment_date: aftercareDate,
+          personal_note: aftercareNote || undefined,
+        }),
       });
-      if (res.ok) {
-        setAftercareSentIds(prev => new Set([...prev, intakeId]));
-        setTreatments(prev => prev.map(t =>
-          t.intake_id === intakeId ? { ...t, aftercare_sent: true } : t
-        ));
-        flash(`💙 Aftercare sent to ${clientName}!`);
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAftercareModalError(j.error ?? "Something went wrong — please try again");
       } else {
-        const j = await res.json().catch(() => ({}));
-        flash(`Failed: ${j.error ?? "unknown error"}`);
+        const result: AftercareSentResult = {
+          sent_at: j.sent_at,
+          treatment_date: j.treatment_date,
+          procedure_name: j.procedure_name,
+          reminder_days: j.reminder_days ?? null,
+          client_name: j.client_name,
+          marketing_opt_out: j.marketing_opt_out ?? false,
+          review_submitted_at: j.review_submitted_at ?? null,
+        };
+        setAftercareModalResult(result);
+        setAftercareStep("success");
+        setAftercareSentIds(prev => new Set([...prev, aftercareModal.intakeId]));
+        setAftercareSentResults(prev => new Map([...prev, [aftercareModal.intakeId, result]]));
       }
     } finally {
-      setAftercareSending(null);
+      setAftercareModalSending(false);
     }
-  }, []);
+  }, [aftercareModal, aftercareProcedureId, aftercareDate, aftercareNote, token]);
 
   const sendFollowup = useCallback(async (intakeId: string, treatmentId: string, clientName: string) => {
     setFollowupSending(intakeId);
@@ -808,22 +874,48 @@ export default function ClientJourneyPage() {
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-start gap-2 min-w-0">
                               <span className="text-base mt-0.5">💙</span>
-                              <div>
+                              <div className="min-w-0">
                                 <p className="text-sm font-semibold text-[#1a2744]">Aftercare</p>
                                 <p className={`text-xs font-semibold ${aftercareSent ? "text-teal-600" : "text-slate-400"}`}>
-                                  {aftercareSent ? "✅ Sent" : "❌ Not sent"}
+                                  {aftercareSent && intakeId && aftercareSentResults.has(intakeId)
+                                    ? `Aftercare sent ✓ ${new Date(aftercareSentResults.get(intakeId)!.sent_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+                                    : aftercareSent ? "✅ Sent" : "❌ Not sent"}
                                 </p>
-                                <p className="text-xs text-slate-400 italic mt-0.5">Aftercare is customized per procedure — send manually from the Aftercare Email tab.</p>
+                                {aftercareSent && intakeId && aftercareSentResults.has(intakeId) && (() => {
+                                  const r = aftercareSentResults.get(intakeId)!;
+                                  const addD = (d: string, n: number) => {
+                                    const dt = new Date(d + "T00:00:00Z");
+                                    dt.setUTCDate(dt.getUTCDate() + n);
+                                    return dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                                  };
+                                  return (
+                                    <div className="mt-1.5 flex items-center gap-1 text-xs text-slate-400 flex-wrap">
+                                      <span className="text-teal-600 font-semibold">Visit ✓</span>
+                                      <span>→</span>
+                                      <span className="text-teal-600 font-semibold">Aftercare ✓</span>
+                                      <span>→</span>
+                                      <span>Check-in {addD(r.treatment_date, 1)}</span>
+                                      {!r.marketing_opt_out && !r.review_submitted_at && <>
+                                        <span>→</span>
+                                        <span>Review {addD(r.treatment_date, 14)}</span>
+                                      </>}
+                                      {!r.marketing_opt_out && <>
+                                        <span>→</span>
+                                        <span>Next visit {r.reminder_days ? addD(r.treatment_date, r.reminder_days) : addD(r.treatment_date, 180)}</span>
+                                      </>}
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
                             {!aftercareSent && (
                               <button
                                 type="button"
-                                disabled={aftercareSending === intakeId}
-                                onClick={() => void sendAftercareEmail(intakeId, clientName)}
-                                className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                                onClick={() => openAftercareModal(intakeId!, clientName, rep.intakes?.service_interested ?? "")}
+                                style={{ touchAction: "manipulation" }}
+                                className="shrink-0 min-h-[44px] rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.97]"
                               >
-                                {aftercareSending === intakeId ? "Sending…" : "Send"}
+                                Send
                               </button>
                             )}
                           </div>
@@ -1814,6 +1906,246 @@ export default function ClientJourneyPage() {
         )}
 
       </main>
+
+      {/* ── Aftercare modal ──────────────────────────────────────────────── */}
+      {aftercareModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
+          onClick={() => { if (aftercareStep !== "success") closeAftercareModal(); }}
+        >
+          <div
+            className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Step 1: Pick treatment + date */}
+            {aftercareStep === 1 && (
+              <>
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+                  <h2 className="text-base font-bold text-[#1a2744]">
+                    Which treatment did {aftercareModal.clientName} get?
+                  </h2>
+                  <button type="button" onClick={closeAftercareModal} className="ml-3 text-slate-400 hover:text-slate-600 text-2xl leading-none shrink-0">×</button>
+                </div>
+                <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
+                  {procedures.length === 0 && (
+                    <p className="text-sm text-slate-500 py-4 text-center">
+                      No treatments set up yet.{" "}
+                      <button type="button" onClick={() => { closeAftercareModal(); setTab("aftercare"); }} className="text-[#0d9488] font-semibold hover:underline">
+                        Set one up in Aftercare Email →
+                      </button>
+                    </p>
+                  )}
+                  {procedures.map(proc => {
+                    const isApproved = !!proc.approved_at;
+                    const isSelected = aftercareProcedureId === proc.id;
+                    return (
+                      <div
+                        key={proc.id}
+                        onClick={() => isApproved && setAftercareProcedureId(proc.id)}
+                        className={`rounded-xl border-2 px-4 py-3 flex items-center justify-between gap-3 transition ${
+                          isApproved
+                            ? isSelected
+                              ? "border-[#0d9488] bg-teal-50 cursor-pointer"
+                              : "border-slate-200 bg-white hover:border-teal-300 cursor-pointer"
+                            : "border-slate-100 bg-slate-50 cursor-default"
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className={`text-sm font-semibold ${isApproved ? "text-[#1a2744]" : "text-slate-400"}`}>{proc.name}</p>
+                          {isApproved ? (
+                            <p className="text-xs text-teal-600 font-semibold mt-0.5">Aftercare ready ✓</p>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); goToApproveAftercare(proc); }}
+                              className="text-xs text-[#0d9488] font-semibold hover:underline mt-0.5"
+                            >
+                              Approve this aftercare first →
+                            </button>
+                          )}
+                        </div>
+                        {isApproved && isSelected && (
+                          <svg className="h-5 w-5 text-[#0d9488] shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center gap-3 pt-2">
+                    <p className="text-sm text-slate-600 font-semibold shrink-0">Treatment date:</p>
+                    <input
+                      type="date"
+                      value={aftercareDate}
+                      max={new Date().toISOString().slice(0, 10)}
+                      onChange={e => e.target.value && setAftercareDate(e.target.value)}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 bg-white focus:border-[#0d9488] outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="px-5 py-4 border-t border-slate-100 shrink-0">
+                  <button
+                    type="button"
+                    disabled={!aftercareProcedureId}
+                    onClick={() => setAftercareStep(2)}
+                    style={{ touchAction: "manipulation" }}
+                    className="w-full min-h-[44px] rounded-full bg-[#0d9488] px-6 py-3 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-40 active:scale-[0.98]"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Step 2: Preview + optional note */}
+            {aftercareStep === 2 && (() => {
+              const proc = procedures.find(p => p.id === aftercareProcedureId);
+              if (!proc) return null;
+              const instructions = proc.aftercare_instructions?.trim() || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";
+              return (
+                <>
+                  <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 shrink-0">
+                    <button type="button" onClick={() => { setAftercareStep(1); setAftercareModalError(null); }} className="text-sm text-[#0d9488] font-semibold hover:underline shrink-0">← Change</button>
+                    <h2 className="text-sm font-bold text-[#1a2744] flex-1 text-right">Here&apos;s what {aftercareModal.clientName} will get</h2>
+                  </div>
+                  <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
+                    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                      <div className="bg-[#1a2744] px-5 py-3 text-center">
+                        <p className="text-white font-bold text-sm">You&apos;re glowing, {aftercareModal.clientName}! 🌸</p>
+                      </div>
+                      <div className="p-4 space-y-3">
+                        <div className="rounded-xl bg-teal-50 border-l-4 border-teal-500 px-4 py-3">
+                          <p className="text-xs font-bold text-teal-700 mb-2">📋 {proc.name} Aftercare</p>
+                          <p className="text-sm text-[#1a2744] whitespace-pre-wrap leading-relaxed line-clamp-6">{instructions}</p>
+                        </div>
+                        {aftercareNote.trim() && (
+                          <div className="rounded-xl bg-orange-50 border-l-4 border-orange-400 px-4 py-3">
+                            <p className="text-xs font-bold text-orange-700 mb-1">💬 A note just for you</p>
+                            <p className="text-sm text-[#1a2744] whitespace-pre-wrap leading-relaxed">{aftercareNote}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {aftercareModalError && (
+                      <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 font-semibold">
+                        {aftercareModalError}
+                      </div>
+                    )}
+
+                    {!aftercareNoteOpen ? (
+                      <div>
+                        <p className="text-sm text-slate-600 font-semibold mb-3">Need to change or add anything?</p>
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            disabled={aftercareModalSending}
+                            onClick={() => void sendAftercareFromModal()}
+                            style={{ touchAction: "manipulation" }}
+                            className="flex-1 min-h-[44px] rounded-full bg-[#0d9488] px-4 py-3 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50 active:scale-[0.98]"
+                          >
+                            {aftercareModalSending ? "Sending…" : "No, send it"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAftercareNoteOpen(true)}
+                            style={{ touchAction: "manipulation" }}
+                            className="flex-1 min-h-[44px] rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50 active:scale-[0.98]"
+                          >
+                            Yes, add a note
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-semibold text-[#1a2744] block mb-1">Add a personal note for {aftercareModal.clientName}</label>
+                          <p className="text-xs text-slate-500 mb-2">This is added to {aftercareModal.clientName}&apos;s email only. Your saved {proc.name} aftercare stays the same.</p>
+                          <textarea
+                            value={aftercareNote}
+                            onChange={e => setAftercareNote(e.target.value)}
+                            rows={4}
+                            placeholder="e.g. You did great today — the swelling should settle by tomorrow morning."
+                            className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0d9488] focus:bg-white transition"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          disabled={aftercareModalSending}
+                          onClick={() => void sendAftercareFromModal()}
+                          style={{ touchAction: "manipulation" }}
+                          className="w-full min-h-[44px] rounded-full bg-[#0d9488] px-6 py-3 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50 active:scale-[0.98]"
+                        >
+                          {aftercareModalSending ? "Sending…" : "Send now"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+
+            {/* Success screen */}
+            {aftercareStep === "success" && aftercareModalResult && (() => {
+              const r = aftercareModalResult;
+              const addD = (d: string, n: number) => {
+                const dt = new Date(d + "T00:00:00Z");
+                dt.setUTCDate(dt.getUTCDate() + n);
+                return dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+              };
+              return (
+                <>
+                  <div className="px-5 pt-6 pb-2 text-center shrink-0">
+                    <p className="text-3xl mb-2">💙</p>
+                    <h2 className="text-lg font-bold text-[#1a2744]">Aftercare sent to {r.client_name}!</h2>
+                  </div>
+                  <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
+                    <p className="text-sm font-bold text-[#1a2744]">What happens next, automatically:</p>
+                    <div className="space-y-2.5">
+                      <div className="flex items-start gap-3">
+                        <span className="text-teal-500 font-bold text-sm mt-0.5 shrink-0">✓</span>
+                        <p className="text-sm text-slate-700">Tomorrow: 24-hour check-in</p>
+                      </div>
+                      {!r.marketing_opt_out && !r.review_submitted_at && (
+                        <div className="flex items-start gap-3">
+                          <span className="text-teal-500 font-bold text-sm mt-0.5 shrink-0">✓</span>
+                          <p className="text-sm text-slate-700">{addD(r.treatment_date, 14)}: review request</p>
+                        </div>
+                      )}
+                      {!r.marketing_opt_out && (
+                        <div className="flex items-start gap-3">
+                          <span className="text-teal-500 font-bold text-sm mt-0.5 shrink-0">✓</span>
+                          <p className="text-sm text-slate-700">
+                            {r.reminder_days ? addD(r.treatment_date, r.reminder_days) : addD(r.treatment_date, 180)}: a reminder that her {r.procedure_name} is due
+                            {!r.reminder_days && " (6-month check-in)"}
+                          </p>
+                        </div>
+                      )}
+                      {r.marketing_opt_out && (
+                        <div className="flex items-start gap-3">
+                          <span className="text-slate-400 text-sm mt-0.5 shrink-0">ℹ️</span>
+                          <p className="text-sm text-slate-500 italic">{r.client_name} unsubscribed from reminders — she&apos;ll still get her check-in.</p>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-500 pt-1">You don&apos;t need to do anything else.</p>
+                  </div>
+                  <div className="px-5 py-4 border-t border-slate-100 shrink-0">
+                    <button
+                      type="button"
+                      onClick={closeAftercareModal}
+                      style={{ touchAction: "manipulation" }}
+                      className="w-full min-h-[44px] rounded-full bg-[#1a2744] px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800 active:scale-[0.98]"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
       </div>
     </div>
