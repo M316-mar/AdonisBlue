@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
-import { detectEmergencySync, DEFAULT_EMERGENCY_KEYWORDS } from "@/lib/emergencyCheck";
+import { detectEmergencySync, DEFAULT_EMERGENCY_KEYWORDS, normalizeText } from "@/lib/emergencyCheck";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -195,11 +195,62 @@ export async function POST(request: Request) {
       { onConflict: "treatment_id" }
     );
 
-    // ── Emergency alerts — email + SMS ────────────────────────────────────
+    // ── Server-side dedup (10-min same-message window) ────────────────────
+    const normalizedCurrentMsg = normalizeText(lastUserMessage).slice(0, 200);
+    let isDuplicateMessage = false;
+    let isUpdate = false;
+    let earlierAlertMsgs: string[] = [];
+
     if (isFlagged) {
-      // ── Part 2: Email fallback ───────────────────────────────────────────
-      // If the nurse hasn't set a notification_email in Alert Settings,
-      // fall back to their Supabase auth account email so no alert is ever silently dropped.
+      try {
+        const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+        const { data: recentRows } = await supabase
+          .from("message_log")
+          .select("error, created_at")
+          .eq("type", "emergency_alert")
+          .eq("nurse_id", treatment.nurse_id)
+          .eq("status", "sent")
+          .gte("created_at", twoHoursAgo)
+          .order("created_at", { ascending: false });
+
+        const rows = recentRows ?? [];
+        isDuplicateMessage = rows
+          .filter((r) => r.created_at >= tenMinAgo)
+          .some((r) => {
+            const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
+            return m != null && m[1] === normalizedCurrentMsg;
+          });
+
+        if (!isDuplicateMessage) {
+          isUpdate = rows.length > 0;
+          earlierAlertMsgs = rows
+            .map((r) => {
+              const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
+              return m ? m[1] : null;
+            })
+            .filter((x): x is string => x !== null)
+            .slice(0, 2);
+        }
+      } catch (dedupErr) {
+        console.error("[healing-emergency] dedup check failed (proceeding):", dedupErr);
+      }
+    }
+
+    // Log skip if exact duplicate within 10 min
+    if (isDuplicateMessage) {
+      supabase.from("message_log").insert({
+        type: "emergency_alert",
+        channel: "email",
+        nurse_id: treatment.nurse_id,
+        status: "skipped",
+        error: "duplicate within 10 min",
+      }).then(() => {}, () => {});
+      console.log("[healing-emergency] Duplicate message within 10 min — skipping alert");
+    }
+
+    // ── Emergency alerts — email + SMS ────────────────────────────────────
+    if (isFlagged && !isDuplicateMessage) {
       let alertEmailAddress = nurseEmail?.trim() || null;
       if (!alertEmailAddress) {
         try {
@@ -217,15 +268,25 @@ export async function POST(request: Request) {
         console.log(`[emergency] Sending alert email to configured notification_email: ${alertEmailAddress}`);
       }
 
-      const practiceName = treatment.bots?.practice_name ?? "your practice";
+      const msgPreview = escapeHtml(lastUserMessage.slice(0, 60));
+      const healingSubject = isUpdate
+        ? `⚠️ UPDATE — same client: "${msgPreview}" — ${practiceName}`
+        : `⚠️ URGENT: ${clientName} needs attention after ${procedureName}`;
 
-      // Email with retry + escalation
+      const updateSection = isUpdate && earlierAlertMsgs.length > 0
+        ? `<div style="background:#fff7ed;border:1px solid #f97316;border-radius:8px;padding:12px;margin:16px 0;">
+            <p style="margin:0 0 6px;color:#c2410c;font-size:13px;font-weight:700;">Earlier message(s) from this client:</p>
+            ${earlierAlertMsgs.map((m) => `<p style="margin:0 0 4px;color:#92400e;font-size:13px;">&ldquo;${escapeHtml(m)}&rdquo;</p>`).join("")}
+          </div>`
+        : "";
+
       await sendEmergencyAlert({
         nurseEmail: alertEmailAddress,
         nurseId: treatment.nurse_id,
         practiceName,
         type: "healing",
-        subject: `⚠️ URGENT: ${clientName} needs attention after ${procedureName}`,
+        subject: healingSubject,
+        msgKey: normalizedCurrentMsg,
         html: `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#fef2f2;font-family:-apple-system,sans-serif;">
@@ -237,6 +298,7 @@ export async function POST(request: Request) {
           <p style="margin:8px 0 0;color:#fff;font-size:18px;font-weight:700;">URGENT — Client needs attention</p>
         </td></tr>
         <tr><td style="padding:32px;">
+          ${updateSection}
           <p style="margin:0 0 16px;color:#1a2744;font-size:16px;"><strong>${escapeHtml(clientName)}</strong> reported a concerning symptom after their <strong>${escapeHtml(procedureName)}</strong>:</p>
           <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:8px;padding:16px;margin:16px 0;">
             <p style="margin:0;color:#dc2626;font-size:15px;font-weight:600;">&ldquo;${safeFlaggedMessage}&rdquo;</p>
@@ -337,22 +399,86 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     const aiAlertToken = rawAiMessage.includes("[[ALERT_NURSE]]");
     const aiMessage = rawAiMessage.replace(/\[\[ALERT_NURSE\]\]\s*/g, "").trimEnd();
 
-    // Fire AI-triggered alert only if keyword detector did NOT already send one for this message
-    if (aiAlertToken && !isFlagged) {
-      let alertEmailAi = nurseEmail?.trim() || null;
-      if (!alertEmailAi) {
-        try {
-          const { data: authUser } = await supabase.auth.admin.getUserById(treatment.nurse_id);
-          alertEmailAi = authUser?.user?.email ?? null;
-        } catch { /* non-fatal */ }
-      }
-      await sendEmergencyAlert({
-        nurseEmail: alertEmailAi,
-        nurseId: treatment.nurse_id,
-        practiceName,
-        type: "healing",
-        subject: `⚠️ URGENT: Client may need attention — AI-detected — ${practiceName}`,
-        html: `<!DOCTYPE html>
+    // Fire AI-triggered alert only if keyword detector did NOT already fire, and not a duplicate
+    if (aiAlertToken && !isFlagged && !isDuplicateMessage) {
+      // Update healing_chats: set flagged=true so alert appears in bell and Your Secretary
+      await supabase.from("healing_chats").upsert(
+        {
+          treatment_id,
+          nurse_id: treatment.nurse_id,
+          flagged: true,
+          flagged_message: lastUserMessage.slice(0, 500),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "treatment_id" }
+      );
+
+      // Dedup for AI path: check message_log (keyword path already ran dedup above, AI path checks fresh)
+      let aiIsDuplicate = false;
+      let aiIsUpdate = false;
+      let aiEarlierMsgs: string[] = [];
+      try {
+        const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+        const { data: aiRecentRows } = await supabase
+          .from("message_log")
+          .select("error, created_at")
+          .eq("type", "emergency_alert")
+          .eq("nurse_id", treatment.nurse_id)
+          .eq("status", "sent")
+          .gte("created_at", twoHoursAgo)
+          .order("created_at", { ascending: false });
+        const aiRows = aiRecentRows ?? [];
+        aiIsDuplicate = aiRows
+          .filter((r) => r.created_at >= tenMinAgo)
+          .some((r) => {
+            const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
+            return m != null && m[1] === normalizedCurrentMsg;
+          });
+        if (!aiIsDuplicate) {
+          aiIsUpdate = aiRows.length > 0;
+          aiEarlierMsgs = aiRows
+            .map((r) => { const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null; return m ? m[1] : null; })
+            .filter((x): x is string => x !== null)
+            .slice(0, 2);
+        }
+      } catch { /* non-fatal — proceed */ }
+
+      if (aiIsDuplicate) {
+        supabase.from("message_log").insert({
+          type: "emergency_alert", channel: "email",
+          nurse_id: treatment.nurse_id, status: "skipped",
+          error: "duplicate within 10 min",
+        }).then(() => {}, () => {});
+      } else {
+        let alertEmailAi = nurseEmail?.trim() || null;
+        if (!alertEmailAi) {
+          try {
+            const { data: authUser } = await supabase.auth.admin.getUserById(treatment.nurse_id);
+            alertEmailAi = authUser?.user?.email ?? null;
+          } catch { /* non-fatal */ }
+        }
+
+        const aiMsgPreview = escapeHtml(lastUserMessage.slice(0, 60));
+        const subjectAI = aiIsUpdate
+          ? `⚠️ UPDATE (AI-detected) — same client: "${aiMsgPreview}" — ${practiceName}`
+          : `⚠️ URGENT: Client may need attention — AI-detected — ${practiceName}`;
+
+        const aiUpdateSection = aiIsUpdate && aiEarlierMsgs.length > 0
+          ? `<div style="background:#fff7ed;border:1px solid #f97316;border-radius:8px;padding:12px;margin:16px 0;">
+              <p style="margin:0 0 6px;color:#c2410c;font-size:13px;font-weight:700;">Earlier message(s) from this client:</p>
+              ${aiEarlierMsgs.map((m) => `<p style="margin:0 0 4px;color:#92400e;font-size:13px;">&ldquo;${escapeHtml(m)}&rdquo;</p>`).join("")}
+            </div>`
+          : "";
+
+        await sendEmergencyAlert({
+          nurseEmail: alertEmailAi,
+          nurseId: treatment.nurse_id,
+          practiceName,
+          type: "healing",
+          subject: subjectAI,
+          msgKey: normalizedCurrentMsg,
+          html: `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#fef2f2;font-family:-apple-system,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;padding:32px 16px;">
@@ -363,6 +489,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           <p style="margin:6px 0 0;color:#fecaca;font-size:13px;">${escapeHtml(practiceName)}</p>
         </td></tr>
         <tr><td style="padding:32px;">
+          ${aiUpdateSection}
           <p style="margin:0 0 16px;color:#1a2744;font-size:15px;">The AI assistant flagged a potential emergency in the recovery chat. Client: <strong>${escapeHtml(clientName)}</strong></p>
           <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:8px;padding:16px;margin:12px 0;">
             <p style="margin:0;color:#dc2626;font-size:15px;font-weight:600;">&ldquo;${escapeHtml(lastUserMessage.slice(0, 500))}&rdquo;</p>
@@ -378,8 +505,15 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     </td></tr>
   </table>
 </body></html>`,
-        supabase,
-      });
+          supabase,
+        });
+      }
+    } else if (aiAlertToken && !isFlagged && isDuplicateMessage) {
+      supabase.from("message_log").insert({
+        type: "emergency_alert", channel: "email",
+        nurse_id: treatment.nurse_id, status: "skipped",
+        error: "duplicate within 10 min",
+      }).then(() => {}, () => {});
     }
 
     return NextResponse.json({ message: aiMessage, flagged: isFlagged });

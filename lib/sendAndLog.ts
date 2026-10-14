@@ -184,10 +184,12 @@ interface EmergencyAlertOpts {
   subject: string;
   html: string;
   supabase: SupabaseClient;
+  /** Normalized message text stored in message_log for dedup queries. */
+  msgKey?: string;
 }
 
 export async function sendEmergencyAlert(opts: EmergencyAlertOpts): Promise<void> {
-  const { nurseEmail, nurseId, practiceName, type, subject, html, supabase } = opts;
+  const { nurseEmail, nurseId, practiceName, type, subject, html, supabase, msgKey } = opts;
 
   if (!nurseEmail) {
     // Log the miss and immediately escalate
@@ -204,13 +206,13 @@ export async function sendEmergencyAlert(opts: EmergencyAlertOpts): Promise<void
   }
 
   // Attempt 1
-  const r1 = await _attemptEmergencyEmail({ nurseEmail, subject, html, attempt: 1, nurseId, type, supabase });
+  const r1 = await _attemptEmergencyEmail({ nurseEmail, subject, html, attempt: 1, nurseId, type, msgKey, supabase });
   if (r1.ok) return;
 
   // Wait ~2s and retry
   await new Promise(res => setTimeout(res, 2000));
 
-  const r2 = await _attemptEmergencyEmail({ nurseEmail, subject, html, attempt: 2, nurseId, type, supabase });
+  const r2 = await _attemptEmergencyEmail({ nurseEmail, subject, html, attempt: 2, nurseId, type, msgKey, supabase });
   if (r2.ok) return;
 
   // Both attempts failed — escalate
@@ -225,8 +227,9 @@ async function _attemptEmergencyEmail(opts: {
   nurseId: string;
   type: string;
   supabase: SupabaseClient;
+  msgKey?: string;
 }): Promise<SendResult> {
-  const { nurseEmail, subject, html, attempt, nurseId, type, supabase } = opts;
+  const { nurseEmail, subject, html, attempt, nurseId, type, supabase, msgKey } = opts;
   try {
     const result = await resend.emails.send({
       from: "AdonisBlue <hi@adonisblue.io>",
@@ -243,7 +246,7 @@ async function _attemptEmergencyEmail(opts: {
       status: "sent",
       provider_id,
       attempt,
-      error: `alert_type:${type}`,
+      error: `alert_type:${type}${msgKey ? ` msg:${msgKey}` : ""}`,
     });
     return { ok: true, provider_id: provider_id ?? undefined };
   } catch (e) {

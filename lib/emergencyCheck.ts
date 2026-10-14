@@ -6,7 +6,7 @@ export const DEFAULT_EMERGENCY_KEYWORDS = [
   "hard time breathing", "short of breath", "shortness of breath",
   "can't breathe", "cant breathe", "cannot breathe",
   // Throat / tongue
-  "throat swelling", "throat closing", "throat is closing",
+  "throat swelling", "throat is swelling", "throat closing", "throat is closing",
   "tongue swelling", "tongue is swelling",
   "can't swallow", "cant swallow", "trouble swallowing",
   // Vision
@@ -22,6 +22,12 @@ export const DEFAULT_EMERGENCY_KEYWORDS = [
   "severe pain", "unbearable pain", "pain is unbearable",
   // Infection / reaction
   "spreading redness", "high fever",
+  // Throat tightness (common filler reaction phrase)
+  "throat tight", "throat feels tight", "throat is tight", "tight throat", "throat feels weird",
+  // Chest tightness variants
+  "chest feels tight",
+  // Breathing — catch my breath
+  "can't catch my breath", "cant catch my breath",
   // Original keywords (kept)
   "purple", "blue lips",
   "extreme pain",
