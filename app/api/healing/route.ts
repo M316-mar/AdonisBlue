@@ -195,8 +195,17 @@ export async function POST(request: Request) {
       { onConflict: "treatment_id" }
     );
 
-    // ── Server-side dedup (10-min same-message window) ────────────────────
+    // ── Server-side dedup (conversation-scoped) ──────────────────────────
+    // "Same conversation" = messages already in this healing chat.
+    // Two different clients using the same nurse are never confused.
     const normalizedCurrentMsg = normalizeText(lastUserMessage).slice(0, 200);
+
+    // All normalized user messages already in this conversation (excluding the current one)
+    const prevConvMsgs = messages
+      .filter((m) => m.role === "user")
+      .slice(0, -1)
+      .map((m) => normalizeText(m.content).slice(0, 200));
+
     let isDuplicateMessage = false;
     let isUpdate = false;
     let earlierAlertMsgs: string[] = [];
@@ -215,16 +224,25 @@ export async function POST(request: Request) {
           .order("created_at", { ascending: false });
 
         const rows = recentRows ?? [];
-        isDuplicateMessage = rows
-          .filter((r) => r.created_at >= tenMinAgo)
-          .some((r) => {
-            const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
-            return m != null && m[1] === normalizedCurrentMsg;
-          });
+
+        // Skip only if same text within 10 min AND it was already in THIS chat's history
+        const msgWasAlreadyInConv = prevConvMsgs.includes(normalizedCurrentMsg);
+        isDuplicateMessage = msgWasAlreadyInConv &&
+          rows
+            .filter((r) => r.created_at >= tenMinAgo)
+            .some((r) => {
+              const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
+              return m != null && m[1] === normalizedCurrentMsg;
+            });
 
         if (!isDuplicateMessage) {
-          isUpdate = rows.length > 0;
-          earlierAlertMsgs = rows
+          // UPDATE: an earlier message from THIS chat was already alerted
+          const matchingRows = rows.filter((r) => {
+            const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
+            return m != null && prevConvMsgs.includes(m[1]);
+          });
+          isUpdate = matchingRows.length > 0;
+          earlierAlertMsgs = matchingRows
             .map((r) => {
               const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
               return m ? m[1] : null;
@@ -413,7 +431,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
         { onConflict: "treatment_id" }
       );
 
-      // Dedup for AI path: check message_log (keyword path already ran dedup above, AI path checks fresh)
+      // Dedup for AI path — conversation-scoped, same logic as keyword path above
       let aiIsDuplicate = false;
       let aiIsUpdate = false;
       let aiEarlierMsgs: string[] = [];
@@ -429,15 +447,21 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           .gte("created_at", twoHoursAgo)
           .order("created_at", { ascending: false });
         const aiRows = aiRecentRows ?? [];
-        aiIsDuplicate = aiRows
-          .filter((r) => r.created_at >= tenMinAgo)
-          .some((r) => {
-            const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
-            return m != null && m[1] === normalizedCurrentMsg;
-          });
+        const aiMsgWasInConv = prevConvMsgs.includes(normalizedCurrentMsg);
+        aiIsDuplicate = aiMsgWasInConv &&
+          aiRows
+            .filter((r) => r.created_at >= tenMinAgo)
+            .some((r) => {
+              const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
+              return m != null && m[1] === normalizedCurrentMsg;
+            });
         if (!aiIsDuplicate) {
-          aiIsUpdate = aiRows.length > 0;
-          aiEarlierMsgs = aiRows
+          const aiMatchingRows = aiRows.filter((r) => {
+            const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
+            return m != null && prevConvMsgs.includes(m[1]);
+          });
+          aiIsUpdate = aiMatchingRows.length > 0;
+          aiEarlierMsgs = aiMatchingRows
             .map((r) => { const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null; return m ? m[1] : null; })
             .filter((x): x is string => x !== null)
             .slice(0, 2);

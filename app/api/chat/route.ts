@@ -309,9 +309,17 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     const aiAlertToken = rawReply.includes("[[ALERT_NURSE]]");
     const reply = rawReply.replace(/\[\[ALERT_NURSE\]\]\s*/g, "").trimEnd();
 
-    // ── Server-side dedup (10-min same-message window) ────────────────────
-    // Prevents double-sends from retries/refreshes while allowing new distinct emergency messages.
+    // ── Server-side dedup (conversation-scoped) ──────────────────────────
+    // "Same conversation" is identified by the message history the client sends:
+    // previous user turns in THIS session. Two different clients are never confused.
     const normalizedCurrentMsg = normalizeText(lastUserMessage).slice(0, 200);
+
+    // All normalized user messages already in this conversation (excluding the current one)
+    const prevConvMsgs = (messages as { role: string; content: string }[])
+      .filter((m) => m.role === "user")
+      .slice(0, -1)
+      .map((m) => normalizeText(m.content).slice(0, 200));
+
     let isDuplicateMessage = false;
     let isUpdate = false;
     let earlierAlertMsgs: string[] = [];
@@ -334,16 +342,26 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           .order("created_at", { ascending: false });
 
         const rows = recentRows ?? [];
-        isDuplicateMessage = rows
-          .filter((r) => r.created_at >= tenMinAgo)
-          .some((r) => {
-            const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
-            return m != null && m[1] === normalizedCurrentMsg;
-          });
+
+        // Dedup: skip only if (a) same text within 10 min AND (b) that text was already
+        // in THIS conversation's history — prevents skipping a different client's alert.
+        const msgWasAlreadyInConv = prevConvMsgs.includes(normalizedCurrentMsg);
+        isDuplicateMessage = msgWasAlreadyInConv &&
+          rows
+            .filter((r) => r.created_at >= tenMinAgo)
+            .some((r) => {
+              const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
+              return m != null && m[1] === normalizedCurrentMsg;
+            });
 
         if (!isDuplicateMessage) {
-          isUpdate = rows.length > 0;
-          earlierAlertMsgs = rows
+          // UPDATE: an earlier message from THIS conversation was already alerted
+          const matchingRows = rows.filter((r) => {
+            const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
+            return m != null && prevConvMsgs.includes(m[1]);
+          });
+          isUpdate = matchingRows.length > 0;
+          earlierAlertMsgs = matchingRows
             .map((r) => {
               const m = typeof r.error === "string" ? r.error.match(/\bmsg:(.+)$/) : null;
               return m ? m[1] : null;
