@@ -4,29 +4,89 @@ import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-export default function ROICalculatorPage() {
-  const [treatmentPrice, setTreatmentPrice] = useState(500);
-  const [newClientsWanted, setNewClientsWanted] = useState(3);
-  const [hoursOnDMs, setHoursOnDMs] = useState(7);
-  const [plan, setPlan] = useState<"starter" | "pro">("starter");
+// Starter price sourced from app/page.tsx pricing section ($200/mo)
+const MONTHLY_PRICE = 200;
+const YEARLY_PRICE = MONTHLY_PRICE * 12; // 2400
 
-  const planCost = plan === "starter" ? 200 : 150;
+function fmt(n: number) {
+  return "$" + Math.round(n).toLocaleString("en-US");
+}
+
+const PRESETS = [
+  { label: "Botox", sub: "$435 · every 4 months", price: 435, interval: 4 },
+  { label: "Filler", sub: "$715 · every 9 months", price: 715, interval: 9 },
+];
+
+const INTERVALS = [
+  { label: "Every 3 months", value: 3 },
+  { label: "Every 4 months", value: 4 },
+  { label: "Every 6 months", value: 6 },
+  { label: "Every 9 months", value: 9 },
+  { label: "Once a year", value: 12 },
+];
+
+// Simple line icons as inline SVG — no emoji
+function IconHeart() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+function IconClock() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+function IconMoon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+function IconStar() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+
+export default function ClientValueCalculatorPage() {
+  const [price, setPrice] = useState(435);
+  const [interval, setInterval] = useState(4);
+  const [kept, setKept] = useState(2);
+  const [activePreset, setActivePreset] = useState<number>(0); // index into PRESETS
 
   const results = useMemo(() => {
-    const revenueFromNewClients = newClientsWanted * treatmentPrice;
-    const profitAfterPlan = revenueFromNewClients - planCost;
-    const breakEvenClients = Math.ceil(planCost / treatmentPrice * 10) / 10;
-    const hourlyRate = treatmentPrice / 1.5; // assume 1.5hr per treatment
-    const dmCostPerMonth = hoursOnDMs * 4 * (hourlyRate / 60); // 4 weeks
-    const totalOpportunityCost = dmCostPerMonth + (newClientsWanted * treatmentPrice);
-    return {
-      revenueFromNewClients,
-      profitAfterPlan,
-      breakEvenClients,
-      dmCostPerMonth: Math.round(dmCostPerMonth),
-      totalOpportunityCost: Math.round(totalOpportunityCost),
-    };
-  }, [treatmentPrice, newClientsWanted, hoursOnDMs, planCost]);
+    const perYear = (price * 12) / interval;
+    const over3Years = perYear * 3;
+    const keptYear = kept * 12;
+    const keptValue = keptYear * perYear;
+    const clientsToBreakEven = Math.ceil(YEARLY_PRICE / perYear);
+    return { perYear, over3Years, keptYear, keptValue, clientsToBreakEven };
+  }, [price, interval, kept]);
+
+  function handlePreset(idx: number) {
+    const p = PRESETS[idx]!;
+    setPrice(p.price);
+    setInterval(p.interval);
+    setActivePreset(idx);
+  }
+
+  function handlePriceSlider(v: number) {
+    setPrice(v);
+    setActivePreset(-1);
+  }
+
+  function handleInterval(v: number) {
+    setInterval(v);
+    setActivePreset(-1);
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans antialiased">
@@ -35,155 +95,223 @@ export default function ROICalculatorPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link href="/" className="flex items-center gap-2">
             <Image src="/Alona.png" alt="AdonisBlue" width={36} height={36} className="rounded-xl" />
-            <span className="text-base font-bold text-[#1a2744]">AdonisBlue</span>
+            <span className="text-base font-bold text-[#1B2240]">AdonisBlue</span>
           </Link>
-          <Link href="/auth" className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700">
+          <Link href="/auth" className="rounded-full bg-[#2F7F70] px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700">
             Start free trial
           </Link>
         </div>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
-        {/* Hero */}
+
+        {/* 1. Hero */}
         <div className="mb-10 text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-4 py-1.5">
-            <span className="text-xs font-bold uppercase tracking-widest text-teal-700">ROI Calculator</span>
-          </div>
-          <h1 className="text-3xl font-bold text-[#1a2744] sm:text-4xl">How much is not having a bot costing you?</h1>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-500">
-            Fill in your numbers and see exactly what AdonisBlue is worth to your practice.
+          <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#2F7F70]">Client Value Calculator</p>
+          <h1 className="text-3xl font-bold text-[#1B2240] sm:text-4xl lg:text-5xl">
+            One client who keeps coming back<br className="hidden sm:block" /> is worth more than you think.
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-500 sm:text-lg">
+            Most practices pour their energy into finding new clients. The real growth is in the ones who already trust you, and keep coming back.
           </p>
         </div>
 
+        {/* 2. Calculator */}
         <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
-          {/* Inputs */}
+
+          {/* LEFT — inputs */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-md sm:p-8">
-            <h2 className="mb-6 text-lg font-bold text-[#1a2744]">Tell us about your practice</h2>
+            <h2 className="mb-5 text-base font-bold text-[#1B2240]">Your practice</h2>
 
-            {/* Plan — Starter only */}
-            <div className="mb-6">
-              <div className="rounded-xl border-2 border-[#0d9488] bg-teal-50 px-4 py-3 text-sm font-semibold text-[#0d9488]">
-                Starter — $200/mo
+            {/* Preset buttons */}
+            <div className="mb-5">
+              <p className="mb-2 text-sm font-semibold text-slate-700">Start with a typical treatment</p>
+              <div className="flex flex-wrap gap-2">
+                {PRESETS.map((p, i) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => handlePreset(i)}
+                    className={`min-h-[44px] rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                      activePreset === i
+                        ? "border-[#2F7F70] bg-teal-50 text-[#2F7F70]"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-teal-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className="font-bold">{p.label}</span>
+                    <span className="ml-1 font-normal text-slate-500">· {p.sub}</span>
+                  </button>
+                ))}
               </div>
+              <p className="mt-2 text-[11px] text-slate-400">Then adjust the numbers to match your own prices.</p>
             </div>
 
-            {/* Treatment price */}
+            {/* Price slider */}
             <div className="mb-6">
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-700">Average treatment price</label>
-                <span className="text-lg font-bold text-[#0d9488]">${treatmentPrice}</span>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="text-sm font-semibold text-slate-700">Average price per visit</label>
+                <span className="text-lg font-bold text-[#2F7F70]">{fmt(price)}</span>
               </div>
               <input
                 type="range"
-                min={100}
-                max={2000}
-                step={50}
-                value={treatmentPrice}
-                onChange={e => setTreatmentPrice(Number(e.target.value))}
-                className="w-full accent-[#0d9488]"
+                min={150}
+                max={1500}
+                step={5}
+                value={price}
+                onChange={e => handlePriceSlider(Number(e.target.value))}
+                className="w-full accent-[#2F7F70]"
+                style={{ minHeight: "44px" }}
               />
-              <div className="mt-1 flex justify-between text-xs text-slate-400">
-                <span>$100</span><span>$2,000</span>
-              </div>
+              <div className="mt-1 flex justify-between text-xs text-slate-400"><span>$150</span><span>$1,500</span></div>
+              <p className="mt-1 text-[11px] text-slate-400">US average fee: about $435 for Botox and $715 for hyaluronic acid filler.</p>
             </div>
 
-            {/* New clients wanted */}
+            {/* Interval pill buttons */}
             <div className="mb-6">
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-700">New clients you want per month</label>
-                <span className="text-lg font-bold text-[#0d9488]">{newClientsWanted}</span>
+              <p className="mb-2 text-sm font-semibold text-slate-700">How often a client comes back</p>
+              <div className="flex flex-wrap gap-2">
+                {INTERVALS.map(iv => (
+                  <button
+                    key={iv.value}
+                    type="button"
+                    onClick={() => handleInterval(iv.value)}
+                    className={`min-h-[44px] rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                      interval === iv.value
+                        ? "border-[#2F7F70] bg-teal-50 text-[#2F7F70]"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-teal-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    {iv.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] text-slate-400">Botox usually lasts 3–6 months. Filler usually lasts 6–12 months.</p>
+            </div>
+
+            {/* Kept clients slider */}
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="text-sm font-semibold text-slate-700">What if this many more clients came back each month?</label>
+                <span className="text-lg font-bold text-[#2F7F70]">{kept}</span>
               </div>
               <input
                 type="range"
                 min={1}
-                max={30}
+                max={10}
                 step={1}
-                value={newClientsWanted}
-                onChange={e => setNewClientsWanted(Number(e.target.value))}
-                className="w-full accent-[#0d9488]"
+                value={kept}
+                onChange={e => setKept(Number(e.target.value))}
+                className="w-full accent-[#2F7F70]"
+                style={{ minHeight: "44px" }}
               />
-              <div className="mt-1 flex justify-between text-xs text-slate-400">
-                <span>1</span><span>30</span>
-              </div>
-            </div>
-
-            {/* Hours on DMs */}
-            <div className="mb-2">
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-700">Hours per week answering DMs & questions</label>
-                <span className="text-lg font-bold text-[#0d9488]">{hoursOnDMs}h</span>
-              </div>
-              <input
-                type="range"
-                min={1}
-                max={20}
-                step={1}
-                value={hoursOnDMs}
-                onChange={e => setHoursOnDMs(Number(e.target.value))}
-                className="w-full accent-[#0d9488]"
-              />
-              <div className="mt-1 flex justify-between text-xs text-slate-400">
-                <span>1h</span><span>20h</span>
-              </div>
+              <div className="mt-1 flex justify-between text-xs text-slate-400"><span>1</span><span>10</span></div>
+              <p className="mt-1 text-[11px] text-slate-400">Clients who would have drifted away, but rebooked instead.</p>
             </div>
           </div>
 
-          {/* Results */}
-          <div className="space-y-4">
-            {/* Main result */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2744] to-[#0d4f6b] p-6 shadow-xl sm:p-8">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_80%_0%,rgba(13,148,136,0.3),transparent)]" aria-hidden />
-              <div className="relative">
-                <p className="text-sm font-semibold uppercase tracking-widest text-teal-300">Your ROI</p>
-                <p className="mt-2 text-4xl font-bold text-white sm:text-5xl">
-                  ${results.profitAfterPlan.toLocaleString()}
+          {/* RIGHT — results */}
+          <div className="flex flex-col gap-4">
+            <div className="flex-1 rounded-2xl bg-[#1B2240] p-6 text-white shadow-xl sm:p-8">
+
+              {/* One client */}
+              <div className="mb-6 border-b border-white/10 pb-6">
+                <p className="text-xs font-bold uppercase tracking-widest text-teal-300">One client who keeps coming back</p>
+                <p className="mt-2 text-4xl font-bold sm:text-5xl">{fmt(results.perYear)}</p>
+                <p className="mt-1 text-sm text-slate-300">a year in visits</p>
+                <p className="mt-3 text-lg font-semibold text-white/80">{fmt(results.over3Years)} <span className="text-sm font-normal text-slate-400">over 3 years</span></p>
+              </div>
+
+              {/* Kept clients */}
+              <div className="mb-6 border-b border-white/10 pb-6">
+                <p className="text-xs font-bold uppercase tracking-widest text-teal-300">
+                  If {kept} more client{kept === 1 ? "" : "s"} a month keep rebooking
                 </p>
-                <p className="mt-1 text-sm text-slate-300">extra revenue per month after your plan cost</p>
-                <div className="mt-4 h-px bg-white/10" />
-                <p className="mt-4 text-sm leading-relaxed text-slate-200">
-                  AdonisBlue pays for itself with just <span className="font-bold text-teal-300">{results.breakEvenClients} booking{results.breakEvenClients !== 1 ? "s" : ""}</span>. Everything after that is pure profit.
+                <p className="mt-2 text-4xl font-bold sm:text-5xl">{fmt(results.keptValue)}</p>
+                <p className="mt-1 text-sm text-slate-300">a year in visits</p>
+                <p className="mt-3 text-sm leading-relaxed text-slate-300">
+                  That&apos;s {results.keptYear} more returning client{results.keptYear === 1 ? "" : "s"} by the end of the year, bringing in this much each year they stay.
+                </p>
+              </div>
+
+              {/* Cost comparison */}
+              <div className="rounded-xl bg-white/10 p-4">
+                <p className="text-sm font-semibold text-white">AdonisBlue Starter: {fmt(YEARLY_PRICE)} a year</p>
+                <p className="mt-1 text-sm text-slate-300">
+                  Keeping {results.clientsToBreakEven} client{results.clientsToBreakEven === 1 ? "" : "s"} coming back covers the cost.
                 </p>
               </div>
             </div>
 
-            {/* Stat cards */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50 to-sky-50 p-5">
-                <p className="text-2xl font-bold text-[#0d9488]">${results.revenueFromNewClients.toLocaleString()}</p>
-                <p className="mt-1 text-xs font-medium text-slate-500">💰 Revenue from {newClientsWanted} new clients</p>
-              </div>
-              <div className="rounded-2xl border border-red-100 bg-gradient-to-br from-red-50 to-rose-50 p-5">
-                <p className="text-2xl font-bold text-red-500">${results.dmCostPerMonth.toLocaleString()}</p>
-                <p className="mt-1 text-xs font-medium text-slate-500">⏰ Value of time lost on DMs/month</p>
-              </div>
-              <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-yellow-50 p-5">
-                <p className="text-2xl font-bold text-amber-600">{hoursOnDMs * 4}h</p>
-                <p className="mt-1 text-xs font-medium text-slate-500">📅 Hours/month answering questions</p>
-              </div>
-              <div className="rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50 to-indigo-50 p-5">
-                <p className="text-2xl font-bold text-purple-600">${planCost}</p>
-                <p className="mt-1 text-xs font-medium text-slate-500">✅ Your monthly plan cost</p>
-              </div>
-            </div>
-
-            {/* CTA */}
-            <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 text-center">
-              <p className="text-sm font-semibold text-[#1a2744]">Ready to start making this money? 💙</p>
-              <p className="mt-1 text-xs text-slate-500">14-day free trial. Full access. No credit card needed.</p>
-              <Link
-                href="/auth"
-                className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-6 py-3 text-sm font-bold text-white shadow-md transition hover:bg-teal-700"
-              >
-                Start my free trial →
-              </Link>
-            </div>
+            {/* Disclaimer under card */}
+            <p className="text-center text-[11px] text-slate-400">Revenue before your costs, like product and supplies.</p>
           </div>
         </div>
 
-        {/* Bottom trust line */}
-        <div className="mt-10 text-center">
-          <p className="text-sm text-slate-400">A part-time receptionist costs $1,500–$2,500/month. AdonisBlue starts at $200. One booking pays for it.</p>
+        {/* 3. How AdonisBlue helps */}
+        <div className="mt-16">
+          <h2 className="text-center text-2xl font-bold text-[#1B2240] sm:text-3xl">How AdonisBlue helps them come back</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-base leading-relaxed text-slate-500">
+            Clients return to the injector who made them feel cared for. AdonisBlue helps make that happen for every client, even on your busiest weeks.
+          </p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              {
+                Icon: IconHeart,
+                title: "They feel cared for",
+                body: "Aftercare emails and check-ins after treatment, so clients aren't left wondering if what they feel is normal.",
+              },
+              {
+                Icon: IconClock,
+                title: "A reminder at the right time",
+                body: "Rebooking reminders go out when their treatment usually starts wearing off.",
+              },
+              {
+                Icon: IconMoon,
+                title: "Answers at 11pm",
+                body: "Your assistant answers common questions any time, and alerts you when a message includes urgent warning signs.",
+              },
+              {
+                Icon: IconStar,
+                title: "Happy clients bring friends",
+                body: "Review requests and your own reviews page help turn happy clients into word-of-mouth.",
+              },
+            ].map(({ Icon, title, body }) => (
+              <div key={title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mb-3 text-[#2F7F70]"><Icon /></div>
+                <p className="mb-2 text-sm font-bold text-[#1B2240]">{title}</p>
+                <p className="text-sm leading-relaxed text-slate-500">{body}</p>
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* 4. Honest note */}
+        <div className="mt-12 rounded-2xl bg-slate-100 px-5 py-4">
+          <p className="text-xs leading-relaxed text-slate-500">
+            These numbers are an example based on what you enter, not a promise of results. Starting prices are national average fees reported by the American Society of Plastic Surgeons (2023); your prices may differ by city. AdonisBlue helps you stay in touch with every client after their visit, so they feel looked after and remember to come back.
+          </p>
+        </div>
+
+        {/* 5. Closing CTA */}
+        <div className="mt-16 text-center">
+          <h2 className="text-2xl font-bold text-[#1B2240] sm:text-3xl">Start caring for the clients you already have.</h2>
+          <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href="/auth"
+              className="inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#2F7F70] px-8 py-3 text-sm font-bold text-white shadow-md transition hover:bg-teal-700 sm:w-auto"
+            >
+              Start free — no card needed
+            </Link>
+            <Link
+              href="/#how-it-works"
+              className="inline-flex min-h-[48px] w-full items-center justify-center rounded-full border border-slate-300 bg-white px-8 py-3 text-sm font-semibold text-[#1B2240] transition hover:border-teal-300 hover:bg-slate-50 sm:w-auto"
+            >
+              See how it works
+            </Link>
+          </div>
+          <p className="mt-4 text-sm text-slate-400">14 days free · Cancel anytime · Setup in under an hour</p>
+        </div>
+
       </main>
     </div>
   );
