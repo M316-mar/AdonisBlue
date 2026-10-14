@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { ClientValueCalculator } from "@/components/ClientValueCalculator";
 
 const features = [
   { emoji: "🤖", title: "Answer clients before they look elsewhere", description: "Your custom AI chatbot answers questions, collects intake info, and confirms bookings — so no one waits, and no one gives up and books with someone else." },
@@ -51,41 +52,6 @@ function FaqAccordion() {
   );
 }
 
-function ROICalculator() {
-  const [clients, setClients] = useState(20);
-  const extraBookings = Math.round(clients * 0.3);
-  const monthlyRevenue = extraBookings * 250;
-  const roi = monthlyRevenue - 200;
-  return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-semibold text-[#1a2744]">Clients per month</label>
-          <span className="text-2xl font-bold text-[#0d9488]">{clients}</span>
-        </div>
-        <input type="range" min={5} max={200} value={clients} onChange={e => setClients(Number(e.target.value))} className="w-full accent-[#0d9488] text-base" />
-        <div className="flex justify-between text-xs text-slate-400 mt-1"><span>5</span><span>200</span></div>
-      </div>
-      <div className="grid grid-cols-3 gap-2 text-center sm:gap-4">
-        <div className="rounded-xl bg-slate-50 p-3 sm:p-4">
-          <p className="text-xl font-bold text-[#1a2744] sm:text-2xl">{extraBookings}</p>
-          <p className="text-xs text-slate-500 mt-1">extra bookings/mo</p>
-        </div>
-        <div className="rounded-xl bg-slate-50 p-3 sm:p-4">
-          <p className="text-xl font-bold text-[#1a2744] sm:text-2xl">${monthlyRevenue.toLocaleString()}</p>
-          <p className="text-xs text-slate-500 mt-1">extra revenue/mo</p>
-        </div>
-        <div className="rounded-xl bg-teal-50 border border-teal-200 p-3 sm:p-4">
-          <p className="text-xl font-bold text-[#0d9488] sm:text-2xl">${roi.toLocaleString()}</p>
-          <p className="text-xs text-teal-600 mt-1 font-semibold">net ROI/mo</p>
-        </div>
-      </div>
-      <p className="text-center text-xs text-slate-400">Based on 30% client recovery · avg booking $250</p>
-      <p className="text-center text-xs italic text-slate-400">* Estimate based on 30% client recovery rate. Results vary by practice size and engagement.</p>
-      <a href="/auth" className="block w-full rounded-full bg-[#0d9488] py-3 text-center text-sm font-bold text-white transition hover:bg-teal-700">Start free →</a>
-    </div>
-  );
-}
 
 function NewsletterForm() {
   const [email, setEmail] = useState("");
@@ -541,11 +507,19 @@ export default function Home() {
 
         <section className="bg-slate-50 px-4 py-14 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">ROI Calculator</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744]">See what AdonisBlue is worth to your practice</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">One client who keeps coming back is worth more than you think.</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-500">
+              Most practices pour their energy into finding new clients. The real growth is in the ones who already trust you, and keep coming back.
+            </p>
           </div>
-          <div className="mx-auto mt-10 max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-            <ROICalculator />
+          <div className="mx-auto mt-10 max-w-5xl">
+            <ClientValueCalculator />
+            <p className="mt-4 text-center text-xs text-slate-400">
+              These numbers are based on what you enter — not a promise of results. Revenue before your costs, like product and supplies.
+            </p>
+            <p className="mt-3 text-center text-sm">
+              <a href="/roi" className="text-[#2F7F70] underline underline-offset-2 hover:text-teal-700">See how AdonisBlue helps clients come back →</a>
+            </p>
           </div>
         </section>
 
