@@ -2047,22 +2047,22 @@ export default function ClientJourneyPage() {
                     <button type="button" onClick={() => { setAftercareStep(1); setAftercareModalError(null); }} className="text-sm text-[#0d9488] font-semibold hover:underline shrink-0">← Change</button>
                     <h2 className="text-sm font-bold text-[#1a2744] flex-1 text-right">Here&apos;s what {aftercareModal.clientName} will get</h2>
                   </div>
+                  {/* Scrollable body — iframe + error + note textarea */}
                   <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
-                    <div className="rounded-2xl border border-slate-200 overflow-hidden" style={{ minHeight: 220 }}>
+                    <div className="rounded-2xl border border-slate-200 overflow-hidden" style={{ height: 320 }}>
                       {aftercarePreviewLoading && (
-                        <div className="flex items-center justify-center h-40 text-sm text-slate-400">Loading preview…</div>
+                        <div className="flex items-center justify-center h-full text-sm text-slate-400">Loading preview…</div>
                       )}
                       {!aftercarePreviewLoading && aftercarePreviewHtml && (
                         <iframe
                           srcDoc={aftercarePreviewHtml}
                           sandbox="allow-same-origin"
-                          className="w-full border-0"
-                          style={{ height: 360 }}
+                          className="w-full border-0 h-full"
                           title="Email preview"
                         />
                       )}
                       {!aftercarePreviewLoading && !aftercarePreviewHtml && (
-                        <div className="flex items-center justify-center h-40 text-sm text-slate-400">Preview unavailable</div>
+                        <div className="flex items-center justify-center h-full text-sm text-slate-400">Preview unavailable</div>
                       )}
                     </div>
 
@@ -2072,48 +2072,59 @@ export default function ClientJourneyPage() {
                       </div>
                     )}
 
-                    {!aftercareNoteOpen ? (
+                    {aftercareNoteOpen && (
                       <div>
-                        <p className="text-sm text-slate-600 font-semibold mb-3">Need to change or add anything?</p>
-                        <div className="flex gap-3">
-                          <button
-                            type="button"
-                            disabled={aftercareModalSending}
-                            onClick={() => void sendAftercareFromModal()}
-                            style={{ touchAction: "manipulation" }}
-                            className="flex-1 min-h-[44px] rounded-full bg-[#0d9488] px-4 py-3 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50 active:scale-[0.98]"
-                          >
-                            {aftercareModalSending ? "Sending…" : "No, send it"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setAftercareNoteOpen(true)}
-                            style={{ touchAction: "manipulation" }}
-                            className="flex-1 min-h-[44px] rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50 active:scale-[0.98]"
-                          >
-                            Yes, add a note
-                          </button>
-                        </div>
+                        <label className="text-sm font-semibold text-[#1a2744] block mb-1">Add a personal note for {aftercareModal.clientName}</label>
+                        <p className="text-xs text-slate-500 mb-2">This is added to {aftercareModal.clientName}&apos;s email only. Your saved {proc.name} aftercare stays the same.</p>
+                        <textarea
+                          value={aftercareNote}
+                          onChange={e => setAftercareNote(e.target.value)}
+                          rows={4}
+                          placeholder="e.g. You did great today — the swelling should settle by tomorrow morning."
+                          className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0d9488] focus:bg-white transition"
+                        />
                       </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-sm font-semibold text-[#1a2744] block mb-1">Add a personal note for {aftercareModal.clientName}</label>
-                          <p className="text-xs text-slate-500 mb-2">This is added to {aftercareModal.clientName}&apos;s email only. Your saved {proc.name} aftercare stays the same.</p>
-                          <textarea
-                            value={aftercareNote}
-                            onChange={e => setAftercareNote(e.target.value)}
-                            rows={4}
-                            placeholder="e.g. You did great today — the swelling should settle by tomorrow morning."
-                            className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0d9488] focus:bg-white transition"
-                          />
-                        </div>
+                    )}
+                  </div>
+
+                  {/* Sticky footer — always visible */}
+                  <div className="px-5 py-4 border-t border-slate-100 shrink-0">
+                    {!aftercareNoteOpen ? (
+                      <div className="flex gap-3">
                         <button
                           type="button"
                           disabled={aftercareModalSending}
                           onClick={() => void sendAftercareFromModal()}
                           style={{ touchAction: "manipulation" }}
-                          className="w-full min-h-[44px] rounded-full bg-[#0d9488] px-6 py-3 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50 active:scale-[0.98]"
+                          className="flex-1 min-h-[44px] rounded-full bg-[#0d9488] px-4 py-3 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50 active:scale-[0.98]"
+                        >
+                          {aftercareModalSending ? "Sending…" : "No, send it"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAftercareNoteOpen(true)}
+                          style={{ touchAction: "manipulation" }}
+                          className="flex-1 min-h-[44px] rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50 active:scale-[0.98]"
+                        >
+                          Yes, add a note
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setAftercareNoteOpen(false)}
+                          style={{ touchAction: "manipulation" }}
+                          className="flex-1 min-h-[44px] rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#1a2744] transition hover:bg-slate-50 active:scale-[0.98]"
+                        >
+                          ← See preview
+                        </button>
+                        <button
+                          type="button"
+                          disabled={aftercareModalSending}
+                          onClick={() => void sendAftercareFromModal()}
+                          style={{ touchAction: "manipulation" }}
+                          className="flex-1 min-h-[44px] rounded-full bg-[#0d9488] px-4 py-3 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-50 active:scale-[0.98]"
                         >
                           {aftercareModalSending ? "Sending…" : "Send now"}
                         </button>
