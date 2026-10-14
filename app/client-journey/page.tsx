@@ -572,8 +572,7 @@ export default function ClientJourneyPage() {
     const intake = intakes.find(i => i.id === intakeId);
     if (!intake) return;
     didAutoOpen.current = true;
-    const clientName = [intake.first_name, intake.last_name].filter(Boolean).join(" ") || intake.first_name || "Client";
-    openAftercareModal(intakeId, clientName, intake.service_interested ?? "");
+    openAftercareModal(intakeId, intake.first_name || "Client", intake.service_interested ?? "");
     router.replace("/client-journey");
   }, [ready, intakes, openAftercareModal, router]);
 
@@ -636,6 +635,11 @@ export default function ClientJourneyPage() {
         setAftercareStep("success");
         setAftercareSentIds(prev => new Set([...prev, aftercareModal.intakeId]));
         setAftercareSentResults(prev => new Map([...prev, [aftercareModal.intakeId, result]]));
+        // Refresh treatments list so the Clients tab shows the new record immediately
+        fetch("/api/treatments", { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(j => { if (j) setTreatments((j.treatments ?? []).filter((t: Treatment) => !t.archived)); })
+          .catch(() => {});
       }
     } finally {
       setAftercareModalSending(false);
@@ -1975,7 +1979,22 @@ export default function ClientJourneyPage() {
                       </button>
                     </p>
                   )}
-                  {procedures.map(proc => {
+                  {(() => {
+                    // Deduplicate by name: prefer approved; among ties pick newest created_at
+                    const seen = new Map<string, typeof procedures[0]>();
+                    for (const p of procedures) {
+                      const key = p.name.trim().toLowerCase();
+                      const existing = seen.get(key);
+                      if (!existing) { seen.set(key, p); continue; }
+                      const existingApproved = !!existing.approved_at;
+                      const pApproved = !!p.approved_at;
+                      if (pApproved && !existingApproved) { seen.set(key, p); continue; }
+                      if (!pApproved && existingApproved) continue;
+                      // both same approval state — keep newest
+                      if (p.created_at && existing.created_at && p.created_at > existing.created_at) seen.set(key, p);
+                    }
+                    return [...seen.values()];
+                  })().map(proc => {
                     const isApproved = !!proc.approved_at;
                     const isSelected = aftercareProcedureId === proc.id;
                     return (
