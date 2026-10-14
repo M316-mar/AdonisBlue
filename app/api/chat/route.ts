@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io";
 
@@ -193,8 +193,8 @@ export async function POST(request: Request) {
     }
 
     if (shouldAlert) {
-      // Non-blocking — alerts must never stall the chat response
-      void (async () => {
+      // after() guarantees this runs to completion even after the response is sent
+      after(async () => {
         try {
           const db = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -322,7 +322,7 @@ export async function POST(request: Request) {
           // Non-fatal — never let alert failure break the chat response
           console.error("[chat-emergency] Alert send failed (non-fatal):", alertErr);
         }
-      })();
+      });
 
       // Update response flags
       responseEmergencyAlerted = true;
