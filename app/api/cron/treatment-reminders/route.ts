@@ -1,8 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
+import { sendEmail } from "@/lib/sendAndLog";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 export async function GET(request: Request) {
@@ -51,9 +50,12 @@ export async function GET(request: Request) {
       if (!clientEmail) continue;
       if ((treatment.intakes as any)?.marketing_opt_out) continue;
 
-      try {
-        await resend.emails.send({
-          from: "AdonisBlue <hi@adonisblue.io>",
+      {
+        const result = await sendEmail({
+          type: "treatment_reminder",
+          nurse_id: treatment.nurse_id,
+          intake_id: treatment.intake_id,
+          treatment_id: treatment.id,
           to: clientEmail,
           subject: `Time to refresh your ${procedureName}? ✨`,
           html: `<!DOCTYPE html>
@@ -90,18 +92,26 @@ export async function GET(request: Request) {
     </td></tr>
   </table>
 </body></html>`,
+          supabase,
         });
 
-        await supabase
-          .from("treatments")
-          .update({ reminder_sent: true, reminder_sent_at: new Date().toISOString() })
-          .eq("id", treatment.id);
-
-        sentCount++;
-      } catch (e) {
-        console.error(`Failed to send reminder for treatment ${treatment.id}:`, e);
+        if (result.ok) {
+          await supabase
+            .from("treatments")
+            .update({ reminder_sent: true, reminder_sent_at: new Date().toISOString() })
+            .eq("id", treatment.id);
+          sentCount++;
+        }
       }
     }
+
+    // Heartbeat
+    await supabase.from("message_log").insert({
+      type: "cron:treatment-reminders",
+      channel: "email",
+      status: "sent",
+      error: `sent ${sentCount}, failed ${(treatments?.length ?? 0) - sentCount}`,
+    });
 
     return NextResponse.json({ sent: sentCount });
   } catch (e) {

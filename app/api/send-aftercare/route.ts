@@ -1,8 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 function escapeHtml(str: string): string {
   return str
@@ -42,12 +40,13 @@ export async function POST(request: Request) {
     const practiceName = escapeHtml(bot?.practice_name || "your provider");
     const clientName = escapeHtml(intake.first_name || "Beautiful");
 
-    if (intake.email) {
-      await resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
-        to: intake.email,
-        subject: `Your aftercare instructions from ${practiceName} 💙`,
-        html: `<!DOCTYPE html>
+    const result = await sendEmail({
+      type: "aftercare",
+      nurse_id: intake.nurse_id,
+      intake_id: intake.id,
+      to: intake.email,
+      subject: `Your aftercare instructions from ${practiceName} 💙`,
+      html: `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>Your Aftercare Instructions</title></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -82,7 +81,11 @@ export async function POST(request: Request) {
   </table>
 </body>
 </html>`,
-      });
+      supabase,
+    });
+
+    if (!result.ok && intake.email) {
+      return NextResponse.json({ error: result.error ?? "Failed to send aftercare email" }, { status: 500 });
     }
 
     await supabase

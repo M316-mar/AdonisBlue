@@ -1,8 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 function escapeHtml(str: string): string {
   return str
@@ -152,8 +150,9 @@ export async function POST(request: Request) {
         const safeNurseName = escapeHtml(user.user_metadata?.full_name ?? user.email ?? "Unknown");
         const now = new Date().toLocaleString("en-US", { timeZone: "America/New_York", dateStyle: "full", timeStyle: "short" });
 
-        resend.emails.send({
-          from: "AdonisBlue <hi@adonisblue.io>",
+        sendEmail({
+          type: "new_signup_internal",
+          nurse_id: user.id,
           to: "hi@adonisblue.io",
           subject: `🎉 New nurse joined AdonisBlue: ${safePractice}`,
           html: `
@@ -172,6 +171,7 @@ export async function POST(request: Request) {
               </p>
             </div>
           `,
+          supabase: db,
         }).catch(() => {}); // fire-and-forget
       }
     }

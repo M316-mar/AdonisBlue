@@ -1,9 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
-import twilio from "twilio";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const DEFAULT_EMERGENCY_KEYWORDS = [
@@ -233,13 +230,16 @@ export async function POST(request: Request) {
         console.log(`[emergency] Sending alert email to configured notification_email: ${alertEmailAddress}`);
       }
 
-      // Send email if we have any address
-      if (alertEmailAddress) {
-        await resend.emails.send({
-          from: "AdonisBlue <hi@adonisblue.io>",
-          to: alertEmailAddress,
-          subject: `⚠️ URGENT: ${clientName} needs attention after ${procedureName}`,
-          html: `<!DOCTYPE html>
+      const practiceName = treatment.bots?.practice_name ?? "your practice";
+
+      // Email with retry + escalation
+      await sendEmergencyAlert({
+        nurseEmail: alertEmailAddress,
+        nurseId: treatment.nurse_id,
+        practiceName,
+        type: "healing",
+        subject: `⚠️ URGENT: ${clientName} needs attention after ${procedureName}`,
+        html: `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#fef2f2;font-family:-apple-system,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;padding:32px 16px;">
@@ -265,37 +265,19 @@ export async function POST(request: Request) {
     </td></tr>
   </table>
 </body></html>`,
-        });
-      }
+        supabase,
+      });
 
-      // ── Part 1: SMS via Twilio ───────────────────────────────────────────
-      // Only fires if the nurse has set bots.alert_phone in Alert Settings.
-      // A failure here must never block the email or the AI response.
+      // SMS
       if (alertPhone?.trim()) {
-        try {
-          const accountSid = process.env.TWILIO_ACCOUNT_SID;
-          const authToken  = process.env.TWILIO_AUTH_TOKEN;
-          const fromNumber = process.env.TWILIO_PHONE_NUMBER;
-
-          if (!accountSid || !authToken || !fromNumber) {
-            console.warn("[emergency] Twilio env vars not configured — SMS skipped");
-          } else {
-            const twilioClient = twilio(accountSid, authToken);
-            // Keep message under 160 chars to avoid multi-segment SMS charges
-            const smsBody = `AdonisBlue Alert: ${clientName} needs attention after ${procedureName}. Check your dashboard or email for details.`;
-            await twilioClient.messages.create({
-              body: smsBody.slice(0, 160),
-              from: fromNumber,
-              to: alertPhone.trim(),
-            });
-            console.log(`[emergency] SMS sent successfully to ${alertPhone.trim()}`);
-          }
-        } catch (smsErr) {
-          // Non-fatal — log and continue. Email already sent above.
-          console.error("[emergency] SMS send failed (non-fatal):", smsErr);
-        }
-      } else {
-        console.log("[emergency] alert_phone not set — SMS skipped");
+        const smsBody = `AdonisBlue Alert: ${clientName} needs attention after ${procedureName}. Check your dashboard or email for details.`;
+        await sendSms({
+          type: "emergency_alert",
+          nurse_id: treatment.nurse_id,
+          to: alertPhone.trim(),
+          body: smsBody.slice(0, 160),
+          supabase,
+        });
       }
     }
 
@@ -344,6 +326,18 @@ YOUR ROLE:
         ),
       }),
     });
+
+    if (!aiRes.ok) {
+      const errText = await aiRes.text().catch(() => `HTTP ${aiRes.status}`);
+      await supabase.from("message_log").insert({
+        type: "ai_error",
+        channel: "email",
+        nurse_id: treatment.nurse_id ?? null,
+        status: "failed",
+        error: errText.slice(0, 500),
+      }).then(() => {}, () => {});
+      return NextResponse.json({ message: "I'm here to help with your recovery! Could you tell me more about what you're experiencing?", flagged: false });
+    }
 
     const aiData = await aiRes.json();
     const textBlock = Array.isArray(aiData.content)

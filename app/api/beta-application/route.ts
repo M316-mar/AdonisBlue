@@ -1,8 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 function escapeHtml(str: string): string {
   return str
@@ -95,8 +93,8 @@ export async function POST(request: Request) {
     }
 
     // Fire-and-forget notification email
-    resend.emails.send({
-      from: "AdonisBlue <hi@adonisblue.io>",
+    sendEmail({
+      type: "beta_application",
       to: "hi@adonisblue.io",
       subject: `🎉 New Beta Application — ${escapeHtml(business_name)}`,
       html: `
@@ -121,6 +119,7 @@ export async function POST(request: Request) {
           <p style="margin-top:24px;"><a href="https://www.adonisblue.io/admin" style="background:#1a2744;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">View in Admin →</a></p>
         </div>
       `,
+      supabase: db,
     }).catch((emailError) => {
       console.error("[beta-application] email notification failed:", emailError);
     });

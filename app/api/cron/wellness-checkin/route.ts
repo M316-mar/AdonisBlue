@@ -1,15 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
+import { sendEmail } from "@/lib/sendAndLog";
 
-// SQL to add the new column (run once in Supabase SQL editor):
-//
-//   ALTER TABLE treatments ADD COLUMN IF NOT EXISTS wellness_checkin_sent_at timestamptz;
-//   GRANT SELECT, UPDATE ON treatments TO service_role;
-//   GRANT SELECT ON treatments TO anon;
-//   GRANT SELECT ON treatments TO authenticated;
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.adonisblue.io";
 
 function escapeHtml(str: string): string {
@@ -90,12 +82,14 @@ export async function GET(request: Request) {
       ? `If you have severe pain, vision changes, skin turning white, grey, or blue, or trouble breathing, call 911 or go to the nearest ER immediately — then contact me at ${nursePhone}.`
       : `If you have severe pain, vision changes, skin turning white, grey, or blue, or trouble breathing, call 911 or go to the nearest ER immediately.`;
 
-    try {
-      await resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
-        to: intake.email,
-        subject: `Checking in — how are you feeling after your ${treatment.procedure_name || "appointment"}?`,
-        html: `<!DOCTYPE html>
+    const result = await sendEmail({
+      type: "wellness_checkin",
+      nurse_id: nurseId,
+      intake_id: intake.id,
+      treatment_id: treatment.id,
+      to: intake.email,
+      subject: `Checking in — how are you feeling after your ${treatment.procedure_name || "appointment"}?`,
+      html: `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>Checking in on you 💙</title></head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -143,24 +137,29 @@ export async function GET(request: Request) {
   </table>
 </body>
 </html>`,
-      });
+      supabase,
+    });
 
-      const { error: updateError } = await supabase
+    if (result.ok) {
+      await supabase
         .from("treatments")
         .update({ wellness_checkin_sent_at: new Date().toISOString() })
         .eq("id", treatment.id);
-
-      if (updateError) {
-        console.error(`[wellness-checkin] failed to mark sent for treatment ${treatment.id}:`, updateError.message);
-      }
-
-      results.push({ treatment_id: treatment.id, status: "sent" });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error(`[wellness-checkin] send failed for treatment ${treatment.id}:`, msg);
-      results.push({ treatment_id: treatment.id, status: `error: ${msg}` });
     }
+
+    results.push({ treatment_id: treatment.id, status: result.ok ? "sent" : `error: ${result.error}` });
   }
+
+  const sentCount = results.filter(r => r.status === "sent").length;
+  const failedCount = results.length - sentCount;
+
+  // Heartbeat
+  await supabase.from("message_log").insert({
+    type: "cron:wellness-checkin",
+    channel: "email",
+    status: "sent",
+    error: `sent ${sentCount}, failed ${failedCount}`,
+  });
 
   return NextResponse.json({ processed: results.length, results });
 }

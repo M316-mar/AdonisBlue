@@ -1,7 +1,6 @@
-import { Resend } from "resend";
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 function escapeHtml(str: string): string {
   return str
@@ -139,8 +138,12 @@ export async function POST(request: Request) {
           const safeContact = escapeHtml(contact);
           const safeConvo = escapeHtml(visitorLines);
 
-          await resend.emails.send({
-            from: "AdonisBlue <hi@adonisblue.io>",
+          const pcSupabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          );
+          await sendEmail({
+            type: "product_chat_handoff",
             to: "hi@adonisblue.io",
             subject: "🙋 Someone wants to talk — product chat handoff",
             html: `<!DOCTYPE html>
@@ -163,6 +166,7 @@ export async function POST(request: Request) {
     </td></tr>
   </table>
 </body></html>`,
+            supabase: pcSupabase,
           });
           console.log("[product-chat] Handoff email sent. Contact:", contact);
         } catch (err) {

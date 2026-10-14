@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
+import { sendEmail } from "@/lib/sendAndLog";
 
 // SQL to add the confirmation_sent_at column (run once in Supabase SQL editor):
 //
@@ -9,7 +9,6 @@ import { NextResponse } from "next/server";
 //   GRANT SELECT ON treatments TO anon;
 //   GRANT SELECT ON treatments TO authenticated;
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.adonisblue.io";
 
 // NOTE: Rate limiting is instance-local. For multi-instance deployments,
@@ -396,8 +395,11 @@ export async function POST(request: Request) {
             ? `<a href="${escapeHtml(botRow.booking_link)}" style="color:#0d9488;text-decoration:none;font-weight:600;">${escapeHtml(botRow.booking_link)}</a>`
             : null;
 
-          await resend.emails.send({
-            from: "AdonisBlue <hi@adonisblue.io>",
+          const confirmResult = await sendEmail({
+            type: "booking_confirmation",
+            nurse_id: botRow.nurse_id,
+            intake_id: intakeId,
+            treatment_id: treatmentId,
             to: clientEmail,
             subject: `You're booked with ${botRow.practice_name ?? "your provider"} 💙`,
             html: `<!DOCTYPE html>
@@ -443,15 +445,14 @@ export async function POST(request: Request) {
   </table>
 </body>
 </html>`,
+            supabase,
           });
 
-          const { error: updateError } = await supabase
-            .from("treatments")
-            .update({ confirmation_sent_at: new Date().toISOString() })
-            .eq("id", treatmentId);
-
-          if (updateError) {
-            console.error("[booking-webhook] failed to mark confirmation_sent_at:", updateError.message);
+          if (confirmResult.ok) {
+            await supabase
+              .from("treatments")
+              .update({ confirmation_sent_at: new Date().toISOString() })
+              .eq("id", treatmentId);
           }
         } catch (e) {
           console.error("[booking-webhook] confirmation email failed:", e instanceof Error ? e.message : String(e));

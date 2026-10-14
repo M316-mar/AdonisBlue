@@ -1,8 +1,6 @@
-import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 export async function POST(request: Request) {
   try {
@@ -21,8 +19,9 @@ export async function POST(request: Request) {
     });
 
     // Also email us
-    await resend.emails.send({
-      from: "AdonisBlue <hi@adonisblue.io>",
+    await sendEmail({
+      type: "feedback",
+      nurse_id: nurse_id || null,
       to: "hi@adonisblue.io",
       subject: `💬 New feedback from ${nurse_name || "a nurse"}`,
       html: `
@@ -34,6 +33,7 @@ export async function POST(request: Request) {
           </div>
         </div>
       `,
+      supabase,
     });
 
     return NextResponse.json({ success: true });

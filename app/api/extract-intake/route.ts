@@ -1,8 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 function escapeHtml(str: string): string {
   return str
@@ -118,8 +116,9 @@ ${conversation}`
 
     const emailTo = botData?.notification_email || nurse_email;
 
-    await resend.emails.send({
-      from: "AdonisBlue <hi@adonisblue.io>",
+    await sendEmail({
+      type: "intake_notification",
+      nurse_id,
       to: emailTo,
       subject: `💙 New client intake — ${intake.first_name || "A new client"} has been sent your booking link!`,
       html: `
@@ -149,6 +148,7 @@ ${conversation}`
           </p>
         </div>
       `,
+      supabase,
     });
 
     return NextResponse.json({ success: true });

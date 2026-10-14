@@ -1,7 +1,7 @@
-import { Resend } from "resend";
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { sendEmail } from "@/lib/sendAndLog";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 export async function POST(request: Request) {
@@ -44,12 +44,12 @@ export async function POST(request: Request) {
       });
     }
 
-    await resend.emails.send({
-      from: "AdonisBlue <hi@adonisblue.io>",
-      to: toEmail,
-      subject,
-      html,
-    });
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    await sendEmail({ type: "auth_confirmation", to: toEmail, subject, html, supabase });
 
     return NextResponse.json({ success: true });
   } catch (err) {

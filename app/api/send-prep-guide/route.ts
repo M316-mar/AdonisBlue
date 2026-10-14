@@ -1,8 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 function escapeHtml(str: string): string {
   return str
@@ -87,8 +85,10 @@ export async function POST(request: Request) {
     const clientName = escapeHtml(intake.first_name || "there");
     const serviceText = intake.service_interested ? ` for your ${escapeHtml(intake.service_interested)}` : "";
 
-    await resend.emails.send({
-      from: "AdonisBlue <hi@adonisblue.io>",
+    const sendResult = await sendEmail({
+      type: "prep_guide",
+      nurse_id: user.id,
+      intake_id: intake.id,
       to: intake.email,
       subject: `See you soon, ${clientName}! Here's how to prepare 💙`,
       html: `<!DOCTYPE html>
@@ -147,7 +147,12 @@ export async function POST(request: Request) {
     </td></tr>
   </table>
 </body></html>`,
+      supabase,
     });
+
+    if (!sendResult.ok) {
+      return NextResponse.json({ error: sendResult.error ?? "Failed to send prep guide" }, { status: 500 });
+    }
 
     // Mark as sent
     await supabase

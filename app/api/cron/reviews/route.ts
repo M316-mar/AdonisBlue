@@ -1,9 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { sendEmail } from "@/lib/sendAndLog";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 function escapeHtml(str: string): string {
@@ -88,24 +87,32 @@ export async function GET(request: Request) {
       // We can't detect Google submissions, so review_request_sent stays as the state.
       const mainReviewUrl = googleReviewLink || `${SITE_URL}/review/${reviewToken}`;
 
-      try {
-        await resend.emails.send({
-          from: "AdonisBlue <hi@adonisblue.io>",
-          to: intake.email,
-          subject: `How are you feeling, ${clientName}? 💙`,
-          html: buildReviewEmail({ clientName, practiceName, bookingLink, instagram, intakeId: intake.id, reviewUrl: mainReviewUrl }),
-        });
+      const result = await sendEmail({
+        type: "review_request",
+        nurse_id: intake.nurse_id,
+        intake_id: intake.id,
+        to: intake.email,
+        subject: `How are you feeling, ${clientName}? 💙`,
+        html: buildReviewEmail({ clientName, practiceName, bookingLink, instagram, intakeId: intake.id, reviewUrl: mainReviewUrl }),
+        supabase,
+      });
 
+      if (result.ok) {
         await supabase
           .from("intakes")
           .update({ review_request_sent: true, review_request_sent_at: new Date().toISOString() })
           .eq("id", intake.id);
-
         sent++;
-      } catch (e) {
-        console.error(`Failed to send review request for intake ${intake.id}:`, e);
       }
     }
+
+    // Heartbeat
+    await supabase.from("message_log").insert({
+      type: "cron:reviews",
+      channel: "email",
+      status: "sent",
+      error: `sent ${sent}, failed 0`,
+    });
 
     return NextResponse.json({ success: true, sent });
   } catch (e) {

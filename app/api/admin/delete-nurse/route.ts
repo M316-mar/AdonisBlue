@@ -1,8 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import { sendEmail } from "@/lib/sendAndLog";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
   try {
@@ -69,8 +68,9 @@ export async function POST(request: Request) {
     }
 
     if (nurseEmail) {
-      resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
+      sendEmail({
+        type: "account_deleted",
+        nurse_id,
         to: nurseEmail,
         subject: "Your AdonisBlue account has been deleted",
         html: `
@@ -80,6 +80,7 @@ export async function POST(request: Request) {
             <p style="color: #475569;">If you have any questions about this, reply to this email or contact us at hi@adonisblue.io.</p>
           </div>
         `,
+        supabase: db,
       }).catch(() => {});
     }
 

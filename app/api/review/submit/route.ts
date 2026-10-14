@@ -1,9 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
 import { checkForEmergency } from "@/lib/emergencyCheck";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmergencyAlert, sendEmail } from "@/lib/sendAndLog";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 function escapeHtml(str: string): string {
@@ -110,17 +108,16 @@ export async function POST(request: Request) {
       }
     }
 
-    if (isFlagged && !nurseAlertEmail) {
-      console.error(`[review] EMERGENCY flagged for intake ${intake.id} but no alert email found for nurse ${intake.nurse_id} — alert could not be sent`);
-    }
-
-    // If emergency flagged: alert nurse
-    if (isFlagged && nurseAlertEmail) {
+    // If emergency flagged: alert nurse with retry + escalation
+    if (isFlagged) {
       const clientName = escapeHtml(intake.first_name || "A client");
       const safeMessage = escapeHtml(flaggedMessage || "");
-      resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
-        to: nurseAlertEmail,
+      const practiceName = (await supabase.from("bots").select("practice_name").eq("nurse_id", intake.nurse_id).single()).data?.practice_name ?? "your practice";
+      await sendEmergencyAlert({
+        nurseEmail: nurseAlertEmail,
+        nurseId: intake.nurse_id,
+        practiceName,
+        type: "review",
         subject: `⚠️ URGENT: ${clientName} may need attention — review flagged`,
         html: `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
@@ -148,15 +145,18 @@ export async function POST(request: Request) {
     </td></tr>
   </table>
 </body></html>`,
-      }).catch((e) => console.error("[review] Failed to send emergency alert:", e));
+        supabase,
+      });
     }
 
-    // Send nurse a notification for the new review (non-emergency)
+    // Send nurse a notification for the new review (non-emergency, mutually exclusive)
     if (!isFlagged && nurseAlertEmail) {
       const clientName = escapeHtml(intake.first_name || "A client");
       const stars = "⭐".repeat(ratingNum) + "☆".repeat(5 - ratingNum);
-      resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
+      sendEmail({
+        type: "review_notification",
+        nurse_id: intake.nurse_id,
+        intake_id: intake.id,
         to: nurseAlertEmail,
         subject: `⭐ New review — ${ratingNum}/5 stars`,
         html: `<!DOCTYPE html>
@@ -180,6 +180,7 @@ export async function POST(request: Request) {
     </td></tr>
   </table>
 </body></html>`,
+        supabase,
       }).catch((e) => console.error("[review] Failed to send nurse notification:", e));
     }
 

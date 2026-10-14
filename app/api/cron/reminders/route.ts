@@ -1,8 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 function escapeHtml(str: string): string {
   return str
@@ -59,19 +57,26 @@ export async function GET(request: Request) {
     const bookingLink = intake.bots?.booking_link || null;
     const clientName = intake.first_name || "Beautiful";
 
-    try {
-      await resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
-        to: intake.email,
-        subject: `${clientName}, your lips are calling 💋`,
-        html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 6, intakeId: intake.id }),
-      });
-      await supabase.from("intakes").update({ reminder_6m_sent: true }).eq("id", intake.id);
+    const result = await sendEmail({
+      type: "reminder_6m",
+      nurse_id: intake.nurse_id,
+      intake_id: intake.id,
+      to: intake.email,
+      subject: `${clientName}, your lips are calling 💋`,
+      html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 6, intakeId: intake.id }),
+      supabase,
+    });
+    if (result.ok) {
+      await supabase.from("intakes").update({
+        reminder_6m_sent: true,
+        reminder_6m_sent_at: new Date().toISOString(),
+      }).eq("id", intake.id);
       sent++;
-    } catch (e) {
-      console.error("6m reminder error:", e);
     }
   }
+
+  let failed6m = (sixMonthDue?.length ?? 0) - sent;
+  const sent9mStart = sent;
 
   // Send 9 month reminders
   for (const intake of nineMonthDue ?? []) {
@@ -79,19 +84,35 @@ export async function GET(request: Request) {
     const bookingLink = intake.bots?.booking_link || null;
     const clientName = intake.first_name || "Beautiful";
 
-    try {
-      await resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
-        to: intake.email,
-        subject: `It's been a while, ${clientName} — time to glow again ✨`,
-        html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 9, intakeId: intake.id }),
-      });
-      await supabase.from("intakes").update({ reminder_9m_sent: true }).eq("id", intake.id);
+    const result = await sendEmail({
+      type: "reminder_9m",
+      nurse_id: intake.nurse_id,
+      intake_id: intake.id,
+      to: intake.email,
+      subject: `It's been a while, ${clientName} — time to glow again ✨`,
+      html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 9, intakeId: intake.id }),
+      supabase,
+    });
+    if (result.ok) {
+      await supabase.from("intakes").update({
+        reminder_9m_sent: true,
+        reminder_9m_sent_at: new Date().toISOString(),
+      }).eq("id", intake.id);
       sent++;
-    } catch (e) {
-      console.error("9m reminder error:", e);
     }
   }
+
+  const sent9m = sent - sent9mStart;
+  const failed9m = (nineMonthDue?.length ?? 0) - sent9m;
+  const totalFailed = failed6m + failed9m;
+
+  // Heartbeat
+  await supabase.from("message_log").insert({
+    type: "cron:reminders",
+    channel: "email",
+    status: "sent",
+    error: `sent ${sent}, failed ${totalFailed}`,
+  });
 
   return NextResponse.json({ success: true, sent });
 }

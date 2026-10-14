@@ -1,8 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -323,8 +321,10 @@ export async function POST(request: Request) {
         </div>`;
       }
 
-      const aftercareSendResult = await resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
+      const aftercareSendResult = await sendEmail({
+        type: "aftercare",
+        nurse_id: user.id,
+        treatment_id: treatment.id,
         to: clientEmail,
         subject: `Your aftercare instructions from ${practiceName} 💙`,
         html: `<!DOCTYPE html>
@@ -354,11 +354,10 @@ export async function POST(request: Request) {
     </td></tr>
   </table>
 </body></html>`,
+        supabase,
       });
 
-      if (aftercareSendResult.error) {
-        console.error("Aftercare email failed to send:", aftercareSendResult.error);
-      } else {
+      if (aftercareSendResult.ok) {
         await supabase
           .from("treatments")
           .update({

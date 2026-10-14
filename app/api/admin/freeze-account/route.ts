@@ -3,9 +3,8 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import { sendEmail } from "@/lib/sendAndLog";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function getAuthedUser(request: Request) {
   const token = request.headers.get("authorization")?.replace("Bearer ", "");
@@ -101,8 +100,9 @@ export async function POST(request: Request) {
       const { data: authUser } = await supabase.auth.admin.getUserById(nurse_id);
       const nurseEmail = authUser?.user?.email;
       if (nurseEmail) {
-        resend.emails.send({
-          from: "AdonisBlue <hi@adonisblue.io>",
+        sendEmail({
+          type: frozen ? "account_frozen" : "account_unfrozen",
+          nurse_id,
           to: nurseEmail,
           subject: frozen ? "Your AdonisBlue account has been frozen" : "Your AdonisBlue account is active again",
           html: `
@@ -116,6 +116,7 @@ export async function POST(request: Request) {
               <p style="color: #475569;">If this wasn't expected, contact us right away at hi@adonisblue.io.</p>
             </div>
           `,
+          supabase,
         }).catch(() => {});
       }
     } catch {

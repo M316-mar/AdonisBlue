@@ -1,7 +1,6 @@
-import { Resend } from "resend";
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 function escapeHtml(str: string): string {
   return str
@@ -18,8 +17,13 @@ export async function POST(request: Request) {
     const safeName = typeof full_name === "string" && full_name.trim() ? escapeHtml(full_name.trim()) : "Not provided";
     const safeEmail = typeof email === "string" ? escapeHtml(email) : "Not provided";
 
-    await resend.emails.send({
-      from: "AdonisBlue <hi@adonisblue.io>",
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    await sendEmail({
+      type: "new_signup_internal",
       to: "hi@adonisblue.io",
       subject: `🎉 New AdonisBlue signup — ${safeName !== "Not provided" ? safeName : safeEmail}`,
       html: `
@@ -29,6 +33,7 @@ export async function POST(request: Request) {
           <p><strong>Email:</strong> ${safeEmail}</p>
         </div>
       `,
+      supabase,
     });
 
     return NextResponse.json({ success: true });

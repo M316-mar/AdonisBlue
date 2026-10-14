@@ -1,8 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 function escapeHtml(str: string): string {
   return str
@@ -94,8 +92,9 @@ export async function POST(request: Request) {
 
     // Email the nurse (only if we actually have an address to send to)
     if (nurse_email) {
-      await resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
+      await sendEmail({
+        type: "intake_notification",
+        nurse_id,
         to: nurse_email,
         subject: `💙 New client intake — ${first_name} is ready to book!`,
         html: `
@@ -124,6 +123,7 @@ export async function POST(request: Request) {
           </p>
         </div>
       `,
+        supabase,
       });
     }
 

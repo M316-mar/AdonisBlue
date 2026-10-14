@@ -1,8 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 function escapeHtml(str: string): string {
   return str
@@ -98,12 +96,15 @@ export async function GET(request: Request) {
       weekday: "long", month: "long", day: "numeric",
     });
 
-    try {
-      await resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
-        to: intake.email,
-        subject: `See you soon, ${clientName}! Here's how to prepare 💙`,
-        html: `<!DOCTYPE html>
+    const nurseId = intake.nurse_id;
+    const result = await sendEmail({
+      type: "prep_guide",
+      nurse_id: nurseId,
+      intake_id: intake.id,
+      treatment_id: treatment.id,
+      to: intake.email,
+      subject: `See you soon, ${clientName}! Here's how to prepare 💙`,
+      html: `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
@@ -146,21 +147,29 @@ export async function GET(request: Request) {
     </td></tr>
   </table>
 </body></html>`,
-      });
+      supabase,
+    });
 
-      // Mark as sent
+    if (result.ok) {
       await supabase
         .from("intakes")
         .update({ prep_guide_sent: true, prep_guide_sent_at: new Date().toISOString() })
         .eq("id", intake.id);
-
-      results.push({ intake_id: intake.id, status: "sent" });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error(`[prep-reminders] failed for intake ${intake.id}:`, msg);
-      results.push({ intake_id: intake.id, status: `error: ${msg}` });
     }
+
+    results.push({ intake_id: intake.id, status: result.ok ? "sent" : `error: ${result.error}` });
   }
+
+  const sentCount = results.filter(r => r.status === "sent").length;
+  const failedCount = results.length - sentCount;
+
+  // Heartbeat
+  await supabase.from("message_log").insert({
+    type: "cron:prep-reminders",
+    channel: "email",
+    status: "sent",
+    error: `sent ${sentCount}, failed ${failedCount}`,
+  });
 
   return NextResponse.json({ processed: results.length, results });
 }

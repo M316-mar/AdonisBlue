@@ -1,9 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
-import twilio from "twilio";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io";
 
 // ── Emergency keyword list — single source of truth shared with /api/healing ──
@@ -294,44 +291,32 @@ export async function POST(request: Request) {
   </table>
 </body></html>`;
 
-          // Send email
-          if (alertEmail) {
-            await resend.emails.send({
-              from: "AdonisBlue <hi@adonisblue.io>",
-              to: alertEmail,
-              subject,
-              html: emailHtml,
-            });
-            console.log("[chat-emergency] Alert email sent");
-          }
+          // Send email with retry + escalation
+          await sendEmergencyAlert({
+            nurseEmail: alertEmail,
+            nurseId: botConfig.nurse_id,
+            practiceName,
+            type: "chat",
+            subject,
+            html: emailHtml,
+            supabase: db,
+          });
+          console.log("[chat-emergency] Alert email sent");
 
           // ── SMS via Twilio ────────────────────────────────────────────
           const alertPhone = botRow?.alert_phone?.trim() || null;
           if (alertPhone) {
-            try {
-              const accountSid = process.env.TWILIO_ACCOUNT_SID;
-              const authToken  = process.env.TWILIO_AUTH_TOKEN;
-              const fromNumber = process.env.TWILIO_PHONE_NUMBER;
-
-              if (!accountSid || !authToken || !fromNumber) {
-                console.warn("[chat-emergency] Twilio env vars not configured — SMS skipped");
-              } else {
-                const twilioClient = twilio(accountSid, authToken);
-                const smsBody = noContact
-                  ? `AdonisBlue Alert: Emergency keyword in AI bot — no contact info yet. Check your email & dashboard.`
-                  : `AdonisBlue Alert: ${clientName || "Client"} (${clientPhone || "no phone"}) needs attention. Check your email & dashboard.`;
-                await twilioClient.messages.create({
-                  body: smsBody.slice(0, 160),
-                  from: fromNumber,
-                  to: alertPhone,
-                });
-                console.log("[chat-emergency] SMS sent");
-              }
-            } catch (smsErr) {
-              console.error("[chat-emergency] SMS failed (non-fatal):", smsErr);
-            }
-          } else {
-            console.log("[chat-emergency] alert_phone not set — SMS skipped");
+            const smsBody = noContact
+              ? `AdonisBlue Alert: Emergency keyword in AI bot — no contact info yet. Check your email & dashboard.`
+              : `AdonisBlue Alert: ${clientName || "Client"} (${clientPhone || "no phone"}) needs attention. Check your email & dashboard.`;
+            await sendSms({
+              type: "emergency_alert",
+              nurse_id: botConfig.nurse_id,
+              to: alertPhone,
+              body: smsBody.slice(0, 160),
+              supabase: db,
+            });
+            console.log("[chat-emergency] SMS sent");
           }
         } catch (alertErr) {
           // Non-fatal — never let alert failure break the chat response
@@ -468,6 +453,22 @@ FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisk
         messages: messages,
       }),
     });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => `HTTP ${res.status}`);
+      const aiSupabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      await aiSupabase.from("message_log").insert({
+        type: "ai_error",
+        channel: "email",
+        nurse_id: botConfig.nurse_id ?? null,
+        status: "failed",
+        error: errText.slice(0, 500),
+      }).then(() => {}, () => {});
+      return NextResponse.json({ reply: "I'm here to help! Could you tell me a little more?" });
+    }
 
     const data = await res.json();
     const textBlock = Array.isArray(data.content)

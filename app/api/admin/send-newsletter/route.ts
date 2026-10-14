@@ -1,8 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
+import { sendEmail } from "@/lib/sendAndLog";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 export async function POST(request: Request) {
@@ -88,20 +87,18 @@ export async function POST(request: Request) {
 </body>
 </html>`;
 
-    // Send to all nurses
+    // Send to all nurses — one message_log row per recipient
     let sentCount = 0;
     for (const recipient of recipients) {
-      try {
-        await resend.emails.send({
-          from: "AdonisBlue <hi@adonisblue.io>",
-          to: recipient.email,
-          subject,
-          html: buildHtml(recipient.id),
-        });
-        sentCount++;
-      } catch (e) {
-        console.error(`Failed to send to ${recipient.email}:`, e);
-      }
+      const result = await sendEmail({
+        type: "newsletter",
+        nurse_id: recipient.id,
+        to: recipient.email,
+        subject,
+        html: buildHtml(recipient.id),
+        supabase,
+      });
+      if (result.ok) sentCount++;
     }
 
     // Save to newsletters table

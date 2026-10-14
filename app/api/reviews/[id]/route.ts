@@ -1,8 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -63,11 +61,12 @@ export async function PATCH(request: Request, { params }: Params) {
     } else if (body.action === "report") {
       update.reported_at = new Date().toISOString();
       // Email AdonisBlue with review ID only — no review content
-      resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
+      sendEmail({
+        type: "review_reported",
         to: "hi@adonisblue.io",
         subject: `Review reported by nurse`,
         html: `<p>A review has been reported by a nurse.</p><p><strong>Review ID:</strong> ${id}</p>`,
+        supabase,
       }).catch((e) => console.error("[api/reviews/[id]] Failed to send report email:", e));
     } else {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });

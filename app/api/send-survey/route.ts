@@ -1,9 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/sendAndLog";
 
 function escapeHtml(str: string): string {
   return str
@@ -55,12 +53,13 @@ export async function POST(request: Request) {
     const googleReviewLink = (bot?.google_review_link as string | null | undefined) ?? null;
     const surveyUrl = googleReviewLink || `${SITE_URL}/review/${reviewToken}`;
 
-    if (intake.email) {
-      await resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
-        to: intake.email,
-        subject: `Thank you for your visit! 💙 Your aftercare + a quick favor`,
-        html: `
+    await sendEmail({
+      type: "review_request",
+      nurse_id: intake.nurse_id,
+      intake_id: intake.id,
+      to: intake.email,
+      subject: `Thank you for your visit! 💙 Your aftercare + a quick favor`,
+      html: `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
       <h2 style="color: #1a2744;">Thank you for visiting ${practiceName}! 🌸</h2>
       <p style="color: #475569;">We hope you're loving your results! Here's everything you need to take care of yourself after your appointment.</p>
@@ -90,8 +89,8 @@ export async function POST(request: Request) {
       </p>
     </div>
   `,
-      });
-    }
+      supabase,
+    });
 
     await supabase
       .from("intakes")

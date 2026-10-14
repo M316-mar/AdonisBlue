@@ -1,8 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
+import { sendEmail } from "@/lib/sendAndLog";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -91,9 +90,12 @@ export async function POST(request: Request) {
       if (!clientEmail) continue;
       if (intake?.marketing_opt_out) continue;
 
-      try {
-        await resend.emails.send({
-          from: "AdonisBlue <hi@adonisblue.io>",
+      {
+        const result = await sendEmail({
+          type: "followup",
+          nurse_id: user.id,
+          intake_id: treatment.intake_id,
+          treatment_id: treatment.id,
           to: clientEmail,
           subject: `${clientName}, time to glow again? ✨`,
           html: `<!DOCTYPE html>
@@ -135,17 +137,17 @@ export async function POST(request: Request) {
     </td></tr>
   </table>
 </body></html>`,
+          supabase,
         });
-        sent++;
-        // Mark followup sent on the intake
-        if (treatment.intake_id) {
-          await supabase
-            .from("intakes")
-            .update({ followup_sent: true, followup_sent_at: new Date().toISOString() })
-            .eq("id", treatment.intake_id);
+        if (result.ok) {
+          sent++;
+          if (treatment.intake_id) {
+            await supabase
+              .from("intakes")
+              .update({ followup_sent: true, followup_sent_at: new Date().toISOString() })
+              .eq("id", treatment.intake_id);
+          }
         }
-      } catch {
-        // continue — don't fail the whole batch for one bad email
       }
     }
 

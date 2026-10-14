@@ -1,8 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
+import { sendEmail } from "@/lib/sendAndLog";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 export async function GET(request: Request) {
@@ -89,8 +88,9 @@ export async function POST(request: Request) {
     }
 
     if (send_email && client_email) {
-      await resend.emails.send({
-        from: "AdonisBlue <hi@adonisblue.io>",
+      await sendEmail({
+        type: "loyalty_points",
+        nurse_id: user.id,
         to: client_email,
         subject: `You earned loyalty points at ${practice_name}! 🌟`,
         html: `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
@@ -119,6 +119,7 @@ export async function POST(request: Request) {
     </td></tr>
   </table>
 </body></html>`,
+        supabase,
       });
     }
 
