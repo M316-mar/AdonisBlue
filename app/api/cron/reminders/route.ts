@@ -12,7 +12,6 @@ function escapeHtml(str: string): string {
 }
 
 export async function GET(request: Request) {
-  // Verify this is called by Vercel cron
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -23,98 +22,153 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const now = new Date();
-  const sixMonthsAgo = new Date(now);
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  const nineMonthsAgo = new Date(now);
-  nineMonthsAgo.setMonth(nineMonthsAgo.getMonth() - 9);
-
-  // Find intakes due for 6 month reminder
-  const { data: sixMonthDue } = await supabase
-    .from("intakes")
-    .select("*, bots(practice_name, booking_link, primary_color)")
-    .not("aftercare_sent_at", "is", null)
-    .eq("reminder_6m_sent", false)
-    .eq("marketing_opt_out", false)
-    .lte("aftercare_sent_at", sixMonthsAgo.toISOString())
-    .not("email", "is", null);
-
-  // Find intakes due for 9 month reminder
-  const { data: nineMonthDue } = await supabase
-    .from("intakes")
-    .select("*, bots(practice_name, booking_link, primary_color)")
-    .not("aftercare_sent_at", "is", null)
-    .eq("reminder_9m_sent", false)
-    .eq("marketing_opt_out", false)
-    .lte("aftercare_sent_at", nineMonthsAgo.toISOString())
-    .not("email", "is", null);
-
   let sent = 0;
+  let failed = 0;
 
-  // Send 6 month reminders
-  for (const intake of sixMonthDue ?? []) {
-    const practiceName = intake.bots?.practice_name || "your provider";
-    const bookingLink = intake.bots?.booking_link || null;
-    const clientName = intake.first_name || "Beautiful";
+  try {
+    const now = new Date();
+    const sixMonthsAgo = new Date(now);
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const nineMonthsAgo = new Date(now);
+    nineMonthsAgo.setMonth(nineMonthsAgo.getMonth() - 9);
 
-    const result = await sendEmail({
-      type: "reminder_6m",
-      nurse_id: intake.nurse_id,
-      intake_id: intake.id,
-      to: intake.email,
-      subject: `${clientName}, your lips are calling 💋`,
-      html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 6, intakeId: intake.id }),
-      supabase,
-    });
-    if (result.ok) {
-      await supabase.from("intakes").update({
-        reminder_6m_sent: true,
-        reminder_6m_sent_at: new Date().toISOString(),
-      }).eq("id", intake.id);
-      sent++;
+    // Step 2B backup-only: exclude intakes where any treatment already got a procedure-specific reminder
+    const { data: remindedTreatments } = await supabase
+      .from("treatments")
+      .select("intake_id")
+      .eq("reminder_sent", true);
+
+    const excludedIntakeIds = new Set(
+      (remindedTreatments ?? []).map((t: any) => t.intake_id as string),
+    );
+
+    const { data: sixMonthDue } = await supabase
+      .from("intakes")
+      .select("id, first_name, email, nurse_id, reminder_6m_sent, reminder_9m_sent")
+      .not("aftercare_sent_at", "is", null)
+      .eq("reminder_6m_sent", false)
+      .eq("marketing_opt_out", false)
+      .lte("aftercare_sent_at", sixMonthsAgo.toISOString())
+      .not("email", "is", null);
+
+    const { data: nineMonthDue } = await supabase
+      .from("intakes")
+      .select("id, first_name, email, nurse_id, reminder_6m_sent, reminder_9m_sent")
+      .not("aftercare_sent_at", "is", null)
+      .eq("reminder_9m_sent", false)
+      .eq("marketing_opt_out", false)
+      .lte("aftercare_sent_at", nineMonthsAgo.toISOString())
+      .not("email", "is", null);
+
+    // Send 6 month reminders (backup only: skip if procedure-specific reminder was sent)
+    for (const intake of sixMonthDue ?? []) {
+      if (excludedIntakeIds.has(intake.id)) continue;
+
+      // Step 2C: fetch bot separately; skip + log if missing
+      const { data: bot } = await supabase
+        .from("bots")
+        .select("practice_name, booking_link, primary_color")
+        .eq("nurse_id", intake.nurse_id)
+        .single();
+
+      if (!bot) {
+        await supabase.from("message_log").insert({
+          type: "reminder_6m",
+          channel: "email",
+          nurse_id: intake.nurse_id,
+          intake_id: intake.id,
+          status: "skipped",
+          error: "bot config not found",
+        }).then(() => {}, () => {});
+        failed++;
+        continue;
+      }
+
+      const practiceName = escapeHtml(bot.practice_name || "your provider");
+      const bookingLink = bot.booking_link || null;
+      const clientName = escapeHtml(intake.first_name || "Beautiful");
+
+      const result = await sendEmail({
+        type: "reminder_6m",
+        nurse_id: intake.nurse_id,
+        intake_id: intake.id,
+        to: intake.email,
+        subject: `${clientName}, your lips are calling 💋`,
+        html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 6, intakeId: intake.id }),
+        supabase,
+      });
+      if (result.ok) {
+        await supabase.from("intakes").update({
+          reminder_6m_sent: true,
+          reminder_6m_sent_at: new Date().toISOString(),
+        }).eq("id", intake.id);
+        sent++;
+      } else {
+        failed++;
+      }
     }
-  }
 
-  let failed6m = (sixMonthDue?.length ?? 0) - sent;
-  const sent9mStart = sent;
+    // Send 9 month reminders (backup only: skip if procedure-specific reminder was sent)
+    for (const intake of nineMonthDue ?? []) {
+      if (excludedIntakeIds.has(intake.id)) continue;
 
-  // Send 9 month reminders
-  for (const intake of nineMonthDue ?? []) {
-    const practiceName = intake.bots?.practice_name || "your provider";
-    const bookingLink = intake.bots?.booking_link || null;
-    const clientName = intake.first_name || "Beautiful";
+      // Step 2C: fetch bot separately; skip + log if missing
+      const { data: bot } = await supabase
+        .from("bots")
+        .select("practice_name, booking_link, primary_color")
+        .eq("nurse_id", intake.nurse_id)
+        .single();
 
-    const result = await sendEmail({
-      type: "reminder_9m",
-      nurse_id: intake.nurse_id,
-      intake_id: intake.id,
-      to: intake.email,
-      subject: `It's been a while, ${clientName} — time to glow again ✨`,
-      html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 9, intakeId: intake.id }),
-      supabase,
-    });
-    if (result.ok) {
-      await supabase.from("intakes").update({
-        reminder_9m_sent: true,
-        reminder_9m_sent_at: new Date().toISOString(),
-      }).eq("id", intake.id);
-      sent++;
+      if (!bot) {
+        await supabase.from("message_log").insert({
+          type: "reminder_9m",
+          channel: "email",
+          nurse_id: intake.nurse_id,
+          intake_id: intake.id,
+          status: "skipped",
+          error: "bot config not found",
+        }).then(() => {}, () => {});
+        failed++;
+        continue;
+      }
+
+      const practiceName = escapeHtml(bot.practice_name || "your provider");
+      const bookingLink = bot.booking_link || null;
+      const clientName = escapeHtml(intake.first_name || "Beautiful");
+
+      const result = await sendEmail({
+        type: "reminder_9m",
+        nurse_id: intake.nurse_id,
+        intake_id: intake.id,
+        to: intake.email,
+        subject: `It's been a while, ${clientName} — time to glow again ✨`,
+        html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 9, intakeId: intake.id }),
+        supabase,
+      });
+      if (result.ok) {
+        await supabase.from("intakes").update({
+          reminder_9m_sent: true,
+          reminder_9m_sent_at: new Date().toISOString(),
+        }).eq("id", intake.id);
+        sent++;
+      } else {
+        failed++;
+      }
     }
+
+    return NextResponse.json({ success: true, sent });
+  } catch (e) {
+    console.error("[cron/reminders] unexpected error:", e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } finally {
+    // Step 2G: heartbeat on every post-auth exit path
+    await supabase.from("message_log").insert({
+      type: "cron:reminders",
+      channel: "email",
+      status: "sent",
+      error: `sent ${sent}, failed ${failed}`,
+    }).then(() => {}, () => {});
   }
-
-  const sent9m = sent - sent9mStart;
-  const failed9m = (nineMonthDue?.length ?? 0) - sent9m;
-  const totalFailed = failed6m + failed9m;
-
-  // Heartbeat
-  await supabase.from("message_log").insert({
-    type: "cron:reminders",
-    channel: "email",
-    status: "sent",
-    error: `sent ${sent}, failed ${totalFailed}`,
-  });
-
-  return NextResponse.json({ success: true, sent });
 }
 
 function buildReminderEmail({ clientName, practiceName, bookingLink, months, intakeId }: {
@@ -124,8 +178,6 @@ function buildReminderEmail({ clientName, practiceName, bookingLink, months, int
   months: number;
   intakeId: string;
 }) {
-  clientName = escapeHtml(clientName);
-  practiceName = escapeHtml(practiceName);
   const is6 = months === 6;
   const headline = is6
     ? `Your results are fading, ${clientName} — and we miss you 💕`

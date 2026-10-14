@@ -4,33 +4,67 @@ import { sendEmail } from "@/lib/sendAndLog";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 export async function GET(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  let sentCount = 0;
+  let failedCount = 0;
+
   try {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    // Get all treatments with procedures that have reminder_days set
-    const { data: treatments } = await supabase
+    // Step 2B: marketing_opt_out in query via !inner join filter
+    const { data: treatments, error: treatmentsError } = await supabase
       .from("treatments")
-      .select("*, intakes(first_name, email, marketing_opt_out), procedures(name, reminder_days), bots:nurse_id(practice_name, booking_link, slug)")
+      .select(`
+        id,
+        treatment_date,
+        procedure_name,
+        nurse_id,
+        intake_id,
+        procedure_id,
+        intakes!inner(first_name, email, marketing_opt_out),
+        procedures(name, reminder_days)
+      `)
       .eq("reminder_sent", false)
-      .not("procedure_id", "is", null);
+      .not("procedure_id", "is", null)
+      .eq("archived", false)
+      .eq("intakes.marketing_opt_out", false);
+
+    if (treatmentsError) {
+      console.error("[cron/treatment-reminders] query error:", treatmentsError.message);
+      return NextResponse.json({ error: String(treatmentsError.message) }, { status: 500 });
+    }
 
     if (!treatments || treatments.length === 0) {
       return NextResponse.json({ sent: 0 });
     }
 
-    let sentCount = 0;
+    // Step 2B: keep only the most recent treatment per (intake_id, procedure_id)
+    const mostRecentMap = new Map<string, typeof treatments[0]>();
+    for (const t of treatments) {
+      const key = `${t.intake_id}:${t.procedure_id}`;
+      const existing = mostRecentMap.get(key);
+      if (!existing || new Date(t.treatment_date) > new Date(existing.treatment_date)) {
+        mostRecentMap.set(key, t);
+      }
+    }
+
     const today = new Date();
 
-    for (const treatment of treatments) {
+    for (const treatment of mostRecentMap.values()) {
       const reminderDays = (treatment.procedures as any)?.reminder_days;
       if (!reminderDays) continue;
 
@@ -38,27 +72,102 @@ export async function GET(request: Request) {
       const reminderDate = new Date(treatmentDate.getTime() + reminderDays * 24 * 60 * 60 * 1000);
       const diffDays = Math.floor((today.getTime() - reminderDate.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Send if reminder date is today (within 1 day window)
       if (diffDays < 0 || diffDays > 1) continue;
 
-      const clientEmail = treatment.intakes?.email;
-      const clientName = treatment.intakes?.first_name || "Beautiful";
-      const practiceName = (treatment.bots as any)?.practice_name || "your provider";
-      const bookingLink = (treatment.bots as any)?.booking_link || SITE_URL;
-      const procedureName = (treatment.procedures as any)?.name || treatment.procedure_name || "your treatment";
-
+      const intake = Array.isArray(treatment.intakes) ? treatment.intakes[0] : treatment.intakes;
+      const clientEmail = (intake as any)?.email;
       if (!clientEmail) continue;
-      if ((treatment.intakes as any)?.marketing_opt_out) continue;
 
-      {
-        const result = await sendEmail({
+      const clientName = escapeHtml((intake as any)?.first_name || "Beautiful");
+      const procedureName = escapeHtml((treatment.procedures as any)?.name || treatment.procedure_name || "your treatment");
+
+      // Step 2C: fetch bot separately; skip + log if missing
+      const { data: bot } = await supabase
+        .from("bots")
+        .select("practice_name, booking_link, slug")
+        .eq("nurse_id", treatment.nurse_id)
+        .single();
+
+      if (!bot) {
+        await supabase.from("message_log").insert({
           type: "treatment_reminder",
+          channel: "email",
           nurse_id: treatment.nurse_id,
           intake_id: treatment.intake_id,
           treatment_id: treatment.id,
-          to: clientEmail,
-          subject: `Time to refresh your ${procedureName}? ✨`,
-          html: `<!DOCTYPE html>
+          status: "skipped",
+          error: "bot config not found",
+        }).then(() => {}, () => {});
+        failedCount++;
+        continue;
+      }
+
+      const practiceName = escapeHtml(bot.practice_name || "your provider");
+      const bookingLink = bot.booking_link || SITE_URL;
+
+      const result = await sendEmail({
+        type: "treatment_reminder",
+        nurse_id: treatment.nurse_id,
+        intake_id: treatment.intake_id,
+        treatment_id: treatment.id,
+        to: clientEmail,
+        subject: `Time to refresh your ${procedureName}? ✨`,
+        html: buildReminderEmail({
+          clientName,
+          practiceName,
+          bookingLink,
+          procedureName,
+          reminderDays,
+          slug: bot.slug ?? null,
+          intakeId: treatment.intake_id,
+        }),
+        supabase,
+      });
+
+      if (result.ok) {
+        await supabase
+          .from("treatments")
+          .update({ reminder_sent: true, reminder_sent_at: new Date().toISOString() })
+          .eq("id", treatment.id);
+        sentCount++;
+      } else {
+        failedCount++;
+      }
+    }
+
+    return NextResponse.json({ sent: sentCount });
+  } catch (e) {
+    console.error("[cron/treatment-reminders] unexpected error:", e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } finally {
+    // Step 2G: heartbeat on every post-auth exit path
+    await supabase.from("message_log").insert({
+      type: "cron:treatment-reminders",
+      channel: "email",
+      status: "sent",
+      error: `sent ${sentCount}, failed ${failedCount}`,
+    }).then(() => {}, () => {});
+  }
+}
+
+function buildReminderEmail({
+  clientName,
+  practiceName,
+  bookingLink,
+  procedureName,
+  reminderDays,
+  slug,
+  intakeId,
+}: {
+  clientName: string;
+  practiceName: string;
+  bookingLink: string;
+  procedureName: string;
+  reminderDays: number;
+  slug: string | null;
+  intakeId: string;
+}) {
+  return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
@@ -77,44 +186,19 @@ export async function GET(request: Request) {
           </div>
           <p style="margin:0;color:#94a3b8;font-size:13px;text-align:center;">We can't wait to see you again! 💕</p>
         </td></tr>
-        ${(treatment.bots as any)?.slug ? `<tr>
+        ${slug ? `<tr>
           <td style="background:#f0fdfa;padding:24px 32px;border-top:1px solid #e2e8f0;text-align:center;">
             <p style="margin:0 0 12px;color:#1a2744;font-size:14px;font-weight:600;">Have concerns or questions?</p>
-            <a href="https://www.adonisblue.io/chat/${(treatment.bots as any).slug}" style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:999px;font-size:14px;font-weight:600;">💬 Chat with ${practiceName}'s assistant</a>
+            <a href="https://www.adonisblue.io/chat/${slug}" style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:999px;font-size:14px;font-weight:600;">💬 Chat with ${practiceName}'s assistant</a>
             <p style="margin:12px 0 0;color:#94a3b8;font-size:12px;">Anything urgent will notify ${practiceName} to reach out to you right away.</p>
           </td>
         </tr>` : ""}
         <tr><td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
           <p style="margin:0 0 6px;color:#94a3b8;font-size:12px;">Sent with care by ${practiceName} via AdonisBlue</p>
-          <p style="margin:0;color:#cbd5e1;font-size:11px;"><a href="${SITE_URL}/api/unsubscribe?id=${treatment.intake_id}" style="color:#cbd5e1;text-decoration:underline;">Unsubscribe from reminders</a></p>
+          <p style="margin:0;color:#cbd5e1;font-size:11px;"><a href="${SITE_URL}/api/unsubscribe?id=${intakeId}" style="color:#cbd5e1;text-decoration:underline;">Unsubscribe from reminders</a></p>
         </td></tr>
       </table>
     </td></tr>
   </table>
-</body></html>`,
-          supabase,
-        });
-
-        if (result.ok) {
-          await supabase
-            .from("treatments")
-            .update({ reminder_sent: true, reminder_sent_at: new Date().toISOString() })
-            .eq("id", treatment.id);
-          sentCount++;
-        }
-      }
-    }
-
-    // Heartbeat
-    await supabase.from("message_log").insert({
-      type: "cron:treatment-reminders",
-      channel: "email",
-      status: "sent",
-      error: `sent ${sentCount}, failed ${(treatments?.length ?? 0) - sentCount}`,
-    });
-
-    return NextResponse.json({ sent: sentCount });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
-  }
+</body></html>`;
 }

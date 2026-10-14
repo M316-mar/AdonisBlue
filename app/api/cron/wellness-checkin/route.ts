@@ -24,72 +24,85 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Find treatments where aftercare was sent 16–40 hours ago and check-in hasn't fired yet.
-  // 24h-wide window ensures every client falls into exactly one daily run regardless of
-  // what time of day the nurse sent aftercare. wellness_checkin_sent_at IS NULL is the dedup.
-  const now = new Date();
-  const windowEnd = new Date(now.getTime() - 16 * 60 * 60 * 1000);   // 16h ago
-  const windowStart = new Date(now.getTime() - 40 * 60 * 60 * 1000); // 40h ago
+  let sentCount = 0;
+  let failedCount = 0;
 
-  const { data: treatments, error } = await supabase
-    .from("treatments")
-    .select(`
-      id,
-      procedure_name,
-      intake_id,
-      nurse_id,
-      intakes (
+  try {
+    const now = new Date();
+    const windowEnd = new Date(now.getTime() - 16 * 60 * 60 * 1000);   // 16h ago
+    const windowStart = new Date(now.getTime() - 40 * 60 * 60 * 1000); // 40h ago
+
+    const { data: treatments, error } = await supabase
+      .from("treatments")
+      .select(`
         id,
-        first_name,
-        email,
-        nurse_id
-      )
-    `)
-    .eq("aftercare_sent", true)
-    .is("wellness_checkin_sent_at", null)
-    .gte("aftercare_sent_at", windowStart.toISOString())
-    .lte("aftercare_sent_at", windowEnd.toISOString())
-    .eq("archived", false);
+        procedure_name,
+        intake_id,
+        nurse_id,
+        intakes (
+          id,
+          first_name,
+          email,
+          nurse_id
+        )
+      `)
+      .eq("aftercare_sent", true)
+      .is("wellness_checkin_sent_at", null)
+      .gte("aftercare_sent_at", windowStart.toISOString())
+      .lte("aftercare_sent_at", windowEnd.toISOString())
+      .eq("archived", false);
 
-  if (error) {
-    console.error("[wellness-checkin] query error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+    if (error) {
+      console.error("[wellness-checkin] query error:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
-  const results: { treatment_id: string; status: string }[] = [];
+    for (const treatment of treatments ?? []) {
+      const intake = Array.isArray(treatment.intakes) ? treatment.intakes[0] : treatment.intakes;
+      if (!intake?.email) continue;
 
-  for (const treatment of treatments ?? []) {
-    const intake = Array.isArray(treatment.intakes) ? treatment.intakes[0] : treatment.intakes;
-    if (!intake?.email) continue;
+      const nurseId = treatment.nurse_id ?? intake.nurse_id;
 
-    const nurseId = treatment.nurse_id ?? intake.nurse_id;
+      // Step 2C: fetch bot separately; skip + log if missing
+      const { data: bot } = await supabase
+        .from("bots")
+        .select("practice_name, slug, phone")
+        .eq("nurse_id", nurseId)
+        .single();
 
-    // Fetch bot for practice name, slug, nurse phone
-    const { data: bot } = await supabase
-      .from("bots")
-      .select("practice_name, slug, phone")
-      .eq("nurse_id", nurseId)
-      .single();
+      if (!bot) {
+        await supabase.from("message_log").insert({
+          type: "wellness_checkin",
+          channel: "email",
+          nurse_id: nurseId,
+          intake_id: intake.id,
+          treatment_id: treatment.id,
+          status: "skipped",
+          error: "bot config not found",
+        }).then(() => {}, () => {});
+        failedCount++;
+        continue;
+      }
 
-    const practiceName = escapeHtml(bot?.practice_name || "your provider");
-    const clientName = escapeHtml(intake.first_name || "there");
-    const procedureName = escapeHtml(treatment.procedure_name || "your treatment");
-    const healingLink = `${SITE_URL}/healing/${treatment.id}`;
-    const nursePhone = escapeHtml(bot?.phone || "");
-    const slug = bot?.slug ?? null;
+      const practiceName = escapeHtml(bot.practice_name || "your provider");
+      const clientName = escapeHtml(intake.first_name || "there");
+      const procedureName = escapeHtml(treatment.procedure_name || "your treatment");
+      const healingLink = `${SITE_URL}/healing/${treatment.id}`;
+      const nursePhone = escapeHtml(bot.phone || "");
+      const slug = bot.slug ?? null;
 
-    const emergencyLine = nursePhone
-      ? `If you have severe pain, vision changes, skin turning white, grey, or blue, or trouble breathing, call 911 or go to the nearest ER immediately — then contact me at ${nursePhone}.`
-      : `If you have severe pain, vision changes, skin turning white, grey, or blue, or trouble breathing, call 911 or go to the nearest ER immediately.`;
+      const emergencyLine = nursePhone
+        ? `If you have severe pain, vision changes, skin turning white, grey, or blue, or trouble breathing, call 911 or go to the nearest ER immediately — then contact me at ${nursePhone}.`
+        : `If you have severe pain, vision changes, skin turning white, grey, or blue, or trouble breathing, call 911 or go to the nearest ER immediately.`;
 
-    const result = await sendEmail({
-      type: "wellness_checkin",
-      nurse_id: nurseId,
-      intake_id: intake.id,
-      treatment_id: treatment.id,
-      to: intake.email,
-      subject: `Checking in — how are you feeling after your ${treatment.procedure_name || "appointment"}?`,
-      html: `<!DOCTYPE html>
+      const result = await sendEmail({
+        type: "wellness_checkin",
+        nurse_id: nurseId,
+        intake_id: intake.id,
+        treatment_id: treatment.id,
+        to: intake.email,
+        subject: `Checking in — how are you feeling after your ${treatment.procedure_name || "appointment"}?`,
+        html: `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>Checking in on you 💙</title></head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -137,29 +150,31 @@ export async function GET(request: Request) {
   </table>
 </body>
 </html>`,
-      supabase,
-    });
+        supabase,
+      });
 
-    if (result.ok) {
-      await supabase
-        .from("treatments")
-        .update({ wellness_checkin_sent_at: new Date().toISOString() })
-        .eq("id", treatment.id);
+      if (result.ok) {
+        await supabase
+          .from("treatments")
+          .update({ wellness_checkin_sent_at: new Date().toISOString() })
+          .eq("id", treatment.id);
+        sentCount++;
+      } else {
+        failedCount++;
+      }
     }
 
-    results.push({ treatment_id: treatment.id, status: result.ok ? "sent" : `error: ${result.error}` });
+    return NextResponse.json({ processed: sentCount + failedCount, sent: sentCount, failed: failedCount });
+  } catch (e) {
+    console.error("[wellness-checkin] unexpected error:", e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } finally {
+    // Step 2G: heartbeat on every post-auth exit path
+    await supabase.from("message_log").insert({
+      type: "cron:wellness-checkin",
+      channel: "email",
+      status: "sent",
+      error: `sent ${sentCount}, failed ${failedCount}`,
+    }).then(() => {}, () => {});
   }
-
-  const sentCount = results.filter(r => r.status === "sent").length;
-  const failedCount = results.length - sentCount;
-
-  // Heartbeat
-  await supabase.from("message_log").insert({
-    type: "cron:wellness-checkin",
-    channel: "email",
-    status: "sent",
-    error: `sent ${sentCount}, failed ${failedCount}`,
-  });
-
-  return NextResponse.json({ processed: results.length, results });
 }

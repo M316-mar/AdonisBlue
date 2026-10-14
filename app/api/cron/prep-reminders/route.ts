@@ -20,7 +20,6 @@ const DEFAULT_PREP_INSTRUCTIONS = [
 ];
 
 export async function GET(request: Request) {
-  // Verify this is called by Vercel cron
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,80 +30,95 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Find treatments with a date 24–48 hours from now
-  const now = new Date();
-  const windowStart = new Date(now.getTime() + 24 * 60 * 60 * 1000); // +24h
-  const windowEnd = new Date(now.getTime() + 48 * 60 * 60 * 1000);   // +48h
+  let sentCount = 0;
+  let failedCount = 0;
 
-  // Get the date range (date-only comparison)
-  const startDate = windowStart.toISOString().split("T")[0];
-  const endDate = windowEnd.toISOString().split("T")[0];
+  try {
+    const now = new Date();
+    const windowStart = new Date(now.getTime() + 24 * 60 * 60 * 1000); // +24h
+    const windowEnd = new Date(now.getTime() + 48 * 60 * 60 * 1000);   // +48h
 
-  // Find treatments in the window where the intake hasn't had prep guide sent yet
-  const { data: treatments, error } = await supabase
-    .from("treatments")
-    .select(`
-      id,
-      procedure_name,
-      treatment_date,
-      intake_id,
-      intakes (
+    const startDate = windowStart.toISOString().split("T")[0];
+    const endDate = windowEnd.toISOString().split("T")[0];
+
+    // Step 2D: filter prep_guide_sent_at IS NULL on the treatment (per-treatment tracking)
+    const { data: treatments, error } = await supabase
+      .from("treatments")
+      .select(`
         id,
-        first_name,
-        email,
+        procedure_name,
+        treatment_date,
+        intake_id,
         nurse_id,
-        prep_guide_sent
-      )
-    `)
-    .gte("treatment_date", startDate)
-    .lte("treatment_date", endDate)
-    .not("intake_id", "is", null)
-    .eq("archived", false);
+        intakes (
+          id,
+          first_name,
+          email,
+          nurse_id
+        )
+      `)
+      .gte("treatment_date", startDate)
+      .lte("treatment_date", endDate)
+      .is("prep_guide_sent_at", null)
+      .not("intake_id", "is", null)
+      .eq("archived", false);
 
-  if (error) {
-    console.error("[prep-reminders] query error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+    if (error) {
+      console.error("[prep-reminders] query error:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
-  const results: { intake_id: string; status: string }[] = [];
+    for (const treatment of treatments ?? []) {
+      const intake = Array.isArray(treatment.intakes) ? treatment.intakes[0] : treatment.intakes;
+      if (!intake) continue;
+      if (!intake.email) continue;
 
-  for (const treatment of treatments ?? []) {
-    const intake = Array.isArray(treatment.intakes) ? treatment.intakes[0] : treatment.intakes;
-    if (!intake) continue;
-    if (!intake.email) continue;
-    if (intake.prep_guide_sent) continue; // already sent
+      const nurseId = treatment.nurse_id ?? intake.nurse_id;
 
-    // Fetch nurse's bot for practice name + custom prep instructions
-    const { data: bot } = await supabase
-      .from("bots")
-      .select("practice_name, pre_appointment_instructions, slug")
-      .eq("nurse_id", intake.nurse_id)
-      .single();
+      // Step 2C: fetch bot separately; skip + log if missing
+      const { data: bot } = await supabase
+        .from("bots")
+        .select("practice_name, pre_appointment_instructions, slug")
+        .eq("nurse_id", nurseId)
+        .single();
 
-    const practiceName = escapeHtml(bot?.practice_name || "your provider");
-    const rawInstructions: string = bot?.pre_appointment_instructions?.trim() || "";
-    const instructionLines: string[] = rawInstructions
-      ? rawInstructions.split("\n").map((l: string) => l.trim()).filter(Boolean)
-      : DEFAULT_PREP_INSTRUCTIONS;
+      if (!bot) {
+        await supabase.from("message_log").insert({
+          type: "prep_guide",
+          channel: "email",
+          nurse_id: nurseId,
+          intake_id: intake.id,
+          treatment_id: treatment.id,
+          status: "skipped",
+          error: "bot config not found",
+        }).then(() => {}, () => {});
+        failedCount++;
+        continue;
+      }
 
-    const checklistHtml = instructionLines
-      .map(line => `<tr><td style="padding:6px 0;color:#1a2744;font-size:15px;">✅ ${line}</td></tr>`)
-      .join("");
+      const practiceName = escapeHtml(bot.practice_name || "your provider");
+      const rawInstructions: string = bot.pre_appointment_instructions?.trim() || "";
+      const instructionLines: string[] = rawInstructions
+        ? rawInstructions.split("\n").map((l: string) => l.trim()).filter(Boolean)
+        : DEFAULT_PREP_INSTRUCTIONS;
 
-    const clientName = escapeHtml(intake.first_name || "there");
-    const apptDate = new Date(treatment.treatment_date).toLocaleDateString("en-US", {
-      weekday: "long", month: "long", day: "numeric",
-    });
+      const checklistHtml = instructionLines
+        .map(line => `<tr><td style="padding:6px 0;color:#1a2744;font-size:15px;">✅ ${escapeHtml(line)}</td></tr>`)
+        .join("");
 
-    const nurseId = intake.nurse_id;
-    const result = await sendEmail({
-      type: "prep_guide",
-      nurse_id: nurseId,
-      intake_id: intake.id,
-      treatment_id: treatment.id,
-      to: intake.email,
-      subject: `See you soon, ${clientName}! Here's how to prepare 💙`,
-      html: `<!DOCTYPE html>
+      const clientName = escapeHtml(intake.first_name || "there");
+      const apptDate = new Date(treatment.treatment_date).toLocaleDateString("en-US", {
+        weekday: "long", month: "long", day: "numeric",
+      });
+
+      const result = await sendEmail({
+        type: "prep_guide",
+        nurse_id: nurseId,
+        intake_id: intake.id,
+        treatment_id: treatment.id,
+        to: intake.email,
+        subject: `See you soon, ${clientName}! Here's how to prepare 💙`,
+        html: `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
@@ -133,7 +147,7 @@ export async function GET(request: Request) {
             <p style="margin:4px 0 0;color:#0d9488;font-size:14px;">${practiceName}</p>
           </div>
         </td></tr>
-        ${bot?.slug ? `<tr>
+        ${bot.slug ? `<tr>
           <td style="background:#f0fdfa;padding:24px 32px;border-top:1px solid #e2e8f0;text-align:center;">
             <p style="margin:0 0 12px;color:#1a2744;font-size:14px;font-weight:600;">Have concerns or questions?</p>
             <a href="https://www.adonisblue.io/chat/${bot.slug}" style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:999px;font-size:14px;font-weight:600;">💬 Chat with ${practiceName}'s assistant</a>
@@ -147,29 +161,32 @@ export async function GET(request: Request) {
     </td></tr>
   </table>
 </body></html>`,
-      supabase,
-    });
+        supabase,
+      });
 
-    if (result.ok) {
-      await supabase
-        .from("intakes")
-        .update({ prep_guide_sent: true, prep_guide_sent_at: new Date().toISOString() })
-        .eq("id", intake.id);
+      if (result.ok) {
+        // Step 2D: track per-treatment, not per-intake
+        await supabase
+          .from("treatments")
+          .update({ prep_guide_sent_at: new Date().toISOString() })
+          .eq("id", treatment.id);
+        sentCount++;
+      } else {
+        failedCount++;
+      }
     }
 
-    results.push({ intake_id: intake.id, status: result.ok ? "sent" : `error: ${result.error}` });
+    return NextResponse.json({ processed: sentCount + failedCount, sent: sentCount, failed: failedCount });
+  } catch (e) {
+    console.error("[prep-reminders] unexpected error:", e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } finally {
+    // Step 2G: heartbeat on every post-auth exit path
+    await supabase.from("message_log").insert({
+      type: "cron:prep-reminders",
+      channel: "email",
+      status: "sent",
+      error: `sent ${sentCount}, failed ${failedCount}`,
+    }).then(() => {}, () => {});
   }
-
-  const sentCount = results.filter(r => r.status === "sent").length;
-  const failedCount = results.length - sentCount;
-
-  // Heartbeat
-  await supabase.from("message_log").insert({
-    type: "cron:prep-reminders",
-    channel: "email",
-    status: "sent",
-    error: `sent ${sentCount}, failed ${failedCount}`,
-  });
-
-  return NextResponse.json({ processed: results.length, results });
 }

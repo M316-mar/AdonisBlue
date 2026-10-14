@@ -10,6 +10,7 @@ const CRON_NAMES = [
   "cron:reviews",
   "cron:treatment-reminders",
   "cron:wellness-checkin",
+  "cron:aftercare-nudge",
 ];
 
 function escapeHtml(str: string): string {

@@ -11,64 +11,85 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-type BotFields = {
-  practice_name: string | null;
-  booking_link: string | null;
-  instagram: string | null;
-  google_review_link: string | null;
-  facebook_review_link: string | null;
-} | null;
-
 export async function GET(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  let sent = 0;
+  let failed = 0;
+
   try {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
     const now = new Date();
     const fourteenDaysAgo = new Date(now);
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
     const thirtyDaysAgo = new Date(now);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // 14-30 days after aftercare sent; skip anyone already asked or who already submitted
+    // Step 2A: window based on most recent treatment_date, not aftercare_sent_at
+    const { data: recentTreatments } = await supabase
+      .from("treatments")
+      .select("intake_id")
+      .gte("treatment_date", thirtyDaysAgo.toISOString().split("T")[0])
+      .lte("treatment_date", fourteenDaysAgo.toISOString().split("T")[0])
+      .eq("archived", false)
+      .not("intake_id", "is", null);
+
+    const eligibleIntakeIds = [...new Set(
+      (recentTreatments ?? []).map((t: any) => t.intake_id as string),
+    )];
+
+    if (eligibleIntakeIds.length === 0) {
+      return NextResponse.json({ sent: 0 });
+    }
+
     const { data: intakes, error: intakesError } = await supabase
       .from("intakes")
-      .select("*, bots(practice_name, booking_link, instagram, google_review_link, facebook_review_link)")
-      .not("aftercare_sent_at", "is", null)
+      .select("id, first_name, email, nurse_id, review_request_sent, survey_sent, review_submitted_at, marketing_opt_out, review_token")
+      .in("id", eligibleIntakeIds)
       .eq("review_request_sent", false)
       .eq("survey_sent", false)
       .is("review_submitted_at", null)
       .eq("marketing_opt_out", false)
-      .gte("aftercare_sent_at", thirtyDaysAgo.toISOString())
-      .lte("aftercare_sent_at", fourteenDaysAgo.toISOString())
       .not("email", "is", null);
 
     if (intakesError) {
-      console.error("[cron/reviews] Supabase query error:", JSON.stringify(intakesError));
+      console.error("[cron/reviews] query error:", intakesError.message);
       return NextResponse.json({ error: String(intakesError.message) }, { status: 500 });
     }
 
-    if (!intakes || intakes.length === 0) {
-      return NextResponse.json({ sent: 0 });
-    }
+    for (const intake of intakes ?? []) {
+      // Step 2C: fetch bot separately; skip + log if missing
+      const { data: bot } = await supabase
+        .from("bots")
+        .select("practice_name, booking_link, instagram, google_review_link, facebook_review_link")
+        .eq("nurse_id", intake.nurse_id)
+        .single();
 
-    let sent = 0;
+      if (!bot) {
+        await supabase.from("message_log").insert({
+          type: "review_request",
+          channel: "email",
+          nurse_id: intake.nurse_id,
+          intake_id: intake.id,
+          status: "skipped",
+          error: "bot config not found",
+        }).then(() => {}, () => {});
+        failed++;
+        continue;
+      }
 
-    for (const intake of intakes) {
-      const bots = intake.bots as BotFields;
       const clientName = escapeHtml(intake.first_name || "Beautiful");
-      const practiceName = escapeHtml(bots?.practice_name || "your provider");
-      const bookingLink = bots?.booking_link || null;
-      const instagram = bots?.instagram || null;
+      const practiceName = escapeHtml(bot.practice_name || "your provider");
+      const bookingLink = bot.booking_link || null;
+      const instagram = bot.instagram || null;
 
-      // Reuse existing token or generate a new one
       let reviewToken: string = intake.review_token;
       if (!reviewToken) {
         reviewToken = crypto.randomBytes(32).toString("base64url");
@@ -77,14 +98,13 @@ export async function GET(request: Request) {
           .update({ review_token: reviewToken })
           .eq("id", intake.id);
         if (tokenErr) {
-          console.error(`Failed to save review_token for intake ${intake.id}:`, tokenErr);
+          console.error(`[cron/reviews] failed to save review_token for intake ${intake.id}:`, tokenErr.message);
+          failed++;
           continue;
         }
       }
 
-      const googleReviewLink = bots?.google_review_link || null;
-      // If nurse has a Google review link, send clients there directly.
-      // We can't detect Google submissions, so review_request_sent stays as the state.
+      const googleReviewLink = bot.google_review_link || null;
       const mainReviewUrl = googleReviewLink || `${SITE_URL}/review/${reviewToken}`;
 
       const result = await sendEmail({
@@ -103,20 +123,23 @@ export async function GET(request: Request) {
           .update({ review_request_sent: true, review_request_sent_at: new Date().toISOString() })
           .eq("id", intake.id);
         sent++;
+      } else {
+        failed++;
       }
     }
 
-    // Heartbeat
+    return NextResponse.json({ success: true, sent });
+  } catch (e) {
+    console.error("[cron/reviews] unexpected error:", e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } finally {
+    // Step 2G: heartbeat on every post-auth exit path
     await supabase.from("message_log").insert({
       type: "cron:reviews",
       channel: "email",
       status: "sent",
-      error: `sent ${sent}, failed 0`,
-    });
-
-    return NextResponse.json({ success: true, sent });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+      error: `sent ${sent}, failed ${failed}`,
+    }).then(() => {}, () => {});
   }
 }
 
