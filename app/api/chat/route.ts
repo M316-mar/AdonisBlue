@@ -1,22 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse, after } from "next/server";
 import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
+import { detectEmergencySync } from "@/lib/emergencyCheck";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io";
-
-// ── Emergency keyword list — single source of truth shared with /api/healing ──
-// IMPORTANT: Keep this list in sync with /api/healing/route.ts
-const DEFAULT_EMERGENCY_KEYWORDS = [
-  "purple", "blue lips", "can't breathe", "cannot breathe", "severe pain",
-  "extreme pain", "fever", "infection", "allergic", "anaphylaxis", "swelling won't stop",
-  "getting worse", "emergency", "hospital", "911", "help me", "scared",
-  "numb", "vision", "blindness", "vascular", "necrosis",
-];
-
-/** Server-side keyword check — never trust the client's flagged value. */
-function detectEmergency(text: string): boolean {
-  const lower = text.toLowerCase();
-  return DEFAULT_EMERGENCY_KEYWORDS.some((kw) => lower.includes(kw.toLowerCase()));
-}
 
 /** Escape HTML special chars to prevent XSS in email bodies. */
 function escapeHtml(str: string): string {
@@ -158,7 +144,7 @@ export async function POST(request: Request) {
         .reverse()
         .find((m) => m.role === "user")?.content ?? "";
 
-    const isFlagged = detectEmergency(lastUserMessage);
+    const isFlagged = detectEmergencySync(lastUserMessage);
 
     // Deduplication flags passed from client state
     const alreadyAlerted = botConfig.emergencyAlertedThisSession === true;
@@ -335,11 +321,10 @@ export async function POST(request: Request) {
 
     // ── Inject emergency awareness into system prompt when flagged ─────────
     const emergencyInstruction = isFlagged
-      ? `\n\nEMERGENCY DETECTED — CRITICAL OVERRIDE: The client just used language that may indicate a medical emergency. Your ONLY job right now is to:
-1. Acknowledge their concern warmly and with genuine care — lead with empathy, not with "your nurse has been alerted"
-2. ${hasContact ? "You already have their contact info — no need to ask again. Reassure them that their nurse has already been notified and will follow up. Tell them to call 911 or go to the nearest emergency room immediately if symptoms feel severe." : "Ask for their full name and the best phone number to reach them — frame it as wanting to make sure their nurse can contact them directly. THEN, as a secondary reassurance, mention that you've already let their nurse know so she's aware. Finally, advise them to call 911 or go to the nearest emergency room immediately if symptoms feel severe."}
-3. Do NOT open with \"your nurse has been alerted\" — contact info collection (when needed) comes first, the alert confirmation comes second
-Do NOT continue normal intake or booking conversation until this is addressed.`
+      ? `\n\nEMERGENCY DETECTED — CRITICAL OVERRIDE: The client just described something that may need urgent medical attention. Your response must follow this exact order:
+1. For symptoms involving breathing difficulty, chest pain, throat or tongue swelling, vision changes, skin turning white/gray/blue, or fainting — your first sentence must be: "Please call 911 or go to the nearest emergency room right now." Then say their nurse has been notified. End with [[ALERT_NURSE]] on its own line.
+2. For other concerning symptoms — acknowledge warmly. ${!hasContact ? "Ask for their full name and phone number so their nurse can reach them." : "Confirm their nurse has been notified."} End with [[ALERT_NURSE]] on its own line.
+Keep your response under 3 sentences. Calm, clear, direct. Never use pet names like "sweetie" or "hun".`
       : "";
 
     // ── Pronoun-aware tone adjustment ─────────────────────────────────────
@@ -437,7 +422,9 @@ LANGUAGE: Respond in the same language the client is writing in. If the client w
 
 Always speak in plain simple English (or Spanish if the client writes in Spanish). No medical terms. Be the warm voice that makes someone feel safe enough to take the next step.
 
-FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisks for bold (**text**), no bullet points (- item or * item), no headers (#). Write in plain conversational sentences only. Emojis are fine and encouraged.${activeOffersBlock}${emergencyInstruction}`;
+FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisks for bold (**text**), no bullet points (- item or * item), no headers (#). Write in plain conversational sentences only. Emojis are fine and encouraged.${activeOffersBlock}
+
+SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, chest pain, throat or tongue swelling, vision changes (blurry, double, or lost), skin turning white/gray/blue, fainting, severe or worsening pain, or any symptom that sounds like a medical emergency — OR if you find yourself advising them to call 911, go to the ER, or go to urgent care — OR if you tell the client their nurse is being notified: append the exact token [[ALERT_NURSE]] on its own line at the very end of your reply. This token is invisible to the client and triggers the nurse alert system. Only include it when you genuinely believe the situation may need urgent attention. Never include it for routine questions.${emergencyInstruction}`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -474,7 +461,69 @@ FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisk
     const textBlock = Array.isArray(data.content)
       ? data.content.find((block: { type?: string; text?: string }) => block?.type === "text")
       : null;
-    const reply = textBlock?.text || "I'm here to help! Could you tell me a little more?";
+    const rawReply = textBlock?.text || "I'm here to help! Could you tell me a little more?";
+
+    // ── AI second alarm: strip [[ALERT_NURSE]] token ──────────────────────
+    const aiAlertToken = rawReply.includes("[[ALERT_NURSE]]");
+    const reply = rawReply.replace(/\[\[ALERT_NURSE\]\]\s*/g, "").trimEnd();
+
+    // Fire AI-triggered alert only if keyword detector did NOT already send one this message
+    if (aiAlertToken && !shouldAlert && botConfig.nurse_id && !alreadyAlerted) {
+      responseEmergencyAlerted = true;
+      after(async () => {
+        try {
+          const db = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          );
+          const { data: botRow2 } = await db
+            .from("bots")
+            .select("notification_email, alert_phone, practice_name")
+            .eq("nurse_id", botConfig.nurse_id)
+            .single();
+          let alertEmail2 = botRow2?.notification_email?.trim() || null;
+          if (!alertEmail2) {
+            const { data: authUser } = await db.auth.admin.getUserById(botConfig.nurse_id);
+            alertEmail2 = authUser?.user?.email ?? null;
+          }
+          const practiceName2 = botRow2?.practice_name || botConfig.practice_name || "your practice";
+          await sendEmergencyAlert({
+            nurseEmail: alertEmail2,
+            nurseId: botConfig.nurse_id,
+            practiceName: practiceName2,
+            type: "chat",
+            subject: `⚠️ URGENT: Client may need attention — AI-detected — ${practiceName2}`,
+            html: `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#fef2f2;font-family:-apple-system,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:20px;overflow:hidden;border:2px solid #ef4444;">
+        <tr><td style="background:#ef4444;padding:24px 32px;text-align:center;">
+          <p style="margin:0;color:#fff;font-size:18px;font-weight:700;">⚠️ AI-Detected Emergency — Chat Bot</p>
+          <p style="margin:6px 0 0;color:#fecaca;font-size:13px;">${escapeHtml(practiceName2)}</p>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 16px;color:#1a2744;font-size:15px;">The AI assistant flagged a potential emergency in your chat bot. The client's last message:</p>
+          <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:8px;padding:16px;margin:12px 0;">
+            <p style="margin:0;color:#dc2626;font-size:15px;font-weight:600;">&ldquo;${escapeHtml(lastUserMessage.slice(0, 500))}&rdquo;</p>
+          </div>
+          <p style="margin:12px 0 0;color:#64748b;font-size:13px;">Alert source: AI token (keyword list did not match)</p>
+          <div style="text-align:center;margin:24px 0;">
+            <a href="${SITE_URL}/dashboard" style="display:inline-block;background:#ef4444;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">View dashboard</a>
+          </div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`,
+            supabase: db,
+          });
+        } catch (aiAlertErr) {
+          console.error("[chat-ai-alert] failed:", aiAlertErr);
+        }
+      });
+    }
     // Detect intake completion server-side
     const intakeComplete =
       reply.toLowerCase().includes("i've got everything noted") ||

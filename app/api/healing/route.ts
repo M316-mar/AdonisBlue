@@ -1,14 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
+import { detectEmergencySync, DEFAULT_EMERGENCY_KEYWORDS } from "@/lib/emergencyCheck";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
-
-const DEFAULT_EMERGENCY_KEYWORDS = [
-  "purple", "blue lips", "can't breathe", "cannot breathe", "severe pain",
-  "extreme pain", "fever", "infection", "allergic", "anaphylaxis", "swelling won't stop",
-  "getting worse", "emergency", "hospital", "911", "help me", "scared",
-  "numb", "vision", "blindness", "vascular", "necrosis",
-];
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -20,13 +14,6 @@ function escapeHtml(str: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-/** Server-side keyword check — never trust the client's flagged value. */
-function detectEmergency(text: string, customKeywords: string[]): boolean {
-  const lower = text.toLowerCase();
-  const all = [...DEFAULT_EMERGENCY_KEYWORDS, ...customKeywords];
-  return all.some((kw) => lower.includes(kw.toLowerCase()));
 }
 
 /** Sanitise and validate the messages array coming from the client. */
@@ -184,7 +171,7 @@ export async function POST(request: Request) {
     // Check the latest user message (the one that triggered this POST)
     const lastUserMessage =
       [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
-    const isFlagged = detectEmergency(lastUserMessage, customKeywords);
+    const isFlagged = detectEmergencySync(lastUserMessage, customKeywords);
 
     // Sanitise flagged_message for use in email HTML
     const safeFlaggedMessage = escapeHtml(
@@ -284,14 +271,11 @@ export async function POST(request: Request) {
     // Get AI response
     const apiKey = process.env.ANTHROPIC_API_KEY;
 
-    // When an emergency is detected, override the AI's next reply to reassure the client
-    // that their nurse has been alerted — mirrors the pattern in /api/chat/route.ts
     const emergencyInstruction = isFlagged
-      ? `\n\nEMERGENCY DETECTED — CRITICAL OVERRIDE: The client just described a symptom that may need urgent attention. Your ONLY job right now is to:
-1. Acknowledge their concern warmly and with genuine care
-2. Clearly tell them their nurse has been notified and will reach out as soon as possible
-3. Advise them to call 911 or go to the nearest emergency room immediately if symptoms feel severe
-Keep it brief, warm, and reassuring. Do NOT continue normal aftercare Q&A until this is addressed.`
+      ? `\n\nEMERGENCY DETECTED — CRITICAL OVERRIDE: The client just described something that may need urgent medical attention. Your response must follow this exact order:
+1. For symptoms involving breathing difficulty, chest pain, throat or tongue swelling, vision changes, skin turning white/gray/blue, or fainting — your first sentence must be: "Please call 911 or go to the nearest emergency room right now." Then say their nurse has been notified.
+2. For other concerning symptoms — acknowledge warmly, confirm their nurse has been notified and will follow up.
+End with [[ALERT_NURSE]] on its own line. Keep your response under 3 sentences. Calm, clear, direct. Never use pet names like "sweetie" or "hun".`
       : "";
 
     const systemPrompt = `You are a warm, caring post-procedure recovery assistant for ${practiceName}. The client just had a ${procedureName} procedure.
@@ -308,7 +292,9 @@ YOUR ROLE:
 - If something sounds concerning, acknowledge it warmly and say the nurse has been notified and will reach out soon
 - Never use markdown, no bullet points, no bold text — plain conversational sentences only
 - Emojis are fine and encouraged
-- LANGUAGE: Respond in the same language the client is writing in. If the client writes in Spanish, respond entirely in Spanish. If they write in English, respond in English. Match their language naturally throughout.${emergencyInstruction}`;
+- LANGUAGE: Respond in the same language the client is writing in. If the client writes in Spanish, respond entirely in Spanish. If they write in English, respond in English. Match their language naturally throughout.
+
+SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, chest pain, throat or tongue swelling, vision changes (blurry, double, or lost), skin turning white/gray/blue, fainting, severe or worsening pain, or any symptom that sounds like a medical emergency — OR if you advise calling 911, the ER, or urgent care — OR if you tell the client their nurse is being notified: append the exact token [[ALERT_NURSE]] on its own line at the very end of your reply. This token is invisible to the client and triggers the nurse alert system. Only include it when you genuinely believe the situation may need urgent attention.${emergencyInstruction}`;
 
     const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -343,9 +329,58 @@ YOUR ROLE:
     const textBlock = Array.isArray(aiData.content)
       ? aiData.content.find((block: { type?: string; text?: string }) => block?.type === "text")
       : null;
-    const aiMessage =
+    const rawAiMessage =
       textBlock?.text ||
       "I'm here to help with your recovery! Could you tell me more about what you're experiencing?";
+
+    // ── AI second alarm: strip [[ALERT_NURSE]] token ──────────────────────
+    const aiAlertToken = rawAiMessage.includes("[[ALERT_NURSE]]");
+    const aiMessage = rawAiMessage.replace(/\[\[ALERT_NURSE\]\]\s*/g, "").trimEnd();
+
+    // Fire AI-triggered alert only if keyword detector did NOT already send one for this message
+    if (aiAlertToken && !isFlagged) {
+      let alertEmailAi = nurseEmail?.trim() || null;
+      if (!alertEmailAi) {
+        try {
+          const { data: authUser } = await supabase.auth.admin.getUserById(treatment.nurse_id);
+          alertEmailAi = authUser?.user?.email ?? null;
+        } catch { /* non-fatal */ }
+      }
+      await sendEmergencyAlert({
+        nurseEmail: alertEmailAi,
+        nurseId: treatment.nurse_id,
+        practiceName,
+        type: "healing",
+        subject: `⚠️ URGENT: Client may need attention — AI-detected — ${practiceName}`,
+        html: `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#fef2f2;font-family:-apple-system,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:20px;overflow:hidden;border:2px solid #ef4444;">
+        <tr><td style="background:#ef4444;padding:24px 32px;text-align:center;">
+          <p style="margin:0;color:#fff;font-size:18px;font-weight:700;">⚠️ AI-Detected Emergency — Healing Chat</p>
+          <p style="margin:6px 0 0;color:#fecaca;font-size:13px;">${escapeHtml(practiceName)}</p>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 16px;color:#1a2744;font-size:15px;">The AI assistant flagged a potential emergency in the recovery chat. Client: <strong>${escapeHtml(clientName)}</strong></p>
+          <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:8px;padding:16px;margin:12px 0;">
+            <p style="margin:0;color:#dc2626;font-size:15px;font-weight:600;">&ldquo;${escapeHtml(lastUserMessage.slice(0, 500))}&rdquo;</p>
+          </div>
+          <p style="margin:8px 0;color:#1a2744;font-size:14px;">📧 ${escapeHtml(treatment.intakes?.email || "No email")}</p>
+          <p style="margin:4px 0;color:#1a2744;font-size:14px;">📱 ${escapeHtml(clientPhone)}</p>
+          <p style="margin:12px 0 0;color:#64748b;font-size:13px;">Alert source: AI token (keyword list did not match)</p>
+          <div style="text-align:center;margin:24px 0;">
+            <a href="${SITE_URL}/dashboard" style="display:inline-block;background:#ef4444;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">View in dashboard</a>
+          </div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`,
+        supabase,
+      });
+    }
 
     return NextResponse.json({ message: aiMessage, flagged: isFlagged });
   } catch {
