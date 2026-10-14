@@ -2,11 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-
-    const html = (message: string) => `<!DOCTYPE html>
+  const html = (message: string) => `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Unsubscribed</title></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
@@ -20,6 +16,10 @@ export async function GET(request: Request) {
   </table>
 </body></html>`;
 
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
     if (!id) {
       return new NextResponse(html("Invalid unsubscribe link."), { headers: { "Content-Type": "text/html" } });
     }
@@ -29,13 +29,36 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    await supabase.from("intakes").update({ marketing_opt_out: true }).eq("id", id);
+    const { data: updated, error } = await supabase
+      .from("intakes")
+      .update({
+        marketing_opt_out: true,
+        opted_out_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select("id");
+
+    if (error || !updated?.length) {
+      await supabase.from("message_log").insert({
+        type: "unsubscribe",
+        channel: "email",
+        intake_id: id,
+        status: "failed",
+        error: error?.message ?? "no matching intake row",
+      }).then(() => {}, () => {});
+      // Still show success page — don't expose internal errors to the client
+      console.error("[unsubscribe] failed for intake", id, error?.message ?? "no row");
+    }
 
     return new NextResponse(
       html("You've been unsubscribed from reminder and review emails. 💙"),
       { headers: { "Content-Type": "text/html" } }
     );
-  } catch {
-    return new NextResponse("Something went wrong.", { status: 500 });
+  } catch (e) {
+    console.error("[unsubscribe] unexpected error:", e);
+    return new NextResponse(html("Something went wrong. Please try again."), {
+      status: 500,
+      headers: { "Content-Type": "text/html" },
+    });
   }
 }

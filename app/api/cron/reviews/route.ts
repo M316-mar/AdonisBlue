@@ -66,6 +66,7 @@ export async function GET(request: Request) {
       .eq("review_request_sent", false)
       .eq("survey_sent", false)
       .is("review_submitted_at", null)
+      .eq("marketing_opt_out", false)
       .not("email", "is", null);
 
     if (intakesError) {

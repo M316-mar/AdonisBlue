@@ -51,6 +51,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ sent: 0 });
     }
 
+    // Fetch marketing_opt_out separately (column not accessible via cross-table join)
+    const intakeIds = [...new Set(treatments.map(t => t.intake_id).filter(Boolean))];
+    const { data: intakeOptOuts } = await supabase
+      .from("intakes")
+      .select("id, marketing_opt_out")
+      .in("id", intakeIds);
+    const optOutMap = new Map((intakeOptOuts ?? []).map((i: any) => [i.id, i.marketing_opt_out]));
+
 
     // Step 2B: keep only the most recent treatment per (intake_id, procedure_id)
     const mostRecentMap = new Map<string, typeof treatments[0]>();
@@ -91,6 +99,7 @@ export async function GET(request: Request) {
       if (diffDays < 0 || diffDays > 1) continue;
 
       const intake = Array.isArray(treatment.intakes) ? treatment.intakes[0] : treatment.intakes;
+      if (optOutMap.get(treatment.intake_id)) continue;
       const clientEmail = (intake as any)?.email;
       if (!clientEmail) continue;
 

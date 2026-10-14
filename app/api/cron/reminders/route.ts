@@ -32,15 +32,11 @@ export async function GET(request: Request) {
     const nineMonthsAgo = new Date(now);
     nineMonthsAgo.setMonth(nineMonthsAgo.getMonth() - 9);
 
-    // Backup-only logic:
-    // 1. Query eligible intakes directly (marketing_opt_out=false, email set)
-    // 2. For each, find their most recent treatment
-    // 3. Send 6m/9m ONLY if that treatment's procedure has NO reminder_days
-    // 4. Date is from treatment_date, not aftercare_sent_at
-
+    // Step 1: eligible intakes — opted in, email set
     const { data: eligibleIntakes, error: intakesError } = await supabase
       .from("intakes")
-      .select("id, first_name, email, nurse_id, reminder_6m_sent, reminder_9m_sent")
+      .select("id, first_name, email, nurse_id")
+      .eq("marketing_opt_out", false)
       .not("email", "is", null);
 
     if (intakesError) {
@@ -54,51 +50,51 @@ export async function GET(request: Request) {
 
     const intakeIds = eligibleIntakes.map((i: any) => i.id);
 
-    // Get all non-archived treatments 6+ months ago for those intakes, with procedure info
-    const { data: candidateTreatments, error: treatmentsError } = await supabase
+    // Step 2: ALL non-archived treatments for those intakes (no date filter here —
+    // we need the most recent overall to avoid sending a "come back" email when the
+    // client already came back recently)
+    const { data: allTreatments, error: treatmentsError } = await supabase
       .from("treatments")
-      .select("id, treatment_date, intake_id, procedure_id, nurse_id, procedures(reminder_days)")
+      .select("id, treatment_date, intake_id, procedure_id, nurse_id, reminder_6m_sent_at, reminder_9m_sent_at, procedures(reminder_days)")
       .in("intake_id", intakeIds)
-      .eq("archived", false)
-      .lte("treatment_date", sixMonthsAgo.toISOString().split("T")[0]);
+      .eq("archived", false);
 
     if (treatmentsError) {
       console.error("[cron/reminders] treatments query error:", treatmentsError.message);
       return NextResponse.json({ error: String(treatmentsError.message) }, { status: 500 });
     }
 
-    // Most recent treatment per intake_id (among candidates already 6+ months old)
-    const mostRecentByIntake = new Map<string, typeof candidateTreatments[0]>();
-    for (const t of candidateTreatments ?? []) {
+    // Step 3: most recent treatment per intake (across ALL dates)
+    const mostRecentByIntake = new Map<string, typeof allTreatments[0]>();
+    for (const t of allTreatments ?? []) {
       const existing = mostRecentByIntake.get(t.intake_id);
       if (!existing || new Date(t.treatment_date) > new Date(existing.treatment_date)) {
         mostRecentByIntake.set(t.intake_id, t);
       }
     }
 
-    type CandidateRow = { treatment: typeof candidateTreatments[0]; intake: typeof eligibleIntakes[0] };
+    type CandidateRow = { treatment: typeof allTreatments[0]; intake: typeof eligibleIntakes[0] };
     const sixMonthDue: CandidateRow[] = [];
     const nineMonthDue: CandidateRow[] = [];
 
     for (const intake of eligibleIntakes) {
       const mostRecent = mostRecentByIntake.get(intake.id);
-      if (!mostRecent) continue; // no logged treatment in 6+ month window
+      if (!mostRecent) continue; // no non-archived treatment at all
 
-      const reminderDays = (mostRecent.procedures as any)?.reminder_days;
-      // Backup only: procedure-specific reminder handles this client
-      if (reminderDays) continue;
+      // Backup only: if the procedure has reminder_days, treatment-reminders cron handles it
+      if ((mostRecent.procedures as any)?.reminder_days) continue;
 
       const tDate = new Date(mostRecent.treatment_date);
 
-      if (!intake.reminder_6m_sent && tDate <= sixMonthsAgo) {
+      // Gate on treatment.reminder_6m_sent_at / reminder_9m_sent_at (not intake flags)
+      if (!mostRecent.reminder_6m_sent_at && tDate <= sixMonthsAgo) {
         sixMonthDue.push({ treatment: mostRecent, intake });
       }
-      if (!intake.reminder_9m_sent && tDate <= nineMonthsAgo) {
+      if (!mostRecent.reminder_9m_sent_at && tDate <= nineMonthsAgo) {
         nineMonthDue.push({ treatment: mostRecent, intake });
       }
     }
 
-    // Send 6-month reminders
     for (const { treatment, intake } of sixMonthDue) {
       const nurseId = treatment.nurse_id ?? intake.nurse_id;
       const { data: bot } = await supabase
@@ -120,32 +116,33 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const practiceName = escapeHtml(bot.practice_name || "your provider");
-      const bookingLink = bot.booking_link || null;
-      const clientName = escapeHtml(intake.first_name || "Beautiful");
-
       const result = await sendEmail({
         type: "reminder_6m",
         nurse_id: nurseId,
         intake_id: intake.id,
+        treatment_id: treatment.id,
         to: intake.email,
-        subject: `${clientName}, your lips are calling 💋`,
-        html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 6, intakeId: intake.id }),
+        subject: `${escapeHtml(intake.first_name || "Beautiful")}, your lips are calling 💋`,
+        html: buildReminderEmail({
+          clientName: escapeHtml(intake.first_name || "Beautiful"),
+          practiceName: escapeHtml(bot.practice_name || "your provider"),
+          bookingLink: bot.booking_link || null,
+          months: 6,
+          intakeId: intake.id,
+        }),
         supabase,
       });
 
       if (result.ok) {
-        await supabase.from("intakes").update({
-          reminder_6m_sent: true,
-          reminder_6m_sent_at: new Date().toISOString(),
-        }).eq("id", intake.id);
+        await supabase.from("treatments")
+          .update({ reminder_6m_sent_at: new Date().toISOString() })
+          .eq("id", treatment.id);
         sent++;
       } else {
         failed++;
       }
     }
 
-    // Send 9-month reminders
     for (const { treatment, intake } of nineMonthDue) {
       const nurseId = treatment.nurse_id ?? intake.nurse_id;
       const { data: bot } = await supabase
@@ -167,25 +164,27 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const practiceName = escapeHtml(bot.practice_name || "your provider");
-      const bookingLink = bot.booking_link || null;
-      const clientName = escapeHtml(intake.first_name || "Beautiful");
-
       const result = await sendEmail({
         type: "reminder_9m",
         nurse_id: nurseId,
         intake_id: intake.id,
+        treatment_id: treatment.id,
         to: intake.email,
-        subject: `It's been a while, ${clientName} — time to glow again ✨`,
-        html: buildReminderEmail({ clientName, practiceName, bookingLink, months: 9, intakeId: intake.id }),
+        subject: `It's been a while, ${escapeHtml(intake.first_name || "Beautiful")} — time to glow again ✨`,
+        html: buildReminderEmail({
+          clientName: escapeHtml(intake.first_name || "Beautiful"),
+          practiceName: escapeHtml(bot.practice_name || "your provider"),
+          bookingLink: bot.booking_link || null,
+          months: 9,
+          intakeId: intake.id,
+        }),
         supabase,
       });
 
       if (result.ok) {
-        await supabase.from("intakes").update({
-          reminder_9m_sent: true,
-          reminder_9m_sent_at: new Date().toISOString(),
-        }).eq("id", intake.id);
+        await supabase.from("treatments")
+          .update({ reminder_9m_sent_at: new Date().toISOString() })
+          .eq("id", treatment.id);
         sent++;
       } else {
         failed++;
