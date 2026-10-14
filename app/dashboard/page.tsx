@@ -345,20 +345,37 @@ export default function NurseDashboardPage() {
   }, []);
 
   const handleCancelMembership = useCallback(async () => {
-    if (!window.confirm("Are you sure you want to cancel your membership? You'll keep access until the end of your billing period.")) return;
+    // Route to the Stripe Billing Portal — it handles cancel-at-period-end correctly
+    // and shows the nurse exactly when access ends. No direct cancel API needed.
     setCancelBusy(true);
     try {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
-      if (!token) return;
-      const res = await fetch("/api/cancel-subscription", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setCancelDone(true);
-      } else {
-        alert("Something went wrong. Please try again or contact support.");
+      if (!token) { setCancelBusy(false); return; }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      try {
+        const res = await fetch("/api/billing-portal", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        const j = await res.json() as { url?: string; error?: string };
+        if (res.ok && j.url) {
+          window.location.href = j.url;
+        } else if (res.status === 404) {
+          alert("We couldn't find a billing account for your subscription. Please email hi@adonisblue.io and we'll cancel it for you right away.");
+        } else {
+          alert(j.error ?? "Could not open billing portal. Please try again.");
+        }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        if (err instanceof Error && err.name === "AbortError") {
+          alert("This is taking longer than expected. Please check your connection and try again.");
+        } else {
+          alert("Something went wrong opening the billing portal. Please try again.");
+        }
       }
     } finally {
       setCancelBusy(false);

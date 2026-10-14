@@ -66,7 +66,7 @@ export async function GET(request: Request) {
       // Step 2C: fetch bot separately; skip + log if missing
       const { data: bot } = await supabase
         .from("bots")
-        .select("practice_name, slug, phone")
+        .select("practice_name, slug, alert_phone")
         .eq("nurse_id", nurseId)
         .single();
 
@@ -88,7 +88,7 @@ export async function GET(request: Request) {
       const clientName = escapeHtml(intake.first_name || "there");
       const procedureName = escapeHtml(treatment.procedure_name || "your treatment");
       const healingLink = `${SITE_URL}/healing/${treatment.id}`;
-      const nursePhone = escapeHtml(bot.phone || "");
+      const nursePhone = escapeHtml(bot.alert_phone || "");
       const slug = bot.slug ?? null;
 
       const emergencyLine = nursePhone

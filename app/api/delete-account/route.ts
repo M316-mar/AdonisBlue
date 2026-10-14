@@ -30,8 +30,9 @@ export async function POST(request: Request) {
     // ── Delete in dependency order (children first, parents last) ────────────
     // Rule: every statement is scoped to nurse_id so no other nurse's data is touched.
 
-    // 1. healing_chats
+    // 1. healing_chats + checkin_reminders (nurse_id is text on checkin_reminders)
     await db.from("healing_chats").delete().eq("nurse_id", nurse_id);
+    await db.from("checkin_reminders").delete().eq("nurse_id", nurse_id);
 
     // 2. blueroom_comment_reactions
     await db.from("blueroom_comment_reactions").delete().eq("nurse_id", nurse_id);
@@ -54,8 +55,6 @@ export async function POST(request: Request) {
     await db.from("blueroom_notifications").delete().eq("nurse_id", nurse_id);
 
     // 4. blueroom_posts (author_id = nurse_id)
-    await db.from("blueroom_posts").delete().eq("nurse_id", nurse_id);
-    // Also try author_id column in case the schema uses that name
     await db.from("blueroom_posts").delete().eq("author_id", nurse_id);
 
     // 5. loyalty_points
@@ -90,10 +89,7 @@ export async function POST(request: Request) {
     // 14. feedback
     await db.from("feedback").delete().eq("nurse_id", nurse_id);
 
-    // 15. newsletters
-    await db.from("newsletters").delete().eq("nurse_id", nurse_id);
-
-    // 16. admins row (if exists)
+    // 15. admins row (if exists)
     await db.from("admins").delete().eq("user_id", nurse_id);
 
     // 17. bots — parent record

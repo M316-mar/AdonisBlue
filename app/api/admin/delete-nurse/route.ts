@@ -32,9 +32,10 @@ export async function POST(request: Request) {
 
     // Delete in dependency order (children first, parents last)
     await db.from("healing_chats").delete().eq("nurse_id", nurse_id);
+    await db.from("checkin_reminders").delete().eq("nurse_id", nurse_id);
     await db.from("blueroom_comment_reactions").delete().eq("nurse_id", nurse_id);
 
-    const { data: ownPosts } = await db.from("blueroom_posts").select("id").eq("nurse_id", nurse_id);
+    const { data: ownPosts } = await db.from("blueroom_posts").select("id").eq("author_id", nurse_id);
     const postIds = (ownPosts ?? []).map((p) => p.id as string);
     if (postIds.length > 0) {
       await db.from("blueroom_comments").delete().in("post_id", postIds);
@@ -45,7 +46,6 @@ export async function POST(request: Request) {
     await db.from("blueroom_post_reactions").delete().eq("nurse_id", nurse_id);
     await db.from("blueroom_post_views").delete().eq("nurse_id", nurse_id);
     await db.from("blueroom_notifications").delete().eq("nurse_id", nurse_id);
-    await db.from("blueroom_posts").delete().eq("nurse_id", nurse_id);
     await db.from("blueroom_posts").delete().eq("author_id", nurse_id);
     await db.from("loyalty_points").delete().eq("nurse_id", nurse_id);
     await db.from("loyalty_programs").delete().eq("nurse_id", nurse_id);
@@ -58,7 +58,6 @@ export async function POST(request: Request) {
     await db.from("intakes").delete().eq("nurse_id", nurse_id);
     await db.from("conversations").delete().eq("nurse_id", nurse_id);
     await db.from("feedback").delete().eq("nurse_id", nurse_id);
-    await db.from("newsletters").delete().eq("nurse_id", nurse_id);
     await db.from("admins").delete().eq("user_id", nurse_id);
     await db.from("bots").delete().eq("nurse_id", nurse_id);
 

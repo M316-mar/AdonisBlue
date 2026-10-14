@@ -275,10 +275,10 @@ export async function POST(request: Request) {
       .update({ aftercare_sent: true, aftercare_sent_at: sentAt })
       .eq("id", treatmentId);
 
-    // backward compat — intakes.aftercare_sent_at
+    // update intakes.aftercare_sent_at (timestamp only — no boolean column on intakes)
     await supabase
       .from("intakes")
-      .update({ aftercare_sent: true, aftercare_sent_at: sentAt })
+      .update({ aftercare_sent_at: sentAt })
       .eq("id", intakeIdRaw);
 
     return NextResponse.json({

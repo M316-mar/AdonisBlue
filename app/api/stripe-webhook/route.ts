@@ -67,13 +67,17 @@ export async function POST(request: Request) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
-      await db.from("bots").upsert({
+      const { error: upsertErr } = await db.from("bots").upsert({
         nurse_id:               nurseId,
         plan:                   planName,
         subscription_status:    "active",
         stripe_customer_id:     customerId,
         stripe_subscription_id: subscriptionId,
       }, { onConflict: "nurse_id" });
+      if (upsertErr) {
+        console.error("[stripe-webhook] bots upsert failed:", upsertErr.message, "nurse_id:", nurseId);
+        return NextResponse.json({ error: "DB write failed" }, { status: 500 });
+      }
     }
   }
 
@@ -85,9 +89,13 @@ export async function POST(request: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-    await db.from("bots").update({
+    const { error: updateErr } = await db.from("bots").update({
       subscription_status: event.type === "customer.subscription.deleted" ? "canceled" : "paused",
     }).eq("stripe_customer_id", customerId);
+    if (updateErr) {
+      console.error("[stripe-webhook] bots update failed:", updateErr.message, "customer_id:", customerId);
+      return NextResponse.json({ error: "DB write failed" }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ received: true });
