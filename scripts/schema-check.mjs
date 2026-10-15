@@ -137,7 +137,8 @@ function extractRefs(files) {
         // .update({ col: ..., col2: ... }) — single line
         const updateM = line.match(/\.update\(\s*\{([^}]+)\}/);
         if (updateM) {
-          for (const kv of updateM[1].matchAll(/\b([a-z_][a-z0-9_]*)\s*:/g)) {
+          const body = stripStrings(updateM[1]);
+          for (const kv of body.matchAll(/\b([a-z_][a-z0-9_]*)\s*:/g)) {
             if (isColName(kv[1])) refs.push({ file: relPath, line: lineNum, table, column: kv[1], kind: "update" });
           }
         }
@@ -145,7 +146,8 @@ function extractRefs(files) {
         // .insert({ ... }) — single line
         const insertM = line.match(/\.insert\(\s*\{([^}]+)\}/);
         if (insertM) {
-          for (const kv of insertM[1].matchAll(/\b([a-z_][a-z0-9_]*)\s*:/g)) {
+          const body = stripStrings(insertM[1]);
+          for (const kv of body.matchAll(/\b([a-z_][a-z0-9_]*)\s*:/g)) {
             if (isColName(kv[1])) refs.push({ file: relPath, line: lineNum, table, column: kv[1], kind: "insert" });
           }
         }
@@ -160,7 +162,7 @@ function extractRefs(files) {
       const ahead = aheadLines.join("\n");
       const multiM = ahead.match(/\.(insert|update)\(\s*\{([^}]*)\}/s);
       if (multiM) {
-        const objBody = multiM[2];
+        const objBody = stripStrings(multiM[2]);
         const lineNum = i + 1;
         for (const kv of objBody.matchAll(/\b([a-z_][a-z0-9_]*)\s*:/g)) {
           if (isColName(kv[1])) {
@@ -172,6 +174,15 @@ function extractRefs(files) {
   }
 
   return refs;
+}
+
+// Remove string literal contents so "cron:health-report" doesn't match as a column key.
+// The `?` on the closing backtick also handles template literals truncated by the {..} boundary.
+function stripStrings(s) {
+  return s
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+    .replace(/`[^`]*`?/g, '``');
 }
 
 function isColName(s) {
@@ -240,6 +251,13 @@ const appFiles = [
 
 const allRefs = extractRefs(appFiles);
 
+// Columns added by a pending migration that hasn't been run yet.
+// Format: "table.column". Remove once migration 2026-10-15_checkin-and-schema-fixes.sql is applied.
+const KNOWN_PENDING_COLUMNS = new Set([
+  "procedures.checkin_days",
+  "procedures.checkin_script",
+]);
+
 // Deduplicate and check
 const seenKey = new Set();
 const missingCols = []; // column exists on table, but column is wrong
@@ -256,7 +274,7 @@ for (const ref of allRefs) {
   }
 
   const cols = dbSchema.get(ref.table);
-  if (!cols.has(ref.column)) {
+  if (!cols.has(ref.column) && !KNOWN_PENDING_COLUMNS.has(`${ref.table}.${ref.column}`)) {
     missingCols.push(ref);
   }
 }

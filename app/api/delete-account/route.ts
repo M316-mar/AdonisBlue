@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     const { data: ownPosts } = await db
       .from("blueroom_posts")
       .select("id")
-      .eq("nurse_id", nurse_id);
+      .eq("author_id", nurse_id);
     const postIds = (ownPosts ?? []).map((p) => p.id as string);
     if (postIds.length > 0) {
       await db.from("blueroom_comments").delete().in("post_id", postIds);
@@ -65,8 +65,6 @@ export async function POST(request: Request) {
 
     // 7. referrals (referrer_nurse_id)
     await db.from("referrals").delete().eq("referrer_nurse_id", nurse_id);
-    // Also handle if the column is just nurse_id
-    await db.from("referrals").delete().eq("nurse_id", nurse_id);
 
     // 8. emergency_keywords
     await db.from("emergency_keywords").delete().eq("nurse_id", nurse_id);
@@ -89,10 +87,7 @@ export async function POST(request: Request) {
     // 14. feedback
     await db.from("feedback").delete().eq("nurse_id", nurse_id);
 
-    // 15. admins row (if exists)
-    await db.from("admins").delete().eq("user_id", nurse_id);
-
-    // 17. bots — parent record
+    // 15. bots — parent record
     await db.from("bots").delete().eq("nurse_id", nurse_id);
 
     // 18. Supabase auth user — absolute last

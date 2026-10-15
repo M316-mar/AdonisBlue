@@ -50,7 +50,6 @@ export async function POST(request: Request) {
     await db.from("loyalty_points").delete().eq("nurse_id", nurse_id);
     await db.from("loyalty_programs").delete().eq("nurse_id", nurse_id);
     await db.from("referrals").delete().eq("referrer_nurse_id", nurse_id);
-    await db.from("referrals").delete().eq("nurse_id", nurse_id);
     await db.from("emergency_keywords").delete().eq("nurse_id", nurse_id);
     await db.from("reviews").delete().eq("nurse_id", nurse_id);
     await db.from("treatments").delete().eq("nurse_id", nurse_id);
@@ -58,7 +57,6 @@ export async function POST(request: Request) {
     await db.from("intakes").delete().eq("nurse_id", nurse_id);
     await db.from("conversations").delete().eq("nurse_id", nurse_id);
     await db.from("feedback").delete().eq("nurse_id", nurse_id);
-    await db.from("admins").delete().eq("user_id", nurse_id);
     await db.from("bots").delete().eq("nurse_id", nurse_id);
 
     const { error: authDeleteError } = await db.auth.admin.deleteUser(nurse_id);

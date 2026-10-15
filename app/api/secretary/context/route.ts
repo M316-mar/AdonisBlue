@@ -88,10 +88,10 @@ export async function GET(request: Request) {
           .gte("created_at", fortyEightHoursAgo),
       ]),
 
-      // 3. Check-ins due today, status pending
+      // 3. Check-ins due today, status pending (client_name lives on intakes, not checkin_reminders)
       db
         .from("checkin_reminders")
-        .select("id, client_name, due_date")
+        .select("id, due_date, intakes(id, first_name)")
         .eq("nurse_id", user.id)
         .eq("due_date", today)
         .eq("status", "pending"),
@@ -154,11 +154,14 @@ export async function GET(request: Request) {
       })),
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    const checkinsToday = (checkinsRes.data ?? []).map((r: any) => ({
-      id: r.id,
-      client_name: r.client_name ?? "Client",
-      due_date: r.due_date,
-    }));
+    const checkinsToday = (checkinsRes.data ?? []).map((r: any) => {
+      const intake = Array.isArray(r.intakes) ? r.intakes[0] : r.intakes;
+      return {
+        id: r.id,
+        client_name: intake?.first_name ?? "Client",
+        due_date: r.due_date,
+      };
+    });
 
     // Step 2E: unsent aftercare clients
     const unsentAftercareClients = (unsentAftercareRes.data ?? [])
