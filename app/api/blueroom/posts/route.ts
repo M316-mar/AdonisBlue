@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/requireAdmin";
 
 const WELCOME_POST = {
   title: "Welcome to The Blue Room 💙",
@@ -49,16 +50,15 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof NextResponse) return admin;
+
   try {
-    const body = await request.json() as { post_id?: string; is_pinned?: boolean; admin_secret?: string };
-    const { post_id, is_pinned, admin_secret } = body;
+    const body = await request.json() as { post_id?: string; is_pinned?: boolean };
+    const { post_id, is_pinned } = body;
 
     if (!post_id || typeof is_pinned !== "boolean") {
       return NextResponse.json({ error: "Something went wrong" }, { status: 400 });
-    }
-
-    if (admin_secret !== process.env.BLUEROOM_ADMIN_SECRET) {
-      return NextResponse.json({ error: "Something went wrong" }, { status: 403 });
     }
 
     const supabase = createClient(

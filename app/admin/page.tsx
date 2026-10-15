@@ -227,7 +227,7 @@ export default function AdminPage() {
     setPostLoading(true);
     const res = await fetch("/api/blueroom/posts", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
       body: JSON.stringify(newPost),
     });
     if (res.ok) {
