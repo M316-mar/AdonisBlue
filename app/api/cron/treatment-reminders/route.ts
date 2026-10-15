@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { firstName } from "@/lib/firstName";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
@@ -103,7 +104,7 @@ export async function GET(request: Request) {
       const clientEmail = (intake as any)?.email;
       if (!clientEmail) continue;
 
-      const clientName = escapeHtml((intake as any)?.first_name || "Beautiful");
+      const clientName = escapeHtml(firstName((intake as any)?.first_name, "Beautiful"));
       const procedureName = escapeHtml((treatment.procedures as any)?.name || treatment.procedure_name || "your treatment");
 
       // Step 2C: fetch bot separately; skip + log if missing

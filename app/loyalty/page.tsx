@@ -174,7 +174,7 @@ export default function ReferralsPage() {
           <div className="space-y-4">
             <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50 to-sky-50 p-5">
               <h3 className="font-bold text-[#1a2744] mb-2">💡 Why loyalty points work</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">Clients with loyalty points visit nearly <strong>3x more per year</strong> and spend <strong>35% more</strong>. Every time you log a treatment, you can award points and send the client an email — it costs you nothing and builds deep loyalty.</p>
+              <p className="text-sm text-slate-600 leading-relaxed">Every time you log a treatment, you can award points and send the client a quick email — it costs you nothing and gives clients a reason to come back.</p>
               <p className="mt-2 text-xs text-slate-500">You decide what points are worth — e.g. 100 points = $10 off their next visit.</p>
             </div>
 

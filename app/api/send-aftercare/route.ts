@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
+import { firstName } from "@/lib/firstName";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -14,12 +15,6 @@ function escapeHtml(str: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-// Use only the first word of a name for client-facing greetings ("Tina Farias" → "Tina")
-function firstName(name: string | null | undefined, fallback: string): string {
-  if (!name?.trim()) return fallback;
-  return name.trim().split(/\s+/)[0];
 }
 
 // Shared HTML builder — used by both the real send and the preview endpoint

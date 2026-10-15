@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
+import { firstName } from "@/lib/firstName";
 
 function escapeHtml(str: string): string {
   return str
@@ -123,9 +124,9 @@ export async function GET(request: Request) {
         intake_id: intake.id,
         treatment_id: treatment.id,
         to: intake.email,
-        subject: `${escapeHtml(intake.first_name || "Beautiful")}, your lips are calling 💋`,
+        subject: `${escapeHtml(firstName(intake.first_name, "Beautiful"))}, your lips are calling 💋`,
         html: buildReminderEmail({
-          clientName: escapeHtml(intake.first_name || "Beautiful"),
+          clientName: escapeHtml(firstName(intake.first_name, "Beautiful")),
           practiceName: escapeHtml(bot.practice_name || "your provider"),
           bookingLink: bot.booking_link || null,
           months: 6,
@@ -171,9 +172,9 @@ export async function GET(request: Request) {
         intake_id: intake.id,
         treatment_id: treatment.id,
         to: intake.email,
-        subject: `It's been a while, ${escapeHtml(intake.first_name || "Beautiful")} — time to glow again ✨`,
+        subject: `It's been a while, ${escapeHtml(firstName(intake.first_name, "Beautiful"))} — time to glow again ✨`,
         html: buildReminderEmail({
-          clientName: escapeHtml(intake.first_name || "Beautiful"),
+          clientName: escapeHtml(firstName(intake.first_name, "Beautiful")),
           practiceName: escapeHtml(bot.practice_name || "your provider"),
           bookingLink: bot.booking_link || null,
           months: 9,

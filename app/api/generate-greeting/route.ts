@@ -7,7 +7,7 @@ Rules:
 - 2-3 sentences ONLY — no more
 - Use the EXACT practice name given as the business name
 - If a nurse's full name is provided, you MUST use it exactly as given — reproduce every part of the name in full (e.g. if given "Jane Smith", write "I'm Jane Smith" — never shorten to just "Jane"). If no nurse name is provided, do not include any personal name.
-- Apply these psychological principles: warmth, curiosity, social proof, and a soft sense of urgency
+- Apply these psychological principles: warmth, curiosity, and genuine care
 - Sound human, not corporate — like a friendly expert who genuinely cares
 - Include 1-2 tasteful emojis
 - End with an open question that invites the visitor to start the conversation

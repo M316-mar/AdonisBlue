@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { firstName } from "@/lib/firstName";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
     for (const treatment of treatments) {
       const intake = treatment.intakes as { first_name?: string; email?: string; marketing_opt_out?: boolean } | null;
       const clientEmail = intake?.email;
-      const clientName = escapeHtml(intake?.first_name || "Beautiful");
+      const clientName = escapeHtml(firstName(intake?.first_name, "Beautiful"));
       const procedureName = escapeHtml(treatment.procedure_name || "your procedure");
 
       const daysSince = treatment.treatment_date

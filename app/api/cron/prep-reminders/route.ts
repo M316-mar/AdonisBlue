@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
+import { firstName } from "@/lib/firstName";
 
 function escapeHtml(str: string): string {
   return str
@@ -107,7 +108,7 @@ export async function GET(request: Request) {
         .map(line => `<tr><td style="padding:6px 0;color:#1a2744;font-size:15px;">✅ ${escapeHtml(line)}</td></tr>`)
         .join("");
 
-      const clientName = escapeHtml(intake.first_name || "there");
+      const clientName = escapeHtml(firstName(intake.first_name, "there"));
       const apptDate = new Date(treatment.treatment_date).toLocaleDateString("en-US", {
         weekday: "long", month: "long", day: "numeric",
       });

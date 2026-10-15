@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { logError } from "@/lib/logError";
 import { sendEmail } from "@/lib/sendAndLog";
+import { firstName } from "@/lib/firstName";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
@@ -96,7 +97,7 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const clientName = escapeHtml(intake.first_name || "Beautiful");
+      const clientName = escapeHtml(firstName(intake.first_name, "Beautiful"));
       const practiceName = escapeHtml(bot.practice_name || "your provider");
       const bookingLink = bot.booking_link || null;
       const instagram = bot.instagram || null;

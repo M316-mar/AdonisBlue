@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
+import { firstName } from "@/lib/firstName";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.adonisblue.io";
 
@@ -86,7 +87,7 @@ export async function GET(request: Request) {
       }
 
       const practiceName = escapeHtml(bot.practice_name || "your provider");
-      const clientName = escapeHtml(intake.first_name || "there");
+      const clientName = escapeHtml(firstName(intake.first_name, "there"));
       const procedureName = escapeHtml(treatment.procedure_name || "your treatment");
       const healingLink = `${SITE_URL}/healing/${treatment.id}`;
       const nursePhone = escapeHtml(bot.alert_phone || "");
