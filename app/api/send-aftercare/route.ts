@@ -16,6 +16,12 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// Use only the first word of a name for client-facing greetings ("Tina Farias" → "Tina")
+function firstName(name: string | null | undefined, fallback: string): string {
+  if (!name?.trim()) return fallback;
+  return name.trim().split(/\s+/)[0];
+}
+
 // Shared HTML builder — used by both the real send and the preview endpoint
 function buildAftercareHtml({
   clientName,
@@ -113,7 +119,7 @@ export async function GET(request: Request) {
     if (!procedure || !intake) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const html = buildAftercareHtml({
-      clientName: escapeHtml(intake.first_name || "Beautiful"),
+      clientName: escapeHtml(firstName(intake.first_name, "Beautiful")),
       escapedPracticeName: escapeHtml(bot?.practice_name || "your provider"),
       treatmentId: "preview",
       procedureName: procedure.name,
@@ -242,7 +248,7 @@ export async function POST(request: Request) {
     const instructions = (procedure.aftercare_instructions ?? "").trim()
       || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";
 
-    const clientName = escapeHtml(intake.first_name || "Beautiful");
+    const clientName = escapeHtml(firstName(intake.first_name, "Beautiful"));
     const escapedPracticeName = escapeHtml(practiceName);
 
     const emailHtml = buildAftercareHtml({

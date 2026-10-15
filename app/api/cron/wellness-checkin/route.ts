@@ -131,7 +131,7 @@ export async function GET(request: Request) {
             <div style="background:#f0fdfa;border-radius:14px;border:1px solid #99f6e4;padding:24px;margin:0 0 24px;text-align:center;">
               <p style="margin:0 0 12px;color:#1a2744;font-size:14px;font-weight:600;">Have concerns or questions?</p>
               <a href="${healingLink}" style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:999px;font-size:14px;font-weight:600;">💬 Open recovery chat</a>
-              <p style="margin:12px 0 0;color:#94a3b8;font-size:12px;">Anything urgent will notify ${practiceName} to reach out to you right away.</p>
+              <p style="margin:12px 0 0;color:#94a3b8;font-size:12px;">Anything urgent sends an alert to ${practiceName} immediately.</p>
             </div>` : ""}
             <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.6;">
               Take good care — we're always here if you need us. 💕

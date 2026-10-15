@@ -55,7 +55,8 @@ export default function HealingChatPage({
       }
       const data = await res.json();
       setTreatment(data.treatment);
-      const clientName = data.treatment?.intakes?.first_name || "there";
+      const rawName = data.treatment?.intakes?.first_name;
+      const clientName = rawName?.trim() ? rawName.trim().split(/\s+/)[0] : "there";
       const procedureName =
         data.treatment?.procedures?.name ||
         data.treatment?.procedure_name ||
@@ -139,7 +140,8 @@ export default function HealingChatPage({
     treatment?.procedures?.name ||
     treatment?.procedure_name ||
     "your procedure";
-  const clientName = treatment?.intakes?.first_name || "there";
+  const rawClientName = treatment?.intakes?.first_name;
+  const clientName = rawClientName?.trim() ? rawClientName.trim().split(/\s+/)[0] : "there";
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
