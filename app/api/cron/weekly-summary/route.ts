@@ -23,7 +23,8 @@ function chicagoWeekBounds(): { weekStart: string; weekEnd: string; labelStart: 
   const today = new Date(Date.UTC(yr, mo - 1, da));
   const dow = today.getUTCDay(); // 0=Sun
   // Last Monday: go back (dow === 1 ? 7 : (dow + 6) % 7 + 1) days from today
-  const daysToLastMon = dow === 1 ? 7 : ((dow + 6) % 7) + 1;
+  // Days back to last Monday: go to this week's Monday (dow-1, or 6 if Sun), then 7 more.
+  const daysToLastMon = (dow === 0 ? 6 : dow - 1) + 7;
   const lastMon = new Date(today);
   lastMon.setUTCDate(today.getUTCDate() - daysToLastMon);
   const lastSun = new Date(lastMon);
