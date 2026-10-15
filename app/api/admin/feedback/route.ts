@@ -1,15 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-
-const ADMIN_SECRET = process.env.ADMIN_SECRET || "AdonisBlue2026!";
+import { requireAdmin } from "@/lib/requireAdmin";
 
 export async function DELETE(request: Request) {
-  try {
-    const secret = request.headers.get("x-admin-secret");
-    if (!secret || secret !== ADMIN_SECRET) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const admin = await requireAdmin(request);
+  if (admin instanceof NextResponse) return admin;
 
+  try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) {

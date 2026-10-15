@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAdmin } from "@/lib/requireAdmin";
 
 function getSupabase() {
   return createClient(
@@ -8,7 +9,10 @@ function getSupabase() {
   );
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof NextResponse) return admin;
+
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
@@ -23,6 +27,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof NextResponse) return admin;
+
   try {
     const body = await request.json();
     const customerName = typeof body.customer_name === "string" ? body.customer_name.trim().slice(0, 200) : null;

@@ -1,14 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { requireAdmin } from "@/lib/requireAdmin";
 
 
 export async function POST(request: Request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof NextResponse) return admin;
+
   try {
-    const secret = request.headers.get("x-admin-secret");
-    if (secret !== process.env.ADMIN_SECRET) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const { nurse_id } = await request.json() as { nurse_id?: string };
     if (!nurse_id) return NextResponse.json({ error: "nurse_id is required" }, { status: 400 });

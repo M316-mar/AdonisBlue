@@ -4,19 +4,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
-
-
-async function getAuthedUser(request: Request) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (!token) return null;
-
-  const supabaseAuth = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-  const { data: { user } } = await supabaseAuth.auth.getUser(token);
-  return user ?? null;
-}
+import { requireAdmin } from "@/lib/requireAdmin";
 
 function serviceClient() {
   return createClient(
@@ -25,17 +13,11 @@ function serviceClient() {
   );
 }
 
-async function isAdmin(userId: string) {
-  const { data } = await serviceClient()
-    .from("admins")
-    .select("user_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  return Boolean(data);
-}
-
 // ── DELETE: hard-delete nurse + all related data ───────────────────────────
 export async function DELETE(request: Request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof NextResponse) return admin;
+
   try {
     const { nurse_id } = await request.json() as { nurse_id?: string };
     if (!nurse_id) return NextResponse.json({ error: "nurse_id is required" }, { status: 400 });
@@ -76,16 +58,16 @@ export async function DELETE(request: Request) {
 
 // ── POST: freeze / unfreeze ────────────────────────────────────────────────
 export async function POST(request: Request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof NextResponse) return admin;
+
   try {
     const { nurse_id, frozen } = await request.json();
     if (!nurse_id || typeof frozen !== "boolean") {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = serviceClient();
 
     const { error } = await supabase
       .from("bots")

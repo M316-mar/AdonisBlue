@@ -1,17 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/requireAdmin";
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET || "AdonisBlue2026!";
 const PREVIEW_EMAIL = "preview@adonisblue.io";
 
 export async function POST(request: Request) {
-  try {
-    // Verify the caller is the admin
-    const secret = request.headers.get("x-admin-secret");
-    if (!secret || secret !== ADMIN_SECRET) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const admin = await requireAdmin(request);
+  if (admin instanceof NextResponse) return admin;
 
+  try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!

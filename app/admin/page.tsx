@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type NurseRow = {
   practice_name: string | null;
@@ -96,6 +97,7 @@ function PlanBadge({ plan, expired }: { plan: string; expired: boolean }) {
 export default function AdminPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [adminToken, setAdminToken] = useState<string | null>(null);
   const [nurses, setNurses] = useState<NurseRow[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [freezeLoading, setFreezeLoading] = useState<string | null>(null);
@@ -117,14 +119,17 @@ export default function AdminPage() {
   const [refundError, setRefundError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (sessionStorage.getItem("adminAuth") !== "true") {
-      router.replace("/admin-login");
-      return;
-    }
     (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.replace("/auth"); return; }
+
+      const token = session.access_token;
+      const meRes = await fetch("/api/admin/me", { headers: { Authorization: `Bearer ${token}` } });
+      if (!meRes.ok) { router.replace("/"); return; }
+
+      setAdminToken(token);
       try {
-        const r = await fetch("/api/admin/nurses-public");
+        const r = await fetch("/api/admin/nurses-public", { headers: { Authorization: `Bearer ${token}` } });
         const json = await r.json();
         setNurses(Array.isArray(json.nurses) ? json.nurses : []);
         setFeedback(Array.isArray(json.feedback) ? json.feedback : []);
@@ -133,7 +138,7 @@ export default function AdminPage() {
           const blueroomJson = await blueroomRes.json();
           setBlueroomPosts(blueroomJson.posts ?? []);
         }
-        const refundRes = await fetch("/api/admin/refund-log");
+        const refundRes = await fetch("/api/admin/refund-log", { headers: { Authorization: `Bearer ${token}` } });
         if (refundRes.ok) {
           const refundJson = await refundRes.json();
           setRefunds(refundJson.refunds ?? []);
@@ -146,12 +151,13 @@ export default function AdminPage() {
   }, [router]);
 
   const fetchRefunds = useCallback(async () => {
-    const res = await fetch("/api/admin/refund-log");
+    if (!adminToken) return;
+    const res = await fetch("/api/admin/refund-log", { headers: { Authorization: `Bearer ${adminToken}` } });
     if (res.ok) {
       const json = await res.json();
       setRefunds(json.refunds ?? []);
     }
-  }, []);
+  }, [adminToken]);
 
   const handleLogRefund = useCallback(async () => {
     setRefundError(null);
@@ -164,7 +170,7 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/refund-log", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
         body: JSON.stringify({ ...refundForm, amount }),
       });
       if (res.ok) {
@@ -186,7 +192,7 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/delete-nurse", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-secret": "AdonisBlue2026!" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
         body: JSON.stringify({ nurse_id: nurse.nurse_id }),
       });
       if (res.ok) {
@@ -205,7 +211,7 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/freeze-account", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
         body: JSON.stringify({ nurse_id: nurse.nurse_id, frozen: nextFrozen }),
       });
       if (res.ok) {
@@ -241,7 +247,7 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/send-newsletter", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
         body: JSON.stringify(newsletter),
       });
       if (res.ok) {
@@ -303,7 +309,7 @@ export default function AdminPage() {
           </div>
           <button
             type="button"
-            onClick={() => { sessionStorage.removeItem("adminAuth"); router.push("/"); }}
+            onClick={async () => { await supabase.auth.signOut(); router.push("/"); }}
             className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/20"
           >
             Log out
@@ -322,7 +328,7 @@ export default function AdminPage() {
               try {
                 const res = await fetch("/api/admin/preview-link", {
                   method: "POST",
-                  headers: { "x-admin-secret": "AdonisBlue2026!" },
+                  headers: { Authorization: `Bearer ${adminToken}` },
                 });
                 const json = await res.json();
                 if (json.url) {
@@ -664,7 +670,7 @@ export default function AdminPage() {
                     onClick={() => {
                       void fetch(`/api/admin/feedback?id=${f.id}`, {
                         method: "DELETE",
-                        headers: { "x-admin-secret": "AdonisBlue2026!" },
+                        headers: { Authorization: `Bearer ${adminToken}` },
                       }).then(() => setFeedback(prev => prev.filter(x => x.id !== f.id)));
                     }}
                     className="shrink-0 rounded-lg p-1.5 text-slate-500 transition hover:bg-red-500/20 hover:text-red-400"
