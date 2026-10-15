@@ -87,14 +87,20 @@ export async function GET(request: Request) {
     lines.push(`🔔 Sent ${remindersSent} reminder${remindersSent !== 1 ? "s" : ""} and ${reviewsSent} review request${reviewsSent !== 1 ? "s" : ""}`);
 
   // Emergency alerts always shown
-  const emergencyLine = emergencyFailed > 0
-    ? `🚨 Sent ${emergencySent} emergency alert${emergencySent !== 1 ? "s" : ""} to nurses — ${emergencyFailed} couldn't be delivered`
-    : `🚨 Sent ${emergencySent} emergency alert${emergencySent !== 1 ? "s" : ""} to nurses — all delivered`;
+  const emergencyLine = emergencySent === 0
+    ? `🚨 No emergency alerts`
+    : emergencyFailed > 0
+      ? `🚨 Sent ${emergencySent} emergency alert${emergencySent !== 1 ? "s" : ""} to nurses — ${emergencyFailed} couldn't be delivered`
+      : `🚨 Sent ${emergencySent} emergency alert${emergencySent !== 1 ? "s" : ""} to nurses — all delivered`;
   lines.push(emergencyLine);
 
-  const closingLine = totalFailed === 0
-    ? "✅ Everything worked."
-    : `⚠️ ${totalFailed} email${totalFailed !== 1 ? "s" : ""} couldn't be sent.`;
+  const allZero = chatReplies === 0 && aftercareSent === 0 && checkinsSent === 0
+    && remindersSent === 0 && reviewsSent === 0 && emergencySent === 0;
+  const closingLine = totalFailed > 0
+    ? `⚠️ ${totalFailed} email${totalFailed !== 1 ? "s" : ""} couldn't be sent.`
+    : allZero
+      ? "It was a quiet week — no client activity."
+      : "✅ Everything worked.";
 
   const linesHtml = lines
     .map(l => `<p style="margin:0 0 10px;font-size:15px;color:#334155;">${l}</p>`)

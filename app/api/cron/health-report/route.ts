@@ -122,10 +122,17 @@ export async function GET(request: Request) {
   }
 
   if (appErrors.length > 0) {
-    const areas = Object.entries(errorsByArea)
-      .map(([a, n]) => `${n} in ${a}`)
-      .join(", ");
-    problemLines.push(`⚠️ ${appErrors.length} background error${appErrors.length !== 1 ? "s" : ""} (${areas})`);
+    // One line per area: area name + first error message from that area
+    const areaFirst: Record<string, string> = {};
+    for (const e of appErrors) {
+      if (!areaFirst[e.area]) areaFirst[e.area] = e.message ?? "";
+    }
+    for (const [area, msg] of Object.entries(areaFirst)) {
+      const n = errorsByArea[area];
+      const friendlyArea = area.replace(/[_-]/g, " ");
+      const detail = msg ? ` — ${escapeHtml(msg)}` : "";
+      problemLines.push(`⚠️ Something went wrong ${n} time${n !== 1 ? "s" : ""} in: ${escapeHtml(friendlyArea)}${detail}`);
+    }
   }
 
   const linesHtml = problemLines
@@ -145,7 +152,7 @@ export async function GET(request: Request) {
         <tr><td style="padding:32px;">
           ${linesHtml}
           <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />
-          <p style="margin:0;font-size:13px;color:#94a3b8;">Check your dashboard or logs for more detail. Emergency alerts to clients have their own separate escalation and are not listed here.</p>
+          <p style="margin:0;font-size:13px;color:#94a3b8;">If an emergency alert to a nurse ever fails, you get a separate email right away.</p>
         </td></tr>
         <tr><td style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;text-align:center;">
           <p style="margin:0;color:#94a3b8;font-size:12px;">AdonisBlue · hi@adonisblue.io</p>
