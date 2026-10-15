@@ -111,9 +111,11 @@ function extractRefs(files) {
       // Skip non-identifiers (e.g. Buffer.from(`${accountSid}:${authToken}`) false positive)
       if (!/^[a-z_][a-z0-9_]*$/.test(table)) continue;
 
-      // Scan up to 25 lines ahead for column references
+      // Scan up to 25 lines ahead for column references; stop at the next .from()
       const end = Math.min(lines.length, i + 25);
       for (let j = i; j < end; j++) {
+        // If we hit another .from() call, the previous query has ended — stop here
+        if (j > i && /\.from\(\s*["'`]/.test(lines[j])) break;
         const line = lines[j];
         const lineNum = j + 1;
 
@@ -150,10 +152,12 @@ function extractRefs(files) {
       }
 
       // Also handle multi-line insert/update objects anchored at this .from()
-      const ahead = src.slice(
-        src.split("\n").slice(0, i).join("\n").length,
-        src.split("\n").slice(0, Math.min(lines.length, i + 30)).join("\n").length
-      );
+      // Truncate at the next .from() to avoid column attribution leaking across queries
+      const windowEnd = Math.min(lines.length, i + 30);
+      let aheadLines = lines.slice(i, windowEnd);
+      const nextFromIdx = aheadLines.findIndex((l, idx) => idx > 0 && /\.from\(\s*["'`]/.test(l));
+      if (nextFromIdx !== -1) aheadLines = aheadLines.slice(0, nextFromIdx);
+      const ahead = aheadLines.join("\n");
       const multiM = ahead.match(/\.(insert|update)\(\s*\{([^}]*)\}/s);
       if (multiM) {
         const objBody = multiM[2];

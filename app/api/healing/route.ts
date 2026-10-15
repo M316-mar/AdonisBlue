@@ -357,7 +357,7 @@ export async function POST(request: Request) {
       ? `\n\nEMERGENCY DETECTED — CRITICAL OVERRIDE: The client just described something that may need urgent medical attention. Your response must follow this exact order:
 1. For symptoms involving breathing difficulty, chest pain, throat or tongue swelling, vision changes, skin turning white/gray/blue, or fainting — your first sentence must be: "Please call 911 or go to the nearest emergency room right now." Then say their nurse has been notified.
 2. For other concerning symptoms — acknowledge warmly, confirm their nurse has been notified and will follow up.
-End with [[ALERT_NURSE]] on its own line. Keep your response under 3 sentences. Calm, clear, direct. Never use pet names like "sweetie" or "hun".`
+End with [[ALERT_NURSE]] on its own line. Keep your response under 3 sentences. Calm, clear, direct. Never use pet names — no "sweetie", "hun", "babe", "beautiful", or similar.`
       : "";
 
     const systemPrompt = `You are a warm, caring post-procedure recovery assistant for ${practiceName}. The client just had a ${procedureName} procedure.
