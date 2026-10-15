@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { logError } from "@/lib/logError";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -153,6 +154,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ reminders: built, total, done });
   } catch (e) {
+    await logError("checkin-reminders", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
@@ -214,6 +216,7 @@ export async function PATCH(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ reminder: updated });
   } catch (e) {
+    await logError("checkin-reminders", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
 import { detectEmergencySync, DEFAULT_EMERGENCY_KEYWORDS, normalizeText } from "@/lib/emergencyCheck";
+import { logError } from "@/lib/logError";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -92,7 +93,8 @@ export async function GET(request: Request) {
         ...(keywords ?? []).map((k: { keyword: string }) => k.keyword),
       ],
     });
-  } catch {
+  } catch (e) {
+    await logError("healing", String(e));
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }
@@ -466,7 +468,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
             .filter((x): x is string => x !== null)
             .slice(0, 2);
         }
-      } catch { /* non-fatal — proceed */ }
+      } catch (e) { await logError("healing", `dedup check failed: ${String(e)}`); }
 
       if (aiIsDuplicate) {
         supabase.from("message_log").insert({
@@ -480,7 +482,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           try {
             const { data: authUser } = await supabase.auth.admin.getUserById(treatment.nurse_id);
             alertEmailAi = authUser?.user?.email ?? null;
-          } catch { /* non-fatal */ }
+          } catch (e) { await logError("healing", `auth email lookup failed: ${String(e)}`); }
         }
 
         const aiMsgPreview = escapeHtml(lastUserMessage.slice(0, 60));
@@ -541,7 +543,8 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     }
 
     return NextResponse.json({ message: aiMessage, flagged: isFlagged });
-  } catch {
+  } catch (e) {
+    await logError("healing", String(e));
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

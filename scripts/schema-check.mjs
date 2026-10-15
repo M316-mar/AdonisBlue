@@ -108,6 +108,8 @@ function extractRefs(files) {
       const tableMatch = lines[i].match(/\.from\(\s*["'`]([^"'`]+)["'`]/);
       if (!tableMatch) continue;
       const table = tableMatch[1];
+      // Skip non-identifiers (e.g. Buffer.from(`${accountSid}:${authToken}`) false positive)
+      if (!/^[a-z_][a-z0-9_]*$/.test(table)) continue;
 
       // Scan up to 25 lines ahead for column references
       const end = Math.min(lines.length, i + 25);

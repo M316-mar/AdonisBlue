@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse, after } from "next/server";
 import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
 import { detectEmergencySync, normalizeText } from "@/lib/emergencyCheck";
+import { logError } from "@/lib/logError";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io";
 
 /** Escape HTML special chars to prevent XSS in email bodies. */
@@ -528,6 +529,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           }
         } catch (alertErr) {
           console.error("[chat-emergency] Keyword alert failed (non-fatal):", alertErr);
+          await logError("chat", `keyword alert failed: ${String(alertErr)}`);
         }
       });
 
@@ -617,6 +619,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           }
         } catch (aiAlertErr) {
           console.error("[chat-ai-alert] failed:", aiAlertErr);
+          await logError("chat", `AI alert failed: ${String(aiAlertErr)}`);
         }
       });
       console.log("[chat-ai-alert] AI alarm scheduled");
@@ -690,6 +693,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
       emergencyAlertedWithoutContact: responseAlertedWithoutContact,
     });
   } catch (e) {
+    await logError("chat", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -57,10 +58,12 @@ export async function GET(request: Request) {
 
     if (treatmentsError) {
       console.error("[treatments GET] query error:", treatmentsError.message, treatmentsError.code);
+      await logError("treatments", treatmentsError.message);
     }
 
     return NextResponse.json({ treatments: treatments ?? [] });
-  } catch {
+  } catch (e) {
+    await logError("treatments", String(e));
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }
@@ -250,8 +253,9 @@ export async function POST(request: Request) {
         due_date: dueDateStr,
         status: "pending",
       });
-    } catch {
-      // Never block treatment save on reminder creation failure
+    } catch (e) {
+      // Non-fatal: never block treatment save on reminder creation failure
+      await logError("treatments", `checkin_reminders insert failed: ${String(e)}`);
     }
 
     // ── Get bot info ───────────────────────────────────────────────────────
@@ -378,7 +382,8 @@ export async function POST(request: Request) {
     void clientPhone;
 
     return NextResponse.json({ treatment, aftercare_sent_at: aftercareSent ? new Date().toISOString() : null });
-  } catch {
+  } catch (e) {
+    await logError("treatments", String(e));
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }
@@ -413,7 +418,8 @@ export async function PATCH(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (e) {
+    await logError("treatments", String(e));
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }
