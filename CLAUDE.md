@@ -7,6 +7,7 @@
 ## Engineering rules
 
 - Every Supabase call must check `error`. Never swallow errors in an empty `try/catch` — log them with `logError()` from `lib/logError.ts`. No client message text in the log message.
+- **Never execute SQL directly** (no browser SQL editor, no psql, no supabase CLI). Always show the SQL and wait for the user to run it.
 - Any DB schema change = a new file in `supabase/migrations/YYYY-MM-DD_name.sql` (re-runnable: `IF NOT EXISTS`, `DROP POLICY IF EXISTS`), git-added before the commit, ending with `NOTIFY pgrst, 'reload schema';` after `COMMIT`.
 - New tables always get `GRANT ALL ON <table> TO service_role` and, if nurses access them, `GRANT SELECT, INSERT, UPDATE, DELETE ON <table> TO authenticated` plus an RLS policy so nurses see only their own rows.
 - Nurse IDs: some tables store `nurse_id` as `text`, some as `uuid`. Always check the actual column type (`information_schema` or the OpenAPI spec) and cast correctly (`auth.uid()::text` in RLS when the column is `text`).
