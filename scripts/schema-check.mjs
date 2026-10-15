@@ -251,12 +251,7 @@ const appFiles = [
 
 const allRefs = extractRefs(appFiles);
 
-// Columns added by a pending migration that hasn't been run yet.
-// Format: "table.column". Remove once migration 2026-10-15_checkin-and-schema-fixes.sql is applied.
-const KNOWN_PENDING_COLUMNS = new Set([
-  "procedures.checkin_days",
-  "procedures.checkin_script",
-]);
+const KNOWN_PENDING_COLUMNS = new Set([]);
 
 // Deduplicate and check
 const seenKey = new Set();
