@@ -52,12 +52,16 @@ export async function POST(request: Request) {
     await db.from("referrals").delete().eq("referrer_nurse_id", nurse_id);
     await db.from("emergency_keywords").delete().eq("nurse_id", nurse_id);
     await db.from("reviews").delete().eq("nurse_id", nurse_id);
+    await db.from("offers").delete().eq("nurse_id", nurse_id);
+    await db.from("secretary_action_log").delete().eq("nurse_id", nurse_id);
+    await db.from("message_log").delete().eq("nurse_id", nurse_id);
     await db.from("treatments").delete().eq("nurse_id", nurse_id);
     await db.from("procedures").delete().eq("nurse_id", nurse_id);
     await db.from("intakes").delete().eq("nurse_id", nurse_id);
     await db.from("conversations").delete().eq("nurse_id", nurse_id);
     await db.from("feedback").delete().eq("nurse_id", nurse_id);
     await db.from("bots").delete().eq("nurse_id", nurse_id);
+    await db.from("nurses").delete().eq("id", nurse_id);
 
     const { error: authDeleteError } = await db.auth.admin.deleteUser(nurse_id);
     if (authDeleteError) {

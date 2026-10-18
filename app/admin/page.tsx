@@ -198,12 +198,13 @@ export default function AdminPage() {
       if (res.ok) {
         setNurses(prev => prev.filter(n => n.nurse_id !== nurse.nurse_id));
       } else {
-        alert("Delete failed — check the API.");
+        const body = await res.json().catch(() => ({}));
+        alert(`Delete failed (${res.status}): ${body.error ?? "unknown error"}`);
       }
     } finally {
       setDeleteLoading(null);
     }
-  }, []);
+  }, [adminToken]);
 
   const handleFreezeToggle = useCallback(async (nurse: NurseRow) => {
     const nextFrozen = !nurse.frozen;
@@ -216,11 +217,14 @@ export default function AdminPage() {
       });
       if (res.ok) {
         setNurses(prev => prev.map(n => n.nurse_id === nurse.nurse_id ? { ...n, frozen: nextFrozen } : n));
+      } else {
+        const body = await res.json().catch(() => ({}));
+        alert(`${nextFrozen ? "Freeze" : "Unfreeze"} failed (${res.status}): ${body.error ?? "unknown error"}`);
       }
     } finally {
       setFreezeLoading(null);
     }
-  }, []);
+  }, [adminToken]);
 
   const handleCreatePost = useCallback(async () => {
     if (!newPost.title.trim() || !newPost.content.trim()) return;

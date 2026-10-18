@@ -69,8 +69,11 @@ export async function POST(request: Request) {
     // 8. emergency_keywords
     await db.from("emergency_keywords").delete().eq("nurse_id", nurse_id);
 
-    // 9. reviews (by nurse_id — aftercare_sent_at is a column on intakes, not a table)
+    // 9. reviews, offers, secretary log, message log
     await db.from("reviews").delete().eq("nurse_id", nurse_id);
+    await db.from("offers").delete().eq("nurse_id", nurse_id);
+    await db.from("secretary_action_log").delete().eq("nurse_id", nurse_id);
+    await db.from("message_log").delete().eq("nurse_id", nurse_id);
 
     // 10. treatments
     await db.from("treatments").delete().eq("nurse_id", nurse_id);
@@ -89,6 +92,7 @@ export async function POST(request: Request) {
 
     // 15. bots — parent record
     await db.from("bots").delete().eq("nurse_id", nurse_id);
+    await db.from("nurses").delete().eq("id", nurse_id);
 
     // 18. Supabase auth user — absolute last
     const { error: authDeleteError } = await db.auth.admin.deleteUser(nurse_id);
