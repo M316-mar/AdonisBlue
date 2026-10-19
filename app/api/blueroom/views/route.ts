@@ -1,12 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { blueroomAuth } from "@/lib/blueroomAuth";
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json() as { post_id?: string; nurse_id?: string };
-    const { post_id, nurse_id } = body;
+  const auth = await blueroomAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
-    if (!post_id || !nurse_id) {
+  try {
+    const body = await request.json() as { post_id?: string };
+    const { post_id } = body;
+
+    if (!post_id) {
       return NextResponse.json({ error: "Something went wrong" }, { status: 400 });
     }
 
@@ -17,7 +22,7 @@ export async function POST(request: Request) {
 
     await supabase
       .from("blueroom_post_views")
-      .upsert({ post_id, nurse_id, viewed_at: new Date().toISOString() }, { onConflict: "post_id,nurse_id" });
+      .upsert({ post_id, nurse_id: user.id, viewed_at: new Date().toISOString() }, { onConflict: "post_id,nurse_id" });
 
     return NextResponse.json({ ok: true });
   } catch {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -107,6 +107,12 @@ export default function BlueRoomPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [reactionPickerOpen, setReactionPickerOpen] = useState<string | null>(null);
+  const tokenRef = useRef<string>("");
+
+  const authHeaders = useCallback(() => ({
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${tokenRef.current}`,
+  }), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,17 +121,18 @@ export default function BlueRoomPage() {
       if (cancelled) return;
       if (!data.session) { router.replace("/auth"); return; }
       const user = data.session.user;
+      tokenRef.current = data.session.access_token;
       setNurseId(user.id);
       const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "Nurse";
       setNurseName(name);
-      const res = await fetch("/api/blueroom/posts");
+      const res = await fetch("/api/blueroom/posts", { headers: { "Authorization": `Bearer ${data.session.access_token}` } });
       if (!cancelled && res.ok) {
         const json = await res.json() as { posts?: Post[] };
         setPosts(json.posts ?? []);
 
         // Fetch reactions for all posts
         const reactionFetches = (json.posts ?? []).map(async (p: Post): Promise<ReactionResult | null> => {
-          const r = await fetch(`/api/blueroom/post-reactions?post_id=${p.id}&nurse_id=${user.id}`);
+          const r = await fetch(`/api/blueroom/post-reactions?post_id=${p.id}`, { headers: { "Authorization": `Bearer ${data.session.access_token}` } });
           if (r.ok) {
             const rj = await r.json() as { reactions: PostReactions; my_reaction: Reaction | null };
             return { postId: p.id, reactions: rj.reactions, myReaction: rj.my_reaction };
@@ -146,7 +153,7 @@ export default function BlueRoomPage() {
       }
 
       // Fetch notifications
-      const notifRes = await fetch(`/api/blueroom/notifications?nurse_id=${user.id}`);
+      const notifRes = await fetch("/api/blueroom/notifications", { headers: { "Authorization": `Bearer ${data.session.access_token}` } });
       if (notifRes.ok) {
         const notifJson = await notifRes.json() as { notifications?: Notification[]; unread_count?: number };
         setNotifications(notifJson.notifications ?? []);
@@ -168,7 +175,7 @@ export default function BlueRoomPage() {
 
   const loadComments = useCallback(async (postId: string) => {
     if (comments[postId]) return;
-    const res = await fetch(`/api/blueroom/comments?post_id=${postId}`);
+    const res = await fetch(`/api/blueroom/comments?post_id=${postId}`, { headers: { "Authorization": `Bearer ${tokenRef.current}` } });
     if (res.ok) {
       const json = await res.json() as { comments?: Comment[] };
       setComments(prev => ({ ...prev, [postId]: json.comments ?? [] }));
@@ -181,16 +188,16 @@ export default function BlueRoomPage() {
     await loadComments(postId);
     void fetch("/api/blueroom/views", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ post_id: postId, nurse_id: nurseId }),
+      headers: authHeaders(),
+      body: JSON.stringify({ post_id: postId }),
     });
-  }, [expandedPost, loadComments, nurseId]);
+  }, [expandedPost, loadComments, authHeaders]);
 
   const handlePostReaction = useCallback(async (postId: string, reaction: Reaction) => {
     const res = await fetch("/api/blueroom/post-reactions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ post_id: postId, nurse_id: nurseId, reaction }),
+      headers: authHeaders(),
+      body: JSON.stringify({ post_id: postId, reaction }),
     });
     if (res.ok) {
       const json = await res.json() as { action: "added" | "removed" | "updated"; reaction: string };
@@ -213,18 +220,18 @@ export default function BlueRoomPage() {
       });
     }
     setReactionPickerOpen(null);
-  }, [nurseId, myPostReaction]);
+  }, [myPostReaction, authHeaders]);
 
   const handleMarkNotificationsRead = useCallback(async () => {
     setShowNotifications(true);
     setUnreadCount(0);
     await fetch("/api/blueroom/notifications", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nurse_id: nurseId }),
+      headers: authHeaders(),
+      body: JSON.stringify({}),
     });
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-  }, [nurseId]);
+  }, [authHeaders]);
 
   const handleSubmitComment = useCallback(async (postId: string) => {
     const message = commentText[postId]?.trim();
@@ -263,10 +270,9 @@ export default function BlueRoomPage() {
 
     const res = await fetch("/api/blueroom/comments", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify({
         post_id: postId,
-        nurse_id: nurseId,
         nurse_name: nurseName,
         message: message || "",
         media_url: mediaUrl,
@@ -282,13 +288,13 @@ export default function BlueRoomPage() {
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, blueroom_comments: [{ count: (p.blueroom_comments?.[0]?.count ?? 0) + 1 }] } : p));
     }
     setCommentLoading(null);
-  }, [commentText, commentMedia, nurseId, nurseName]);
+  }, [commentText, commentMedia, nurseName, authHeaders]);
 
   const handleCommentReaction = useCallback(async (commentId: string, reaction: "like" | "dislike") => {
     const res = await fetch("/api/blueroom/reactions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment_id: commentId, nurse_id: nurseId, reaction }),
+      headers: authHeaders(),
+      body: JSON.stringify({ comment_id: commentId, reaction }),
     });
     if (res.ok) {
       const json = await res.json() as { action: "added" | "removed" | "updated" };
@@ -305,7 +311,7 @@ export default function BlueRoomPage() {
         }
       });
     }
-  }, [nurseId]);
+  }, [authHeaders]);
 
   const searchGifs = useCallback(async (query: string) => {
     setGifLoading(true);
@@ -329,10 +335,9 @@ export default function BlueRoomPage() {
     setCommentLoading(postId);
     const res = await fetch("/api/blueroom/comments", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify({
         post_id: postId,
-        nurse_id: nurseId,
         nurse_name: nurseName,
         message: "",
         media_url: gifUrl,
@@ -347,22 +352,22 @@ export default function BlueRoomPage() {
       setGifSearch("");
     }
     setCommentLoading(null);
-  }, [nurseId, nurseName]);
+  }, [nurseName, authHeaders]);
 
   const handleDeleteComment = useCallback(async (postId: string, commentId: string, authorId: string) => {
     if (authorId !== nurseId) return;
     setDeletingComment(commentId);
     const res = await fetch("/api/blueroom/comments", {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment_id: commentId, nurse_id: nurseId }),
+      headers: authHeaders(),
+      body: JSON.stringify({ comment_id: commentId }),
     });
     if (res.ok) {
       setComments(prev => ({ ...prev, [postId]: (prev[postId] ?? []).filter(c => c.id !== commentId) }));
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, blueroom_comments: [{ count: Math.max(0, (p.blueroom_comments?.[0]?.count ?? 1) - 1) }] } : p));
     }
     setDeletingComment(null);
-  }, [nurseId]);
+  }, [nurseId, authHeaders]);
 
   const handleSubmitPost = useCallback(async () => {
     if (!newPostText.trim() && !mediaFile) return;
@@ -408,13 +413,12 @@ export default function BlueRoomPage() {
 
     const res = await fetch("/api/blueroom/posts", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify({
         title: newPostText.slice(0, 80) || "Shared a photo",
         content: newPostText,
         category: newPostCategory,
         emoji: mediaType === "video" ? "🎥" : mediaType === "image" ? "📸" : "💙",
-        author_id: nurseId,
         author_name: nurseName,
         media_url: mediaUrl,
         media_type: mediaMimeType,
@@ -430,7 +434,7 @@ export default function BlueRoomPage() {
       setPostBoxOpen(false);
     }
     setPostSubmitting(false);
-  }, [newPostText, newPostCategory, nurseId, nurseName, mediaFile, mediaType]);
+  }, [newPostText, newPostCategory, nurseName, mediaFile, mediaType, authHeaders]);
 
   const handleMediaSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

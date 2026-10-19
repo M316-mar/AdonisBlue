@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/requireAdmin";
+import { blueroomAuth } from "@/lib/blueroomAuth";
 
 const WELCOME_POST = {
   title: "Welcome to The Blue Room 💙",
@@ -21,7 +22,10 @@ Introduce yourself below! Tell us your name, where you practice, and your favori
   emoji: "💙",
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await blueroomAuth(request);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -80,8 +84,20 @@ export async function PATCH(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const auth = await blueroomAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
+
   try {
-    const body = await request.json();
+    const body = await request.json() as {
+      title?: string;
+      content?: string;
+      category?: string;
+      emoji?: string;
+      author_name?: string;
+      media_url?: string | null;
+      media_type?: string | null;
+    };
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -95,7 +111,7 @@ export async function POST(request: Request) {
         content: body.content,
         category: body.category || "general",
         emoji: body.emoji || "💙",
-        author_id: body.author_id ?? null,
+        author_id: user.id,
         author_name: body.author_name ?? null,
         media_url: body.media_url ?? null,
         media_type: body.media_type ?? null,

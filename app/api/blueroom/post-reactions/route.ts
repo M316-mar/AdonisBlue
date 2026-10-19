@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { blueroomAuth } from "@/lib/blueroomAuth";
 
 const VALID_REACTIONS = ["👍", "❤️", "🔥", "💉"] as const;
 type Reaction = (typeof VALID_REACTIONS)[number];
@@ -9,12 +10,15 @@ interface ReactionRow {
 }
 
 export async function GET(request: Request) {
+  const auth = await blueroomAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const post_id = searchParams.get("post_id");
-    const nurse_id = searchParams.get("nurse_id");
 
-    if (!post_id || !nurse_id) {
+    if (!post_id) {
       return NextResponse.json({ error: "Something went wrong" }, { status: 400 });
     }
 
@@ -42,12 +46,10 @@ export async function GET(request: Request) {
       .from("blueroom_post_reactions")
       .select("reaction")
       .eq("post_id", post_id)
-      .eq("nurse_id", nurse_id)
+      .eq("nurse_id", user.id)
       .maybeSingle();
 
-    const my_reaction: Reaction | null = myRow
-      ? (myRow.reaction as Reaction)
-      : null;
+    const my_reaction: Reaction | null = myRow ? (myRow.reaction as Reaction) : null;
 
     return NextResponse.json({ reactions, my_reaction });
   } catch {
@@ -56,11 +58,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json() as { post_id?: string; nurse_id?: string; reaction?: string };
-    const { post_id, nurse_id, reaction } = body;
+  const auth = await blueroomAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const { user } = auth;
 
-    if (!post_id || !nurse_id || !reaction) {
+  try {
+    const body = await request.json() as { post_id?: string; reaction?: string };
+    const { post_id, reaction } = body;
+
+    if (!post_id || !reaction) {
       return NextResponse.json({ error: "Something went wrong" }, { status: 400 });
     }
 
@@ -73,27 +79,19 @@ export async function POST(request: Request) {
       .from("blueroom_post_reactions")
       .select("id, reaction")
       .eq("post_id", post_id)
-      .eq("nurse_id", nurse_id)
+      .eq("nurse_id", user.id)
       .maybeSingle();
 
     if (existing) {
       if (existing.reaction === reaction) {
-        // Toggle off — remove
-        await supabase
-          .from("blueroom_post_reactions")
-          .delete()
-          .eq("id", existing.id);
+        await supabase.from("blueroom_post_reactions").delete().eq("id", existing.id);
         return NextResponse.json({ action: "removed", reaction });
       } else {
-        // Switch reaction
-        await supabase
-          .from("blueroom_post_reactions")
-          .update({ reaction })
-          .eq("id", existing.id);
+        await supabase.from("blueroom_post_reactions").update({ reaction }).eq("id", existing.id);
         return NextResponse.json({ action: "updated", reaction });
       }
     } else {
-      await supabase.from("blueroom_post_reactions").insert({ post_id, nurse_id, reaction });
+      await supabase.from("blueroom_post_reactions").insert({ post_id, nurse_id: user.id, reaction });
       return NextResponse.json({ action: "added", reaction });
     }
   } catch {
