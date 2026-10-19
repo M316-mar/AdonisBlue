@@ -138,6 +138,26 @@ export async function POST(request: Request) {
       .map((p) => `${p.name}:\n${p.aftercare_instructions!.trim()}`)
       .join("\n\n");
 
+    // ── Fetch custom emergency keywords for this nurse ────────────────────
+    let customKeywords: string[] = [];
+    if (botConfig.nurse_id) {
+      try {
+        const db = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        const { data: kwRows } = await db
+          .from("emergency_keywords")
+          .select("keyword")
+          .eq("nurse_id", botConfig.nurse_id);
+        if (kwRows && kwRows.length > 0) {
+          customKeywords = kwRows.map((r: { keyword: string }) => r.keyword);
+        }
+      } catch {
+        // Non-fatal — proceed with built-in keywords only
+      }
+    }
+
     // ── Emergency keyword detection — server-side, before AI call ─────────
     // Check the latest user message only (the one that just arrived)
     const lastUserMessage =
@@ -145,7 +165,7 @@ export async function POST(request: Request) {
         .reverse()
         .find((m) => m.role === "user")?.content ?? "";
 
-    const isFlagged = detectEmergencySync(lastUserMessage);
+    const isFlagged = detectEmergencySync(lastUserMessage, customKeywords);
 
     // Contact-info follow-up tracking (client state — kept for follow-up UX only)
     const alreadyAlertedWithoutContact = botConfig.emergencyAlertedWithoutContact === true;
@@ -162,12 +182,19 @@ export async function POST(request: Request) {
       console.log(`[chat-emergency] hasContact=${hasContact}, alreadyAlertedWithoutContact=${alreadyAlertedWithoutContact}`);
     }
 
+    // ── Bot identity (needed for emergency prompt and system prompt) ─────────
+    const effectiveBotName = ((botConfig.bot_name as string | null)?.trim() || `${(botConfig.practice_name as string | null)?.trim() || "this practice"} Assistant`);
+    const nurseFirst = (botConfig.nurse_name as string | null)?.trim().split(/\s+/)[0] ?? "";
+    const nurseFirstForPrompt = nurseFirst || "your nurse";
+
     // ── Inject emergency awareness into system prompt when flagged ─────────
     const emergencyInstruction = isFlagged
-      ? `\n\nEMERGENCY DETECTED — CRITICAL OVERRIDE: The client just described something that may need urgent medical attention. Your response must follow this exact order:
-1. For symptoms involving breathing difficulty, chest pain, throat or tongue swelling, vision changes, skin turning white/gray/blue, or fainting — your first sentence must be: "Please call 911 or go to the nearest emergency room right now." Then say their nurse has been notified. End with [[ALERT_NURSE]] on its own line.
-2. For other concerning symptoms — acknowledge warmly. ${!hasContact ? "Ask for their full name and phone number so their nurse can reach them." : "Confirm their nurse has been notified."} End with [[ALERT_NURSE]] on its own line.
-Keep your response under 3 sentences. Calm, clear, direct. Never use pet names — no "sweetie", "hun", "babe", "beautiful", or similar.`
+      ? `\n\nEMERGENCY DETECTED — CRITICAL OVERRIDE: The client just described something that may need urgent medical attention. Follow this exact structure — do NOT deviate:
+1. FIRST SENTENCE — always, for every emergency: "Please call 911 or go to the nearest emergency room right now."
+2. SECOND SENTENCE — tell them ${nurseFirstForPrompt} has been notified (do NOT promise she will call back).
+3. ${hasContact ? "End there — we already have their contact info." : `THIRD SENTENCE — ask: "So ${nurseFirstForPrompt} can reach you, what's the best phone number for you?"`}
+End your reply with [[ALERT_NURSE]] on its own line.
+Keep your response to these sentences only. Calm, clear, direct. Never use pet names — no "sweetie", "hun", "babe", "beautiful", or similar.`
       : "";
 
     // ── Pronoun-aware tone adjustment ─────────────────────────────────────
@@ -180,8 +207,6 @@ Keep your response under 3 sentences. Calm, clear, direct. Never use pet names �
       ? `\nCLIENT TONE PREFERENCE — She/Her: This client uses she/her pronouns. Use warm, nurturing language. "Gorgeous", "beautiful", feminine affirmations and 💕 emojis are welcome.`
       : ""; // "Prefer not to say" or not set — use default tone
 
-    const effectiveBotName = ((botConfig.bot_name as string | null)?.trim() || `${(botConfig.practice_name as string | null)?.trim() || "this practice"} Assistant`);
-    const nurseFirst = (botConfig.nurse_name as string | null)?.trim().split(/\s+/)[0] ?? "";
     const systemPrompt = `You are a warm, friendly assistant for ${botConfig.practice_name || "this aesthetic practice"} located in ${botConfig.city || "your area"}.
 
 YOUR IDENTITY: Your name is ${effectiveBotName}. You are a virtual AI assistant — you are NOT the nurse.${nurseFirst ? ` Never say "I'm ${nurseFirst}" or claim to be the nurse personally. If asked who you are, say you are an AI assistant for ${nurseFirst}.` : " Never claim to be the nurse personally."} You are not a human.
@@ -271,7 +296,7 @@ Always speak in plain simple English (or Spanish if the client writes in Spanish
 
 FORMATTING RULES — CRITICAL: Never use markdown in your responses. No asterisks for bold (**text**), no bullet points (- item or * item), no headers (#). Write in plain conversational sentences only. Emojis are fine and encouraged.${activeOffersBlock}
 
-SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, chest pain, throat or tongue swelling, vision changes (blurry, double, or lost), skin turning white/gray/blue, fainting, severe or worsening pain, or any symptom that sounds like a medical emergency — OR if you find yourself advising them to call 911, go to the ER, or go to urgent care — OR if you tell the client their nurse is being notified: append the exact token [[ALERT_NURSE]] on its own line at the very end of your reply. This token is invisible to the client and triggers the nurse alert system. Only include it when you genuinely believe the situation may need urgent attention. Never include it for routine questions.${emergencyInstruction}`;
+SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, chest pain, throat or tongue swelling, vision changes (blurry, double, or lost), skin turning white/gray/blue, fainting, severe or worsening pain, or any symptom that sounds like a medical emergency — OR if you find yourself advising them to call 911, go to the ER, or go to urgent care — respond in this exact order: (1) "Please call 911 or go to the nearest emergency room right now." (2) Tell them ${nurseFirstForPrompt} has been notified — do NOT promise she will call back. (3) If you do not already have their phone number, ask: "So ${nurseFirstForPrompt} can reach you, what's the best phone number for you?" Then append [[ALERT_NURSE]] on its own line at the very end. Never include [[ALERT_NURSE]] for routine questions.${emergencyInstruction}`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
