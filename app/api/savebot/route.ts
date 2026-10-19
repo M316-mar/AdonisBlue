@@ -54,13 +54,14 @@ export async function POST(request: Request) {
 
     // String fields — only write when non-empty after trim
     const stringFields: string[] = [
-      "practice_name", "city", "state", "bot_name", "slug",
+      "practice_name", "city", "state", "bot_name",
       "greeting", "tone", "brand_color",
       "booking_link", "cancellation_policy", "numbing_method",
       "previous_work_policy", "touch_up_policy", "same_day_consultation",
       "deposit_info", "forward_questions", "aftercare",
       "bot_name_font", "bubble_attention_message", "pre_appointment_instructions",
       "nurse_name", "alert_email", "alert_phone",
+      "location", "business_hours", "phone_public",
     ];
     for (const field of stringFields) {
       if (field in body) {
@@ -121,6 +122,36 @@ export async function POST(request: Request) {
     }
 
     const db = createClient(url, serviceKey);
+
+    // ── Slug: set once, never overwrite ──────────────────────────────────────
+    // If the client sent a slug candidate, check whether this nurse already has one.
+    // If they do, discard the new value (shared links must never break).
+    // If they don't, claim the candidate — appending -2, -3 etc. if taken.
+    if ("slug" in body && typeof body["slug"] === "string" && body["slug"].trim()) {
+      const candidate = body["slug"].trim();
+      const { data: existing } = await db
+        .from("bots")
+        .select("slug")
+        .eq("nurse_id", user.id)
+        .maybeSingle();
+      if (!existing?.slug) {
+        // No slug yet — claim one, resolving conflicts
+        let finalSlug = candidate;
+        let suffix = 2;
+        while (true) {
+          const { data: conflict } = await db
+            .from("bots")
+            .select("nurse_id")
+            .eq("slug", finalSlug)
+            .neq("nurse_id", user.id)
+            .maybeSingle();
+          if (!conflict) break;
+          finalSlug = `${candidate}-${suffix++}`;
+        }
+        update["slug"] = finalSlug;
+      }
+      // else: existing slug stays — do not add slug to update
+    }
 
     // Check previous launched state before upsert if we're setting launched=true
     let wasAlreadyLaunched = true;

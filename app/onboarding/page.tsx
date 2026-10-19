@@ -311,6 +311,9 @@ type Draft = {
   practiceName: string;
   city: string;
   state: string;
+  address: string;
+  businessHours: string;
+  phonePublic: string;
   // Step 2
   procedures: string[];
   customProcedures: string;
@@ -352,6 +355,9 @@ function emptyDraft(userId: string): Draft {
     practiceName: "",
     city: "",
     state: "",
+    address: "",
+    businessHours: "",
+    phonePublic: "",
     procedures: [],
     customProcedures: "",
     numbingMethod: "",
@@ -670,6 +676,42 @@ function StepWelcome({
               <option key={s.abbr} value={s.abbr}>{s.name}</option>
             ))}
           </select>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+        <p className="text-sm font-semibold text-[#1a2744]">Optional — clients can ask your assistant about these</p>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">Address</label>
+          <input
+            className={field}
+            placeholder="e.g. 123 Main St, Suite 4"
+            autoComplete="street-address"
+            value={draft.address}
+            onChange={(e) => onChange({ address: e.target.value })}
+          />
+          <p className="text-xs text-slate-400">Leave blank if you&apos;d rather not share it with clients.</p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">Business hours</label>
+          <input
+            className={field}
+            placeholder="e.g. Mon–Fri 10am–6pm, Sat 10am–3pm"
+            value={draft.businessHours}
+            onChange={(e) => onChange({ businessHours: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">Phone clients can call</label>
+          <input
+            type="tel"
+            className={field}
+            placeholder="e.g. (305) 555-0100"
+            autoComplete="tel"
+            value={draft.phonePublic}
+            onChange={(e) => onChange({ phonePublic: e.target.value })}
+          />
+          <p className="text-xs text-slate-400">This is your public number — different from your private emergency alert phone.</p>
         </div>
       </div>
     </div>
@@ -1579,6 +1621,9 @@ function OnboardingInner() {
               practiceName: (bot.practice_name as string | null) ?? "",
               city: (bot.city as string | null) ?? "",
               state: (bot.state as string | null) ?? "",
+              address: (bot.location as string | null) ?? "",
+              businessHours: (bot.business_hours as string | null) ?? "",
+              phonePublic: (bot.phone_public as string | null) ?? "",
               // Step 2 — procedures come from services[] on bots table
               procedures: Array.isArray(bot.services) && bot.services.length > 0
                 ? (bot.services as string[])
@@ -1618,11 +1663,9 @@ function OnboardingInner() {
               }
             }
 
-            // Track slug for step-5 share link
-            if (botLaunched) {
-              setBotSlug(
-                slugify((bot.bot_name as string | null) ?? (bot.practice_name as string | null) ?? "")
-              );
+            // Track slug for share link — use stored slug; never re-derive (would break shared links)
+            if (botLaunched && bot.slug) {
+              setBotSlug(bot.slug as string);
             }
           }
         }
@@ -1724,15 +1767,19 @@ function OnboardingInner() {
       setSaving(true);
       try {
         await supabase.auth.updateUser({ data: { full_name: draft.nurseName.trim() } });
+        const step1Payload: Record<string, string | null> = {
+          nurse_name: draft.nurseName.trim(),
+          practice_name: draft.practiceName.trim(),
+          city: draft.city.trim(),
+          state: draft.state.trim(),
+        };
+        if (draft.address.trim()) step1Payload.location = draft.address.trim();
+        if (draft.businessHours.trim()) step1Payload.business_hours = draft.businessHours.trim();
+        if (draft.phonePublic.trim()) step1Payload.phone_public = draft.phonePublic.trim();
         const res = await fetch("/api/savebot", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            nurse_name: draft.nurseName.trim(),
-            practice_name: draft.practiceName.trim(),
-            city: draft.city.trim(),
-            state: draft.state.trim(),
-          }),
+          body: JSON.stringify(step1Payload),
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({})) as { error?: string };
@@ -1870,16 +1917,19 @@ function OnboardingInner() {
     setSaving(true);
     try {
       const effectiveBotName = draft.botName.trim() || `${draft.practiceName.trim()} Assistant`;
-      const slug = slugify(effectiveBotName);
       const baseServices = draft.procedures.filter((p) => p !== "Other");
       const customList = draft.customProcedures.split(",").map((s) => s.trim()).filter(Boolean);
       const services = [...baseServices, ...customList];
 
-      const botPayload = {
+      // Build slug from practice + nurse first name — set once, server protects it from future overwrites
+      const nurseFirst = draft.nurseName.trim().split(/\s+/)[0] ?? "";
+      const slugCandidate = slugify(`${draft.practiceName.trim()} ${nurseFirst}`);
+
+      const botPayload: Record<string, unknown> = {
         bot_name: effectiveBotName,
-        slug,
+        slug: slugCandidate,
         greeting: draft.greeting.trim() ||
-          `Hi! I'm ${effectiveBotName}, ${draft.nurseName.trim().split(/\s+/)[0] || "your nurse"}'s virtual assistant at ${draft.practiceName.trim()}. How can I help you today? 💙`,
+          `Hi! I'm ${effectiveBotName}, ${nurseFirst || "your nurse"}'s virtual assistant at ${draft.practiceName.trim()}. How can I help you today? 💙`,
         brand_color: draft.brandColor || "#0d9488",
         logo_url: draft.logoUrl || null,
         bot_theme: draft.botTheme || "aurora",
@@ -1900,7 +1950,18 @@ function OnboardingInner() {
         return;
       }
 
-      setBotSlug(slug);
+      // Use the server-assigned slug (may differ from candidate if there was a conflict).
+      // We re-fetch mybot just to get the confirmed slug; fall back to candidate if that fails.
+      let confirmedSlug = slugCandidate;
+      try {
+        const mbRes = await fetch("/api/mybot", { headers: { Authorization: `Bearer ${token}` } });
+        if (mbRes.ok) {
+          const mb = (await mbRes.json()) as { bot?: { slug?: string | null } };
+          if (mb.bot?.slug) confirmedSlug = mb.bot.slug;
+        }
+      } catch { /* ignore — slug from savebot response would be ideal but isn't returned */ }
+
+      setBotSlug(confirmedSlug);
       setDraft({ step: TOTAL_STEPS });
     } catch (e) {
       console.error("[savebot] unexpected error:", e);
