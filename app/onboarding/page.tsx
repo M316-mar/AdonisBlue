@@ -320,6 +320,8 @@ type Draft = {
   bookingLink: string;
   // Step 3 — aftercare approval (procedure names nurse has reviewed)
   approvedProcedures: string[];
+  // Step 3 — edited aftercare text keyed by procedure name (overrides DEFAULT_PROCEDURE_DEFAULTS)
+  editedAftercare: Record<string, string>;
   // Step 4 — alert contact + socials
   alertEmail: string;
   alertPhone: string;
@@ -357,6 +359,7 @@ function emptyDraft(userId: string): Draft {
     depositInfo: "",
     bookingLink: "",
     approvedProcedures: [],
+    editedAftercare: {},
     alertEmail: "",
     alertPhone: "",
     instagram: "",
@@ -428,12 +431,14 @@ function ChatPreview({
   practiceName,
   greeting,
   logoUrl,
+  procedures,
 }: {
   practiceName: string;
   greeting: string;
   brandColor: string; // kept in signature for call-site compat, not used
   logoUrl?: string;
   botTheme?: string; // kept for call-site compat, not used
+  procedures?: string[];
 }) {
   const outerStyle: React.CSSProperties = {
     display: "flex", flexDirection: "column", height: "100%",
@@ -531,10 +536,15 @@ function ChatPreview({
   const title = practiceName.trim() || "Your Practice";
   const greetingText = greeting.trim() || "Hi there! 👋 How can I help you today?";
 
+  const serviceList = (procedures ?? []).filter((p) => p !== "Other");
+  const servicesReply = serviceList.length > 0
+    ? `We offer ${serviceList.slice(0, 3).join(", ")}${serviceList.length > 3 ? ", and more" : ""}! ✨ Would you like to book a consultation?`
+    : "We offer a variety of aesthetic treatments! ✨ Would you like to book a consultation?";
+
   const DEMO_MSGS: PreviewMsg[] = [
     { id: "1", role: "assistant", content: greetingText },
     { id: "2", role: "user", content: "What services do you offer?" },
-    { id: "3", role: "assistant", content: "We offer Lip Filler, Botox, Cheek Filler, and more! ✨ Would you like to book a consultation?" },
+    { id: "3", role: "assistant", content: servicesReply },
   ];
 
   const PREVIEW_PILLS = ["Services", "Pricing", "Book now"];
@@ -1047,6 +1057,20 @@ function StepCustomize({
       </div>
 
       <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold text-[#1a2744]">
+          Name your assistant
+        </label>
+        <input
+          type="text"
+          className={field}
+          placeholder={`${draft.practiceName.trim() || "Your Practice"} Assistant`}
+          value={draft.botName}
+          onChange={(e) => onChange({ botName: e.target.value })}
+        />
+        <p className="text-xs text-slate-400">Clients will see this name in the chat. Leave blank to use the default above.</p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-[#1a2744]">
           Welcome message
         </label>
@@ -1063,10 +1087,11 @@ function StepCustomize({
           onClick={async () => {
             setGenerating(true);
             try {
+              const effectiveBotName = draft.botName.trim() || `${draft.practiceName.trim() || "Your Practice"} Assistant`;
               const greetingPayload = {
                 practice_name: draft.practiceName,
                 procedures: draft.procedures,
-                bot_name: draft.botName,
+                bot_name: effectiveBotName,
                 nurse_name: draft.nurseName,
               };
               const res = await fetch("/api/generate-greeting", {
@@ -1215,16 +1240,34 @@ function StepAftercareReview({
   draft: Draft;
   onChange: (patch: Partial<Draft>) => void;
 }) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editBuf, setEditBuf] = useState("");
+
   const baseServices = draft.procedures.filter((p) => p !== "Other");
   const customList = draft.customProcedures.split(",").map((s) => s.trim()).filter(Boolean);
   const allProcs = [...baseServices, ...customList];
 
   const toggle = (name: string) => {
+    const defaults = DEFAULT_PROCEDURE_DEFAULTS[name];
+    const hasText = (draft.editedAftercare[name] ?? defaults?.aftercare_instructions ?? "").trim();
+    // No-default procedures must have written text before they can be approved
+    if (!defaults && !hasText && !draft.approvedProcedures.includes(name)) return;
     onChange({
       approvedProcedures: draft.approvedProcedures.includes(name)
         ? draft.approvedProcedures.filter((n) => n !== name)
         : [...draft.approvedProcedures, name],
     });
+  };
+
+  const startEdit = (name: string) => {
+    const defaults = DEFAULT_PROCEDURE_DEFAULTS[name];
+    setEditBuf(draft.editedAftercare[name] ?? defaults?.aftercare_instructions ?? "");
+    setEditing(name);
+  };
+
+  const saveEdit = (name: string) => {
+    onChange({ editedAftercare: { ...draft.editedAftercare, [name]: editBuf } });
+    setEditing(null);
   };
 
   return (
@@ -1234,7 +1277,7 @@ function StepAftercareReview({
           Review your aftercare instructions 📋
         </h1>
         <p className="mt-2 text-sm text-slate-500 sm:text-base">
-          This is what your bot sends clients after each procedure. Read each one and check the box to approve it — you can edit the wording later from your dashboard.
+          This is what your bot sends clients after each procedure. Read each one and check the box to approve it — you can edit the wording now or later from your dashboard.
         </p>
       </div>
 
@@ -1242,6 +1285,10 @@ function StepAftercareReview({
         {allProcs.map((name) => {
           const defaults = DEFAULT_PROCEDURE_DEFAULTS[name];
           const approved = draft.approvedProcedures.includes(name);
+          const currentText = (draft.editedAftercare[name] ?? defaults?.aftercare_instructions ?? "").trim();
+          const isEditingThis = editing === name;
+          const canApprove = !!currentText;
+
           return (
             <div
               key={name}
@@ -1251,7 +1298,8 @@ function StepAftercareReview({
                 <button
                   type="button"
                   onClick={() => toggle(name)}
-                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition ${approved ? "border-[#0d9488] bg-[#0d9488]" : "border-slate-300 bg-white"}`}
+                  disabled={!canApprove && !approved}
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition ${approved ? "border-[#0d9488] bg-[#0d9488]" : canApprove ? "border-slate-300 bg-white hover:border-[#0d9488]" : "border-slate-200 bg-slate-50 cursor-not-allowed opacity-40"}`}
                   aria-label={`${approved ? "Uncheck" : "Approve"} ${name}`}
                 >
                   {approved && (
@@ -1261,19 +1309,57 @@ function StepAftercareReview({
                   )}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[#1a2744] text-sm">{name}</p>
-                  {defaults ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold text-[#1a2744] text-sm">{name}</p>
+                    {!isEditingThis && (
+                      <button
+                        type="button"
+                        onClick={() => startEdit(name)}
+                        className="shrink-0 text-xs font-medium text-slate-400 hover:text-[#0d9488] transition"
+                      >
+                        ✏️ Edit
+                      </button>
+                    )}
+                  </div>
+
+                  {isEditingThis ? (
+                    <div className="mt-2 flex flex-col gap-2">
+                      <textarea
+                        rows={6}
+                        className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 leading-relaxed outline-none focus:border-[#0d9488] focus:ring-1 ring-[#0d9488]/30"
+                        value={editBuf}
+                        onChange={(e) => setEditBuf(e.target.value)}
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => saveEdit(name)}
+                          className="rounded-full bg-[#0d9488] px-4 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 transition"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditing(null)}
+                          className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 transition"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : currentText ? (
                     <details className="mt-2 group">
                       <summary className="cursor-pointer select-none text-xs font-medium text-[#0d9488] hover:underline list-none">
                         {approved ? "✓ Approved — view instructions" : "Read instructions to approve ↓"}
                       </summary>
                       <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600 leading-relaxed whitespace-pre-line">
-                        {defaults.aftercare_instructions}
+                        {currentText}
                       </div>
                     </details>
                   ) : (
                     <p className="mt-1 text-xs text-slate-400">
-                      No default aftercare for this service — check the box to continue. You can add custom instructions from your dashboard.
+                      Write your aftercare for this treatment, or uncheck it if you don&apos;t offer it.
                     </p>
                   )}
                 </div>
@@ -1710,16 +1796,19 @@ function OnboardingInner() {
       try {
         const res = await fetch("/api/procedures", { headers: { Authorization: `Bearer ${token}` } });
         if (res.ok) {
-          const { procedures } = (await res.json()) as { procedures?: Array<{ id: string }> | null };
+          const { procedures } = (await res.json()) as { procedures?: Array<{ id: string; name?: string }> | null };
           if (procedures && procedures.length > 0) {
             await Promise.allSettled(
-              procedures.map((p) =>
-                fetch("/api/procedures", {
+              procedures.map((p) => {
+                const edited = p.name ? draft.editedAftercare[p.name] : undefined;
+                const body: Record<string, unknown> = { id: p.id, approved: true };
+                if (edited !== undefined) body.aftercare_instructions = edited;
+                return fetch("/api/procedures", {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                  body: JSON.stringify({ id: p.id, approved: true }),
-                })
-              )
+                  body: JSON.stringify(body),
+                });
+              })
             );
           }
         }
@@ -1934,6 +2023,7 @@ function OnboardingInner() {
                     brandColor={draft.brandColor}
                     logoUrl={draft.logoUrl}
                     botTheme={draft.botTheme}
+                    procedures={draft.procedures}
                   />
                 </div>
               </div>
@@ -1995,6 +2085,7 @@ function OnboardingInner() {
                     brandColor={draft.brandColor}
                     logoUrl={draft.logoUrl}
                     botTheme={draft.botTheme}
+                    procedures={draft.procedures}
                   />
                 </div>
               </div>
