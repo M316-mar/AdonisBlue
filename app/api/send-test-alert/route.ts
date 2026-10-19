@@ -71,7 +71,7 @@ export async function POST(request: Request) {
           <p style="margin:6px 0 0;color:#94a3b8;font-size:13px;">${escapeHtml(practiceName)}</p>
         </td></tr>
         <tr><td style="padding:32px;">
-          <p style="margin:0 0 12px;font-size:15px;color:#1a2744;font-weight:600;">This is a test — your bot is working.</p>
+          <p style="margin:0 0 12px;font-size:15px;color:#1a2744;font-weight:600;">This is a test — your emergency alerts reach you ✅.</p>
           <p style="margin:0 0 20px;font-size:15px;color:#475569;">When a client describes a medical emergency in your chat, you&rsquo;ll get an email like this one. Click below to confirm this is the right address:</p>
           <p style="margin:0 0 24px;">
             <a href="${verifyUrl}" style="display:inline-block;background:#0d9488;color:#fff;padding:14px 32px;border-radius:999px;text-decoration:none;font-weight:700;font-size:15px;">✅ Yes, I got it</a>
