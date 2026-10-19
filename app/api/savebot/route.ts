@@ -60,6 +60,7 @@ export async function POST(request: Request) {
       "previous_work_policy", "touch_up_policy", "same_day_consultation",
       "deposit_info", "forward_questions", "aftercare",
       "bot_name_font", "bubble_attention_message", "pre_appointment_instructions",
+      "nurse_name", "alert_email", "alert_phone",
     ];
     for (const field of stringFields) {
       if (field in body) {
@@ -108,10 +109,15 @@ export async function POST(request: Request) {
     }
 
     // Boolean fields — only written when the key is present and value is boolean
-    for (const field of ["launched", "frozen"] as const) {
+    for (const field of ["launched", "frozen", "alert_email_verified"] as const) {
       if (field in body && typeof body[field] === "boolean") {
         update[field] = body[field];
       }
+    }
+
+    // ready_at — ISO timestamp string, written when present and non-empty
+    if ("ready_at" in body && typeof body["ready_at"] === "string" && body["ready_at"].trim()) {
+      update["ready_at"] = body["ready_at"].trim();
     }
 
     const db = createClient(url, serviceKey);
@@ -121,10 +127,18 @@ export async function POST(request: Request) {
     if (update["launched"] === true) {
       const { data: existing } = await db
         .from("bots")
-        .select("launched, practice_name, city, state, plan")
+        .select("launched, practice_name, city, state, plan, alert_email_verified")
         .eq("nurse_id", user.id)
         .maybeSingle();
       wasAlreadyLaunched = existing?.launched === true;
+
+      // Block new launches that haven't verified their alert email
+      if (!wasAlreadyLaunched && existing?.alert_email_verified !== true) {
+        return NextResponse.json(
+          { error: "Please verify your emergency alert email before going live." },
+          { status: 400 }
+        );
+      }
 
       // Send launch notification only on first launch
       if (!wasAlreadyLaunched) {

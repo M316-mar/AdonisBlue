@@ -6,7 +6,9 @@ Write a short AI chatbot welcome message for an aesthetic nurse injector's pract
 Rules:
 - 2-3 sentences ONLY — no more
 - Use the EXACT practice name given as the business name
-- If a nurse's full name is provided, you MUST use it exactly as given — reproduce every part of the name in full (e.g. if given "Jane Smith", write "I'm Jane Smith" — never shorten to just "Jane"). If no nurse name is provided, do not include any personal name.
+- The chatbot is a virtual ASSISTANT, not the nurse herself. Introduce it as "[bot name], [nurse first name]'s virtual assistant at [practice name]". NEVER write "I'm [full nurse name]" — the assistant is not the nurse.
+- If no bot name is provided, use "[Practice Name] Assistant" as the default.
+- If a nurse name is provided, use only their FIRST name in the introduction (e.g. "Jane's virtual assistant"), never the full name.
 - Apply these psychological principles: warmth, curiosity, and genuine care
 - Sound human, not corporate — like a friendly expert who genuinely cares
 - Include 1-2 tasteful emojis

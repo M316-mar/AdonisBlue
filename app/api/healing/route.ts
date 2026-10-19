@@ -140,14 +140,15 @@ export async function POST(request: Request) {
     // and bots, so PostgREST join syntax fails. A plain .eq() query always works.
     const { data: botRow } = await supabase
       .from("bots")
-      .select("practice_name, notification_email, alert_phone")
+      .select("practice_name, alert_email, notification_email, alert_phone")
       .eq("nurse_id", treatment.nurse_id)
       .single();
 
     const clientName = treatment.intakes?.first_name || "Client";
     const procedureName =
       (treatment.procedures as { name?: string } | null)?.name || "procedure";
-    const nurseEmail = (botRow as { notification_email?: string } | null)?.notification_email;
+    // Fallback chain: alert_email → notification_email
+    const nurseEmail = (botRow as { alert_email?: string | null } | null)?.alert_email?.trim() || (botRow as { notification_email?: string | null } | null)?.notification_email || undefined;
     const alertPhone = (botRow as { alert_phone?: string } | null)?.alert_phone;
     const practiceName =
       (botRow as { practice_name?: string } | null)?.practice_name || "your practice";
@@ -277,7 +278,7 @@ export async function POST(request: Request) {
           const { data: authUser } = await supabase.auth.admin.getUserById(treatment.nurse_id);
           alertEmailAddress = authUser?.user?.email ?? null;
           if (alertEmailAddress) {
-            console.log(`[emergency] notification_email not set — falling back to auth email: ${alertEmailAddress}`);
+            console.log(`[emergency] no alert_email/notification_email — falling back to auth email: ${alertEmailAddress}`);
           } else {
             console.warn(`[emergency] No email found for nurse ${treatment.nurse_id} — alert email skipped`);
           }
@@ -285,7 +286,7 @@ export async function POST(request: Request) {
           console.error("[emergency] Failed to fetch auth fallback email:", err);
         }
       } else {
-        console.log(`[emergency] Sending alert email to configured notification_email: ${alertEmailAddress}`);
+        console.log(`[emergency] Sending alert email to configured address: ${alertEmailAddress}`);
       }
 
       const msgPreview = escapeHtml(lastUserMessage.slice(0, 60));

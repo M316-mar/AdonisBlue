@@ -180,7 +180,11 @@ Keep your response under 3 sentences. Calm, clear, direct. Never use pet names �
       ? `\nCLIENT TONE PREFERENCE — She/Her: This client uses she/her pronouns. Use warm, nurturing language. "Gorgeous", "beautiful", feminine affirmations and 💕 emojis are welcome.`
       : ""; // "Prefer not to say" or not set — use default tone
 
+    const effectiveBotName = ((botConfig.bot_name as string | null)?.trim() || `${(botConfig.practice_name as string | null)?.trim() || "this practice"} Assistant`);
+    const nurseFirst = (botConfig.nurse_name as string | null)?.trim().split(/\s+/)[0] ?? "";
     const systemPrompt = `You are a warm, friendly assistant for ${botConfig.practice_name || "this aesthetic practice"} located in ${botConfig.city || "your area"}.
+
+YOUR IDENTITY: Your name is ${effectiveBotName}. You are a virtual AI assistant — you are NOT the nurse.${nurseFirst ? ` Never say "I'm ${nurseFirst}" or claim to be the nurse personally. If asked who you are, say you are an AI assistant for ${nurseFirst}.` : " Never claim to be the nurse personally."} You are not a human.
 
 Your role is a sales-psychology driven customer service assistant. You are NOT pushy. You guide people warmly toward booking.
 
@@ -410,18 +414,19 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
 
           const { data: botRow } = await db
             .from("bots")
-            .select("notification_email, alert_phone, practice_name")
+            .select("alert_email, notification_email, alert_phone, practice_name")
             .eq("nurse_id", botConfig.nurse_id)
             .single();
 
           const noContact = !hasContact;
 
-          let alertEmail = botRow?.notification_email?.trim() || null;
+          // Fallback chain: alert_email → notification_email → auth email
+          let alertEmail = (botRow as { alert_email?: string | null } | null)?.alert_email?.trim() || botRow?.notification_email?.trim() || null;
           if (!alertEmail) {
             try {
               const { data: authUser } = await db.auth.admin.getUserById(botConfig.nurse_id);
               alertEmail = authUser?.user?.email ?? null;
-              if (alertEmail) console.log("[chat-emergency] notification_email not set — falling back to auth email");
+              if (alertEmail) console.log("[chat-emergency] no alert_email/notification_email — falling back to auth email");
               else console.warn(`[chat-emergency] No email found for nurse ${botConfig.nurse_id} — email skipped`);
             } catch (err) {
               console.error("[chat-emergency] Failed to fetch auth fallback email:", err);
@@ -549,10 +554,10 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           );
           const { data: botRow2 } = await db
             .from("bots")
-            .select("notification_email, alert_phone, practice_name")
+            .select("alert_email, notification_email, alert_phone, practice_name")
             .eq("nurse_id", botConfig.nurse_id)
             .single();
-          let alertEmail2 = botRow2?.notification_email?.trim() || null;
+          let alertEmail2 = (botRow2 as { alert_email?: string | null } | null)?.alert_email?.trim() || botRow2?.notification_email?.trim() || null;
           if (!alertEmail2) {
             const { data: authUser } = await db.auth.admin.getUserById(botConfig.nurse_id);
             alertEmail2 = authUser?.user?.email ?? null;

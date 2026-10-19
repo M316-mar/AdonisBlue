@@ -75,7 +75,7 @@ function Confetti() {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 7; // steps 1–6 are content, step 7 is the success screen
 
 const PROCEDURES = [
   "Lip Filler",
@@ -318,7 +318,11 @@ type Draft = {
   cancellationPolicy: string;
   depositInfo: string;
   bookingLink: string;
-  // Step 3
+  // Step 3 — aftercare approval (procedure names nurse has reviewed)
+  approvedProcedures: string[];
+  // Step 4 — alert contact + socials
+  alertEmail: string;
+  alertPhone: string;
   instagram: string;
   tiktok: string;
   facebook: string;
@@ -327,13 +331,15 @@ type Draft = {
   notificationEmail: string;
   googleReviewLink: string;
   facebookReviewLink: string;
-  // Step 4
+  // Step 5 — verification status from server
+  alertEmailVerified: boolean;
+  // Step 6 — customize
   botName: string;
   greeting: string;
   brandColor: string;
   logoUrl: string;
   botTheme: string; // 'aurora' | 'crystal'
-  // Nurse's full name from auth metadata — used for greeting generation, not persisted to bots table
+  // Nurse's full name from auth metadata
   nurseName: string;
 };
 
@@ -350,6 +356,9 @@ function emptyDraft(userId: string): Draft {
     cancellationPolicy: "",
     depositInfo: "",
     bookingLink: "",
+    approvedProcedures: [],
+    alertEmail: "",
+    alertPhone: "",
     instagram: "",
     tiktok: "",
     facebook: "",
@@ -358,6 +367,7 @@ function emptyDraft(userId: string): Draft {
     notificationEmail: "",
     googleReviewLink: "",
     facebookReviewLink: "",
+    alertEmailVerified: false,
     botName: "",
     greeting: "",
     brandColor: "#0d9488",
@@ -1196,6 +1206,235 @@ function StepLive({
   );
 }
 
+// ─── Step 3: Aftercare review ─────────────────────────────────────────────────
+
+function StepAftercareReview({
+  draft,
+  onChange,
+}: {
+  draft: Draft;
+  onChange: (patch: Partial<Draft>) => void;
+}) {
+  const baseServices = draft.procedures.filter((p) => p !== "Other");
+  const customList = draft.customProcedures.split(",").map((s) => s.trim()).filter(Boolean);
+  const allProcs = [...baseServices, ...customList];
+
+  const toggle = (name: string) => {
+    onChange({
+      approvedProcedures: draft.approvedProcedures.includes(name)
+        ? draft.approvedProcedures.filter((n) => n !== name)
+        : [...draft.approvedProcedures, name],
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
+          Review your aftercare instructions 📋
+        </h1>
+        <p className="mt-2 text-sm text-slate-500 sm:text-base">
+          This is what your bot sends clients after each procedure. Read each one and check the box to approve it — you can edit the wording later from your dashboard.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {allProcs.map((name) => {
+          const defaults = DEFAULT_PROCEDURE_DEFAULTS[name];
+          const approved = draft.approvedProcedures.includes(name);
+          return (
+            <div
+              key={name}
+              className={`rounded-2xl border-2 p-4 transition ${approved ? "border-[#0d9488] bg-teal-50/50" : "border-slate-200 bg-white"}`}
+            >
+              <div className="flex items-start gap-3">
+                <button
+                  type="button"
+                  onClick={() => toggle(name)}
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition ${approved ? "border-[#0d9488] bg-[#0d9488]" : "border-slate-300 bg-white"}`}
+                  aria-label={`${approved ? "Uncheck" : "Approve"} ${name}`}
+                >
+                  {approved && (
+                    <svg viewBox="0 0 12 10" fill="none" className="h-3 w-3 stroke-white stroke-2">
+                      <path d="M1 5l3 3.5L11 1" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-[#1a2744] text-sm">{name}</p>
+                  {defaults ? (
+                    <details className="mt-2 group">
+                      <summary className="cursor-pointer select-none text-xs font-medium text-[#0d9488] hover:underline list-none">
+                        {approved ? "✓ Approved — view instructions" : "Read instructions to approve ↓"}
+                      </summary>
+                      <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                        {defaults.aftercare_instructions}
+                      </div>
+                    </details>
+                  ) : (
+                    <p className="mt-1 text-xs text-slate-400">
+                      No default aftercare for this service — check the box to continue. You can add custom instructions from your dashboard.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 4: Alert contact ─────────────────────────────────────────────────────
+
+function StepAlertContact({
+  draft,
+  onChange,
+}: {
+  draft: Draft;
+  onChange: (patch: Partial<Draft>) => void;
+}) {
+  const field =
+    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none ring-[#0d9488]/30 transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 min-h-[48px]";
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
+          Where should emergencies go? 🚨
+        </h1>
+        <p className="mt-2 text-sm text-slate-500 sm:text-base">
+          If a client describes a medical emergency in your chat, AdonisBlue alerts you right away. You&rsquo;ll confirm it works in the next step.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold text-[#1a2744]">
+          Emergency alert email <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="email"
+          className={field}
+          placeholder="you@example.com"
+          value={draft.alertEmail}
+          onChange={(e) => onChange({ alertEmail: e.target.value })}
+        />
+        <p className="text-xs text-slate-400">Use an email you check on your phone — alerts are time-sensitive.</p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold text-[#1a2744]">
+          Alert phone number <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="tel"
+          className={field}
+          placeholder="+1 (555) 000-0000"
+          value={draft.alertPhone}
+          onChange={(e) => onChange({ alertPhone: e.target.value })}
+        />
+        <p className="text-xs text-slate-400">We&rsquo;ll use this for future SMS alerts when phone notifications are available.</p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 flex flex-col gap-4">
+        <p className="text-sm font-semibold text-[#1a2744]">Optional — add these while you&rsquo;re here</p>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#1a2744]">
+            Intake notification email <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <input
+            type="email"
+            className={field}
+            placeholder="Same as above, or a different address"
+            value={draft.notificationEmail}
+            onChange={(e) => onChange({ notificationEmail: e.target.value })}
+          />
+          <p className="text-xs text-slate-400">Where to send new intake form notifications. Defaults to your alert email if left blank.</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {[
+            { key: "instagram", label: "Instagram", placeholder: "@yourusername" },
+            { key: "tiktok", label: "TikTok", placeholder: "@yourusername" },
+            { key: "facebook", label: "Facebook", placeholder: "@yourpage" },
+            { key: "website", label: "Website", placeholder: "https://yoursite.com" },
+            { key: "googleReviewLink", label: "Google Review link", placeholder: "https://g.page/..." },
+            { key: "facebookReviewLink", label: "Facebook Review link", placeholder: "https://facebook.com/..." },
+          ].map(({ key, label, placeholder }) => (
+            <div key={key} className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-[#1a2744]">{label}</label>
+              <input
+                className={field}
+                placeholder={placeholder}
+                value={(draft as unknown as Record<string, string>)[key] ?? ""}
+                onChange={(e) => onChange({ [key]: e.target.value } as Partial<Draft>)}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 5: Verify email ──────────────────────────────────────────────────────
+
+function StepVerify({
+  alertEmail,
+  alertEmailVerified,
+  onResend,
+  resending,
+}: {
+  alertEmail: string;
+  alertEmailVerified: boolean;
+  onResend: () => void;
+  resending: boolean;
+}) {
+  if (alertEmailVerified) {
+    return (
+      <div className="flex flex-col items-center gap-6 text-center py-8">
+        <div className="text-6xl">✅</div>
+        <div>
+          <h1 className="text-2xl font-bold text-[#1a2744]">Email confirmed!</h1>
+          <p className="mt-2 text-slate-500">
+            Your emergency alert email is verified. Click <strong>Next</strong> to continue.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
+          Check your email 📬
+        </h1>
+        <p className="mt-2 text-sm text-slate-500 sm:text-base">
+          We sent a test alert to <strong>{alertEmail}</strong>. Open it and click <strong>&ldquo;Yes, I got it&rdquo;</strong> to confirm this is the right address.
+        </p>
+      </div>
+
+      <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-8 text-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-[#0d9488]" />
+        <p className="text-sm font-medium text-slate-600">Waiting for you to click the link in your email…</p>
+        <p className="text-xs text-slate-400">It may take a minute to arrive. Check your spam folder if you don&rsquo;t see it.</p>
+      </div>
+
+      <button
+        type="button"
+        disabled={resending}
+        onClick={onResend}
+        className="self-start text-sm font-medium text-[#0d9488] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {resending ? "Sending…" : "Resend email →"}
+      </button>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 function OnboardingInner() {
@@ -1263,7 +1502,9 @@ function OnboardingInner() {
               cancellationPolicy: (bot.cancellation_policy as string | null) ?? "",
               depositInfo: (bot.deposit_info as string | null) ?? "",
               bookingLink: (bot.booking_link as string | null) ?? "",
-              // Step 3
+              // Step 4 — alert contact + socials
+              alertEmail: (bot.alert_email as string | null) ?? "",
+              alertPhone: (bot.alert_phone as string | null) ?? "",
               instagram: (bot.instagram as string | null) ?? "",
               tiktok: (bot.tiktok as string | null) ?? "",
               facebook: (bot.facebook as string | null) ?? "",
@@ -1271,7 +1512,9 @@ function OnboardingInner() {
               notificationEmail: (bot.notification_email as string | null) ?? "",
               googleReviewLink: (bot.google_review_link as string | null) ?? "",
               facebookReviewLink: (bot.facebook_review_link as string | null) ?? "",
-              // Step 4
+              // Step 5 — verification
+              alertEmailVerified: (bot.alert_email_verified as boolean | null) ?? false,
+              // Step 6 — customize
               botName: (bot.bot_name as string | null) ?? "",
               greeting: (bot.greeting as string | null) ?? "",
               brandColor: (bot.brand_color as string | null) ?? "#0d9488",
@@ -1319,8 +1562,9 @@ function OnboardingInner() {
 
       // ── Determine initial step ────────────────────────────────────────
       // Priority: ?step= URL param > localStorage > 1
-      // Exception: if ?step= is present, NEVER auto-jump to step 5 (success),
+      // Exception: if ?step= is present, NEVER auto-jump to success step,
       // even if the bot is already launched — the nurse is editing.
+      const isVerifiedCallback = searchParams?.get("verified") === "1";
       let initialStep: number;
       if (urlStep !== null) {
         initialStep = urlStep;
@@ -1328,6 +1572,10 @@ function OnboardingInner() {
         initialStep = localDraft.step;
       } else {
         initialStep = 1;
+      }
+      // If nurse clicked the email verification link, advance past step 5
+      if (isVerifiedCallback && initialStep <= 5) {
+        initialStep = 6;
       }
 
       const merged: Draft = {
@@ -1365,103 +1613,202 @@ function OnboardingInner() {
     if (draft.step === 1)
       return Boolean(draft.nurseName.trim() && draft.practiceName.trim() && draft.city.trim());
     if (draft.step === 2) return draft.procedures.length > 0;
+    if (draft.step === 3) {
+      const allProcs = [
+        ...draft.procedures.filter(p => p !== "Other"),
+        ...draft.customProcedures.split(",").map(s => s.trim()).filter(Boolean),
+      ];
+      return allProcs.length > 0 && allProcs.every(p => draft.approvedProcedures.includes(p));
+    }
+    if (draft.step === 4) {
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.alertEmail.trim());
+      return emailOk && draft.alertPhone.trim().length >= 7;
+    }
+    if (draft.step === 5) return draft.alertEmailVerified;
     return true;
   }, [draft]);
 
   const goNext = useCallback(async () => {
     if (!canAdvance()) return;
     setError(null);
+    const token = tokenRef.current;
 
-    // Save nurse's full name to auth user metadata when leaving step 1
-    if (draft.step === 1 && draft.nurseName.trim()) {
-      const { data: updateData, error: updateError } = await supabase.auth.updateUser({
-        data: { full_name: draft.nurseName.trim() },
-      });
-    }
-
-    if (draft.step < TOTAL_STEPS - 1) {
-      setDraft({ step: draft.step + 1 });
+    // ── Step 1: save basics ────────────────────────────────────────────────
+    if (draft.step === 1) {
+      setSaving(true);
+      try {
+        await supabase.auth.updateUser({ data: { full_name: draft.nurseName.trim() } });
+        const res = await fetch("/api/savebot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            nurse_name: draft.nurseName.trim(),
+            practice_name: draft.practiceName.trim(),
+            city: draft.city.trim(),
+            state: draft.state.trim(),
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({})) as { error?: string };
+          setError(body.error ?? "Could not save. Please try again.");
+          return;
+        }
+      } finally {
+        setSaving(false);
+      }
+      setDraft({ step: 2 });
       return;
     }
 
-    // Step 4 → save & launch
+    // ── Step 2: seed procedures ────────────────────────────────────────────
+    if (draft.step === 2) {
+      setSaving(true);
+      try {
+        const baseServices = draft.procedures.filter((p) => p !== "Other");
+        const customList = draft.customProcedures.split(",").map((s) => s.trim()).filter(Boolean);
+        const services = [...baseServices, ...customList];
+        // Delete all existing, then re-insert with defaults
+        await fetch("/api/procedures", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+        if (services.length > 0) {
+          await Promise.allSettled(
+            services.map((name) => {
+              const defaults = DEFAULT_PROCEDURE_DEFAULTS[name];
+              return fetch("/api/procedures", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                  name,
+                  description: "",
+                  ...(defaults ? { aftercare_instructions: defaults.aftercare_instructions, reminder_days: defaults.reminder_days } : {}),
+                }),
+              });
+            })
+          );
+        }
+        // Save services + booking details to bots
+        await fetch("/api/savebot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            services,
+            numbing_method: draft.numbingMethod || null,
+            cancellation_policy: draft.cancellationPolicy || null,
+            deposit_info: draft.depositInfo || null,
+            booking_link: draft.bookingLink.trim() || null,
+          }),
+        });
+      } finally {
+        setSaving(false);
+      }
+      setDraft({ step: 3, approvedProcedures: [] });
+      return;
+    }
+
+    // ── Step 3: approve procedures ─────────────────────────────────────────
+    if (draft.step === 3) {
+      setSaving(true);
+      try {
+        const res = await fetch("/api/procedures", { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const { procedures } = (await res.json()) as { procedures?: Array<{ id: string }> | null };
+          if (procedures && procedures.length > 0) {
+            await Promise.allSettled(
+              procedures.map((p) =>
+                fetch("/api/procedures", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ id: p.id, approved: true }),
+                })
+              )
+            );
+          }
+        }
+      } finally {
+        setSaving(false);
+      }
+      setDraft({ step: 4 });
+      return;
+    }
+
+    // ── Step 4: save alert contact + send test email ───────────────────────
+    if (draft.step === 4) {
+      setSaving(true);
+      try {
+        const saveRes = await fetch("/api/savebot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            alert_email: draft.alertEmail.trim(),
+            alert_phone: draft.alertPhone.trim(),
+            notification_email: draft.notificationEmail.trim() || null,
+            instagram: draft.instagram.trim() || null,
+            tiktok: draft.tiktok.trim() || null,
+            facebook: draft.facebook.trim() || null,
+            website: draft.website.trim() || null,
+            location: draft.location.trim() || null,
+            google_review_link: draft.googleReviewLink.trim() || null,
+            facebook_review_link: draft.facebookReviewLink.trim() || null,
+          }),
+        });
+        if (!saveRes.ok) {
+          const body = await saveRes.json().catch(() => ({})) as { error?: string };
+          setError(body.error ?? "Could not save. Please try again.");
+          return;
+        }
+        const alertRes = await fetch("/api/send-test-alert", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!alertRes.ok) {
+          const body = await alertRes.json().catch(() => ({})) as { error?: string };
+          setError(body.error ?? "Could not send the test email. Please check the address and try again.");
+          return;
+        }
+      } finally {
+        setSaving(false);
+      }
+      setDraft({ step: 5 });
+      return;
+    }
+
+    // ── Step 5: verified — advance to step 6 ──────────────────────────────
+    if (draft.step === 5) {
+      setDraft({ step: 6 });
+      return;
+    }
+
+    // ── Step 6 (last content step): launch ────────────────────────────────
     setSaving(true);
     try {
-      const token = tokenRef.current;
-      const slug = slugify(draft.botName.trim() || draft.practiceName.trim());
-
+      const effectiveBotName = draft.botName.trim() || `${draft.practiceName.trim()} Assistant`;
+      const slug = slugify(effectiveBotName);
       const baseServices = draft.procedures.filter((p) => p !== "Other");
       const customList = draft.customProcedures.split(",").map((s) => s.trim()).filter(Boolean);
       const services = [...baseServices, ...customList];
 
       const botPayload = {
-        practice_name: draft.practiceName.trim(),
-        city: draft.city.trim(),
-        state: draft.state.trim(),
-        notification_email: draft.notificationEmail.trim() || null,
-        google_review_link: draft.googleReviewLink.trim() || null,
-        facebook_review_link: draft.facebookReviewLink.trim() || null,
-        facebook: draft.facebook.trim() || null,
-        tiktok: draft.tiktok.trim() || null,
-        instagram: draft.instagram.trim() || null,
-        website: draft.website.trim() || null,
-        location: draft.location.trim() || null,
-        bot_name: draft.botName.trim() || draft.practiceName.trim(),
+        bot_name: effectiveBotName,
         slug,
-        greeting:
-          draft.greeting.trim() ||
-          `Hi there! 👋 I'm here to help with bookings, answer questions, and more.`,
-        booking_link: draft.bookingLink.trim() || null,
-        services,
+        greeting: draft.greeting.trim() ||
+          `Hi! I'm ${effectiveBotName}, ${draft.nurseName.trim().split(/\s+/)[0] || "your nurse"}'s virtual assistant at ${draft.practiceName.trim()}. How can I help you today? 💙`,
+        brand_color: draft.brandColor || "#0d9488",
         logo_url: draft.logoUrl || null,
-        numbing_method: draft.numbingMethod || null,
-        cancellation_policy: draft.cancellationPolicy || null,
-        deposit_info: draft.depositInfo || null,
         bot_theme: draft.botTheme || "aurora",
+        services,
         launched: true,
+        ready_at: new Date().toISOString(),
       };
-
 
       const res = await fetch("/api/savebot", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(botPayload),
       });
 
       const result = (await res.json()) as { error?: string };
-
       if (!res.ok) {
         setError(result.error ?? "Could not save. Please try again.");
-        setSaving(false);
         return;
-      }
-
-      // Seed procedures — delete all existing first to prevent duplicates, then re-insert
-      await fetch("/api/procedures", {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (services.length > 0) {
-        await Promise.allSettled(
-          services.map((name) => {
-            const defaults = DEFAULT_PROCEDURE_DEFAULTS[name];
-            return fetch("/api/procedures", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                name,
-                description: "",
-                ...(defaults ? { aftercare_instructions: defaults.aftercare_instructions, reminder_days: defaults.reminder_days } : {}),
-              }),
-            });
-          })
-        );
       }
 
       setBotSlug(slug);
@@ -1478,6 +1825,44 @@ function OnboardingInner() {
     if (draft.step > 1) setDraft({ step: draft.step - 1 });
   }, [draft.step, setDraft]);
 
+  // ── Poll for email verification on step 5 ─────────────────────────────────
+  const [resending, setResending] = useState(false);
+
+  useEffect(() => {
+    if (draft.step !== 5 || draft.alertEmailVerified) return;
+    const token = tokenRef.current;
+    if (!token) return;
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch("/api/mybot", { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const { bot } = (await res.json()) as { bot?: { alert_email_verified?: boolean } | null };
+          if (bot?.alert_email_verified === true) {
+            setDraft({ alertEmailVerified: true, step: 6 });
+          }
+        }
+      } catch { /* ignore */ }
+    }, 3000);
+    return () => clearInterval(id);
+  }, [draft.step, draft.alertEmailVerified, setDraft]);
+
+  const handleResend = useCallback(async () => {
+    setResending(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/send-test-alert", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        setError(body.error ?? "Could not resend. Please try again.");
+      }
+    } finally {
+      setResending(false);
+    }
+  }, []);
+
   // ── Loading ───────────────────────────────────────────────────────────────
   if (!ready) {
     return (
@@ -1487,10 +1872,12 @@ function OnboardingInner() {
     );
   }
 
-  const pct = Math.round(((draft.step - 1) / (TOTAL_STEPS - 1)) * 100);
-  const isLastContentStep = draft.step === TOTAL_STEPS - 1;
-  const isDone = draft.step === TOTAL_STEPS;
-  const showPreview = draft.step === 4;
+  // 6 content steps → progress shows 0% at step 1, 100% at step 6
+  const CONTENT_STEPS = TOTAL_STEPS - 1; // 6
+  const pct = Math.min(100, Math.round(((draft.step - 1) / CONTENT_STEPS) * 100));
+  const isLastContentStep = draft.step === CONTENT_STEPS; // step 6
+  const isDone = draft.step === TOTAL_STEPS; // step 7
+  const showPreview = draft.step === 6; // Customize step
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
@@ -1527,8 +1914,10 @@ function OnboardingInner() {
       {/* ── Content ──────────────────────────────────────────────────────── */}
       <main className="flex flex-1 flex-col">
         <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
-          {showPreview ? (
-            // Step 4: two-column layout with live preview
+          {isDone ? (
+            <StepLive draft={draft} botSlug={botSlug} />
+          ) : showPreview ? (
+            // Step 6: two-column layout with live preview
             <div className="grid gap-8 md:grid-cols-[1fr_320px]">
               <div>
                 <StepCustomize draft={draft} onChange={setDraft} />
@@ -1554,10 +1943,17 @@ function OnboardingInner() {
           ) : draft.step === 2 ? (
             <StepProcedures draft={draft} onChange={setDraft} />
           ) : draft.step === 3 ? (
-            <StepGetFound draft={draft} onChange={setDraft} />
-          ) : (
-            <StepLive draft={draft} botSlug={botSlug} />
-          )}
+            <StepAftercareReview draft={draft} onChange={setDraft} />
+          ) : draft.step === 4 ? (
+            <StepAlertContact draft={draft} onChange={setDraft} />
+          ) : draft.step === 5 ? (
+            <StepVerify
+              alertEmail={draft.alertEmail}
+              alertEmailVerified={draft.alertEmailVerified}
+              onResend={() => void handleResend()}
+              resending={resending}
+            />
+          ) : null}
 
           {/* Mobile preview button for step 4 */}
           {showPreview && (
@@ -1645,8 +2041,10 @@ function OnboardingInner() {
                 {saving
                   ? "Saving…"
                   : isLastContentStep
-                    ? "Launch my bot 🚀"
-                    : "Next →"}
+                    ? "Go live 🚀"
+                    : draft.step === 4
+                      ? "Send test alert →"
+                      : "Next →"}
               </button>
             )}
           </div>

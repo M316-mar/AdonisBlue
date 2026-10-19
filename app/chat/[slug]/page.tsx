@@ -40,6 +40,7 @@ type BotRow = {
   bot_name_font?: BotNameFontId | null;
   bubble_attention_message?: string | null;
   bot_theme?: string | null;
+  nurse_name?: string | null;
 };
 
 type ChatMessage = {
@@ -293,6 +294,7 @@ export default function PublicChatPage() {
         same_day_consultation: bot.same_day_consultation,
         deposit_info: bot.deposit_info,
         bot_name: bot.bot_name,
+        nurse_name: bot.nurse_name ?? null,
         services: bot.services ?? [],
         tone: bot.tone,
         greeting: bot.greeting,

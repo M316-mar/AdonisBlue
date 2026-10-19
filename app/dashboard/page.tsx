@@ -25,6 +25,8 @@ type BotRow = {
   subscription_status?: string | null;
   google_review_link?: string | null;
   facebook_review_link?: string | null;
+  ready_at?: string | null;
+  alert_email_verified?: boolean | null;
 };
 
 type IntakeRow = {
@@ -282,7 +284,8 @@ export default function NurseDashboardPage() {
     })();
   }, [ready]);
 
-  const launched = bot?.launched === true;
+  const launched = bot?.ready_at != null || bot?.launched === true;
+  const needsAlertVerify = launched && bot?.alert_email_verified === false;
   const botChatSlug = useMemo(() => {
     if (bot?.slug) return bot.slug;
     const raw = (bot?.bot_name || "").trim() || (bot?.practice_name || "").trim() || "my-bot";
@@ -536,7 +539,7 @@ export default function NurseDashboardPage() {
                 <p className="mt-2 text-sm leading-relaxed text-slate-300 sm:text-base">
                   {!bot
                     ? "Let's get your AI front desk set up — it only takes 5 minutes."
-                    : bot.launched
+                    : launched
                     ? "✅ You're all set! Your assistant is live and ready."
                     : "Your setup isn't complete yet. Finish it to go live."}
                 </p>
@@ -548,7 +551,7 @@ export default function NurseDashboardPage() {
                     Start setup →
                   </Link>
                 )}
-                {bot && !bot.launched && (
+                {bot && !launched && (
                   <Link
                     href="/onboarding"
                     className="mt-4 inline-flex items-center rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
@@ -558,6 +561,12 @@ export default function NurseDashboardPage() {
                 )}
               </div>
             </section>
+
+            {needsAlertVerify && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+                <p className="text-xs text-amber-800 flex-1">🔔 <strong>Verify your emergency alert email</strong> — we haven&apos;t confirmed where to send urgent client alerts yet. <Link href="/onboarding?step=5" className="underline font-semibold">Verify now →</Link></p>
+              </div>
+            )}
 
             {showEmailNotice && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start justify-between gap-3">
