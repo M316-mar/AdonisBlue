@@ -232,6 +232,31 @@ export async function POST(request: Request) {
 
     if (error) return NextResponse.json({ error: "Failed to save treatment" }, { status: 500 });
 
+    // ── Mark prior treatment as rebooked (returning client) ───────────────
+    if (resolvedIntakeId && procedureId) {
+      try {
+        const { data: priorTreatments } = await supabase
+          .from("treatments")
+          .select("id")
+          .eq("nurse_id", user.id)
+          .eq("intake_id", resolvedIntakeId)
+          .eq("procedure_id", procedureId)
+          .is("rebooked_at", null)
+          .eq("archived", false)
+          .neq("id", treatment.id);
+
+        if (priorTreatments && priorTreatments.length > 0) {
+          const priorIds = priorTreatments.map((t) => t.id);
+          await supabase
+            .from("treatments")
+            .update({ rebooked_at: new Date().toISOString(), rebooked_source: "new_treatment" })
+            .in("id", priorIds);
+        }
+      } catch (e) {
+        await logError("treatments", `rebooked_at update failed: ${String(e)}`);
+      }
+    }
+
     // ── Auto-create check-in reminder ──────────────────────────────────────
     try {
       let checkinDays = 14;

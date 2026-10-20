@@ -64,6 +64,29 @@ export async function GET(request: Request) {
 
   const log = rows ?? [];
 
+  // Count returning clients: treatments created this week that triggered a rebooked_at on a prior treatment
+  const { data: rebookedThisWeek } = await supabase
+    .from("treatments")
+    .select("id, intake_id")
+    .gte("created_at", weekStart)
+    .lte("created_at", weekEnd);
+
+  // A returning client = new treatment this week where that intake_id had any prior treatment
+  let returningCount = 0;
+  if (rebookedThisWeek && rebookedThisWeek.length > 0) {
+    const newIntakeIds = [...new Set(rebookedThisWeek.map((t: { id: string; intake_id: string }) => t.intake_id).filter(Boolean))];
+    if (newIntakeIds.length > 0) {
+      // Count intakes that also have older treatments (created before weekStart)
+      const { data: priorTreatments } = await supabase
+        .from("treatments")
+        .select("intake_id")
+        .in("intake_id", newIntakeIds)
+        .lt("created_at", weekStart);
+      const returningIntakeIds = new Set((priorTreatments ?? []).map((t: { intake_id: string }) => t.intake_id));
+      returningCount = newIntakeIds.filter((id) => returningIntakeIds.has(id)).length;
+    }
+  }
+
   const count = (types: string[], status = "sent") =>
     log.filter(r => types.includes(r.type) && r.status === status).length;
 
@@ -85,6 +108,8 @@ export async function GET(request: Request) {
     lines.push(`💙 Sent ${aftercareSent} aftercare email${aftercareSent !== 1 ? "s" : ""} and ${checkinsSent} check-in${checkinsSent !== 1 ? "s" : ""}`);
   if (remindersSent > 0 || reviewsSent > 0)
     lines.push(`🔔 Sent ${remindersSent} reminder${remindersSent !== 1 ? "s" : ""} and ${reviewsSent} review request${reviewsSent !== 1 ? "s" : ""}`);
+  if (returningCount > 0)
+    lines.push(`🔁 ${returningCount} client${returningCount !== 1 ? "s" : ""} booked again`);
 
   // Emergency alerts always shown
   const emergencyLine = emergencySent === 0

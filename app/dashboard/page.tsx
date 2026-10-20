@@ -123,6 +123,20 @@ export default function NurseDashboardPage() {
   };
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
 
+  type ReturnClient = {
+    treatment_id: string;
+    intake_id: string;
+    client_name: string;
+    procedure_name: string;
+    due_date: string;
+    reminder_send_date: string;
+    rebooked_at: string | null;
+    rebooked_source: string | null;
+    opted_out: boolean;
+  };
+  const [returnClients, setReturnClients] = useState<ReturnClient[]>([]);
+  const [returnBookingBusy, setReturnBookingBusy] = useState<string | null>(null);
+
   useEffect(() => {
     setShowEmailNotice(!localStorage.getItem("emailNoticesDismissed"));
     if (!localStorage.getItem("adonisblue-welcome-seen")) {
@@ -243,6 +257,15 @@ export default function NurseDashboardPage() {
               setReviewSummary({ total: 0, averageRating: null, okToShareCount: 0, needsAttentionCount: 0, newestReview: null });
             }
           }
+
+          // Fetch return clients
+          const returnRes = await fetch("/api/return-clients", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!cancelled && returnRes.ok) {
+            const returnJson = await returnRes.json() as { clients?: ReturnClient[] };
+            setReturnClients(returnJson.clients ?? []);
+          }
         }
       }
 
@@ -304,6 +327,31 @@ export default function NurseDashboardPage() {
     () => intakes.filter((i) => i.aftercare_sent_at && !i.reminder_6m_sent).length,
     [intakes]
   );
+
+  const handleReturnBooking = useCallback(async (treatmentId: string, action: "booked" | "unbook") => {
+    setReturnBookingBusy(treatmentId);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/return-clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ treatment_id: treatmentId, action }),
+      });
+      if (res.ok) {
+        setReturnClients((prev) =>
+          prev.map((c) =>
+            c.treatment_id === treatmentId
+              ? { ...c, rebooked_at: action === "booked" ? new Date().toISOString() : null, rebooked_source: action === "booked" ? "nurse" : null }
+              : c
+          )
+        );
+      }
+    } finally {
+      setReturnBookingBusy(null);
+    }
+  }, []);
 
   const handleLogout = useCallback(async () => {
     await signOutCompletely();
@@ -584,6 +632,64 @@ export default function NurseDashboardPage() {
                 </button>
               </div>
             )}
+            {returnClients.length > 0 && (
+              <section className="rounded-2xl border border-slate-200 bg-white shadow-md overflow-hidden">
+                <div className="px-4 py-4 sm:px-6 border-b border-slate-100">
+                  <p className="text-sm font-semibold text-[#1a2744]">🔁 Coming back soon</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Clients due back in the next 30 days. Save them a spot in your calendar.</p>
+                </div>
+                <ul className="divide-y divide-slate-100">
+                  {returnClients.map((c) => {
+                    const isBooked = !!c.rebooked_at;
+                    const today = new Date().toISOString().slice(0, 10);
+                    const isPastDue = !isBooked && c.due_date < today;
+                    const reminderAlreadySent = c.reminder_send_date <= today;
+                    const dueFmt = new Date(c.due_date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    const reminderFmt = new Date(c.reminder_send_date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    return (
+                      <li key={c.treatment_id} className={`px-4 py-3 sm:px-6 flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between ${isBooked ? "bg-green-50" : ""}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-[#1a2744]">
+                            {isBooked ? "🟢" : "🟡"} {c.client_name} {isPastDue ? "was" : "is"} due back for {c.procedure_name}{isPastDue ? ` on ${dueFmt}` : ` on ${dueFmt}`}.
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {isBooked
+                              ? "Booked. Reminders stopped."
+                              : c.opted_out
+                              ? "She turned off reminders."
+                              : reminderAlreadySent
+                              ? `We reminded her on ${reminderFmt}.`
+                              : `We'll remind her on ${reminderFmt}.`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isBooked ? (
+                            <button
+                              type="button"
+                              disabled={returnBookingBusy === c.treatment_id}
+                              onClick={() => void handleReturnBooking(c.treatment_id, "unbook")}
+                              className="text-xs text-slate-400 hover:text-slate-600 underline transition disabled:opacity-50"
+                            >
+                              {returnBookingBusy === c.treatment_id ? "…" : "Undo"}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={returnBookingBusy === c.treatment_id}
+                              onClick={() => void handleReturnBooking(c.treatment_id, "booked")}
+                              className="rounded-full bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                            >
+                              {returnBookingBusy === c.treatment_id ? "…" : "✅ She booked"}
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
+
             <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 flex items-center gap-3">
               <span className="text-lg shrink-0">💉</span>
               <p className="text-sm text-teal-800 flex-1">After every appointment, log your treatment in Treatment Records so AdonisBlue can send aftercare emails and rebooking reminders automatically.</p>

@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { firstName } from "@/lib/firstName";
+import { dueDate, inReminderWindow } from "@/lib/reminderDate";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
@@ -40,6 +41,7 @@ export async function GET(request: Request) {
         procedures(name, reminder_days)
       `)
       .eq("reminder_sent", false)
+      .is("rebooked_at", null)
       .not("procedure_id", "is", null)
       .eq("archived", false);
 
@@ -87,17 +89,15 @@ export async function GET(request: Request) {
         .in("id", loserIds);
     }
 
-    const today = new Date();
+    const todayUTC = new Date();
+    todayUTC.setUTCHours(0, 0, 0, 0);
 
     for (const treatment of mostRecentMap.values()) {
       const reminderDays = (treatment.procedures as any)?.reminder_days;
       if (!reminderDays) continue;
 
-      const treatmentDate = new Date(treatment.treatment_date);
-      const reminderDate = new Date(treatmentDate.getTime() + reminderDays * 24 * 60 * 60 * 1000);
-      const diffDays = Math.floor((today.getTime() - reminderDate.getTime()) / (1000 * 60 * 60 * 24));
-
-      if (diffDays < 0 || diffDays > 1) continue;
+      const due = dueDate(treatment.treatment_date, reminderDays);
+      if (!inReminderWindow(due, todayUTC)) continue;
 
       const intake = Array.isArray(treatment.intakes) ? treatment.intakes[0] : treatment.intakes;
       if (optOutMap.get(treatment.intake_id)) continue;

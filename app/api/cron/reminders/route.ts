@@ -59,6 +59,7 @@ export async function GET(request: Request) {
       .from("treatments")
       .select("id, treatment_date, intake_id, procedure_id, nurse_id, reminder_6m_sent_at, reminder_9m_sent_at, procedures(reminder_days)")
       .in("intake_id", intakeIds)
+      .is("rebooked_at", null)
       .eq("archived", false);
 
     if (treatmentsError) {
