@@ -40,6 +40,14 @@ export async function signOutCompletely(): Promise<void> {
     localStorage.removeItem('adonisblue-onboarding-v2')
     localStorage.removeItem('adonisblue-onboarding') // legacy key
 
+    // Clear any "Log a treatment" form drafts
+    const draftKeys: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('adonisblue_treatment_draft_')) draftKeys.push(key)
+    }
+    draftKeys.forEach((k) => localStorage.removeItem(k))
+
     // Remove Supabase cookies by setting them to expired
     const cookiePrefixes = ['sb-', 'supabase-']
     document.cookie.split(';').forEach((c) => {

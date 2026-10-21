@@ -246,19 +246,7 @@ export default function AftercarePage() {
       setReady(true);
     })();
 
-    // Clear draft on logout so stale form data never outlasts the session
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT" && session === null) {
-        // nurseId may not be in scope here; clear all drafts matching the pattern
-        try {
-          Object.keys(localStorage)
-            .filter(k => k.startsWith("adonisblue_treatment_draft_"))
-            .forEach(k => localStorage.removeItem(k));
-        } catch { /* ignore */ }
-      }
-    });
-
-    return () => { cancelled = true; subscription.unsubscribe(); };
+    return () => { cancelled = true; };
   }, [router]);
 
   // ── Update client ──────────────────────────────────────────────────────────
