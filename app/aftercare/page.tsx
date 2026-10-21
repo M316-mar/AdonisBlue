@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { ClientContactCard } from "@/components/ClientContactCard";
 import { SideNavRail } from "@/components/SideNavRail";
+import { formatTreatmentDate, parseTreatmentDate } from "@/lib/formatTreatmentDate";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,12 +62,6 @@ function toLocalDateString(date: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-function formatTreatmentDate(dateStr: string | null | undefined, options: Intl.DateTimeFormatOptions): string {
-  if (!dateStr) return "Date not recorded";
-  const d = new Date(dateStr + "T00:00:00");
-  if (isNaN(d.getTime())) return "Date not recorded";
-  return d.toLocaleDateString("en-US", options);
-}
 
 function defaultPrepInstructions(procedureName: string): string {
   const lower = procedureName.toLowerCase();
@@ -1202,7 +1197,7 @@ export default function AftercarePage() {
               if (!groups.has(key)) groups.set(key, []);
               groups.get(key)!.push(t);
             }
-            for (const [, g] of groups) g.sort((a, b) => new Date(b.treatment_date).getTime() - new Date(a.treatment_date).getTime());
+            for (const [, g] of groups) g.sort((a, b) => (parseTreatmentDate(b.treatment_date)?.getTime() ?? 0) - (parseTreatmentDate(a.treatment_date)?.getTime() ?? 0));
             return Array.from(groups.entries()).map(([groupKey, groupTreatments]) => {
               const rep = groupTreatments[0];
               const clientName = rep.intakes?.first_name ?? "Walk-in Client";

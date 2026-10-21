@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
 import { firstName } from "@/lib/firstName";
+import { formatTreatmentDate } from "@/lib/formatTreatmentDate";
 
 function escapeHtml(str: string): string {
   return str
@@ -109,9 +110,7 @@ export async function GET(request: Request) {
         .join("");
 
       const clientName = escapeHtml(firstName(intake.first_name, "there"));
-      const apptDate = new Date(treatment.treatment_date).toLocaleDateString("en-US", {
-        weekday: "long", month: "long", day: "numeric",
-      });
+      const apptDate = formatTreatmentDate(treatment.treatment_date, { weekday: "long", month: "long", day: "numeric" });
 
       const result = await sendEmail({
         type: "prep_guide",

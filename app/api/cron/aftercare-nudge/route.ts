@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
+import { formatTreatmentDate } from "@/lib/formatTreatmentDate";
 
 function escapeHtml(str: string): string {
   return str
@@ -112,7 +113,7 @@ export async function GET(request: Request) {
         .map(t => {
           const intake = Array.isArray(t.intakes) ? t.intakes[0] : t.intakes;
           const name = escapeHtml((intake as any)?.first_name || "Client");
-          const date = new Date(t.treatment_date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          const date = formatTreatmentDate(t.treatment_date, { month: "short", day: "numeric" });
           const procedure = escapeHtml(t.procedure_name || "Treatment");
           return `<tr>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#1a2744;">${name}</td>

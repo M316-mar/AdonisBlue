@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { ClientContactCard } from "@/components/ClientContactCard";
 import { SideNavRail } from "@/components/SideNavRail";
+import { formatTreatmentDate, parseTreatmentDate } from "@/lib/formatTreatmentDate";
 
 // ─── Seed data ────────────────────────────────────────────────────────────────
 
@@ -678,7 +679,7 @@ export default function ClientJourneyPage() {
       groups.get(key)!.push(t);
     }
     for (const [, group] of groups) {
-      group.sort((a, b) => new Date(b.treatment_date).getTime() - new Date(a.treatment_date).getTime());
+      group.sort((a, b) => (parseTreatmentDate(b.treatment_date)?.getTime() ?? 0) - (parseTreatmentDate(a.treatment_date)?.getTime() ?? 0));
     }
     return Array.from(groups.entries());
   })();
@@ -818,7 +819,7 @@ export default function ClientJourneyPage() {
 
               const upcomingRebooks = clientTreatments.filter(t =>
                 t.notes === "Rebooked appointment" &&
-                new Date(t.treatment_date).getTime() >= today.getTime()
+                (parseTreatmentDate(t.treatment_date)?.getTime() ?? 0) >= today.getTime()
               );
 
               return (
@@ -861,7 +862,7 @@ export default function ClientJourneyPage() {
                                 <div>
                                   <p className="text-sm font-semibold text-[#1a2744]">{t.procedure_name}</p>
                                   <p className="text-xs text-slate-500">
-                                    {new Date(t.treatment_date).toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric", year: "numeric" })}
+                                    {formatTreatmentDate(t.treatment_date, { weekday: "short", month: "long", day: "numeric", year: "numeric" })}
                                   </p>
                                 </div>
                                 {hasIntake && !prepSent && (
@@ -1012,7 +1013,7 @@ export default function ClientJourneyPage() {
                               )}
                             </div>
                             <p className="text-xs text-slate-500">
-                              {new Date(t.treatment_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                              {formatTreatmentDate(t.treatment_date, { month: "long", day: "numeric", year: "numeric" })}
                               {idx === 0 && <span className="ml-1 text-teal-600 font-semibold">· Latest</span>}
                             </p>
                             {t.notes && t.notes !== "Rebooked appointment" && (
@@ -1492,7 +1493,7 @@ export default function ClientJourneyPage() {
                                             )}
                                           </div>
                                           <p className="text-xs text-slate-500 mt-0.5">
-                                            {t.intakes?.email} · {new Date(t.treatment_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                            {t.intakes?.email} · {formatTreatmentDate(t.treatment_date, { month: "short", day: "numeric", year: "numeric" })}
                                           </p>
                                         </div>
                                         {hasEmail && (
