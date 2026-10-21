@@ -171,6 +171,22 @@ export async function POST(request: Request) {
         );
       }
 
+      // Block new launches that have no approved procedure (no aftercare = no care delivery)
+      if (!wasAlreadyLaunched) {
+        const { data: approvedProcs } = await db
+          .from("procedures")
+          .select("id")
+          .eq("nurse_id", user.id)
+          .not("approved_at", "is", null)
+          .limit(1);
+        if (!approvedProcs || approvedProcs.length === 0) {
+          return NextResponse.json(
+            { error: "Set up and approve at least one aftercare procedure before going live." },
+            { status: 400 }
+          );
+        }
+      }
+
       // Send launch notification only on first launch
       if (!wasAlreadyLaunched) {
         const practiceName = typeof body["practice_name"] === "string" && body["practice_name"].trim()

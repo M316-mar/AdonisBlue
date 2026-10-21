@@ -1800,26 +1800,43 @@ function OnboardingInner() {
         const baseServices = draft.procedures.filter((p) => p !== "Other");
         const customList = draft.customProcedures.split(",").map((s) => s.trim()).filter(Boolean);
         const services = [...baseServices, ...customList];
-        // Delete all existing, then re-insert with defaults
-        await fetch("/api/procedures", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-        if (services.length > 0) {
-          await Promise.allSettled(
-            services.map((name) => {
-              const defaults = DEFAULT_PROCEDURE_DEFAULTS[name];
-              return fetch("/api/procedures", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({
-                  name,
-                  description: "",
-                  ...(defaults ? { aftercare_instructions: defaults.aftercare_instructions, reminder_days: defaults.reminder_days } : {}),
-                }),
-              });
-            })
-          );
+
+        // Upsert each service by (nurse_id, name) — preserves approved_at for existing rows.
+        // Fetch current list first so we can delete procedures the nurse removed.
+        const existingRes = await fetch("/api/procedures", { headers: { Authorization: `Bearer ${token}` } });
+        const existingJson = existingRes.ok ? (await existingRes.json()) : {};
+        const existingProcs: Array<{ id: string; name: string }> = existingJson.procedures ?? [];
+
+        // Upsert all procedures in the new list (no delete — keeps approved_at).
+        for (const name of services) {
+          const defaults = DEFAULT_PROCEDURE_DEFAULTS[name];
+          const res = await fetch("/api/procedures", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              name,
+              description: "",
+              ...(defaults ? { aftercare_instructions: defaults.aftercare_instructions, reminder_days: defaults.reminder_days } : {}),
+            }),
+          });
+          if (!res.ok) {
+            const j = await res.json().catch(() => ({})) as { error?: string };
+            throw new Error(j.error ?? `Failed to save procedure: ${name}`);
+          }
         }
-        // Save services + booking details to bots
-        await fetch("/api/savebot", {
+
+        // Delete procedures that were removed from the list.
+        const removedProcs = existingProcs.filter((p) => !services.includes(p.name));
+        for (const p of removedProcs) {
+          await fetch("/api/procedures", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ id: p.id }),
+          });
+        }
+
+        // Save services + booking details to bots.
+        const botRes = await fetch("/api/savebot", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
@@ -1830,9 +1847,16 @@ function OnboardingInner() {
             booking_link: draft.bookingLink.trim() || null,
           }),
         });
-      } finally {
+        if (!botRes.ok) {
+          const j = await botRes.json().catch(() => ({})) as { error?: string };
+          throw new Error(j.error ?? "Failed to save practice details");
+        }
+      } catch (err) {
         setSaving(false);
+        setError(err instanceof Error ? err.message : "Could not save. Please try again.");
+        return;
       }
+      setSaving(false);
       setDraft({ step: 3, approvedProcedures: [] });
       return;
     }
@@ -1842,26 +1866,30 @@ function OnboardingInner() {
       setSaving(true);
       try {
         const res = await fetch("/api/procedures", { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const { procedures } = (await res.json()) as { procedures?: Array<{ id: string; name?: string }> | null };
-          if (procedures && procedures.length > 0) {
-            await Promise.allSettled(
-              procedures.map((p) => {
-                const edited = p.name ? draft.editedAftercare[p.name] : undefined;
-                const body: Record<string, unknown> = { id: p.id, approved: true };
-                if (edited !== undefined) body.aftercare_instructions = edited;
-                return fetch("/api/procedures", {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                  body: JSON.stringify(body),
-                });
-              })
-            );
+        if (!res.ok) throw new Error("Could not load procedures");
+        const { procedures } = (await res.json()) as { procedures?: Array<{ id: string; name?: string }> | null };
+        if (procedures && procedures.length > 0) {
+          for (const p of procedures) {
+            const edited = p.name ? draft.editedAftercare[p.name] : undefined;
+            const body: Record<string, unknown> = { id: p.id, approved: true };
+            if (edited !== undefined) body.aftercare_instructions = edited;
+            const r = await fetch("/api/procedures", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify(body),
+            });
+            if (!r.ok) {
+              const j = await r.json().catch(() => ({})) as { error?: string };
+              throw new Error(j.error ?? `Failed to approve procedure: ${p.name ?? p.id}`);
+            }
           }
         }
-      } finally {
+      } catch (err) {
         setSaving(false);
+        setError(err instanceof Error ? err.message : "Could not save approvals. Please try again.");
+        return;
       }
+      setSaving(false);
       setDraft({ step: 4 });
       return;
     }

@@ -50,15 +50,32 @@ export async function POST(request: Request) {
 
     // Approval is set server-side only — never trust a client-supplied timestamp or user id.
     const { approved, ...rest } = body;
-    const approvalFields = approved
-      ? { approved_at: new Date().toISOString(), approved_by: user.id }
-      : { approved_at: null, approved_by: null };
 
-    const { data, error } = await supabase
-      .from("procedures")
-      .upsert({ ...rest, ...approvalFields, nurse_id: user.id }, { onConflict: "id" })
-      .select()
-      .single();
+    let data, error;
+
+    if (rest.id) {
+      // Updating an existing row by id (e.g. approving from onboarding step 3 or inline).
+      // Always include approval fields so approved_at is set correctly.
+      const approvalFields = approved
+        ? { approved_at: new Date().toISOString(), approved_by: user.id }
+        : {};
+      ({ data, error } = await supabase
+        .from("procedures")
+        .upsert({ ...rest, ...approvalFields, nurse_id: user.id }, { onConflict: "id" })
+        .select()
+        .single());
+    } else {
+      // Inserting or upserting a new procedure by (nurse_id, name).
+      // Never include approved_at — preserves existing approval if the name already exists.
+      const baseFields = approved
+        ? { ...rest, approved_at: new Date().toISOString(), approved_by: user.id, nurse_id: user.id }
+        : { ...rest, nurse_id: user.id };
+      ({ data, error } = await supabase
+        .from("procedures")
+        .upsert(baseFields, { onConflict: "nurse_id,name" })
+        .select()
+        .single());
+    }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ procedure: data });

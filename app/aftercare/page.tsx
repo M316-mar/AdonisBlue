@@ -125,11 +125,18 @@ export default function AftercarePage() {
   const [treatmentSubmitted, setTreatmentSubmitted] = useState(false);
   const [expandedClientIds, setExpandedClientIds] = useState<Set<string>>(new Set());
   const [customProcedure, setCustomProcedure] = useState("");
+  const [customProcedureAftercare, setCustomProcedureAftercare] = useState("");
+  const [customProcedureReminderDays, setCustomProcedureReminderDays] = useState<number | null>(null);
   const [extraAftercareNotes, setExtraAftercareNotes] = useState("");
   const [rebookChecked, setRebookChecked] = useState(false);
   const [rebookDate, setRebookDate] = useState("");
   const [rebookProcedureIds, setRebookProcedureIds] = useState<string[]>([]);
   const [rebookCustomProcedure, setRebookCustomProcedure] = useState("");
+  // Inline approval for unapproved procedures (E)
+  const [inlineApproveId, setInlineApproveId] = useState<string | null>(null);
+  const [inlineApproveText, setInlineApproveText] = useState("");
+  const [inlineApproveReminderDays, setInlineApproveReminderDays] = useState<number | null>(null);
+  const [inlineApproveSaving, setInlineApproveSaving] = useState(false);
 
   // Archive state
   const [archivedTreatments, setArchivedTreatments] = useState<Treatment[]>([]);
@@ -227,6 +234,8 @@ export default function AftercarePage() {
     const capturedRebookProcedureIds = rebookProcedureIds;
     const capturedRebookCustomProcedure = rebookCustomProcedure.trim();
     const capturedCustomProcedure = customProcedure.trim();
+    const capturedCustomProcedureAftercare = customProcedureAftercare.trim();
+    const capturedCustomProcedureReminderDays = customProcedureReminderDays;
     const capturedClientName = intakes.find(i => i.id === capturedIntakeId)?.first_name
       || capturedWalkinName
       || "Client";
@@ -242,34 +251,75 @@ export default function AftercarePage() {
 
     let aiPrepInstructions: string | null = null;
     let customAftercareInstructions: string | null = null;
+    // ID of a newly saved custom procedure (used below when building procedure_id for the insert)
+    let savedCustomProcedureId: string | null = null;
+
     if (hasCustom) {
+      // Save the custom procedure first — inline aftercare takes priority over AI generation.
+      // This makes it a real approved procedure so it appears next time.
+      const hasInlineAftercare = !!capturedCustomProcedureAftercare;
+      const procBody: Record<string, unknown> = {
+        name: capturedCustomProcedure,
+        description: "",
+        approved: hasInlineAftercare,
+      };
+      if (hasInlineAftercare) procBody.aftercare_instructions = capturedCustomProcedureAftercare;
+      if (capturedCustomProcedureReminderDays !== null) procBody.reminder_days = capturedCustomProcedureReminderDays;
       try {
-        const [prepRes, aftercareRes] = await Promise.all([
-          fetch("/api/generate-prep-instructions", {
+        const procRes = await fetch("/api/procedures", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(procBody),
+        });
+        if (procRes.ok) {
+          const pd = await procRes.json();
+          savedCustomProcedureId = pd.procedure?.id ?? null;
+          if (hasInlineAftercare) customAftercareInstructions = capturedCustomProcedureAftercare;
+          // Refresh procedure list so it shows up next time
+          setProcedures(prev => {
+            if (!pd.procedure) return prev;
+            const exists = prev.some(p => p.id === pd.procedure.id);
+            return exists ? prev.map(p => p.id === pd.procedure.id ? pd.procedure : p) : [pd.procedure, ...prev];
+          });
+        }
+      } catch { /* fall through — treatment still logs */ }
+
+      // Generate prep guide for custom procedure
+      try {
+        const prepRes = await fetch("/api/generate-prep-instructions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ procedure_name: capturedCustomProcedure }),
+        });
+        if (prepRes.ok) { const d = await prepRes.json(); aiPrepInstructions = d.instructions ?? null; }
+      } catch { /* fall through */ }
+
+      // AI-generate aftercare only if nurse didn't provide inline instructions
+      if (!hasInlineAftercare && selectedProcedures.length === 0) {
+        try {
+          const aftercareRes = await fetch("/api/generate-aftercare", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({ procedure_name: capturedCustomProcedure }),
-          }),
-          selectedProcedures.length === 0
-            ? fetch("/api/generate-aftercare", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ procedure_name: capturedCustomProcedure }),
-              })
-            : Promise.resolve(null),
-        ]);
-        if (prepRes.ok) { const d = await prepRes.json(); aiPrepInstructions = d.instructions ?? null; }
-        if (aftercareRes?.ok) { const d = await aftercareRes.json(); customAftercareInstructions = d.instructions ?? null; }
-      } catch { /* fall through */ }
+          });
+          if (aftercareRes.ok) { const d = await aftercareRes.json(); customAftercareInstructions = d.instructions ?? null; }
+        } catch { /* fall through */ }
+      }
     }
+
+    // Use saved custom procedure id when available so the treatment links to a real procedure
+    const effectiveProcedureId = newTreatment.procedure_ids[0] ?? savedCustomProcedureId ?? null;
+    const effectiveProcedureIds = newTreatment.procedure_ids.length > 0
+      ? newTreatment.procedure_ids
+      : (savedCustomProcedureId ? [savedCustomProcedureId] : []);
 
     const res = await fetch("/api/treatments", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         intake_id: capturedIntakeId || null,
-        procedure_id: newTreatment.procedure_ids[0] ?? null,
-        procedure_ids: newTreatment.procedure_ids,
+        procedure_id: effectiveProcedureId,
+        procedure_ids: effectiveProcedureIds,
         procedure_name: procedureNames,
         custom_aftercare_instructions: customAftercareInstructions,
         treatment_date: newTreatment.treatment_date,
@@ -296,70 +346,52 @@ export default function AftercarePage() {
       setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: toLocalDateString(), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "", send_aftercare: true, came_via_bot: false });
       setExtraAftercareNotes("");
       setCustomProcedure("");
+      setCustomProcedureAftercare("");
+      setCustomProcedureReminderDays(null);
       setAddingTreatment(false);
       flash(j.aftercare_sent_at ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
 
-      if (capturedRebookChecked && capturedRebookDate && (capturedIntakeId || capturedIsWalkin)) {
+      // Rebook: PATCH the newly created treatment to set next_appointment_at — no second treatment row.
+      if (capturedRebookChecked && capturedRebookDate && j.treatment?.id) {
         const rebookProcNames = procedures
           .filter(p => capturedRebookProcedureIds.includes(p.id))
           .map(p => p.name).join(", ");
         const rebookEffectiveProcName = rebookProcNames || capturedRebookCustomProcedure || procedureNames;
 
-        let rebookPrepInstructions: string | null = null;
-        if (capturedRebookCustomProcedure && !rebookProcNames) {
-          try {
-            const r = await fetch("/api/generate-prep-instructions", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ procedure_name: capturedRebookCustomProcedure }),
-            });
-            if (r.ok) { const d = await r.json(); rebookPrepInstructions = d.instructions ?? null; }
-          } catch { /* fall through */ }
-        }
-
-        const rebookRes = await fetch("/api/treatments", {
-          method: "POST",
+        await fetch("/api/treatments", {
+          method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
-            intake_id: j.treatment.intake_id ?? capturedIntakeId ?? null,
-            procedure_id: capturedRebookProcedureIds[0] ?? null,
-            procedure_ids: capturedRebookProcedureIds,
-            procedure_name: rebookEffectiveProcName,
-            treatment_date: capturedRebookDate,
-            notes: "Rebooked appointment",
-            is_walkin: false,
-            walkin_name: capturedWalkinName,
-            walkin_email: newTreatment.walkin_email,
-            walkin_phone: newTreatment.walkin_phone,
-            send_aftercare: false,
-            came_via_bot: newTreatment.came_via_bot,
+            action: "set_next_appointment",
+            id: j.treatment.id,
+            next_appointment_at: capturedRebookDate,
+            next_appointment_procedures: rebookEffectiveProcName,
           }),
         });
+
         setRebookChecked(false);
         setRebookDate("");
         setRebookProcedureIds([]);
         setRebookCustomProcedure("");
-        if (rebookRes.ok) {
-          const rj = await rebookRes.json();
-          setTreatments(prev => [rj.treatment, ...prev]);
-          if (rj.treatment?.intake_id && !capturedIsWalkin) {
-            const instructions = defaultPrepInstructions(rebookEffectiveProcName);
-            const formattedDate = new Date(capturedRebookDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-            setPrepPrompt({
-              intakeId: rj.treatment.intake_id,
-              clientName: capturedClientName,
-              procedureName: rebookEffectiveProcName,
-              instructions,
-              appointmentDate: formattedDate,
-            });
-            setPrepTab("auto");
-            setPrepCustomText(instructions);
-          }
+
+        // Offer prep guide for the upcoming appointment
+        if (j.treatment.intake_id && !capturedIsWalkin) {
+          const instructions = defaultPrepInstructions(rebookEffectiveProcName);
+          const formattedDate = new Date(capturedRebookDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+          setPrepPrompt({
+            intakeId: j.treatment.intake_id,
+            clientName: capturedClientName,
+            procedureName: rebookEffectiveProcName,
+            instructions,
+            appointmentDate: formattedDate,
+          });
+          setPrepTab("auto");
+          setPrepCustomText(instructions);
         }
       }
     }
     setTreatmentSaving(false);
-  }, [newTreatment, customProcedure, rebookChecked, rebookDate, rebookProcedureIds, rebookCustomProcedure, procedures, token, intakes]);
+  }, [newTreatment, customProcedure, customProcedureAftercare, customProcedureReminderDays, rebookChecked, rebookDate, rebookProcedureIds, rebookCustomProcedure, procedures, token, intakes]);
 
   // ── Archive handlers ───────────────────────────────────────────────────────
   const loadArchivedTreatments = useCallback(async () => {
@@ -631,17 +663,48 @@ export default function AftercarePage() {
                     </p>
                   )}
                   {/* Custom procedure */}
-                  <div className="mt-3">
-                    <label className="mb-1 block text-xs font-semibold text-slate-500">Or add a custom procedure</label>
-                    <input
-                      type="text"
-                      value={customProcedure}
-                      onChange={e => setCustomProcedure(e.target.value)}
-                      placeholder="e.g. Jawline Filler, Lip Flip, Morpheus8…"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-[#0d9488]"
-                    />
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-500">Or add a custom procedure</label>
+                      <input
+                        type="text"
+                        value={customProcedure}
+                        onChange={e => { setCustomProcedure(e.target.value); setCustomProcedureAftercare(""); setCustomProcedureReminderDays(null); }}
+                        placeholder="e.g. Jawline Filler, Lip Flip, Morpheus8…"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-[#0d9488]"
+                      />
+                    </div>
                     {customProcedure.trim() && (
-                      <p className="mt-1 text-xs text-indigo-600">✨ AI will generate a personalised prep guide for &quot;{customProcedure.trim()}&quot; when you save.</p>
+                      <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 space-y-3">
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-indigo-800">
+                            Aftercare for &quot;{customProcedure.trim()}&quot; <span className="font-normal text-indigo-600">(leave blank to skip sending aftercare)</span>
+                          </label>
+                          <textarea
+                            value={customProcedureAftercare}
+                            onChange={e => setCustomProcedureAftercare(e.target.value)}
+                            placeholder={"e.g. Keep the area clean and avoid sun exposure for 48 hours…"}
+                            rows={4}
+                            className="w-full resize-none rounded-xl border border-indigo-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-indigo-800">When should she come back?</label>
+                          <select
+                            value={customProcedureReminderDays ?? ""}
+                            onChange={e => setCustomProcedureReminderDays(e.target.value ? Number(e.target.value) : null)}
+                            className="w-full rounded-xl border border-indigo-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                          >
+                            <option value="">Not needed</option>
+                            <option value="28">4 weeks</option>
+                            <option value="90">3 months</option>
+                            <option value="180">6 months</option>
+                            <option value="270">9 months</option>
+                            <option value="365">12 months</option>
+                          </select>
+                        </div>
+                        <p className="text-xs text-indigo-600">✨ Saved as a new procedure so it&apos;s ready next time.</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -685,24 +748,93 @@ export default function AftercarePage() {
                 {(() => {
                   const unapproved = procedures.filter(p => newTreatment.procedure_ids.includes(p.id) && !p.approved_at);
                   if (unapproved.length === 0 || !newTreatment.send_aftercare) return null;
+                  const approving = unapproved.find(p => p.id === inlineApproveId);
                   return (
-                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-3">
                       <p className="font-semibold text-amber-900">
                         {unapproved.map(p => p.name).join(", ")} {unapproved.length === 1 ? "has" : "have"} no approved aftercare yet
                       </p>
-                      <p className="text-sm text-amber-900/90 mt-1">
-                        Your client wouldn&apos;t receive anything. Add and approve the instructions first — it takes about a minute.
-                      </p>
-                      <Link
-                        href="/client-journey"
-                        className="text-amber-900 font-semibold underline text-sm mt-2 inline-block"
-                      >
-                        Set up aftercare for {unapproved[0].name} →
-                      </Link>
+                      {!approving ? (
+                        <>
+                          <p className="text-sm text-amber-900/90">Your client wouldn&apos;t receive anything. Approve the instructions right here — takes about a minute.</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInlineApproveId(unapproved[0].id);
+                              setInlineApproveText(unapproved[0].aftercare_instructions ?? "");
+                              setInlineApproveReminderDays(unapproved[0].reminder_days ?? null);
+                            }}
+                            className="text-amber-900 font-semibold underline text-sm"
+                          >
+                            Set up aftercare for {unapproved[0].name} →
+                          </button>
+                        </>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-sm font-semibold text-amber-900">Aftercare instructions for {approving.name}</p>
+                          <textarea
+                            value={inlineApproveText}
+                            onChange={e => setInlineApproveText(e.target.value)}
+                            rows={5}
+                            className="w-full resize-none rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                            placeholder="e.g. Keep the area clean, avoid sun exposure for 48 hours…"
+                          />
+                          <div>
+                            <label className="mb-1 block text-xs font-semibold text-amber-900">When should she come back?</label>
+                            <select
+                              value={inlineApproveReminderDays ?? ""}
+                              onChange={e => setInlineApproveReminderDays(e.target.value ? Number(e.target.value) : null)}
+                              className="w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                            >
+                              <option value="">Not needed</option>
+                              <option value="28">4 weeks</option>
+                              <option value="90">3 months</option>
+                              <option value="180">6 months</option>
+                              <option value="270">9 months</option>
+                              <option value="365">12 months</option>
+                            </select>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={inlineApproveSaving || !inlineApproveText.trim()}
+                              onClick={async () => {
+                                setInlineApproveSaving(true);
+                                const r = await fetch("/api/procedures", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                  body: JSON.stringify({
+                                    id: approving.id,
+                                    approved: true,
+                                    aftercare_instructions: inlineApproveText.trim(),
+                                    ...(inlineApproveReminderDays !== null ? { reminder_days: inlineApproveReminderDays } : {}),
+                                  }),
+                                });
+                                if (r.ok) {
+                                  const rd = await r.json();
+                                  setProcedures(prev => prev.map(p => p.id === approving.id ? rd.procedure : p));
+                                  setInlineApproveId(null);
+                                }
+                                setInlineApproveSaving(false);
+                              }}
+                              className="flex-1 rounded-full bg-amber-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                            >
+                              {inlineApproveSaving ? "Saving…" : "Approve & continue"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setInlineApproveId(null)}
+                              className="rounded-full border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-900"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() => setNewTreatment(p => ({ ...p, send_aftercare: false }))}
-                        className="block text-sm text-amber-900/70 underline mt-2"
+                        className="block text-sm text-amber-900/70 underline"
                       >
                         Log this treatment without sending aftercare
                       </button>
@@ -742,8 +874,11 @@ export default function AftercarePage() {
                       onChange={e => {
                         setRebookChecked(e.target.checked);
                         if (e.target.checked) {
+                          // Default date = procedure.reminder_days from the first selected procedure
+                          const firstProc = procedures.find(p => newTreatment.procedure_ids.includes(p.id));
+                          const reminderDays = firstProc?.reminder_days ?? 90;
                           const d = new Date();
-                          d.setMonth(d.getMonth() + 3);
+                          d.setUTCDate(d.getUTCDate() + reminderDays);
                           setRebookDate(toLocalDateString(d));
                           setRebookProcedureIds(newTreatment.procedure_ids);
                         }
@@ -809,7 +944,7 @@ export default function AftercarePage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setAddingTreatment(false); setCustomProcedure(""); setTreatmentSubmitted(false); }}
+                    onClick={() => { setAddingTreatment(false); setCustomProcedure(""); setCustomProcedureAftercare(""); setCustomProcedureReminderDays(null); setInlineApproveId(null); setTreatmentSubmitted(false); }}
                     style={{ touchAction: "manipulation" }}
                     className="min-h-[48px] rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 active:scale-[0.97]"
                   >

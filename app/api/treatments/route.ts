@@ -406,15 +406,24 @@ export async function POST(request: Request) {
     // clientPhone intentionally not returned — not needed by client
     void clientPhone;
 
-    return NextResponse.json({ treatment, aftercare_sent_at: aftercareSent ? new Date().toISOString() : null });
+    // Re-fetch with joined intakes so the client gets first_name for display (fixes C+D).
+    const { data: fullTreatment } = await supabase
+      .from("treatments")
+      .select("*, intakes(first_name, email, phone, service_interested)")
+      .eq("id", treatment.id)
+      .single();
+
+    return NextResponse.json({ treatment: fullTreatment ?? treatment, aftercare_sent_at: aftercareSent ? new Date().toISOString() : null });
   } catch (e) {
     await logError("treatments", String(e));
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }
 
-// ── PATCH /api/treatments — soft-delete (archive) a treatment ─────────────────
-// Body: { id: string }  →  sets archived = true, scoped by nurse_id
+// ── PATCH /api/treatments ──────────────────────────────────────────────────────
+// action: "archive"           → sets archived = true
+// action: "set_next_appointment" → sets rebooked_at, rebooked_source='at_visit',
+//                                   next_appointment_at, next_appointment_procedures
 export async function PATCH(request: Request) {
   try {
     const token = getAuthToken(request);
@@ -434,11 +443,40 @@ export async function PATCH(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    const action = typeof body.action === "string" ? body.action : "archive";
+
+    if (action === "set_next_appointment") {
+      const nextApptAt = typeof body.next_appointment_at === "string" && DATE_REGEX.test(body.next_appointment_at.trim())
+        ? new Date(body.next_appointment_at.trim() + "T00:00:00Z").toISOString()
+        : null;
+      const nextApptProcs = typeof body.next_appointment_procedures === "string"
+        ? body.next_appointment_procedures.trim().slice(0, 500)
+        : null;
+
+      const { error } = await supabase
+        .from("treatments")
+        .update({
+          rebooked_at: new Date().toISOString(),
+          rebooked_source: "at_visit",
+          next_appointment_at: nextApptAt,
+          next_appointment_procedures: nextApptProcs,
+        })
+        .eq("id", id)
+        .eq("nurse_id", user.id);
+
+      if (error) {
+        await logError("treatments", error.message);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    // Default: archive
     const { error } = await supabase
       .from("treatments")
       .update({ archived: true })
       .eq("id", id)
-      .eq("nurse_id", user.id); // ownership — nurse can only archive her own records
+      .eq("nurse_id", user.id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
