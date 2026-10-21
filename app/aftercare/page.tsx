@@ -162,12 +162,58 @@ export default function AftercarePage() {
   const [prepSending, setPrepSending] = useState(false);
   const [prepSentDone, setPrepSentDone] = useState(false);
 
+  const [nurseId, setNurseId] = useState("");
+  // Draft banner shown when the form opens and a saved draft exists
+  const [draftBanner, setDraftBanner] = useState<{ savedAt: string; clientLabel: string } | null>(null);
+
   const [successMsg, setSuccessMsg] = useState("");
 
   function flash(msg: string, ms = 4000) {
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(""), ms);
   }
+
+  // ── Draft helpers ─────────────────────────────────────────────────────────
+  function draftKey(id: string) { return `adonisblue_treatment_draft_${id}`; }
+
+  function saveDraft(id: string) {
+    if (!id) return;
+    try {
+      const draft = {
+        newTreatment, customProcedure, customProcedureAftercare,
+        customProcedureReminderDays, extraAftercareNotes,
+        rebookChecked, rebookDate, rebookProcedureIds, rebookCustomProcedure,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(draftKey(id), JSON.stringify(draft));
+    } catch { /* storage unavailable */ }
+  }
+
+  function clearDraft(id: string) {
+    if (!id) return;
+    try { localStorage.removeItem(draftKey(id)); } catch { /* ignore */ }
+  }
+
+  function readDraft(id: string) {
+    if (!id) return null;
+    try {
+      const raw = localStorage.getItem(draftKey(id));
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+
+  // Auto-save whenever any form field changes (form must be open)
+  useEffect(() => {
+    if (!addingTreatment || !nurseId) return;
+    const t = setTimeout(() => saveDraft(nurseId), 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    addingTreatment, nurseId,
+    newTreatment, customProcedure, customProcedureAftercare,
+    customProcedureReminderDays, extraAftercareNotes,
+    rebookChecked, rebookDate, rebookProcedureIds, rebookCustomProcedure,
+  ]);
 
   // ── Load data ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -178,6 +224,7 @@ export default function AftercarePage() {
       if (!data.session) { router.replace("/auth"); return; }
       const t = data.session.access_token;
       setToken(t);
+      setNurseId(data.session.user.id);
 
       const [procRes, treatRes, intakeRes, botRes] = await Promise.all([
         fetch("/api/procedures", { headers: { Authorization: `Bearer ${t}` } }),
@@ -198,7 +245,20 @@ export default function AftercarePage() {
       }
       setReady(true);
     })();
-    return () => { cancelled = true; };
+
+    // Clear draft on logout so stale form data never outlasts the session
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" && session === null) {
+        // nurseId may not be in scope here; clear all drafts matching the pattern
+        try {
+          Object.keys(localStorage)
+            .filter(k => k.startsWith("adonisblue_treatment_draft_"))
+            .forEach(k => localStorage.removeItem(k));
+        } catch { /* ignore */ }
+      }
+    });
+
+    return () => { cancelled = true; subscription.unsubscribe(); };
   }, [router]);
 
   // ── Update client ──────────────────────────────────────────────────────────
@@ -358,6 +418,8 @@ export default function AftercarePage() {
       setCustomProcedureAftercare("");
       setCustomProcedureReminderDays(null);
       setAddingTreatment(false);
+      clearDraft(nurseId);
+      setDraftBanner(null);
       flash(j.aftercare_sent_at ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
 
       // Rebook: PATCH the newly created treatment to set next_appointment_at — no second treatment row.
@@ -531,7 +593,34 @@ export default function AftercarePage() {
           <div className="flex justify-end">
             <button
               type="button"
-              onClick={() => { setAddingTreatment(true); setCustomProcedure(""); setTreatmentSubmitted(false); }}
+              onClick={() => {
+                const draft = readDraft(nurseId);
+                const hasMeaningfulDraft = draft && (
+                  draft.newTreatment?.intake_id ||
+                  draft.newTreatment?.is_walkin ||
+                  draft.newTreatment?.procedure_ids?.length > 0 ||
+                  draft.customProcedure ||
+                  draft.newTreatment?.notes
+                );
+                if (hasMeaningfulDraft) {
+                  // Resolve a display label for the client in the banner
+                  let clientLabel = "unknown client";
+                  if (draft.newTreatment?.is_walkin && draft.newTreatment?.walkin_name?.trim()) {
+                    clientLabel = draft.newTreatment.walkin_name.trim().split(" ")[0];
+                  } else if (draft.newTreatment?.intake_id) {
+                    const match = intakes.find(i => i.id === draft.newTreatment.intake_id);
+                    if (match) clientLabel = match.first_name.split(" ")[0];
+                  }
+                  setDraftBanner({ savedAt: draft.savedAt, clientLabel });
+                  setAddingTreatment(true);
+                  setTreatmentSubmitted(false);
+                } else {
+                  clearDraft(nurseId);
+                  setAddingTreatment(true);
+                  setCustomProcedure("");
+                  setTreatmentSubmitted(false);
+                }
+              }}
               style={{ touchAction: "manipulation" }}
               className="min-h-[44px] rounded-full bg-[#0d9488] px-5 py-2 text-sm font-bold text-white transition hover:bg-teal-700 active:scale-[0.97]"
             >
@@ -566,6 +655,54 @@ export default function AftercarePage() {
           {addingTreatment && (
             <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 shadow-sm">
               <h3 className="mb-4 text-base font-bold text-[#1a2744]">Log a treatment 💉</h3>
+
+              {/* Draft banner */}
+              {draftBanner && (
+                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-semibold text-amber-900">
+                    📝 You have an unfinished treatment for{" "}
+                    <strong>{draftBanner.clientLabel}</strong>
+                    {" "}(started{" "}
+                    {new Date(draftBanner.savedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })})
+                  </p>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const draft = readDraft(nurseId);
+                        if (!draft) { setDraftBanner(null); return; }
+                        setNewTreatment(draft.newTreatment ?? newTreatment);
+                        setCustomProcedure(draft.customProcedure ?? "");
+                        setCustomProcedureAftercare(draft.customProcedureAftercare ?? "");
+                        setCustomProcedureReminderDays(draft.customProcedureReminderDays ?? null);
+                        setExtraAftercareNotes(draft.extraAftercareNotes ?? "");
+                        setRebookChecked(draft.rebookChecked ?? false);
+                        setRebookDate(draft.rebookDate ?? "");
+                        setRebookProcedureIds(draft.rebookProcedureIds ?? []);
+                        setRebookCustomProcedure(draft.rebookCustomProcedure ?? "");
+                        setDraftBanner(null);
+                      }}
+                      className="rounded-full bg-amber-700 px-4 py-1.5 text-sm font-bold text-white"
+                    >
+                      Continue
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearDraft(nurseId);
+                        setDraftBanner(null);
+                        setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: toLocalDateString(), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "", send_aftercare: true, came_via_bot: false });
+                        setCustomProcedure(""); setCustomProcedureAftercare(""); setCustomProcedureReminderDays(null);
+                        setExtraAftercareNotes(""); setRebookChecked(false); setRebookDate(""); setRebookProcedureIds([]); setRebookCustomProcedure("");
+                      }}
+                      className="rounded-full border border-amber-300 px-4 py-1.5 text-sm font-semibold text-amber-900"
+                    >
+                      Discard
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3">
                 {/* Client selector */}
                 <div>
@@ -970,7 +1107,7 @@ export default function AftercarePage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setAddingTreatment(false); setCustomProcedure(""); setCustomProcedureAftercare(""); setCustomProcedureReminderDays(null); setInlineApproveId(null); setTreatmentSubmitted(false); }}
+                    onClick={() => { setAddingTreatment(false); clearDraft(nurseId); setDraftBanner(null); setCustomProcedure(""); setCustomProcedureAftercare(""); setCustomProcedureReminderDays(null); setInlineApproveId(null); setTreatmentSubmitted(false); }}
                     style={{ touchAction: "manipulation" }}
                     className="min-h-[48px] rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 active:scale-[0.97]"
                   >
