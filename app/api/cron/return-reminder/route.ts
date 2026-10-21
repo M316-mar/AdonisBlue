@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { logError } from "@/lib/logError";
 import { dueDate } from "@/lib/reminderDate";
+import { formatTreatmentDate } from "@/lib/formatTreatmentDate";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -94,7 +95,7 @@ export async function GET(request: Request) {
       clients.sort((a, b) => a.dueISO.localeCompare(b.dueISO));
 
       const clientLines = clients.map((c) => {
-        const dueFormatted = new Date(c.dueISO + "T00:00:00Z").toLocaleDateString("en-US", { month: "long", day: "numeric" });
+        const dueFormatted = formatTreatmentDate(c.dueISO, { month: "long", day: "numeric" });
         return `<p style="margin:0 0 10px;font-size:15px;color:#334155;">🟡 <strong>${c.clientName}</strong> is due back for ${c.procedureName} around ${dueFormatted}.</p>`;
       }).join("");
 

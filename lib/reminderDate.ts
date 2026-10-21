@@ -4,9 +4,19 @@
  * use these so they always agree on timing.
  */
 
-/** Date the client is due back (treatment_date + reminder_days). */
-export function dueDate(treatmentDateISO: string, reminderDays: number): Date {
-  const d = new Date(treatmentDateISO + "T00:00:00Z");
+import { parseTreatmentDate } from "@/lib/formatTreatmentDate";
+
+/**
+ * Date the client is due back (treatment_date + reminder_days).
+ *
+ * Works entirely in UTC so day-count arithmetic is DST-safe.
+ * Accepts both "YYYY-MM-DD" and full timestamptz values such as
+ * "2026-10-21 00:00:00+00" — the YYYY-MM-DD portion is extracted first.
+ */
+export function dueDate(treatmentDateStr: string, reminderDays: number): Date {
+  const local = parseTreatmentDate(treatmentDateStr);
+  if (!local) return new Date(NaN);
+  const d = new Date(Date.UTC(local.getFullYear(), local.getMonth(), local.getDate()));
   d.setUTCDate(d.getUTCDate() + reminderDays);
   return d;
 }

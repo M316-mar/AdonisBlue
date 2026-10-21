@@ -1,6 +1,7 @@
 "use client";
 
 import { signOutCompletely, supabase } from "@/lib/supabase";
+import { formatTreatmentDate } from "@/lib/formatTreatmentDate";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -644,8 +645,8 @@ export default function NurseDashboardPage() {
                     const today = new Date().toISOString().slice(0, 10);
                     const isPastDue = !isBooked && c.due_date < today;
                     const reminderAlreadySent = c.reminder_send_date <= today;
-                    const dueFmt = new Date(c.due_date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                    const reminderFmt = new Date(c.reminder_send_date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    const dueFmt = formatTreatmentDate(c.due_date, { month: "short", day: "numeric" });
+                    const reminderFmt = formatTreatmentDate(c.reminder_send_date, { month: "short", day: "numeric" });
                     return (
                       <li key={c.treatment_id} className={`px-4 py-3 sm:px-6 flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between ${isBooked ? "bg-green-50" : ""}`}>
                         <div className="flex-1 min-w-0">
