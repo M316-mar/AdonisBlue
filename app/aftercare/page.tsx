@@ -138,6 +138,8 @@ export default function AftercarePage() {
   const [inlineApproveReminderDays, setInlineApproveReminderDays] = useState<number | null>(null);
   const [inlineApproveSaving, setInlineApproveSaving] = useState(false);
   const [inlineApproveError, setInlineApproveError] = useState<string | null>(null);
+  // phone_public (or alert_phone fallback) shown in the approval card
+  const [nurseClientPhone, setNurseClientPhone] = useState<string>("");
 
   // Archive state
   const [archivedTreatments, setArchivedTreatments] = useState<Treatment[]>([]);
@@ -177,16 +179,22 @@ export default function AftercarePage() {
       const t = data.session.access_token;
       setToken(t);
 
-      const [procRes, treatRes, intakeRes] = await Promise.all([
+      const [procRes, treatRes, intakeRes, botRes] = await Promise.all([
         fetch("/api/procedures", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/treatments", { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/intakes", { headers: { Authorization: `Bearer ${t}` } }),
+        fetch("/api/mybot", { headers: { Authorization: `Bearer ${t}` } }),
       ]);
 
       if (!cancelled) {
         if (procRes.ok) { const j = await procRes.json(); setProcedures(j.procedures ?? []); }
         if (treatRes.ok) { const j = await treatRes.json(); setTreatments(j.treatments ?? []); }
         if (intakeRes.ok) { const j = await intakeRes.json(); setIntakes(j.intakes ?? []); }
+        if (botRes.ok) {
+          const j = await botRes.json();
+          const bot = j.bot ?? j;
+          setNurseClientPhone((bot.phone_public || bot.alert_phone || "").trim());
+        }
       }
       setReady(true);
     })();
@@ -796,6 +804,14 @@ export default function AftercarePage() {
                               <option value="365">12 months</option>
                             </select>
                           </div>
+                          {/\[YOUR PHONE\]/i.test(inlineApproveText) && (
+                            <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-900">
+                              {nurseClientPhone
+                                ? <>Clients will see this number: <strong>{nurseClientPhone}</strong></>
+                                : <>Your instructions contain <strong>[YOUR PHONE]</strong> but you haven't saved a client phone number yet. Add it in Settings → Practice, or remove the placeholder above.</>
+                              }
+                            </p>
+                          )}
                           {inlineApproveError && (
                             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{inlineApproveError}</p>
                           )}
