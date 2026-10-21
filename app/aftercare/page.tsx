@@ -137,6 +137,7 @@ export default function AftercarePage() {
   const [inlineApproveText, setInlineApproveText] = useState("");
   const [inlineApproveReminderDays, setInlineApproveReminderDays] = useState<number | null>(null);
   const [inlineApproveSaving, setInlineApproveSaving] = useState(false);
+  const [inlineApproveError, setInlineApproveError] = useState<string | null>(null);
 
   // Archive state
   const [archivedTreatments, setArchivedTreatments] = useState<Treatment[]>([]);
@@ -763,6 +764,7 @@ export default function AftercarePage() {
                               setInlineApproveId(unapproved[0].id);
                               setInlineApproveText(unapproved[0].aftercare_instructions ?? "");
                               setInlineApproveReminderDays(unapproved[0].reminder_days ?? null);
+                              setInlineApproveError(null);
                             }}
                             className="text-amber-900 font-semibold underline text-sm"
                           >
@@ -794,17 +796,22 @@ export default function AftercarePage() {
                               <option value="365">12 months</option>
                             </select>
                           </div>
+                          {inlineApproveError && (
+                            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{inlineApproveError}</p>
+                          )}
                           <div className="flex gap-2">
                             <button
                               type="button"
                               disabled={inlineApproveSaving || !inlineApproveText.trim()}
                               onClick={async () => {
                                 setInlineApproveSaving(true);
+                                setInlineApproveError(null);
                                 const r = await fetch("/api/procedures", {
                                   method: "POST",
                                   headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                                   body: JSON.stringify({
                                     id: approving.id,
+                                    name: approving.name,
                                     approved: true,
                                     aftercare_instructions: inlineApproveText.trim(),
                                     ...(inlineApproveReminderDays !== null ? { reminder_days: inlineApproveReminderDays } : {}),
@@ -814,6 +821,9 @@ export default function AftercarePage() {
                                   const rd = await r.json();
                                   setProcedures(prev => prev.map(p => p.id === approving.id ? rd.procedure : p));
                                   setInlineApproveId(null);
+                                } else {
+                                  const rd = await r.json().catch(() => ({}));
+                                  setInlineApproveError(rd.error ?? "Could not approve. Please try again.");
                                 }
                                 setInlineApproveSaving(false);
                               }}

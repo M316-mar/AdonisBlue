@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
 import { firstName } from "@/lib/firstName";
+import { substitutePlaceholders } from "@/lib/substitutePlaceholders";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -108,17 +109,21 @@ export async function GET(request: Request) {
     const [{ data: procedure }, { data: intake }, { data: bot }] = await Promise.all([
       supabase.from("procedures").select("id, name, aftercare_instructions, approved_at").eq("id", procedureIdRaw).eq("nurse_id", user.id).maybeSingle(),
       supabase.from("intakes").select("id, first_name").eq("id", intakeIdRaw).eq("nurse_id", user.id).maybeSingle(),
-      supabase.from("bots").select("practice_name").eq("nurse_id", user.id).single(),
+      supabase.from("bots").select("practice_name, nurse_name, alert_phone, phone_public").eq("nurse_id", user.id).single(),
     ]);
 
     if (!procedure || !intake) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const previewNurseName = bot?.nurse_name || bot?.practice_name || "";
+    const previewNursePhone = bot?.phone_public || bot?.alert_phone || "";
+    const rawPreviewInstructions = (procedure.aftercare_instructions ?? "").trim() || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";
 
     const html = buildAftercareHtml({
       clientName: escapeHtml(firstName(intake.first_name, "Beautiful")),
       escapedPracticeName: escapeHtml(bot?.practice_name || "your provider"),
       treatmentId: "preview",
       procedureName: procedure.name,
-      instructions: (procedure.aftercare_instructions ?? "").trim() || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.",
+      instructions: substitutePlaceholders(rawPreviewInstructions, previewNurseName, previewNursePhone),
       personalNote,
     });
 
@@ -235,13 +240,16 @@ export async function POST(request: Request) {
 
     const { data: bot } = await supabase
       .from("bots")
-      .select("practice_name")
+      .select("practice_name, nurse_name, alert_phone, phone_public")
       .eq("nurse_id", user.id)
       .single();
 
     const practiceName = bot?.practice_name || "your provider";
-    const instructions = (procedure.aftercare_instructions ?? "").trim()
+    const sendNurseName = bot?.nurse_name || bot?.practice_name || "";
+    const sendNursePhone = bot?.phone_public || bot?.alert_phone || "";
+    const rawSendInstructions = (procedure.aftercare_instructions ?? "").trim()
       || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";
+    const instructions = substitutePlaceholders(rawSendInstructions, sendNurseName, sendNursePhone);
 
     const clientName = escapeHtml(firstName(intake.first_name, "Beautiful"));
     const escapedPracticeName = escapeHtml(practiceName);

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { hasUnresolvedPlaceholders } from "@/lib/substitutePlaceholders";
 
 export async function GET(request: Request) {
   try {
@@ -50,6 +51,23 @@ export async function POST(request: Request) {
 
     // Approval is set server-side only — never trust a client-supplied timestamp or user id.
     const { approved, ...rest } = body;
+
+    // Block approval if the instructions still contain [YOUR PHONE] but the nurse
+    // hasn't saved a phone number yet — clients must never receive a placeholder.
+    if (approved && typeof rest.aftercare_instructions === "string" && /\[YOUR PHONE\]/i.test(rest.aftercare_instructions)) {
+      const { data: bot } = await supabase
+        .from("bots")
+        .select("alert_phone, phone_public")
+        .eq("nurse_id", user.id)
+        .maybeSingle();
+      const hasPhone = !!(bot?.alert_phone?.trim() || bot?.phone_public?.trim());
+      if (!hasPhone) {
+        return NextResponse.json(
+          { error: "Add your phone number in Settings before approving instructions that include [YOUR PHONE]." },
+          { status: 400 }
+        );
+      }
+    }
 
     let data, error;
 

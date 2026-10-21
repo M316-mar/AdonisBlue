@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
+import { substitutePlaceholders } from "@/lib/substitutePlaceholders";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -286,11 +287,13 @@ export async function POST(request: Request) {
     // ── Get bot info ───────────────────────────────────────────────────────
     const { data: bot } = await supabase
       .from("bots")
-      .select("practice_name, booking_link")
+      .select("practice_name, booking_link, nurse_name, alert_phone, phone_public")
       .eq("nurse_id", user.id)
       .single();
 
     const practiceName = bot?.practice_name || "your provider";
+    const nurseDisplayName = bot?.nurse_name || bot?.practice_name || "";
+    const nursePhone = bot?.phone_public || bot?.alert_phone || "";
 
     // ── Get procedures for aftercare ───────────────────────────────────────
     const allProcedureIds = procedureIds.length > 0
@@ -329,8 +332,9 @@ export async function POST(request: Request) {
       if (hasStandardProcedures) {
         combinedAftercareHtml = selectedProcedures
           .map((proc) => {
-            const instructions = (proc.aftercare_instructions ?? "").trim()
+            const rawInstructions = (proc.aftercare_instructions ?? "").trim()
               || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours. Reach out if you have any questions or concerns!";
+            const instructions = substitutePlaceholders(rawInstructions, nurseDisplayName, nursePhone);
             return `
         <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
           <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(proc.name ?? "")} Aftercare</h3>
@@ -342,7 +346,7 @@ export async function POST(request: Request) {
         combinedAftercareHtml = `
         <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
           <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(procedureName)} Aftercare</h3>
-          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(customAftercareInstructions)}</p>
+          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(substitutePlaceholders(customAftercareInstructions, nurseDisplayName, nursePhone))}</p>
         </div>`;
       }
 
