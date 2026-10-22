@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 const NAV_ITEMS = [
   { href: "/dashboard", icon: "🏠", label: "Home" },
@@ -36,6 +38,37 @@ function NavItem({ href, icon, label, active }: { href: string; icon: string; la
 
 export function SideNavRail() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [alertCount, setAlertCount] = useState(0);
+
+  // Fetch unhandled alert count for the bell badge
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token || cancelled) return;
+        const res = await fetch("/api/notifications", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled && res.ok) {
+          const json = await res.json() as { count?: number };
+          setAlertCount(json.count ?? 0);
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleBellClick = () => {
+    if (pathname === "/dashboard") {
+      const el = document.getElementById("assistant-panel");
+      el?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      router.push("/dashboard#assistant");
+    }
+  };
 
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
@@ -50,6 +83,23 @@ export function SideNavRail() {
         {NAV_ITEMS.map((item) => (
           <NavItem key={item.href} {...item} active={isActive(item.href)} />
         ))}
+        {/* Bell — alerts */}
+        <button
+          type="button"
+          onClick={handleBellClick}
+          aria-label={alertCount > 0 ? `${alertCount} unhandled alert${alertCount !== 1 ? "s" : ""}` : "No alerts"}
+          className="relative mt-1 flex flex-col items-center gap-1 py-2 px-1"
+        >
+          <span className="relative flex h-10 w-10 items-center justify-center rounded-full bg-teal-50 text-lg text-slate-600 transition hover:bg-teal-100">
+            🔔
+            {alertCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white">
+                {alertCount}
+              </span>
+            )}
+          </span>
+          <span className="text-[10px] font-semibold leading-tight text-slate-400">Alerts</span>
+        </button>
       </nav>
 
       {/* ── Bottom bar — mobile (< sm) ── */}

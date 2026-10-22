@@ -6,8 +6,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ClientContactCard } from "@/components/ClientContactCard";
 import { SideNavRail } from "@/components/SideNavRail";
+import { AssistantPanel } from "@/components/AssistantPanel";
 
 
 type BotRow = {
@@ -79,26 +79,10 @@ export default function NurseDashboardPage() {
   const [surveyLoading, setSurveyLoading] = useState<string | null>(null);
   const [intakesOpen, setIntakesOpen] = useState(false);
 
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [feedbackText, setFeedbackText] = useState("");
-
-  // ── Secretary panel state ──────────────────────────────────────────────────
-  const [secretaryIntroSeen, setSecretaryIntroSeen] = useState(false);
-  const [secretaryLoading, setSecretaryLoading] = useState(false);
-  const [secretaryMessage, setSecretaryMessage] = useState<string | null>(null);
-  const [secretaryActions, setSecretaryActions] = useState<Array<{
-    treatment_id: string; intake_id: string; client_name: string; treatment_date: string; procedure_name: string;
-  }>>([]);
-  const [secretaryIncidents, setSecretaryIncidents] = useState<Array<{
-    id: string; client_name: string | null; client_phone: string | null; flagged_message: string | null; created_at: string;
-  }>>([]);
-  const [secretaryCheckins, setSecretaryCheckins] = useState<Array<{ id: string; client_name: string }>>([]);
-  const [secretarySent, setSecretarySent] = useState<Set<string>>(new Set());
-  const [secretarySending, setSecretarySending] = useState<string | null>(null);
-  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+  const [alertCount, setAlertCount] = useState(0);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [bookingCopied, setBookingCopied] = useState(false);
   const [showLaunchCelebration, setShowLaunchCelebration] = useState(false);
-  const [justLaunched, setJustLaunched] = useState(false);
   const [freezeLoading, setFreezeLoading] = useState(false);
   const [showEmailNotice, setShowEmailNotice] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -106,13 +90,6 @@ export default function NurseDashboardPage() {
   const [hasBooking, setHasBooking] = useState(false);
   const [hasOffer, setHasOffer] = useState(false);
   const [showAccountManagement, setShowAccountManagement] = useState(false);
-  const [checkinDueToday, setCheckinDueToday] = useState(0);
-  const [notifications, setNotifications] = useState<{ id: string; client_name: string; flagged_message: string; created_at: string }[]>([]);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [supportOpen, setSupportOpen] = useState(false);
-  const [supportMessage, setSupportMessage] = useState("");
-  const [supportSending, setSupportSending] = useState(false);
-  const [supportSent, setSupportSent] = useState(false);
   const [noShowDialog, setNoShowDialog] = useState<{ id: string; name: string } | null>(null);
 
   type ReviewSummary = {
@@ -169,6 +146,7 @@ export default function NurseDashboardPage() {
       setNurseName(displayNameFromUser(data.session.user));
 
       const token = data.session.access_token;
+      if (!cancelled) setSessionToken(token || null);
       if (token) {
         const res = await fetch("/api/mybot", {
           headers: { Authorization: `Bearer ${token}` },
@@ -180,7 +158,6 @@ export default function NurseDashboardPage() {
           const alreadyCelebrated = localStorage.getItem("ab-celebrated-" + (row?.slug || ""));
           if (row?.launched && !alreadyCelebrated) {
             setShowLaunchCelebration(true);
-            setJustLaunched(true);
           }
 
           // Fetch recent intakes
@@ -208,28 +185,6 @@ export default function NurseDashboardPage() {
           if (!cancelled && offersRes.ok) {
             const offersJson = await offersRes.json() as { offers?: unknown[] };
             setHasOffer(Array.isArray(offersJson.offers) && offersJson.offers.length > 0);
-          }
-
-          // Fetch check-in due-today count for sidebar badge
-          const checkinRes = await fetch("/api/checkin-reminders", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!cancelled && checkinRes.ok) {
-            const checkinJson = await checkinRes.json() as { reminders?: { due_date: string; status: string }[] };
-            const today = new Date().toISOString().slice(0, 10);
-            const dueToday = (checkinJson.reminders ?? []).filter(
-              (r) => r.due_date === today && r.status !== "done"
-            ).length;
-            setCheckinDueToday(dueToday);
-          }
-
-          // Fetch notifications (flagged incidents last 7 days)
-          const notifRes = await fetch("/api/notifications", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!cancelled && notifRes.ok) {
-            const notifJson = await notifRes.json() as { notifications?: { id: string; client_name: string; flagged_message: string; created_at: string }[] };
-            setNotifications(notifJson.notifications ?? []);
           }
 
           // Fetch reviews summary
@@ -277,36 +232,6 @@ export default function NurseDashboardPage() {
     };
   }, [router]);
 
-  useEffect(() => {
-    if (!ready) return;
-    void (async () => {
-      setSecretaryLoading(true);
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
-        if (!token) return;
-        const ctxRes = await fetch("/api/secretary/context", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!ctxRes.ok) return;
-        const ctx = await ctxRes.json();
-        setSecretaryIncidents(ctx.flaggedIncidents ?? []);
-        setSecretaryCheckins(ctx.checkinsToday ?? []);
-        const greetRes = await fetch("/api/secretary/greet", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify(ctx),
-        });
-        if (!greetRes.ok) return;
-        const greet = await greetRes.json();
-        setSecretaryMessage(greet.message ?? null);
-        setSecretaryActions(greet.actions ?? []);
-        setSecretaryIntroSeen(true);
-      } finally {
-        setSecretaryLoading(false);
-      }
-    })();
-  }, [ready]);
 
   const launched = bot?.ready_at != null || bot?.launched === true;
   const needsAlertVerify = launched && bot?.alert_email_verified === false;
@@ -522,38 +447,22 @@ export default function NurseDashboardPage() {
             <span className="truncate text-base font-semibold tracking-tight text-[#1a2744] sm:text-lg">AdonisBlue</span>
           </Link>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-4">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setNotificationsOpen((o) => !o)}
-                className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-[#1a2744] transition hover:bg-slate-50"
-                aria-label="Notifications"
-              >
-                🔔
-                {notifications.length > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-                    {notifications.length}
-                  </span>
-                )}
-              </button>
-              {notificationsOpen && (
-                <div className="absolute right-0 top-11 z-50 w-80 max-w-[90vw] rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
-                  <p className="mb-2 px-1 text-sm font-semibold text-[#1a2744]">Notifications</p>
-                  {notifications.length === 0 ? (
-                    <p className="px-1 py-4 text-center text-sm text-slate-400">Nothing new right now.</p>
-                  ) : (
-                    <div className="max-h-80 space-y-1 overflow-y-auto">
-                      {notifications.map((n) => (
-                        <div key={n.id} className="rounded-xl px-2 py-2 hover:bg-slate-50">
-                          <p className="text-sm font-semibold text-[#1a2744]">{n.client_name}</p>
-                          <p className="line-clamp-2 text-xs text-slate-500">{n.flagged_message}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById("assistant-panel");
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-[#1a2744] transition hover:bg-slate-50"
+              aria-label={alertCount > 0 ? `${alertCount} unhandled alert${alertCount !== 1 ? "s" : ""}` : "Go to assistant"}
+            >
+              🔔
+              {alertCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white">
+                  {alertCount}
+                </span>
               )}
-            </div>
+            </button>
             <span className="hidden max-w-[12rem] truncate text-sm font-medium text-[#1a2744] sm:inline sm:max-w-xs md:text-base">
               {nurseName}
             </span>
@@ -572,6 +481,15 @@ export default function NurseDashboardPage() {
       <main className="mx-auto max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-28 lg:px-8 lg:py-10 lg:pb-28">
         <div className="grid gap-6 md:grid-cols-12 md:gap-8 md:items-start">
           <div className="space-y-6 md:col-span-8">
+            {sessionToken && (
+              <AssistantPanel
+                nurseFirstName={nurseFirstName}
+                token={sessionToken}
+                bot={bot}
+                returnClients={returnClients}
+                onAlertCountChange={setAlertCount}
+              />
+            )}
             <section className="relative overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 shadow-lg sm:px-6 sm:py-8">
               <div
                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_85%_0%,rgba(13,148,136,0.22),transparent),radial-gradient(ellipse_60%_50%_at_0%_100%,rgba(56,189,248,0.12),transparent)] opacity-90"
@@ -634,7 +552,7 @@ export default function NurseDashboardPage() {
               </div>
             )}
             {returnClients.length > 0 && (
-              <section className="rounded-2xl border border-slate-200 bg-white shadow-md overflow-hidden">
+              <section id="return-clients" className="rounded-2xl border border-slate-200 bg-white shadow-md overflow-hidden">
                 <div className="px-4 py-4 sm:px-6 border-b border-slate-100">
                   <p className="text-sm font-semibold text-[#1a2744]">🔁 Coming back soon</p>
                   <p className="text-xs text-slate-400 mt-0.5">Clients due back in the next 30 days. Save them a spot in your calendar.</p>
@@ -1031,154 +949,6 @@ export default function NurseDashboardPage() {
                 </div>
               </div>
 
-              {/* ── AI Secretary Panel (always visible) ── */}
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
-                <div className="flex items-center gap-2 bg-[#1a2744] px-4 py-3">
-                  <Image src="/Alona.png" alt="Secretary" width={24} height={24} className="rounded-lg" />
-                  <span className="text-sm font-semibold text-white">Your Secretary</span>
-                </div>
-                <div className="space-y-3 p-4">
-                  {!secretaryIntroSeen && (
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm leading-relaxed text-slate-600">
-                      Hi, I&apos;m your AdonisBlue secretary. I help things run smoothly, but <strong>{nurseFirstName}</strong> is always the one who really takes care of you.
-                    </div>
-                  )}
-                  {secretaryLoading && (
-                    <p className="py-2 text-center text-xs text-slate-400">Checking your schedule…</p>
-                  )}
-                  {secretaryMessage && (
-                    <div className="rounded-xl border border-teal-100 bg-teal-50 p-3 text-sm leading-relaxed text-[#1a2744]">
-                      {secretaryMessage}
-                    </div>
-                  )}
-                  {secretaryActions.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Prep reminders to send</p>
-                      {secretaryActions.map((action) => {
-                        const key = action.intake_id;
-                        const sent = secretarySent.has(key);
-                        const sending = secretarySending === key;
-                        return (
-                          <div key={key}>
-                            {sent ? (
-                              <p className="rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-sm text-green-700">
-                                ✅ Sent to {action.client_name}
-                              </p>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={sending}
-                                onClick={() => {
-                                  void (async () => {
-                                    setSecretarySending(key);
-                                    try {
-                                      const { data: sessionData } = await supabase.auth.getSession();
-                                      const token = sessionData.session?.access_token;
-                                      if (!token) return;
-                                      const res = await fetch("/api/send-prep-guide", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                                        body: JSON.stringify({ intake_id: action.intake_id }),
-                                      });
-                                      if (res.ok) {
-                                        setSecretarySent((prev) => new Set([...prev, key]));
-                                        fetch("/api/secretary/log", {
-                                          method: "POST",
-                                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                                          body: JSON.stringify({
-                                            action_type: "prep_reminder",
-                                            target_intake_id: action.intake_id,
-                                            target_treatment_id: action.treatment_id,
-                                          }),
-                                        }).catch(() => {});
-                                      }
-                                    } finally {
-                                      setSecretarySending(null);
-                                    }
-                                  })();
-                                }}
-                                className="w-full rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-left text-sm font-medium text-[#0d9488] transition hover:bg-teal-100 disabled:opacity-50"
-                              >
-                                {sending ? "Sending…" : `Send prep reminder to ${action.client_name}`}
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {secretaryIncidents.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Flagged messages (last 48h)</p>
-                      {secretaryIncidents.map((inc) => (
-                        <div key={inc.id} className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-slate-700">
-                          <ClientContactCard name={inc.client_name ?? "Unknown client"} phone={inc.client_phone ?? null} email={null} />
-                          {inc.flagged_message && <p className="mt-1 text-xs text-slate-500">&ldquo;{inc.flagged_message}&rdquo;</p>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {secretaryCheckins.length > 0 && (
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                      <p className="font-semibold text-[#1a2744]">Check-ins due today</p>
-                      <p className="mt-0.5 text-xs text-slate-500">{secretaryCheckins.map(c => c.client_name).join(", ")} — <Link href="/checkin" className="text-[#0d9488] underline">Open check-ins →</Link></p>
-                    </div>
-                  )}
-                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                    {!supportOpen ? (
-                      <button
-                        type="button"
-                        onClick={() => setSupportOpen(true)}
-                        className="w-full text-left text-xs text-slate-400 transition hover:text-teal-600"
-                      >
-                        💬 Contact AdonisBlue support
-                      </button>
-                    ) : supportSent ? (
-                      <p className="text-xs font-semibold text-teal-700">✅ Message sent! We&apos;ll get back to you shortly.</p>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        <p className="text-xs font-semibold text-[#1a2744]">💬 Contact support</p>
-                        <textarea
-                          rows={3}
-                          value={supportMessage}
-                          onChange={(e) => setSupportMessage(e.target.value)}
-                          placeholder="Describe your issue or question…"
-                          className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-[#1a2744] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={supportSending || !supportMessage.trim()}
-                            onClick={() => {
-                              setSupportSending(true);
-                              void fetch("/api/send-feedback", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ feedback: supportMessage.trim(), nurse_name: nurseName }),
-                              }).then(() => {
-                                setSupportSent(true);
-                                setSupportSending(false);
-                              }).catch(() => {
-                                setSupportSending(false);
-                              });
-                            }}
-                            className="flex-1 rounded-full bg-[#0d9488] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
-                          >
-                            {supportSending ? "Sending…" : "Send"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setSupportOpen(false); setSupportMessage(""); }}
-                            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
 
             {/* ── Your Reviews Widget ── */}
             <Link href="/reviews" className="block">
@@ -1422,52 +1192,6 @@ export default function NurseDashboardPage() {
         </div>
       ) : null}
 
-      {/* ── Feedback button (bottom-right) ── */}
-      <div className="fixed bottom-6 right-24 z-[9999] flex flex-col items-end gap-2">
-        {feedbackOpen && (
-          <div className="w-[min(100vw-3rem,20rem)] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-lg shadow-slate-900/10">
-            <p className="text-sm font-semibold text-[#1a2744]">💡 Share an idea</p>
-            <p className="mt-1 text-xs leading-relaxed text-slate-600">
-              Have a feature idea or suggestion? We&apos;d love to hear it!
-            </p>
-            <textarea
-              value={feedbackText}
-              onChange={(e) => setFeedbackText(e.target.value)}
-              rows={4}
-              className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-base text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#0d9488]/40 focus:bg-white focus:ring-2 focus:ring-[#0d9488]/20"
-              placeholder="What feature would make AdonisBlue even better for you?"
-            />
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  void (async () => {
-                    const res = await fetch("/api/send-feedback", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ feedback: feedbackText.trim(), nurse_name: nurseName }),
-                    });
-                    if (res.ok) { setFeedbackText(""); setFeedbackOpen(false); }
-                  })();
-                }}
-                className="flex-1 rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
-              >
-                Submit
-              </button>
-              <button type="button" onClick={() => setFeedbackOpen(false)} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
-                Close
-              </button>
-            </div>
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={() => setFeedbackOpen(o => !o)}
-          className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-900/15 transition hover:bg-teal-700"
-        >
-          {feedbackOpen ? "✕ Close" : "💡 Share an idea"}
-        </button>
-      </div>
 
     </div>
       </div>

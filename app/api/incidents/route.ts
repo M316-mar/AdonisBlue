@@ -95,7 +95,7 @@ export async function PATCH(request: Request) {
     if (!nurseId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { id, source, field, value } = body;
+    const { id, source, field, value, nurse_notes } = body;
 
     if (!id || !UUID_REGEX.test(String(id))) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
@@ -113,9 +113,20 @@ export async function PATCH(request: Request) {
     const db = makeDb();
     const table = source === "healing" ? "healing_chats" : "conversations";
 
+    // When marking resolved: also stamp handled_at and optionally save a nurse note
+    const update: Record<string, unknown> = {
+      [field]: typeof value === "string" ? value.slice(0, 2000) : value,
+    };
+    if (field === "status" && value === "resolved") {
+      update.handled_at = new Date().toISOString();
+      if (typeof nurse_notes === "string" && nurse_notes.trim()) {
+        update.nurse_notes = nurse_notes.trim().slice(0, 2000);
+      }
+    }
+
     const { error } = await db
       .from(table)
-      .update({ [field]: typeof value === "string" ? value.slice(0, 2000) : value })
+      .update(update)
       .eq("id", id)
       .eq("nurse_id", nurseId); // enforce ownership
 

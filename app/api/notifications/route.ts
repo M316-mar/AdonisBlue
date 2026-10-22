@@ -26,7 +26,6 @@ export async function GET(request: Request) {
     if (!nurseId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const db = makeDb();
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const [hcRes, cvRes] = await Promise.all([
       db
@@ -35,7 +34,6 @@ export async function GET(request: Request) {
         .eq("nurse_id", nurseId)
         .eq("flagged", true)
         .eq("status", "active")
-        .gte("updated_at", sevenDaysAgo)
         .order("updated_at", { ascending: false }),
       db
         .from("conversations")
@@ -43,28 +41,25 @@ export async function GET(request: Request) {
         .eq("nurse_id", nurseId)
         .eq("flagged", true)
         .eq("status", "active")
-        .gte("created_at", sevenDaysAgo)
         .order("created_at", { ascending: false }),
     ]);
 
     const all = [
       ...(hcRes.data ?? []).map((r) => ({
         id: r.id,
-        client_name: r.client_name ?? "Unknown client",
+        client_name: r.client_name ?? null,
         flagged_message: r.flagged_message ?? "",
         created_at: r.updated_at,
       })),
       ...(cvRes.data ?? []).map((r) => ({
         id: r.id,
-        client_name: r.client_name ?? "Unknown client",
+        client_name: r.client_name ?? null,
         flagged_message: r.flagged_message ?? "",
         created_at: r.created_at,
       })),
-    ]
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 10);
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    return NextResponse.json({ notifications: all });
+    return NextResponse.json({ notifications: all, count: all.length });
   } catch {
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
