@@ -77,12 +77,17 @@ export async function GET(request: Request) {
       if (!reminderDays) continue;
 
       const due = dueDate(t.treatment_date, reminderDays);
+      if (isNaN(due.getTime())) {
+        await logError("return-clients", `invalid treatment_date for treatment ${t.id}: "${t.treatment_date}"`);
+        continue;
+      }
       const sendOn = reminderSendDate(due);
 
       // Show if due within 30 days from today (or already past due but not rebooked)
       // Also show recently rebooked (within 7 days) so nurse sees the green card
       if (t.rebooked_at) {
         const rebookedDate = new Date(t.rebooked_at);
+        if (isNaN(rebookedDate.getTime())) continue;
         const daysSinceRebooked = (today.getTime() - rebookedDate.getTime()) / (1000 * 60 * 60 * 24);
         if (daysSinceRebooked > 7) continue; // green card expires after 7 days
       } else {

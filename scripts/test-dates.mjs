@@ -125,6 +125,43 @@ const cases = [
     result: formatTreatmentDate("2026-10-23 00:00:00+00", { month: "short", day: "numeric", year: "numeric" }),
     expect: "Oct 23, 2026",
   },
+
+  // Guard cases: null / empty / invalid inputs must never throw
+  {
+    label: "parseTreatmentDate(null) → null",
+    result: String(parseTreatmentDate(null)),
+    expect: "null",
+  },
+  {
+    label: 'parseTreatmentDate("") → null',
+    result: String(parseTreatmentDate("")),
+    expect: "null",
+  },
+  {
+    label: 'parseTreatmentDate("not-a-date") → null',
+    result: String(parseTreatmentDate("not-a-date")),
+    expect: "null",
+  },
+  {
+    label: "dueDate(null, 90) → NaN (no throw)",
+    result: String(isNaN(dueDate(null, 90).getTime())),
+    expect: "true",
+  },
+  {
+    label: 'dueDate("", 90) → NaN (no throw)',
+    result: String(isNaN(dueDate("", 90).getTime())),
+    expect: "true",
+  },
+  {
+    label: 'dueDate("not-a-date", 90) → NaN (no throw)',
+    result: String(isNaN(dueDate("not-a-date", 90).getTime())),
+    expect: "true",
+  },
+  {
+    label: 'dueDate("2026-07-25", 0) → 2026-07-25 (zero offset)',
+    result: dueDate("2026-07-25", 0).toISOString().slice(0, 10),
+    expect: "2026-07-25",
+  },
 ];
 
 // ── Run ──────────────────────────────────────────────────────────────────────

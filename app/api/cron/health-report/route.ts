@@ -15,7 +15,11 @@ const JOB_NAMES: Record<string, string> = {
   "cron:health-report":        "Daily health check",
   "cron:aftercare-nudge":      "Aftercare nudge",
   "cron:weekly-summary":       "Weekly summary",
+  "cron:return-reminder":      "Return reminder email",
 };
+
+// These crons run on Mondays only — use 8-day lookback to avoid false alarms on other days
+const WEEKLY_JOB_TYPES = new Set(["cron:weekly-summary", "cron:return-reminder"]);
 
 function escapeHtml(str: string): string {
   return str
@@ -36,6 +40,7 @@ export async function GET(request: Request) {
 
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const since26h = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString();
+  const since8d  = new Date(Date.now() - 8  * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: rows } = await supabase
     .from("message_log")
@@ -75,12 +80,13 @@ export async function GET(request: Request) {
 
     if (!ever) continue; // never ran — new/unused job, skip
 
-    // Check if it ran in the last 26h
+    // Weekly jobs only run on Mondays; use 8-day lookback to avoid false alarms
+    const lookback = WEEKLY_JOB_TYPES.has(cronType) ? since8d : since26h;
     const { data: recent } = await supabase
       .from("message_log")
       .select("created_at")
       .eq("type", cronType)
-      .gte("created_at", since26h)
+      .gte("created_at", lookback)
       .limit(1)
       .single();
 
