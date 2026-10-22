@@ -1,16 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { formatPhone } from "@/lib/formatPhone";
-
 type Message = { role: "user" | "assistant"; content: string; id: string };
 
 type Treatment = {
   id: string;
   procedure_name: string;
-  treatment_date: string;
-  intakes: { first_name: string; phone?: string | null } | null;
-  procedures: { name: string; aftercare_instructions: string } | null;
+  intakes: { first_name: string; phone_last4?: string | null } | null;
+  procedures: { name: string } | null;
   bots: null;
 };
 
@@ -36,7 +33,7 @@ export default function HealingChatPage({
   const [error, setError] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [phoneCollected, setPhoneCollected] = useState(false);
-  const [phoneOnFile, setPhoneOnFile] = useState<string | null>(null);
+  const [phoneLast4, setPhoneLast4] = useState<string | null>(null);
   const [changingPhone, setChangingPhone] = useState(false);
   const [nurseFirstName, setNurseFirstName] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -60,8 +57,8 @@ export default function HealingChatPage({
       const data = await res.json();
       setTreatment(data.treatment);
       if (data.nurse_first_name) setNurseFirstName(data.nurse_first_name);
-      const rawIntakePhone: string | null = data.treatment?.intakes?.phone ?? null;
-      if (rawIntakePhone?.trim()) setPhoneOnFile(rawIntakePhone.trim());
+      const last4: string | null = data.treatment?.intakes?.phone_last4 ?? null;
+      if (last4) setPhoneLast4(last4);
       const rawName = data.treatment?.intakes?.first_name;
       const clientName = rawName?.trim() ? rawName.trim().split(/\s+/)[0] : "there";
       const procedureName =
@@ -188,8 +185,8 @@ export default function HealingChatPage({
       </a>
     );
 
-    // Phone already on file — ask client to confirm or change
-    if (phoneOnFile && !changingPhone) {
+    // Phone already on file — show masked confirmation, never the full number
+    if (phoneLast4 && !changingPhone) {
       return (
         <div className="flex min-h-dvh items-center justify-center bg-[#0d1628] px-4 py-8"
              style={{ paddingTop: "max(2rem, env(safe-area-inset-top))", paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}>
@@ -197,16 +194,14 @@ export default function HealingChatPage({
             {emergencyBanner}
             <p className="text-4xl mb-3">💙</p>
             <h2 className="text-lg font-bold text-white mb-1">Recovery Check-in</h2>
-            <p className="text-sm text-slate-400 mb-1 leading-relaxed">
-              Is this still the best number to reach you?
-            </p>
-            <p className="text-base font-bold text-white mb-6">
-              {formatPhone(phoneOnFile)}
+            <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+              Is the number ending in <span className="font-bold text-white">•••‑{phoneLast4}</span> still the best one to reach you?
             </p>
             <button
               type="button"
               onClick={() => {
-                setClientPhone(phoneOnFile);
+                // Send empty phone — server uses the intake phone from DB directly
+                setClientPhone("");
                 setPhoneCollected(true);
               }}
               style={{ touchAction: "manipulation" }}

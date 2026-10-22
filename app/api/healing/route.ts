@@ -49,9 +49,10 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    // Only fetch what the client actually needs — no email, no full phone
     const { data: treatment } = await supabase
       .from("treatments")
-      .select("*, intakes(first_name, email, phone), procedures(name, aftercare_instructions)")
+      .select("*, intakes(first_name, phone), procedures(name)")
       .eq("id", treatmentId)
       .single();
 
@@ -59,8 +60,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Treatment not found" }, { status: 404 });
     }
 
-    const [{ data: chat }, { data: keywords }, { data: botRow }] = await Promise.all([
-      supabase.from("healing_chats").select("*").eq("treatment_id", treatmentId).single(),
+    const [{ data: keywords }, { data: botRow }] = await Promise.all([
       supabase.from("emergency_keywords").select("keyword").eq("nurse_id", treatment.nurse_id),
       supabase.from("bots").select("nurse_name").eq("nurse_id", treatment.nurse_id).single(),
     ]);
@@ -70,29 +70,28 @@ export async function GET(request: Request) {
       ? rawNurseName.split(/\s+/)[0]!.charAt(0).toUpperCase() + rawNurseName.split(/\s+/)[0]!.slice(1).toLowerCase()
       : null;
 
+    // Mask the phone — return only last 4 digits so the full number never
+    // leaves the server on this public, unauthenticated endpoint.
+    const rawIntakePhone = (treatment.intakes as { phone?: string | null } | null)?.phone?.trim() ?? "";
+    const phoneLast4 = rawIntakePhone ? rawIntakePhone.replace(/\D/g, "").slice(-4) || null : null;
+
     // Only expose what the client needs — never leak nurse contact/alert details here
     return NextResponse.json({
       treatment: {
         id: treatment.id,
         procedure_name: treatment.procedure_name,
-        treatment_date: treatment.treatment_date,
         intakes: treatment.intakes
           ? {
               first_name: treatment.intakes.first_name,
-              // Client's own phone — safe to return (UUID-gated URL, client's own data)
-              phone: (treatment.intakes as { phone?: string }).phone ?? null,
+              phone_last4: phoneLast4,
             }
           : null,
         procedures: treatment.procedures
-          ? {
-              name: treatment.procedures.name,
-              aftercare_instructions: treatment.procedures.aftercare_instructions,
-            }
+          ? { name: treatment.procedures.name }
           : null,
         bots: null,
       },
       nurse_first_name: nurseFirstName,
-      chat,
       emergency_keywords: [
         ...DEFAULT_EMERGENCY_KEYWORDS,
         ...(keywords ?? []).map((k: { keyword: string }) => k.keyword),
