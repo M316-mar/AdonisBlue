@@ -43,6 +43,45 @@ function check(label, result, expect) {
   console.log(`${tag}  ${label}${detail}`);
 }
 
+// substitutePlaceholdersSafeHtml XSS safety
+// Inline the logic from lib/substitutePlaceholders.ts
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+function substitutePlaceholdersSafeHtml(text, nurseName, nursePhone) {
+  const escaped = escapeHtml(text);
+  const withName = escaped.replace(
+    /\[YOUR NAME\]/g,
+    nurseName
+      ? nurseName.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      : "[YOUR NAME]"
+  );
+  return withName.replace(
+    /\[YOUR PHONE\]/g,
+    nursePhone ? phoneHtml(nursePhone) : "[YOUR PHONE]"
+  );
+}
+
+// Input has XSS content AND a [YOUR PHONE] placeholder — the tag must be escaped,
+// but the phone link must still render as a live <a> tag.
+const xssInput = "<b>hi</b> & <script>alert(1)</script> — call [YOUR PHONE]";
+const xssOut = substitutePlaceholdersSafeHtml(xssInput, "Nurse", "2147177944");
+check(
+  'XSS: "<b>hi</b> & <script>" rendered as plain text — no raw < > & through',
+  !xssOut.includes("<b>") && !xssOut.includes("<script>") && xssOut.includes("&lt;b&gt;") && xssOut.includes("&amp;"),
+  true
+);
+check(
+  'XSS: [YOUR PHONE] still resolves to a tel: link despite XSS content in instructions',
+  xssOut.includes('href="tel:+12147177944"') && xssOut.includes("(214) 717-7944"),
+  true
+);
+
 // formatPhone
 check('formatPhone("2147177944")       → "(214) 717-7944"',   formatPhone("2147177944"),        "(214) 717-7944");
 check('formatPhone("(214) 717-7944")   → "(214) 717-7944"',   formatPhone("(214) 717-7944"),    "(214) 717-7944");
