@@ -5,6 +5,7 @@ import { logError } from "@/lib/logError";
 import { promoteScheduledAftercares } from "@/lib/promoteScheduledAftercares";
 import { substitutePlaceholders } from "@/lib/substitutePlaceholders";
 import { sendEmail } from "@/lib/sendAndLog";
+import { firstName } from "@/lib/firstName";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
@@ -116,7 +117,7 @@ export async function POST(
     const practiceName = bot?.practice_name || "your provider";
     const nurseDisplayName = bot?.nurse_name || bot?.practice_name || "";
     const nursePhone = bot?.phone_public || bot?.alert_phone || "";
-    const clientName = intake.first_name ?? "beautiful";
+    const clientName = firstName(intake.first_name, "beautiful");
 
     const rawInstructions = (proc?.aftercare_instructions ?? "").trim()
       || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";

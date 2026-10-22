@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { sendEmail, scheduleEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
 import { substitutePlaceholders } from "@/lib/substitutePlaceholders";
+import { firstName } from "@/lib/firstName";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -369,7 +370,7 @@ export async function POST(request: Request) {
           <span style="color:#fff;font-size:18px;font-weight:600;">${escapeHtml(practiceName)}</span>
         </td></tr>
         <tr><td style="padding:36px 32px;">
-          <h1 style="margin:0 0 8px;color:#1a2744;font-size:22px;font-weight:600;">You're glowing, ${escapeHtml(clientName ?? "beautiful")}! 🌸</h1>
+          <h1 style="margin:0 0 8px;color:#1a2744;font-size:22px;font-weight:600;">You're glowing, ${escapeHtml(firstName(clientName, "beautiful"))}! 🌸</h1>
           <p style="margin:0 0 8px;color:#475569;font-size:14px;">Thank you for your visit today. Here are your aftercare instructions for everything we did:</p>
           ${combinedAftercareHtml}
           <div style="background:#1a2744;border-radius:14px;padding:20px;margin:20px 0;text-align:center;">

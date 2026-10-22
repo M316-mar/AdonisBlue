@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { firstName } from "@/lib/firstName";
 
 function escapeHtml(str: string): string {
   return str
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
       )
       .join("");
 
-    const clientName = escapeHtml(intake.first_name || "there");
+    const clientName = escapeHtml(firstName(intake.first_name, "there"));
     const serviceText = intake.service_interested ? ` for your ${escapeHtml(intake.service_interested)}` : "";
 
     const sendResult = await sendEmail({
