@@ -671,7 +671,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     // Save conversation to Supabase for insights and emergency flagging
     // Flag is set for keyword alerts AND AI-triggered alerts so they appear in bell/Secretary
     const shouldFlag = isFlagged || (aiAlertToken && !isDuplicateMessage);
-    if (botConfig.nurse_id && messages.length >= 2) {
+    if (botConfig.nurse_id && messages.length >= 1) {
       try {
         const supabaseInsights = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,

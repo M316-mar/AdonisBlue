@@ -84,15 +84,16 @@ export async function GET(request: Request) {
         .lte("due_date", today)
         .neq("status", "done"),
 
-      // 6. Prep reminders due in next 7 days (client has email, guide not yet sent)
+      // 6. Prep reminders: strictly FUTURE appointments within 7 days (guide not yet sent).
+      //    Use gt (not gte) — treatments happening today are excluded, too late to prep.
+      //    Also surface treatments where next_appointment_at (rebooking) falls in the window.
       db
         .from("treatments")
-        .select("id, treatment_date, procedure_name, intake_id, intakes(id, first_name, email)")
+        .select("id, treatment_date, procedure_name, intake_id, next_appointment_at, intakes(id, first_name, email)")
         .eq("nurse_id", user.id)
         .eq("archived", false)
         .is("prep_guide_sent_at", null)
-        .gte("treatment_date", today)
-        .lte("treatment_date", in7Days)
+        .or(`and(treatment_date.gt.${today},treatment_date.lte.${in7Days}),and(next_appointment_at.gte.${now.toISOString()},next_appointment_at.lte.${new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()})`)
         .not("intake_id", "is", null),
     ]);
 

@@ -187,20 +187,24 @@ export async function POST(request: Request) {
         : lastUserMessage.slice(0, 500)
     );
 
-    // Save or update chat record
-    await supabase.from("healing_chats").upsert(
-      {
-        treatment_id,
-        nurse_id: treatment.nurse_id,
-        client_name: clientName,
-        messages,
-        flagged: isFlagged,
-        flagged_message: isFlagged ? lastUserMessage.slice(0, 500) : null,
-        updated_at: new Date().toISOString(),
-        client_phone: clientPhoneInput,
-      },
-      { onConflict: "treatment_id" }
-    );
+    // Save or update chat record.
+    // Only write flagged/flagged_message/status when isFlagged — never overwrite
+    // them to false/null on a routine follow-up message, which would clear an alert
+    // that the nurse hasn't handled yet.
+    const upsertPayload: Record<string, unknown> = {
+      treatment_id,
+      nurse_id: treatment.nurse_id,
+      client_name: clientName,
+      messages,
+      updated_at: new Date().toISOString(),
+      client_phone: clientPhoneInput,
+    };
+    if (isFlagged) {
+      upsertPayload.flagged = true;
+      upsertPayload.flagged_message = lastUserMessage.slice(0, 500);
+      upsertPayload.status = "active";
+    }
+    await supabase.from("healing_chats").upsert(upsertPayload, { onConflict: "treatment_id" });
 
     // ── Server-side dedup (conversation-scoped) ──────────────────────────
     // "Same conversation" = messages already in this healing chat.
@@ -426,13 +430,14 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
 
     // Fire AI-triggered alert only if keyword detector did NOT already fire, and not a duplicate
     if (aiAlertToken && !isFlagged && !isDuplicateMessage) {
-      // Update healing_chats: set flagged=true so alert appears in bell and Your Secretary
+      // Update healing_chats: set flagged=true + status="active" so alert appears in bell
       await supabase.from("healing_chats").upsert(
         {
           treatment_id,
           nurse_id: treatment.nurse_id,
           flagged: true,
           flagged_message: lastUserMessage.slice(0, 500),
+          status: "active",
           updated_at: new Date().toISOString(),
         },
         { onConflict: "treatment_id" }

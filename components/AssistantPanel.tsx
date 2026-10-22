@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { parseTreatmentDate } from "@/lib/formatTreatmentDate";
 
 type Alert = {
   id: string;
@@ -66,8 +67,11 @@ function greeting(name: string): string {
 }
 
 function fmtDate(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "";
+  if (!iso) return "";
+  // parseTreatmentDate extracts YYYY-MM-DD and builds a LOCAL Date, preventing
+  // the UTC-midnight shift that makes "2026-10-21" display as "Oct 20" in UTC-5.
+  const d = parseTreatmentDate(iso);
+  if (!d || isNaN(d.getTime())) return "";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
