@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { formatPhone } from "@/lib/formatPhone";
 
 type Message = { role: "user" | "assistant"; content: string; id: string };
 
@@ -8,7 +9,7 @@ type Treatment = {
   id: string;
   procedure_name: string;
   treatment_date: string;
-  intakes: { first_name: string } | null;
+  intakes: { first_name: string; phone?: string | null } | null;
   procedures: { name: string; aftercare_instructions: string } | null;
   bots: null;
 };
@@ -35,6 +36,9 @@ export default function HealingChatPage({
   const [error, setError] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [phoneCollected, setPhoneCollected] = useState(false);
+  const [phoneOnFile, setPhoneOnFile] = useState<string | null>(null);
+  const [changingPhone, setChangingPhone] = useState(false);
+  const [nurseFirstName, setNurseFirstName] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -55,6 +59,9 @@ export default function HealingChatPage({
       }
       const data = await res.json();
       setTreatment(data.treatment);
+      if (data.nurse_first_name) setNurseFirstName(data.nurse_first_name);
+      const rawIntakePhone: string | null = data.treatment?.intakes?.phone ?? null;
+      if (rawIntakePhone?.trim()) setPhoneOnFile(rawIntakePhone.trim());
       const rawName = data.treatment?.intakes?.first_name;
       const clientName = rawName?.trim() ? rawName.trim().split(/\s+/)[0] : "there";
       const procedureName =
@@ -168,16 +175,72 @@ export default function HealingChatPage({
   }
 
   // ── Phone collection ───────────────────────────────────────────────────────
+  const nurseName = nurseFirstName ?? "your nurse";
   if (!phoneCollected) {
+    // Shared 911 banner shown at top of every phone screen variant
+    const emergencyBanner = (
+      <a
+        href="tel:911"
+        style={{ touchAction: "manipulation" }}
+        className="flex items-center justify-center gap-2 w-full min-h-[44px] rounded-xl bg-red-500/10 border border-red-400/30 px-4 py-2.5 text-xs font-bold text-red-300 mb-5 transition hover:bg-red-500/20 active:scale-[0.98]"
+      >
+        🚨 Emergency? Call 911 first.
+      </a>
+    );
+
+    // Phone already on file — ask client to confirm or change
+    if (phoneOnFile && !changingPhone) {
+      return (
+        <div className="flex min-h-dvh items-center justify-center bg-[#0d1628] px-4 py-8"
+             style={{ paddingTop: "max(2rem, env(safe-area-inset-top))", paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}>
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#1a2744] p-8 shadow-xl text-center">
+            {emergencyBanner}
+            <p className="text-4xl mb-3">💙</p>
+            <h2 className="text-lg font-bold text-white mb-1">Recovery Check-in</h2>
+            <p className="text-sm text-slate-400 mb-1 leading-relaxed">
+              Is this still the best number to reach you?
+            </p>
+            <p className="text-base font-bold text-white mb-6">
+              {formatPhone(phoneOnFile)}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setClientPhone(phoneOnFile);
+                setPhoneCollected(true);
+              }}
+              style={{ touchAction: "manipulation" }}
+              className="w-full min-h-[48px] rounded-full bg-[#0d9488] py-3 text-sm font-bold text-white transition hover:bg-teal-700 active:scale-[0.98] mb-3"
+            >
+              Yes, that&rsquo;s my number →
+            </button>
+            <button
+              type="button"
+              onClick={() => setChangingPhone(true)}
+              style={{ touchAction: "manipulation" }}
+              className="w-full min-h-[44px] rounded-full border border-white/10 py-2.5 text-xs text-slate-400 transition hover:bg-white/5 active:scale-[0.98]"
+            >
+              Use a different number
+            </button>
+            <p className="mt-4 text-xs text-slate-500 leading-relaxed">
+              🔒 Only shared with {nurseName} if there&rsquo;s an emergency.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // No phone on file, or client chose to change — show input form
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#0d1628] px-4 py-8"
            style={{ paddingTop: "max(2rem, env(safe-area-inset-top))", paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}>
         <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#1a2744] p-8 shadow-xl text-center">
+          {emergencyBanner}
           <p className="text-4xl mb-3">💙</p>
           <h2 className="text-lg font-bold text-white mb-1">Recovery Check-in</h2>
           <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-            Before we start, what&rsquo;s the best phone number to reach you
-            in case of an emergency? This is only shared with your nurse if needed.
+            What&rsquo;s the best number to reach you in an emergency?
+            Only shared with {nurseName} if needed.
           </p>
           <input
             type="tel"
@@ -207,9 +270,6 @@ export default function HealingChatPage({
           >
             Skip — I don&rsquo;t want to share my number
           </button>
-          <p className="mt-4 text-xs text-slate-500 leading-relaxed">
-            🔒 Your number is never sold or shared with anyone except your nurse.
-          </p>
         </div>
       </div>
     );

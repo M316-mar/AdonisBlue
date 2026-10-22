@@ -51,7 +51,7 @@ export async function GET(request: Request) {
 
     const { data: treatment } = await supabase
       .from("treatments")
-      .select("*, intakes(first_name, email), procedures(name, aftercare_instructions)")
+      .select("*, intakes(first_name, email, phone), procedures(name, aftercare_instructions)")
       .eq("id", treatmentId)
       .single();
 
@@ -59,25 +59,29 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Treatment not found" }, { status: 404 });
     }
 
-    const { data: chat } = await supabase
-      .from("healing_chats")
-      .select("*")
-      .eq("treatment_id", treatmentId)
-      .single();
+    const [{ data: chat }, { data: keywords }, { data: botRow }] = await Promise.all([
+      supabase.from("healing_chats").select("*").eq("treatment_id", treatmentId).single(),
+      supabase.from("emergency_keywords").select("keyword").eq("nurse_id", treatment.nurse_id),
+      supabase.from("bots").select("nurse_name").eq("nurse_id", treatment.nurse_id).single(),
+    ]);
 
-    const { data: keywords } = await supabase
-      .from("emergency_keywords")
-      .select("keyword")
-      .eq("nurse_id", treatment.nurse_id);
+    const rawNurseName: string = (botRow as { nurse_name?: string } | null)?.nurse_name?.trim() ?? "";
+    const nurseFirstName = rawNurseName
+      ? rawNurseName.split(/\s+/)[0]!.charAt(0).toUpperCase() + rawNurseName.split(/\s+/)[0]!.slice(1).toLowerCase()
+      : null;
 
-    // Only expose what the client needs — never leak nurse contact details here
+    // Only expose what the client needs — never leak nurse contact/alert details here
     return NextResponse.json({
       treatment: {
         id: treatment.id,
         procedure_name: treatment.procedure_name,
         treatment_date: treatment.treatment_date,
         intakes: treatment.intakes
-          ? { first_name: treatment.intakes.first_name }
+          ? {
+              first_name: treatment.intakes.first_name,
+              // Client's own phone — safe to return (UUID-gated URL, client's own data)
+              phone: (treatment.intakes as { phone?: string }).phone ?? null,
+            }
           : null,
         procedures: treatment.procedures
           ? {
@@ -85,8 +89,9 @@ export async function GET(request: Request) {
               aftercare_instructions: treatment.procedures.aftercare_instructions,
             }
           : null,
-        bots: null, // not needed by client GET
+        bots: null,
       },
+      nurse_first_name: nurseFirstName,
       chat,
       emergency_keywords: [
         ...DEFAULT_EMERGENCY_KEYWORDS,
