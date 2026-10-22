@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { NextResponse } from "next/server";
 import { logError } from "@/lib/logError";
+import { dueDate, reminderSendDate } from "@/lib/reminderDate";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -86,14 +87,44 @@ export async function GET(request: Request) {
     if (!recent) missedJobs.push(friendlyName);
   }
 
-  const hasProblems = failures.length > 0 || appErrors.length > 0 || missedJobs.length > 0;
+  // Overdue return reminders: non-archived, not-rebooked, email client, not opted out,
+  // reminder_sent still false, and today is more than 2 days past the reminder send date.
+  const { data: unsentRows, error: unsentErr } = await supabase
+    .from("treatments")
+    .select("treatment_date, procedures(reminder_days), intakes(email, marketing_opt_out)")
+    .eq("archived", false)
+    .is("rebooked_at", null)
+    .eq("reminder_sent", false)
+    .not("treatment_date", "is", null)
+    .not("intake_id", "is", null);
+
+  if (unsentErr) await logError("cron:health-report", `overdue-reminder check: ${unsentErr.message}`);
+
+  const todayUTC = new Date();
+  todayUTC.setUTCHours(0, 0, 0, 0);
+
+  const overdueCount = (unsentRows ?? []).filter(row => {
+    const reminderDays = (row.procedures as any)?.reminder_days as number | null;
+    if (!reminderDays) return false;
+    const intake = Array.isArray(row.intakes) ? row.intakes[0] : row.intakes;
+    if (!(intake as any)?.email) return false;
+    if ((intake as any)?.marketing_opt_out) return false;
+    const due = dueDate(row.treatment_date, reminderDays);
+    if (isNaN(due.getTime())) return false;
+    const sendOn = reminderSendDate(due);
+    const grace = new Date(sendOn);
+    grace.setUTCDate(grace.getUTCDate() + 2); // 2-day grace period
+    return todayUTC > grace;
+  }).length;
+
+  const hasProblems = failures.length > 0 || appErrors.length > 0 || missedJobs.length > 0 || overdueCount > 0;
 
   // Log heartbeat before deciding whether to send
   await supabase.from("message_log").insert({
     type: "cron:health-report",
     channel: "email",
     status: "sent",
-    error: `failures=${failures.length}, errors=${appErrors.length}, missed=${missedJobs.length}`,
+    error: `failures=${failures.length}, errors=${appErrors.length}, missed=${missedJobs.length}, overdue_reminders=${overdueCount}`,
   }).then(() => {}, () => {});
 
   if (!hasProblems) {
@@ -119,6 +150,10 @@ export async function GET(request: Request) {
     for (const job of missedJobs) {
       problemLines.push(`⚠️ ${job} didn't go out today`);
     }
+  }
+
+  if (overdueCount > 0) {
+    problemLines.push(`⚠️ ${overdueCount} client${overdueCount !== 1 ? "s" : ""} should have received a come-back reminder but didn't.`);
   }
 
   if (appErrors.length > 0) {
