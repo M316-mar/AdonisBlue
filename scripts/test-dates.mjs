@@ -162,6 +162,25 @@ const cases = [
     result: dueDate("2026-07-25", 0).toISOString().slice(0, 10),
     expect: "2026-07-25",
   },
+
+  // Success-screen date display: UTC display must not shift date back in negative-offset zones
+  // treatment Oct 22 + 14 days → "Nov 5" (not "Nov 4" with UTC-naive toLocaleDateString)
+  {
+    label: 'success screen: dueDate("2026-10-22", 14) displays as "Nov 5" UTC',
+    result: dueDate("2026-10-22", 14).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }),
+    expect: "Nov 5",
+  },
+  // treatment Oct 22, 2025 + 180 days → due Apr 20, 2026; reminder send → Apr 6
+  {
+    label: 'success screen: dueDate("2025-10-22", 180) → due Apr 20, 2026',
+    result: dueDate("2025-10-22", 180).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }),
+    expect: "Apr 20",
+  },
+  {
+    label: 'success screen: reminderSendDate(dueDate("2025-10-22", 180)) → Apr 6, 2026',
+    result: reminderSendDate(dueDate("2025-10-22", 180)).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }),
+    expect: "Apr 6",
+  },
 ];
 
 // ── Run ──────────────────────────────────────────────────────────────────────

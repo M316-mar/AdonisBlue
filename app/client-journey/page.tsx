@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { ClientContactCard } from "@/components/ClientContactCard";
 import { SideNavRail } from "@/components/SideNavRail";
 import { formatTreatmentDate, parseTreatmentDate } from "@/lib/formatTreatmentDate";
+import { dueDate, reminderSendDate } from "@/lib/reminderDate";
 
 // ─── Seed data ────────────────────────────────────────────────────────────────
 
@@ -97,7 +98,8 @@ type Incident = {
 };
 
 type AftercareSentResult = {
-  sent_at: string;
+  aftercare_send_at: string | null;
+  treatment_id: string;
   treatment_date: string;
   procedure_name: string;
   reminder_days: number | null;
@@ -274,6 +276,8 @@ export default function ClientJourneyPage() {
   const [aftercareModalSending, setAftercareModalSending] = useState(false);
   const [aftercareModalError, setAftercareModalError] = useState<string | null>(null);
   const [aftercareModalResult, setAftercareModalResult] = useState<AftercareSentResult | null>(null);
+  const [aftercareActionLoading, setAftercareActionLoading] = useState(false);
+  const [aftercareActionDone, setAftercareActionDone] = useState<"sent_now" | "cancelled" | null>(null);
   const [aftercareSentResults, setAftercareSentResults] = useState<Map<string, AftercareSentResult>>(new Map());
   const [aftercarePreviewHtml, setAftercarePreviewHtml] = useState<string | null>(null);
   const [aftercarePreviewLoading, setAftercarePreviewLoading] = useState(false);
@@ -624,7 +628,8 @@ export default function ClientJourneyPage() {
         setAftercareModalError(j.error ?? "Something went wrong — please try again");
       } else {
         const result: AftercareSentResult = {
-          sent_at: j.sent_at,
+          aftercare_send_at: j.aftercare_send_at ?? null,
+          treatment_id: j.treatment_id,
           treatment_date: j.treatment_date,
           procedure_name: j.procedure_name,
           reminder_days: j.reminder_days ?? null,
@@ -632,6 +637,7 @@ export default function ClientJourneyPage() {
           marketing_opt_out: j.marketing_opt_out ?? false,
           review_submitted_at: j.review_submitted_at ?? null,
         };
+        setAftercareActionDone(null);
         setAftercareModalResult(result);
         setAftercareStep("success");
         setAftercareSentIds(prev => new Set([...prev, aftercareModal.intakeId]));
@@ -923,30 +929,33 @@ export default function ClientJourneyPage() {
                                 <p className="text-sm font-semibold text-[#1a2744]">Aftercare</p>
                                 <p className={`text-xs font-semibold ${aftercareSent ? "text-teal-600" : "text-slate-400"}`}>
                                   {aftercareSent && intakeId && aftercareSentResults.has(intakeId)
-                                    ? `Aftercare sent ✓ ${new Date(aftercareSentResults.get(intakeId)!.sent_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+                                    ? (() => {
+                                        const r = aftercareSentResults.get(intakeId)!;
+                                        if (r.aftercare_send_at) {
+                                          const t = new Date(r.aftercare_send_at);
+                                          return `Aftercare ${t > new Date() ? "sends" : "sent"} ✓ ${t.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`;
+                                        }
+                                        return "Aftercare sent ✓";
+                                      })()
                                     : aftercareSent ? "✅ Sent" : "❌ Not sent"}
                                 </p>
                                 {aftercareSent && intakeId && aftercareSentResults.has(intakeId) && (() => {
                                   const r = aftercareSentResults.get(intakeId)!;
-                                  const addD = (d: string, n: number) => {
-                                    const dt = new Date(d + "T00:00:00Z");
-                                    dt.setUTCDate(dt.getUTCDate() + n);
-                                    return dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                                  };
+                                  const fmtD = (d: Date) => d.toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" });
                                   return (
                                     <div className="mt-1.5 flex items-center gap-1 text-xs text-slate-400 flex-wrap">
                                       <span className="text-teal-600 font-semibold">Visit ✓</span>
                                       <span>→</span>
                                       <span className="text-teal-600 font-semibold">Aftercare ✓</span>
                                       <span>→</span>
-                                      <span>Check-in {addD(r.treatment_date, 1)}</span>
+                                      <span>Check-in {fmtD(dueDate(r.treatment_date, 1))}</span>
                                       {!r.marketing_opt_out && !r.review_submitted_at && <>
                                         <span>→</span>
-                                        <span>Review {addD(r.treatment_date, 14)}</span>
+                                        <span>Review {fmtD(dueDate(r.treatment_date, 14))}</span>
                                       </>}
                                       {!r.marketing_opt_out && <>
                                         <span>→</span>
-                                        <span>Next visit {r.reminder_days ? addD(r.treatment_date, r.reminder_days) : addD(r.treatment_date, 180)}</span>
+                                        <span>Next visit {fmtD(dueDate(r.treatment_date, r.reminder_days ?? 180))}</span>
                                       </>}
                                     </div>
                                   );
@@ -2158,16 +2167,23 @@ export default function ClientJourneyPage() {
             {/* Success screen */}
             {aftercareStep === "success" && aftercareModalResult && (() => {
               const r = aftercareModalResult;
-              const addD = (d: string, n: number) => {
-                const dt = new Date(d + "T00:00:00Z");
-                dt.setUTCDate(dt.getUTCDate() + n);
-                return dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-              };
+              const fmtD = (d: Date) => d.toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" });
+              const reviewDate = fmtD(dueDate(r.treatment_date, 14));
+              const reminderDays = r.reminder_days ?? 180;
+              const due = dueDate(r.treatment_date, reminderDays);
+              const reminderSend = reminderSendDate(due);
+              const scheduled = r.aftercare_send_at ? new Date(r.aftercare_send_at) : null;
+              const isScheduled = scheduled && scheduled > new Date();
+              const sendTime = scheduled ? scheduled.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }) : null;
               return (
                 <>
                   <div className="px-5 pt-6 pb-2 text-center shrink-0">
                     <p className="text-3xl mb-2">💙</p>
-                    <h2 className="text-lg font-bold text-[#1a2744]">Aftercare sent to {r.client_name}!</h2>
+                    {isScheduled && aftercareActionDone !== "sent_now" && aftercareActionDone !== "cancelled" ? (
+                      <h2 className="text-lg font-bold text-[#1a2744]">Aftercare will send to {r.client_name} at {sendTime}</h2>
+                    ) : (
+                      <h2 className="text-lg font-bold text-[#1a2744]">Aftercare sent to {r.client_name}!</h2>
+                    )}
                   </div>
                   <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
                     <p className="text-sm font-bold text-[#1a2744]">What happens next, automatically:</p>
@@ -2179,15 +2195,14 @@ export default function ClientJourneyPage() {
                       {!r.marketing_opt_out && !r.review_submitted_at && (
                         <div className="flex items-start gap-3">
                           <span className="text-teal-500 font-bold text-sm mt-0.5 shrink-0">✓</span>
-                          <p className="text-sm text-slate-700">{addD(r.treatment_date, 14)}: review request</p>
+                          <p className="text-sm text-slate-700">{reviewDate}: review request</p>
                         </div>
                       )}
                       {!r.marketing_opt_out && (
                         <div className="flex items-start gap-3">
                           <span className="text-teal-500 font-bold text-sm mt-0.5 shrink-0">✓</span>
                           <p className="text-sm text-slate-700">
-                            {r.reminder_days ? addD(r.treatment_date, r.reminder_days) : addD(r.treatment_date, 180)}: a reminder that her {r.procedure_name} is due
-                            {!r.reminder_days && " (6-month check-in)"}
+                            {fmtD(reminderSend)}: a reminder to book her next {r.procedure_name} (due {fmtD(due)})
                           </p>
                         </div>
                       )}
@@ -2200,7 +2215,57 @@ export default function ClientJourneyPage() {
                     </div>
                     <p className="text-sm text-slate-500 pt-1">You don&apos;t need to do anything else.</p>
                   </div>
-                  <div className="px-5 py-4 border-t border-slate-100 shrink-0">
+                  <div className="px-5 py-4 border-t border-slate-100 shrink-0 space-y-2">
+                    {isScheduled && aftercareActionDone === null && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={aftercareActionLoading}
+                          style={{ touchAction: "manipulation" }}
+                          className="flex-1 min-h-[44px] rounded-full border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98] disabled:opacity-50"
+                          onClick={async () => {
+                            setAftercareActionLoading(true);
+                            try {
+                              await fetch(`/api/treatments/${r.treatment_id}/aftercare-now`, {
+                                method: "POST",
+                                headers: { Authorization: `Bearer ${token}` },
+                              });
+                              setAftercareActionDone("sent_now");
+                            } finally {
+                              setAftercareActionLoading(false);
+                            }
+                          }}
+                        >
+                          {aftercareActionLoading ? "…" : "Send now"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={aftercareActionLoading}
+                          style={{ touchAction: "manipulation" }}
+                          className="flex-1 min-h-[44px] rounded-full border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 active:scale-[0.98] disabled:opacity-50"
+                          onClick={async () => {
+                            setAftercareActionLoading(true);
+                            try {
+                              await fetch(`/api/treatments/${r.treatment_id}/aftercare-cancel`, {
+                                method: "POST",
+                                headers: { Authorization: `Bearer ${token}` },
+                              });
+                              setAftercareActionDone("cancelled");
+                            } finally {
+                              setAftercareActionLoading(false);
+                            }
+                          }}
+                        >
+                          {aftercareActionLoading ? "…" : "Cancel"}
+                        </button>
+                      </div>
+                    )}
+                    {aftercareActionDone === "sent_now" && (
+                      <p className="text-sm text-teal-600 font-semibold text-center">Sent now ✓</p>
+                    )}
+                    {aftercareActionDone === "cancelled" && (
+                      <p className="text-sm text-slate-500 text-center">Aftercare cancelled.</p>
+                    )}
                     <button
                       type="button"
                       onClick={closeAftercareModal}

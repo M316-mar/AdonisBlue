@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { sendEmail } from "@/lib/sendAndLog";
+import { sendEmail, scheduleEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
 import { firstName } from "@/lib/firstName";
 import { substitutePlaceholdersSafeHtml } from "@/lib/substitutePlaceholders";
@@ -263,39 +263,61 @@ export async function POST(request: Request) {
       personalNote,
     });
 
-    const result = await sendEmail({
+    const emailSubject = `Your aftercare instructions from ${escapedPracticeName} 💙`;
+    const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+    const scheduleResult = await scheduleEmail({
       type: "aftercare",
       nurse_id: user.id,
       treatment_id: treatmentId,
       intake_id: intakeIdRaw,
       to: intake.email,
-      subject: `Your aftercare instructions from ${escapedPracticeName} 💙`,
+      subject: emailSubject,
       html: emailHtml,
+      scheduledAt,
       supabase,
     });
 
-    if (!result.ok) {
-      return NextResponse.json({ error: "Failed to send aftercare email — please try again" }, { status: 500 });
+    let aftercareSendAt: string | null = null;
+
+    if (scheduleResult.ok) {
+      const { error: updateErr } = await supabase
+        .from("treatments")
+        .update({ aftercare_send_at: scheduledAt })
+        .eq("id", treatmentId);
+      if (updateErr) await logError("send-aftercare", `aftercare_send_at update: ${updateErr.message}`);
+      aftercareSendAt = scheduledAt;
+    } else {
+      await logError("send-aftercare", `schedule failed, sending immediately: ${scheduleResult.error}`);
+      const fallbackResult = await sendEmail({
+        type: "aftercare",
+        nurse_id: user.id,
+        treatment_id: treatmentId,
+        intake_id: intakeIdRaw,
+        to: intake.email,
+        subject: emailSubject,
+        html: emailHtml,
+        supabase,
+      });
+      if (!fallbackResult.ok) {
+        return NextResponse.json({ error: "Failed to send aftercare email — please try again" }, { status: 500 });
+      }
+      const sentAt = new Date().toISOString();
+      await supabase
+        .from("treatments")
+        .update({ aftercare_sent: true, aftercare_sent_at: sentAt })
+        .eq("id", treatmentId);
+      await supabase
+        .from("intakes")
+        .update({ aftercare_sent_at: sentAt })
+        .eq("id", intakeIdRaw);
     }
-
-    const sentAt = new Date().toISOString();
-
-    await supabase
-      .from("treatments")
-      .update({ aftercare_sent: true, aftercare_sent_at: sentAt })
-      .eq("id", treatmentId);
-
-    // update intakes.aftercare_sent_at (timestamp only — no boolean column on intakes)
-    await supabase
-      .from("intakes")
-      .update({ aftercare_sent_at: sentAt })
-      .eq("id", intakeIdRaw);
 
     return NextResponse.json({
       success: true,
       treatment_id: treatmentId,
       treatment_date: treatmentDateRaw,
-      sent_at: sentAt,
+      aftercare_send_at: aftercareSendAt,
       procedure_name: procedure.name,
       reminder_days: procedure.reminder_days ?? null,
       client_name: intake.first_name || "Beautiful",
