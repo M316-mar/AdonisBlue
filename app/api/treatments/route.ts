@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { sendEmail } from "@/lib/sendAndLog";
+import { sendEmail, scheduleEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
 import { substitutePlaceholders } from "@/lib/substitutePlaceholders";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
@@ -319,8 +319,8 @@ export async function POST(request: Request) {
     const hasStandardProcedures = !!(selectedProcedures && selectedProcedures.length > 0);
     const hasCustomAftercare = !!(procedureName && customAftercareInstructions);
 
-    // ── Send combined aftercare email ──────────────────────────────────────
-    let aftercareSent = false;
+    // ── Schedule aftercare email (60 min from now) ────────────────────────────
+    let aftercareSendAt: string | null = null;
 
     if (
       clientEmail &&
@@ -358,13 +358,7 @@ export async function POST(request: Request) {
         </div>`;
       }
 
-      const aftercareSendResult = await sendEmail({
-        type: "aftercare",
-        nurse_id: user.id,
-        treatment_id: treatment.id,
-        to: clientEmail,
-        subject: `Your aftercare instructions from ${practiceName} 💙`,
-        html: `<!DOCTYPE html>
+      const emailHtml = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
@@ -390,20 +384,53 @@ export async function POST(request: Request) {
       </table>
     </td></tr>
   </table>
-</body></html>`,
+</body></html>`;
+
+      const emailSubject = `Your aftercare instructions from ${practiceName} 💙`;
+      const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+      const scheduleResult = await scheduleEmail({
+        type: "aftercare",
+        nurse_id: user.id,
+        treatment_id: treatment.id,
+        to: clientEmail,
+        subject: emailSubject,
+        html: emailHtml,
+        scheduledAt,
         supabase,
       });
 
-      if (aftercareSendResult.ok) {
+      if (scheduleResult.ok) {
         await supabase
           .from("treatments")
-          .update({
-            aftercare_sent: true,
-            aftercare_sent_at: new Date().toISOString(),
-          })
+          .update({ aftercare_send_at: scheduledAt })
           .eq("id", treatment.id);
-
-        aftercareSent = true;
+        aftercareSendAt = scheduledAt;
+      } else {
+        // Resend scheduling failed — fall back to immediate send so aftercare is never silently skipped
+        await logError("treatments", `schedule failed, sending immediately: ${scheduleResult.error}`);
+        const fallbackResult = await sendEmail({
+          type: "aftercare",
+          nurse_id: user.id,
+          treatment_id: treatment.id,
+          to: clientEmail,
+          subject: emailSubject,
+          html: emailHtml,
+          supabase,
+        });
+        if (fallbackResult.ok) {
+          const sentAt = new Date().toISOString();
+          await supabase
+            .from("treatments")
+            .update({ aftercare_sent: true, aftercare_sent_at: sentAt })
+            .eq("id", treatment.id);
+          if (resolvedIntakeId) {
+            await supabase
+              .from("intakes")
+              .update({ aftercare_sent_at: sentAt })
+              .eq("id", resolvedIntakeId);
+          }
+        }
       }
     }
 
@@ -417,7 +444,7 @@ export async function POST(request: Request) {
       .eq("id", treatment.id)
       .single();
 
-    return NextResponse.json({ treatment: fullTreatment ?? treatment, aftercare_sent_at: aftercareSent ? new Date().toISOString() : null });
+    return NextResponse.json({ treatment: fullTreatment ?? treatment, aftercare_send_at: aftercareSendAt });
   } catch (e) {
     await logError("treatments", String(e));
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });

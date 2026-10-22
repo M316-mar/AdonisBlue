@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
 import { formatTreatmentDate } from "@/lib/formatTreatmentDate";
+import { promoteScheduledAftercares } from "@/lib/promoteScheduledAftercares";
 
 function escapeHtml(str: string): string {
   return str
@@ -28,6 +29,9 @@ export async function GET(request: Request) {
   let skipped = 0;
 
   try {
+    // Promote any scheduled aftercare emails that Resend has delivered
+    await promoteScheduledAftercares(supabase);
+
     const now = new Date();
     // Treatments where aftercare_sent=false, treatment_date was 1–14 days ago
     const oneDayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];

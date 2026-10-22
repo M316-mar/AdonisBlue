@@ -27,6 +27,7 @@ type Treatment = {
   procedure_id: string | null;
   treatment_date: string;
   aftercare_sent_at: string | null;
+  aftercare_send_at: string | null;
   notes: string;
   came_via_bot: boolean;
   archived: boolean;
@@ -81,6 +82,24 @@ function defaultPrepInstructions(procedureName: string): string {
     return "Come with a clean face — no makeup or active skincare.\nAvoid alcohol 24 hours before your appointment.\nAvoid retinol and acids for 3 days before.\nStay hydrated — drink plenty of water.\nArrive 10 minutes early.";
   }
   return "Come with a clean face — no makeup.\nAvoid alcohol 24 hours before your appointment.\nAvoid blood thinners and ibuprofen for 24 hours.\nStay hydrated — drink plenty of water.\nArrive 10 minutes early.";
+}
+
+function formatScheduledTime(isoStr: string): string {
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  const isToday = d.toLocaleDateString() === now.toLocaleDateString();
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  if (isToday) return time;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " at " + time;
+}
+
+function isAftercareDelivered(t: Treatment, aftercareSentIds: Set<string>): boolean {
+  if (aftercareSentIds.has(t.id)) return true;
+  if (t.aftercare_sent_at != null) return true;
+  // Scheduled time has passed — Resend has delivered (promotion hasn't run yet)
+  if (t.aftercare_send_at != null && new Date(t.aftercare_send_at) <= new Date()) return true;
+  return false;
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -144,6 +163,8 @@ export default function AftercarePage() {
 
   const [aftercareSendingId, setAftercareSendingId] = useState<string | null>(null);
   const [aftercareSentIds, setAftercareSentIds] = useState<Set<string>>(new Set());
+  const [aftercareSendNowId, setAftercareSendNowId] = useState<string | null>(null);
+  const [aftercareCancelingId, setAftercareCancelingId] = useState<string | null>(null);
 
   const [prepPrompt, setPrepPrompt] = useState<{
     intakeId: string;
@@ -403,7 +424,14 @@ export default function AftercarePage() {
       setAddingTreatment(false);
       clearDraft(nurseId);
       setDraftBanner(null);
-      flash(j.aftercare_sent_at ? `Treatment logged and aftercare sent for ${procedureNames}! 💙` : "Treatment logged!");
+      const loggedTreatment = j.treatment;
+      flash(
+        loggedTreatment?.aftercare_sent_at
+          ? `Treatment logged and aftercare sent for ${procedureNames}! 💙`
+          : loggedTreatment?.aftercare_send_at
+          ? `Treatment logged! 💙 Aftercare will send to ${capturedClientName} in about 60 minutes.`
+          : "Treatment logged!"
+      );
 
       // Rebook: PATCH the newly created treatment to set next_appointment_at — no second treatment row.
       if (capturedRebookChecked && capturedRebookDate && j.treatment?.id) {
@@ -446,6 +474,62 @@ export default function AftercarePage() {
     }
     setTreatmentSaving(false);
   }, [newTreatment, customProcedure, customProcedureAftercare, customProcedureReminderDays, rebookChecked, rebookDate, rebookProcedureIds, rebookCustomProcedure, procedures, token, intakes]);
+
+  // ── Scheduled aftercare: Send now / Cancel ────────────────────────────────
+  const handleAftercareSendNow = useCallback(async (treatmentId: string) => {
+    setAftercareSendNowId(treatmentId);
+    try {
+      const res = await fetch(`/api/treatments/${treatmentId}/aftercare-now`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = await res.json();
+      if (res.ok) {
+        const sentAt = j.sent_at as string;
+        setTreatments(prev => prev.map(t =>
+          t.id === treatmentId
+            ? { ...t, aftercare_sent_at: sentAt, aftercare_send_at: null }
+            : t
+        ));
+        flash(j.already_sent ? "Aftercare was already sent! ✅" : "Aftercare sent now! 💙");
+      } else {
+        flash(j.error ?? "Couldn't send aftercare right now");
+      }
+    } catch {
+      flash("Couldn't send aftercare right now");
+    }
+    setAftercareSendNowId(null);
+  }, [token]);
+
+  const handleAftercareCancel = useCallback(async (treatmentId: string) => {
+    setAftercareCancelingId(treatmentId);
+    try {
+      const res = await fetch(`/api/treatments/${treatmentId}/aftercare-cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = await res.json();
+      if (res.ok) {
+        setTreatments(prev => prev.map(t =>
+          t.id === treatmentId ? { ...t, aftercare_send_at: null } : t
+        ));
+        flash("Scheduled aftercare canceled. You can send it manually later.");
+      } else if (j.already_sent) {
+        const sentAt = j.sent_at as string;
+        setTreatments(prev => prev.map(t =>
+          t.id === treatmentId
+            ? { ...t, aftercare_sent_at: sentAt, aftercare_send_at: null }
+            : t
+        ));
+        flash("Already sent! ✅");
+      } else {
+        flash(j.error ?? "Couldn't cancel scheduled aftercare");
+      }
+    } catch {
+      flash("Couldn't cancel scheduled aftercare");
+    }
+    setAftercareCancelingId(null);
+  }, [token]);
 
   // ── Archive handlers ───────────────────────────────────────────────────────
   const loadArchivedTreatments = useCallback(async () => {
@@ -1202,7 +1286,9 @@ export default function AftercarePage() {
               const rep = groupTreatments[0];
               const clientName = rep.intakes?.first_name ?? "Walk-in Client";
               const clientEmail = rep.intakes?.email ?? "";
-              const hasUnsent = groupTreatments.some(t => t.aftercare_sent_at == null && !aftercareSentIds.has(t.id));
+              const hasUnsent = groupTreatments.some(t =>
+                !isAftercareDelivered(t, aftercareSentIds) && !t.aftercare_send_at
+              );
               const isExpanded = expandedClientIds.has(groupKey) || (!expandedClientIds.has(`collapsed:${groupKey}`) && hasUnsent);
               const toggle = () => setExpandedClientIds(prev => {
                 const next = new Set(prev);
@@ -1236,6 +1322,9 @@ export default function AftercarePage() {
                     <div className="flex items-center gap-2 shrink-0">
                       {hasUnsent && (
                         <span className="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-700">⏳ Aftercare pending</span>
+                      )}
+                      {!hasUnsent && groupTreatments.some(t => t.aftercare_send_at && !isAftercareDelivered(t, aftercareSentIds)) && (
+                        <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-blue-700">💙 Aftercare scheduled</span>
                       )}
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
                         {groupTreatments.length} visit{groupTreatments.length !== 1 ? "s" : ""}
@@ -1323,8 +1412,10 @@ export default function AftercarePage() {
                                 {treatment.notes === "Rebooked appointment" && (
                                   <span className="rounded-full bg-purple-50 border border-purple-200 px-2 py-0.5 text-xs font-semibold text-purple-700">📅 Rebooked</span>
                                 )}
-                                {(treatment.aftercare_sent_at != null || aftercareSentIds.has(treatment.id)) ? (
+                                {isAftercareDelivered(treatment, aftercareSentIds) ? (
                                   <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">✅ Aftercare sent</span>
+                                ) : treatment.aftercare_send_at && new Date(treatment.aftercare_send_at) > new Date() ? (
+                                  <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-blue-700">💙 Sending soon</span>
                                 ) : (
                                   <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">⏳ No aftercare</span>
                                 )}
@@ -1350,6 +1441,35 @@ export default function AftercarePage() {
                               </svg>
                             </button>
                           </div>
+                          {/* Scheduled aftercare banner */}
+                          {treatment.aftercare_send_at && !isAftercareDelivered(treatment, aftercareSentIds) && new Date(treatment.aftercare_send_at) > new Date() && (
+                            <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                              <div className="flex items-center justify-between gap-3 flex-wrap">
+                                <p className="text-xs text-blue-800 font-medium">
+                                  💙 Aftercare will send to <strong>{clientName}</strong> at {formatScheduledTime(treatment.aftercare_send_at)}
+                                </p>
+                                <div className="flex gap-2 shrink-0">
+                                  <button
+                                    type="button"
+                                    disabled={aftercareSendNowId === treatment.id}
+                                    onClick={() => void handleAftercareSendNow(treatment.id)}
+                                    className="rounded-full bg-teal-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                                  >
+                                    {aftercareSendNowId === treatment.id ? "Sending…" : "Send now"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={aftercareCancelingId === treatment.id}
+                                    onClick={() => void handleAftercareCancel(treatment.id)}
+                                    className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                                  >
+                                    {aftercareCancelingId === treatment.id ? "Canceling…" : "Cancel"}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Inline archive confirmation */}
                           {archiveConfirmId === treatment.id && (
                             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

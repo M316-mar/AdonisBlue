@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { promoteScheduledAftercares } from "@/lib/promoteScheduledAftercares";
 
 function serviceClient() {
   return createClient(
@@ -41,6 +42,10 @@ export async function GET(request: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const db = serviceClient();
+
+    // Promote any scheduled aftercare emails that Resend has delivered
+    await promoteScheduledAftercares(db);
+
     const today = todayUTC();
     const in7Days = daysFromNow(7);
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
