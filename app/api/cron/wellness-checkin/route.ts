@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
 import { firstName } from "@/lib/firstName";
 import { promoteScheduledAftercares } from "@/lib/promoteScheduledAftercares";
+import { phoneHtml } from "@/lib/formatPhone";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.adonisblue.io";
 
@@ -94,11 +95,11 @@ export async function GET(request: Request) {
       const clientName = escapeHtml(firstName(intake.first_name, "there"));
       const procedureName = escapeHtml(treatment.procedure_name || "your treatment");
       const healingLink = `${SITE_URL}/healing/${treatment.id}`;
-      const nursePhone = escapeHtml(bot.alert_phone || "");
+      const rawNursePhone = bot.alert_phone?.trim() || "";
       const slug = bot.slug ?? null;
 
-      const emergencyLine = nursePhone
-        ? `If you have severe pain, vision changes, skin turning white, grey, or blue, or trouble breathing, call 911 or go to the nearest ER immediately — then contact me at ${nursePhone}.`
+      const emergencyLine = rawNursePhone
+        ? `If you have severe pain, vision changes, skin turning white, grey, or blue, or trouble breathing, call 911 or go to the nearest ER immediately — then contact me at ${phoneHtml(rawNursePhone)}.`
         : `If you have severe pain, vision changes, skin turning white, grey, or blue, or trouble breathing, call 911 or go to the nearest ER immediately.`;
 
       const result = await sendEmail({

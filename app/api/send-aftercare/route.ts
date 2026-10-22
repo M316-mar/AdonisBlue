@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
 import { firstName } from "@/lib/firstName";
-import { substitutePlaceholders } from "@/lib/substitutePlaceholders";
+import { substitutePlaceholdersSafeHtml } from "@/lib/substitutePlaceholders";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -37,7 +37,7 @@ function buildAftercareHtml({
   let combinedHtml = `
 <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
   <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(procedureName)} Aftercare</h3>
-  <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(instructions)}</p>
+  <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${instructions}</p>
 </div>`;
   if (personalNote) {
     combinedHtml += `
@@ -123,7 +123,7 @@ export async function GET(request: Request) {
       escapedPracticeName: escapeHtml(bot?.practice_name || "your provider"),
       treatmentId: "preview",
       procedureName: procedure.name,
-      instructions: substitutePlaceholders(rawPreviewInstructions, previewNurseName, previewNursePhone),
+      instructions: substitutePlaceholdersSafeHtml(rawPreviewInstructions, previewNurseName, previewNursePhone),
       personalNote,
     });
 
@@ -249,7 +249,7 @@ export async function POST(request: Request) {
     const sendNursePhone = bot?.phone_public || bot?.alert_phone || "";
     const rawSendInstructions = (procedure.aftercare_instructions ?? "").trim()
       || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";
-    const instructions = substitutePlaceholders(rawSendInstructions, sendNurseName, sendNursePhone);
+    const instructions = substitutePlaceholdersSafeHtml(rawSendInstructions, sendNurseName, sendNursePhone);
 
     const clientName = escapeHtml(firstName(intake.first_name, "Beautiful"));
     const escapedPracticeName = escapeHtml(practiceName);

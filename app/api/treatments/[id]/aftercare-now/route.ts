@@ -3,7 +3,7 @@ import { Resend } from "resend";
 import { NextResponse } from "next/server";
 import { logError } from "@/lib/logError";
 import { promoteScheduledAftercares } from "@/lib/promoteScheduledAftercares";
-import { substitutePlaceholders } from "@/lib/substitutePlaceholders";
+import { substitutePlaceholdersSafeHtml } from "@/lib/substitutePlaceholders";
 import { sendEmail } from "@/lib/sendAndLog";
 import { firstName } from "@/lib/firstName";
 
@@ -121,7 +121,7 @@ export async function POST(
 
     const rawInstructions = (proc?.aftercare_instructions ?? "").trim()
       || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";
-    const instructions = substitutePlaceholders(rawInstructions, nurseDisplayName, nursePhone);
+    const instructionsHtml = substitutePlaceholdersSafeHtml(rawInstructions, nurseDisplayName, nursePhone);
     const procName = proc?.name || treatment.procedure_name || "your treatment";
 
     const html = `<!DOCTYPE html>
@@ -139,7 +139,7 @@ export async function POST(
           <p style="margin:0 0 8px;color:#475569;font-size:14px;">Thank you for your visit today. Here are your aftercare instructions:</p>
           <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
             <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(procName)} Aftercare</h3>
-            <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(instructions)}</p>
+            <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${instructionsHtml}</p>
           </div>
           <div style="background:#1a2744;border-radius:14px;padding:20px;margin:20px 0;text-align:center;">
             <p style="margin:0 0 8px;color:#ffffff;font-size:15px;font-weight:600;">Have recovery questions? 💙</p>

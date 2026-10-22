@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail, scheduleEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
-import { substitutePlaceholders } from "@/lib/substitutePlaceholders";
+import { substitutePlaceholdersSafeHtml } from "@/lib/substitutePlaceholders";
 import { firstName } from "@/lib/firstName";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
@@ -335,11 +335,11 @@ export async function POST(request: Request) {
           .map((proc) => {
             const rawInstructions = (proc.aftercare_instructions ?? "").trim()
               || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours. Reach out if you have any questions or concerns!";
-            const instructions = substitutePlaceholders(rawInstructions, nurseDisplayName, nursePhone);
+            const instructionsHtml = substitutePlaceholdersSafeHtml(rawInstructions, nurseDisplayName, nursePhone);
             return `
         <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
           <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(proc.name ?? "")} Aftercare</h3>
-          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(instructions)}</p>
+          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${instructionsHtml}</p>
         </div>`;
           })
           .join("");
@@ -347,7 +347,7 @@ export async function POST(request: Request) {
         combinedAftercareHtml = `
         <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
           <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(procedureName)} Aftercare</h3>
-          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(substitutePlaceholders(customAftercareInstructions, nurseDisplayName, nursePhone))}</p>
+          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${substitutePlaceholdersSafeHtml(customAftercareInstructions, nurseDisplayName, nursePhone)}</p>
         </div>`;
       }
 
