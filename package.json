@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check": "next build && node scripts/schema-check.mjs && node scripts/test-dates.mjs && node scripts/test-names.mjs && node scripts/test-phone.mjs"
+    "check": "next build && node scripts/schema-check.mjs && node scripts/test-dates.mjs && node scripts/test-names.mjs && node scripts/test-phone.mjs && node scripts/test-healing-upsert.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
