@@ -225,13 +225,12 @@ export function AssistantPanel({
   const handleScheduledSendNow = async (a: ScheduledAftercare) => {
     setScheduledSendingNow(a.treatment_id);
     try {
-      const res = await fetch("/api/send-aftercare", {
+      const res = await fetch(`/api/treatments/${a.treatment_id}/aftercare-now`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ treatment_id: a.treatment_id, send_now: true }),
+        headers: { Authorization: `Bearer ${token}` },
       });
-      const j = await res.json() as { success?: boolean; error?: string };
-      if (j.success) {
+      const j = await res.json() as { ok?: boolean; error?: string };
+      if (j.ok) {
         setCtx(prev => prev ? { ...prev, scheduledAftercares: prev.scheduledAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
       }
     } finally {
@@ -242,12 +241,12 @@ export function AssistantPanel({
   const handleScheduledCancel = async (a: ScheduledAftercare) => {
     setScheduledCancelling(a.treatment_id);
     try {
-      const res = await fetch("/api/send-aftercare", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ treatment_id: a.treatment_id }),
+      const res = await fetch(`/api/treatments/${a.treatment_id}/aftercare-cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
+      const j = await res.json() as { ok?: boolean; already_sent?: boolean; error?: string };
+      if (j.ok && !j.already_sent) {
         setCtx(prev => prev ? { ...prev, scheduledAftercares: prev.scheduledAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
       }
     } finally {

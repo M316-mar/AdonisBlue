@@ -168,16 +168,13 @@ export async function POST(request: Request) {
       if (!t) return NextResponse.json({ error: "Treatment not found" }, { status: 404 });
       if (t.archived) return NextResponse.json({ error: "Treatment is archived" }, { status: 422 });
 
-      const sendNow = body.send_now === true;
       // Dedup: already sent or already scheduled?
       const alreadySentAt = (t as any).aftercare_sent_at as string | null;
       const alreadyScheduledAt = (t as any).aftercare_send_at as string | null;
       if (alreadySentAt) {
         return NextResponse.json({ already_sent: true, sent_at: alreadySentAt }, { status: 409 });
       }
-      // When send_now=true (nurse clicked "Send now" on a scheduled row), skip the
-      // scheduled-dedup guard so we can send immediately instead of waiting.
-      if (!sendNow && alreadyScheduledAt && new Date(alreadyScheduledAt) > new Date()) {
+      if (alreadyScheduledAt && new Date(alreadyScheduledAt) > new Date()) {
         return NextResponse.json({ already_scheduled: true, scheduled_at: alreadyScheduledAt }, { status: 409 });
       }
 
@@ -205,28 +202,18 @@ export async function POST(request: Request) {
       const emailHtml = buildAftercareHtml({ clientName, escapedPracticeName: escapeHtml(bot?.practice_name || "your provider"), treatmentId: treatmentIdDirect, procedureName: procedure.name, instructions, personalNote });
       const emailSubject = `Your aftercare instructions from ${escapeHtml(bot?.practice_name || "your provider")} 💙`;
       let aftercareSendAt: string | null = null;
-
-      if (sendNow) {
-        // Nurse clicked "Send now" — skip schedule, send immediately
-        const immediateResult = await sendEmail({ type: "aftercare", nurse_id: user.id, treatment_id: treatmentIdDirect, intake_id: (t as any).intake_id, to: intake.email, subject: emailSubject, html: emailHtml, supabase });
-        if (!immediateResult.ok) return NextResponse.json({ error: "Failed to send aftercare email — please try again" }, { status: 500 });
-        const sentAt = new Date().toISOString();
-        await supabase.from("treatments").update({ aftercare_sent: true, aftercare_sent_at: sentAt, aftercare_send_at: null }).eq("id", treatmentIdDirect);
-        await supabase.from("intakes").update({ aftercare_sent_at: sentAt }).eq("id", (t as any).intake_id);
+      const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const scheduleResult = await scheduleEmail({ type: "aftercare", nurse_id: user.id, treatment_id: treatmentIdDirect, intake_id: (t as any).intake_id, to: intake.email, subject: emailSubject, html: emailHtml, scheduledAt, supabase });
+      if (scheduleResult.ok) {
+        await supabase.from("treatments").update({ aftercare_send_at: scheduledAt }).eq("id", treatmentIdDirect);
+        aftercareSendAt = scheduledAt;
       } else {
-        const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-        const scheduleResult = await scheduleEmail({ type: "aftercare", nurse_id: user.id, treatment_id: treatmentIdDirect, intake_id: (t as any).intake_id, to: intake.email, subject: emailSubject, html: emailHtml, scheduledAt, supabase });
-        if (scheduleResult.ok) {
-          await supabase.from("treatments").update({ aftercare_send_at: scheduledAt }).eq("id", treatmentIdDirect);
-          aftercareSendAt = scheduledAt;
-        } else {
-          await logError("send-aftercare", `schedule failed, sending immediately: ${scheduleResult.error}`);
-          const fallbackResult = await sendEmail({ type: "aftercare", nurse_id: user.id, treatment_id: treatmentIdDirect, intake_id: (t as any).intake_id, to: intake.email, subject: emailSubject, html: emailHtml, supabase });
-          if (!fallbackResult.ok) return NextResponse.json({ error: "Failed to send aftercare email — please try again" }, { status: 500 });
-          const sentAt = new Date().toISOString();
-          await supabase.from("treatments").update({ aftercare_sent: true, aftercare_sent_at: sentAt }).eq("id", treatmentIdDirect);
-          await supabase.from("intakes").update({ aftercare_sent_at: sentAt }).eq("id", (t as any).intake_id);
-        }
+        await logError("send-aftercare", `schedule failed, sending immediately: ${scheduleResult.error}`);
+        const fallbackResult = await sendEmail({ type: "aftercare", nurse_id: user.id, treatment_id: treatmentIdDirect, intake_id: (t as any).intake_id, to: intake.email, subject: emailSubject, html: emailHtml, supabase });
+        if (!fallbackResult.ok) return NextResponse.json({ error: "Failed to send aftercare email — please try again" }, { status: 500 });
+        const sentAt = new Date().toISOString();
+        await supabase.from("treatments").update({ aftercare_sent: true, aftercare_sent_at: sentAt }).eq("id", treatmentIdDirect);
+        await supabase.from("intakes").update({ aftercare_sent_at: sentAt }).eq("id", (t as any).intake_id);
       }
 
       return NextResponse.json({ success: true, treatment_id: treatmentIdDirect, treatment_date: (t as any).treatment_date, aftercare_send_at: aftercareSendAt, procedure_name: procedure.name, reminder_days: procedure.reminder_days ?? null, client_name: intake.first_name || "Beautiful", marketing_opt_out: intake.marketing_opt_out ?? false, review_submitted_at: intake.review_submitted_at ?? null, review_request_sent: intake.review_request_sent ?? false });
@@ -424,56 +411,3 @@ export async function POST(request: Request) {
   }
 }
 
-// DELETE /api/send-aftercare — cancel a scheduled aftercare (clears aftercare_send_at)
-export async function DELETE(request: Request) {
-  try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "").trim();
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const supabaseAuth = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    const { data: { user } } = await supabaseAuth.auth.getUser(token);
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    const body = await request.json();
-    const treatmentId = typeof body.treatment_id === "string" ? body.treatment_id.trim() : "";
-    if (!treatmentId || !UUID_REGEX.test(treatmentId)) {
-      return NextResponse.json({ error: "Invalid treatment ID" }, { status: 400 });
-    }
-
-    const { data: t } = await supabase
-      .from("treatments")
-      .select("id, aftercare_sent_at")
-      .eq("id", treatmentId)
-      .eq("nurse_id", user.id)
-      .maybeSingle();
-
-    if (!t) return NextResponse.json({ error: "Treatment not found" }, { status: 404 });
-    if ((t as any).aftercare_sent_at) {
-      return NextResponse.json({ error: "Aftercare has already been sent — cannot cancel" }, { status: 409 });
-    }
-
-    const { error: updateErr } = await supabase
-      .from("treatments")
-      .update({ aftercare_send_at: null })
-      .eq("id", treatmentId);
-
-    if (updateErr) {
-      await logError("send-aftercare", `cancel update: ${updateErr.message}`);
-      return NextResponse.json({ error: "Failed to cancel" }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (e) {
-    console.error("[send-aftercare DELETE]", e);
-    await logError("send-aftercare", String(e));
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
-  }
-}
