@@ -1,53 +1,65 @@
 import { createClient } from "@supabase/supabase-js";
 
-export const DEFAULT_EMERGENCY_KEYWORDS = [
+// ── 🔴 CALL 911 — airway, breathing, cardiac, neurological, anaphylaxis ──────
+export const EMERGENCY_KEYWORDS_911 = [
   // Breathing
   "trouble breathing", "difficulty breathing", "hard to breathe",
   "hard time breathing", "short of breath", "shortness of breath",
   "can't breathe", "cant breathe", "cannot breathe",
-  // Throat / tongue
+  "can't catch my breath", "cant catch my breath",
+  // Throat / tongue / airway
   "throat swelling", "throat is swelling", "throat closing", "throat is closing",
   "tongue swelling", "tongue is swelling",
   "can't swallow", "cant swallow", "trouble swallowing",
-  // Vision
+  "throat tight", "throat feels tight", "throat is tight", "tight throat", "throat feels weird",
+  // Vision / neurological
   "blurry vision", "blurred vision", "losing vision", "lost vision",
   "vision loss", "double vision", "can't see", "cant see",
-  // Skin color / vascular — including vascular occlusion signs
+  "vision", "blindness",
+  // Neurological
+  "face drooping", "slurred speech",
+  // Cardiac
+  "chest pain", "chest tight", "chest feels tight",
+  // Loss of consciousness
+  "fainted", "passing out", "pass out",
+  // Anaphylaxis / allergic
+  "allergic", "anaphylaxis",
+  // They already called 911
+  "911",
+];
+
+// ── 🟠 CALL NURSE — vascular, pain, infection, other urgent ──────────────────
+export const EMERGENCY_KEYWORDS_NURSE = [
+  // Vascular occlusion signs
   "turning white", "turning gray", "turning blue",
   "skin is white", "skin is gray", "blanching",
   "looks white", "is white", "turned white",
   "feels cold", "cold to the touch",
   "pale", "blotchy",
-  // Cardiac / systemic
-  "chest pain", "chest tight",
-  "fainted", "passing out", "pass out",
+  "purple", "blue lips",
   // Pain
   "severe pain", "unbearable pain", "pain is unbearable",
-  // Infection / reaction
-  "spreading redness", "high fever",
-  // Throat tightness (common filler reaction phrase)
-  "throat tight", "throat feels tight", "throat is tight", "tight throat", "throat feels weird",
-  // Chest tightness variants
-  "chest feels tight",
-  // Breathing — catch my breath
-  "can't catch my breath", "cant catch my breath",
-  // Original keywords (kept)
-  "purple", "blue lips",
-  "extreme pain",
-  "fever", "infection", "allergic", "anaphylaxis", "swelling won't stop",
-  "getting worse", "emergency", "hospital", "911", "help me", "scared",
-  "numb", "vision", "blindness", "vascular", "necrosis",
+  "extreme pain", "getting worse",
+  // Infection / swelling
+  "spreading redness", "high fever", "fever", "infection",
+  "swelling won't stop",
+  // Other urgent
+  "numb", "vascular", "necrosis",
+  "emergency", "hospital", "help me", "scared",
+];
+
+/** Backward-compat union — callers that only need a boolean still work. */
+export const DEFAULT_EMERGENCY_KEYWORDS = [
+  ...EMERGENCY_KEYWORDS_911,
+  ...EMERGENCY_KEYWORDS_NURSE,
 ];
 
 /** Normalize for matching: lowercase, straighten curly quotes/apostrophes, collapse spaces. */
 export function normalizeText(text: string): string {
   return text
     .toLowerCase()
-    // Curly/smart apostrophes → straight
-    .replace(/[‘’ʼ`]/g, "'")
-    // Curly double quotes → straight
-    .replace(/[“”]/g, '"')
-    // Collapse whitespace
+    .replace(/[''ʼ`]/g, "'")
+    .replace(/[""]/g, '"')
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -71,14 +83,34 @@ function expandKeyword(kw: string): string[] {
   return [...out];
 }
 
+function matchesAny(normalized: string, keywords: string[]): boolean {
+  return keywords.some((kw) => expandKeyword(kw).some((v) => normalized.includes(v)));
+}
+
 /**
- * Synchronous emergency check. Used in chat and healing routes.
- * Pass customKeywords (already fetched from DB) when available.
+ * Returns the urgency level of the message:
+ *  "911"   — life-threatening: call 911 immediately
+ *  "nurse" — urgent: call the nurse now
+ *  null    — not an emergency
+ *
+ * If a message matches both levels, returns "911" (the higher level).
+ * Custom keywords always fall to "nurse" level.
+ */
+export function detectEmergencyLevel(
+  text: string,
+  customKeywords: string[] = []
+): "911" | "nurse" | null {
+  const normalized = normalizeText(text);
+  if (matchesAny(normalized, EMERGENCY_KEYWORDS_911)) return "911";
+  if (matchesAny(normalized, [...EMERGENCY_KEYWORDS_NURSE, ...customKeywords])) return "nurse";
+  return null;
+}
+
+/**
+ * Synchronous boolean check — backward compat for callers that only need flagged/not.
  */
 export function detectEmergencySync(text: string, customKeywords: string[] = []): boolean {
-  const normalized = normalizeText(text);
-  const all = [...DEFAULT_EMERGENCY_KEYWORDS, ...customKeywords];
-  return all.some((kw) => expandKeyword(kw).some((v) => normalized.includes(v)));
+  return detectEmergencyLevel(text, customKeywords) !== null;
 }
 
 /**

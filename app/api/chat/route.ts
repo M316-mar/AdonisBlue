@@ -1,7 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse, after } from "next/server";
 import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
-import { detectEmergencySync, normalizeText } from "@/lib/emergencyCheck";
+import { detectEmergencyLevel, normalizeText } from "@/lib/emergencyCheck";
+import { buildEmergencyReply, emergencySubject } from "@/lib/emergencyReply";
 import { logError } from "@/lib/logError";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io";
 
@@ -165,7 +166,27 @@ export async function POST(request: Request) {
         .reverse()
         .find((m) => m.role === "user")?.content ?? "";
 
-    const isFlagged = detectEmergencySync(lastUserMessage, customKeywords);
+    const emergencyLevel = detectEmergencyLevel(lastUserMessage, customKeywords);
+    const isFlagged = emergencyLevel !== null;
+
+    // Fetch nurse phone synchronously when flagged — needed for server reply
+    let nurseAlertPhone: string | null = null;
+    if (isFlagged && botConfig.nurse_id) {
+      try {
+        const phoneDb = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        const { data: phoneRow } = await phoneDb
+          .from("bots")
+          .select("alert_phone")
+          .eq("nurse_id", botConfig.nurse_id)
+          .single();
+        nurseAlertPhone = (phoneRow as { alert_phone?: string | null } | null)?.alert_phone?.trim() || null;
+      } catch {
+        // Non-fatal — reply omits phone
+      }
+    }
 
     // Contact-info follow-up tracking (client state — kept for follow-up UX only)
     const alreadyAlertedWithoutContact = botConfig.emergencyAlertedWithoutContact === true;
@@ -467,12 +488,12 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           const msgPreview = escapeHtml(lastUserMessage.slice(0, 60));
 
           const subject = isContactFollowUp
-            ? `⚠️ FOLLOW-UP — Contact info now available — ${practiceName} AI bot`
-            : isUpdate
-              ? `⚠️ UPDATE — same client: "${msgPreview}" — ${practiceName} AI bot`
-              : noContact
-                ? `⚠️ URGENT: Emergency keyword detected — no contact info yet — ${practiceName} AI bot`
-                : `⚠️ URGENT: Client needs attention — ${practiceName} AI bot`;
+            ? emergencySubject(emergencyLevel ?? "nurse", `contact now available — ${practiceName}`)
+            : emergencySubject(
+                emergencyLevel ?? "nurse",
+                noContact ? `no contact yet — ${practiceName}` : practiceName,
+                isUpdate
+              );
 
           const contactWarning = noContact
             ? `<div style="background:#fff7ed;border:2px solid #f97316;border-radius:8px;padding:12px;margin:16px 0;">
@@ -589,9 +610,11 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           }
           const practiceName2 = botRow2?.practice_name || botConfig.practice_name || "your practice";
           const msgPreview2 = escapeHtml(lastUserMessage.slice(0, 60));
-          const subjectAI = isUpdate
-            ? `⚠️ UPDATE (AI-detected) — same client: "${msgPreview2}" — ${practiceName2}`
-            : `⚠️ URGENT: Client may need attention — AI-detected — ${practiceName2}`;
+          const subjectAI = emergencySubject(
+            "nurse",
+            isUpdate ? `same client — ${practiceName2} (AI-detected)` : `${practiceName2} (AI-detected)`,
+            isUpdate
+          );
 
           const updateSectionAI = isUpdate && earlierAlertMsgs.length > 0
             ? `<div style="background:#fff7ed;border:1px solid #f97316;border-radius:8px;padding:12px;margin:16px 0;">
@@ -716,8 +739,19 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
 
     const anyAlertFired = shouldAlertKeyword || shouldAlertAI;
 
+    // Server always controls the reply for emergency cases.
+    // Keyword path: alert fires in after() so we include "I've alerted" unconditionally
+    // (the after() WILL send it — the async delay is invisible to the client).
+    // AI-only path: also nurse level, alertSent=false (fires after response).
+    let finalReply = reply;
+    if (isFlagged && emergencyLevel) {
+      finalReply = buildEmergencyReply(emergencyLevel, nurseFirst || null, nurseAlertPhone, shouldAlertKeyword);
+    } else if (aiAlertToken && !isFlagged) {
+      finalReply = buildEmergencyReply("nurse", nurseFirst || null, nurseAlertPhone, false);
+    }
+
     return NextResponse.json({
-      reply,
+      reply: finalReply,
       // Kept for client backward compat; server no longer gates on emergencyAlertedThisSession
       emergencyAlerted: anyAlertFired ? true : undefined,
       emergencyAlertedWithoutContact: responseAlertedWithoutContact,

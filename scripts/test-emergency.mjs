@@ -1,33 +1,52 @@
-// Test script for emergency keyword detection
-// Run from project root: node /path/to/test-emergency.mjs
+// Test script for emergency keyword detection + urgency levels
+// Run from project root: node scripts/test-emergency.mjs
 
 // ── Inline the logic from lib/emergencyCheck.ts ────────────────────────────
 
-const DEFAULT_EMERGENCY_KEYWORDS = [
+const EMERGENCY_KEYWORDS_911 = [
+  // Breathing
   "trouble breathing","difficulty breathing","hard to breathe",
   "hard time breathing","short of breath","shortness of breath",
   "can't breathe","cant breathe","cannot breathe",
+  "can't catch my breath","cant catch my breath",
+  // Throat / tongue / airway
   "throat swelling","throat is swelling","throat closing","throat is closing",
   "tongue swelling","tongue is swelling",
   "can't swallow","cant swallow","trouble swallowing",
+  "throat tight","throat feels tight","throat is tight","tight throat","throat feels weird",
+  // Vision / neurological
   "blurry vision","blurred vision","losing vision","lost vision",
   "vision loss","double vision","can't see","cant see",
+  "vision","blindness",
+  // Neurological
+  "face drooping","slurred speech",
+  // Cardiac
+  "chest pain","chest tight","chest feels tight",
+  // Loss of consciousness
+  "fainted","passing out","pass out",
+  // Anaphylaxis / allergic
+  "allergic","anaphylaxis",
+  // They already called 911
+  "911",
+];
+
+const EMERGENCY_KEYWORDS_NURSE = [
+  // Vascular occlusion signs
   "turning white","turning gray","turning blue",
   "skin is white","skin is gray","blanching",
   "looks white","is white","turned white",
   "feels cold","cold to the touch",
   "pale","blotchy",
-  "chest pain","chest tight",
-  "fainted","passing out","pass out",
+  "purple","blue lips",
+  // Pain
   "severe pain","unbearable pain","pain is unbearable",
-  "spreading redness","high fever",
-  "throat tight","throat feels tight","throat is tight","tight throat","throat feels weird",
-  "chest feels tight",
-  "can't catch my breath","cant catch my breath",
-  "purple","blue lips","extreme pain",
-  "fever","infection","allergic","anaphylaxis","swelling won't stop",
-  "getting worse","emergency","hospital","911","help me","scared",
-  "numb","vision","blindness","vascular","necrosis",
+  "extreme pain","getting worse",
+  // Infection / swelling
+  "spreading redness","high fever","fever","infection",
+  "swelling won't stop",
+  // Other urgent
+  "numb","vascular","necrosis",
+  "emergency","hospital","help me","scared",
 ];
 
 function normalizeText(text) {
@@ -57,11 +76,19 @@ function expandKeyword(kw) {
   return [...out];
 }
 
-function detectEmergency(text) {
+function matchesAny(normalized, keywords) {
+  return keywords.some(kw => expandKeyword(kw).some(v => normalized.includes(v)));
+}
+
+function detectEmergencyLevel(text, customKeywords = []) {
   const normalized = normalizeText(text);
-  return DEFAULT_EMERGENCY_KEYWORDS.some(kw =>
-    expandKeyword(kw).some(v => normalized.includes(v))
-  );
+  if (matchesAny(normalized, EMERGENCY_KEYWORDS_911)) return "911";
+  if (matchesAny(normalized, [...EMERGENCY_KEYWORDS_NURSE, ...customKeywords])) return "nurse";
+  return null;
+}
+
+function detectEmergency(text) {
+  return detectEmergencyLevel(text) !== null;
 }
 
 // ── Test cases ─────────────────────────────────────────────────────────────
@@ -134,6 +161,56 @@ for (const { text, expect } of cases) {
 
 console.log(`\n${pass}/${pass+fail} passed${fail > 0 ? ` — ${BOLD}${RED}${fail} FAILED${RESET}` : ""}`);
 if (fail > 0) process.exit(1);
+
+// ── Level tests: one keyword per level → correct level; both → 🔴 ──────────
+{
+  let lPass = 0, lFail = 0;
+  const lLabel = (ok, msg) => {
+    if (ok) lPass++; else lFail++;
+    const tag = ok ? `${GREEN}PASS${RESET}` : `${RED}${BOLD}FAIL${RESET}`;
+    console.log(`${tag}  ${msg}`);
+  };
+
+  const levelCases = [
+    // 🔴 911 level — one per category
+    { text: "I can't breathe",                         expect: "911" },
+    { text: "my throat is closing",                    expect: "911" },
+    { text: "my vision is blurry",                     expect: "911" },
+    { text: "chest pain",                              expect: "911" },
+    { text: "I fainted",                               expect: "911" },
+    { text: "face drooping",                           expect: "911" },
+    { text: "slurred speech",                          expect: "911" },
+    { text: "allergic reaction",                       expect: "911" },
+    { text: "anaphylaxis",                             expect: "911" },
+    { text: "call 911",                                expect: "911" },
+    // 🟠 nurse level — one per category
+    { text: "my lip looks white",                      expect: "nurse" },
+    { text: "cold to the touch",                       expect: "nurse" },
+    { text: "skin looks pale",                         expect: "nurse" },
+    { text: "skin looks blotchy",                      expect: "nurse" },
+    { text: "severe pain",                             expect: "nurse" },
+    { text: "getting worse",                           expect: "nurse" },
+    { text: "spreading redness",                       expect: "nurse" },
+    { text: "high fever",                              expect: "nurse" },
+    { text: "necrosis",                                expect: "nurse" },
+    // Both-levels message → must return "911" (higher wins)
+    { text: "my lip is white and I can't breathe",     expect: "911" },
+    // Non-emergency → null
+    { text: "is bruising normal?",                     expect: null  },
+    { text: "when can I wear makeup?",                 expect: null  },
+    // Custom keywords → "nurse" level
+    { text: "my custom symptom",                       expect: "nurse", custom: ["custom symptom"] },
+  ];
+
+  for (const { text, expect: exp, custom = [] } of levelCases) {
+    const result = detectEmergencyLevel(text, custom);
+    const ok = result === exp;
+    lLabel(ok, `level "${exp ?? "null"}" ← "${text}"${!ok ? `  (got "${result}")` : ""}`);
+  }
+
+  console.log(`\n${lPass}/${lPass+lFail} passed (level detection)`);
+  if (lFail > 0) process.exit(1);
+}
 
 // ── Full healing flow: emergency → follow-up "thank you" ──────────────────
 // Verifies:

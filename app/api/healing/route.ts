@@ -1,9 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
-import { detectEmergencySync, DEFAULT_EMERGENCY_KEYWORDS, normalizeText } from "@/lib/emergencyCheck";
+import { detectEmergencyLevel, DEFAULT_EMERGENCY_KEYWORDS, normalizeText } from "@/lib/emergencyCheck";
 import { logError } from "@/lib/logError";
-import { formatPhone } from "@/lib/formatPhone";
+import { buildEmergencyReply, emergencySubject } from "@/lib/emergencyReply";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -184,7 +184,8 @@ export async function POST(request: Request) {
     // Check the latest user message (the one that triggered this POST)
     const lastUserMessage =
       [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
-    const isFlagged = detectEmergencySync(lastUserMessage, customKeywords);
+    const emergencyLevel = detectEmergencyLevel(lastUserMessage, customKeywords);
+    const isFlagged = emergencyLevel !== null;
 
     // Sanitise flagged_message for use in email HTML
     const safeFlaggedMessage = escapeHtml(
@@ -305,10 +306,11 @@ export async function POST(request: Request) {
         console.log(`[emergency] Sending alert email to configured address: ${alertEmailAddress}`);
       }
 
-      const msgPreview = escapeHtml(lastUserMessage.slice(0, 60));
-      const healingSubject = isUpdate
-        ? `⚠️ UPDATE — same client: "${msgPreview}" — ${practiceName}`
-        : `⚠️ URGENT: ${clientName} needs attention after ${procedureName}`;
+      const healingSubject = emergencySubject(
+        emergencyLevel ?? "nurse",
+        isUpdate ? `same client — ${practiceName}` : `${clientName} after ${procedureName}`,
+        isUpdate
+      );
 
       const updateSection = isUpdate && earlierAlertMsgs.length > 0
         ? `<div style="background:#fff7ed;border:1px solid #f97316;border-radius:8px;padding:12px;margin:16px 0;">
@@ -372,12 +374,11 @@ export async function POST(request: Request) {
     // Get AI response
     const apiKey = process.env.ANTHROPIC_API_KEY;
 
+    // The AI still runs (for the [[ALERT_NURSE]] secondary path), but for keyword-flagged
+    // emergencies the server overrides the reply entirely — so this instruction is only
+    // needed for the non-keyword AI path. Keep it minimal.
     const emergencyInstruction = isFlagged
-      ? `\n\nEMERGENCY DETECTED — CRITICAL OVERRIDE: The client just described something that may need urgent medical attention. Your response must follow this exact order:
-1. Start with exactly this sentence: "Please call 911 or go to the nearest emergency room right now."
-2. On the next sentence, tell the client you have alerted ${nurseFirstName ?? "the practice"} and they will be in touch.
-Do NOT say "your nurse" or "the number on your aftercare sheet" — always use the name ${nurseFirstName ?? "the practice"}.
-End with [[ALERT_NURSE]] on its own line. Keep your total response under 3 sentences. Calm, clear, direct. Never use pet names.`
+      ? `\n\nEMERGENCY DETECTED: The server will override your reply. Just end your response with [[ALERT_NURSE]] on its own line.`
       : "";
 
     const systemPrompt = `You are a warm, caring post-procedure recovery assistant for ${practiceName}. The client just had a ${procedureName} procedure.
@@ -507,10 +508,11 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           } catch (e) { await logError("healing", `auth email lookup failed: ${String(e)}`); }
         }
 
-        const aiMsgPreview = escapeHtml(lastUserMessage.slice(0, 60));
-        const subjectAI = aiIsUpdate
-          ? `⚠️ UPDATE (AI-detected) — same client: "${aiMsgPreview}" — ${practiceName}`
-          : `⚠️ URGENT: Client may need attention — AI-detected — ${practiceName}`;
+        const subjectAI = emergencySubject(
+          "nurse",
+          aiIsUpdate ? `same client — ${practiceName} (AI-detected)` : `${practiceName} (AI-detected)`,
+          aiIsUpdate
+        );
 
         const aiUpdateSection = aiIsUpdate && aiEarlierMsgs.length > 0
           ? `<div style="background:#fff7ed;border:1px solid #f97316;border-radius:8px;padding:12px;margin:16px 0;">
@@ -564,20 +566,16 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
       }).then(() => {}, () => {});
     }
 
-    // For keyword-flagged emergencies: server always controls the reply so the
-    // 911 instruction and nurse name are guaranteed — never rely on AI wording alone.
+    // Keyword-flagged: server always controls the reply.
+    // AI-only path (aiAlertToken): also use server reply at "nurse" level.
     let finalMessage = aiMessage;
-    if (isFlagged) {
-      const phonePart = alertPhone?.trim()
-        ? ` You can also reach ${nurseFirstName ?? practiceName} at ${formatPhone(alertPhone.trim())}.`
-        : "";
-      const alertedPart = alertSent
-        ? ` I've alerted ${nurseFirstName ?? practiceName}.`
-        : "";
-      finalMessage = `Please call 911 or go to the nearest emergency room right now.${phonePart}${alertedPart}`;
+    if (isFlagged && emergencyLevel) {
+      finalMessage = buildEmergencyReply(emergencyLevel, nurseFirstName, alertPhone, alertSent);
+    } else if (aiAlertToken && !isFlagged) {
+      finalMessage = buildEmergencyReply("nurse", nurseFirstName, alertPhone, false);
     }
 
-    return NextResponse.json({ message: finalMessage, flagged: isFlagged });
+    return NextResponse.json({ message: finalMessage, flagged: isFlagged || aiAlertToken });
   } catch (e) {
     await logError("healing", String(e));
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
