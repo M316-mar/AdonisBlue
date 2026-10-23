@@ -42,13 +42,15 @@ function firstName(name: string | null | undefined, fallback: string): string {
 async function main() {
   const { data: bot } = await sb
     .from("bots")
-    .select("practice_name, booking_link, rebooking_link, slug, alert_email")
+    .select("practice_name, booking_link, rebooking_link, slug, alert_email, logo_url, nurse_name")
     .eq("nurse_id", BEAUTY_BAR_NURSE_ID)
     .single();
   if (!bot) { console.error("Beauty Bar bot not found"); process.exit(1); }
 
   const practiceName = escapeHtml((bot as any).practice_name || "Beauty Bar");
   const bookingLink = returnBookingLink((bot as any).rebooking_link, (bot as any).booking_link);
+  const logoUrl = (bot as any).logo_url ?? null;
+  const nurseFirstName = (bot as any).nurse_name ? ((bot as any).nurse_name as string).split(" ")[0] : null;
   const slug = (bot as any).slug || null;
 
   const { data: treatment } = await sb
@@ -57,6 +59,7 @@ async function main() {
     .eq("nurse_id", BEAUTY_BAR_NURSE_ID)
     .eq("id", "0c9e9835-0c75-4b57-ba70-4703c60cdd3c")
     .single();
+
 
   if (!treatment) { console.error("Treatment not found"); process.exit(1); }
   const intake: any = Array.isArray(treatment.intakes) ? treatment.intakes[0] : treatment.intakes;
@@ -71,7 +74,7 @@ async function main() {
     from: "AdonisBlue <hi@adonisblue.io>",
     to: PREVIEW_TO,
     subject: `[TEST] Time to refresh your ${procedureName}? ✨ (for ${clientName})`,
-    html: buildTreatmentReminderEmail({ clientName, practiceName, bookingLink, procedureName, reminderDays, slug, intakeId }),
+    html: buildTreatmentReminderEmail({ clientName, practiceName, logoUrl, bookingLink, procedureName, treatmentDate: treatment.treatment_date, reminderDays, slug, intakeId }),
   });
   console.log("  →", resA.error ? `ERROR: ${JSON.stringify(resA.error)}` : `sent ${resA.data?.id}`);
 
@@ -80,8 +83,8 @@ async function main() {
   const resB = await resend.emails.send({
     from: "AdonisBlue <hi@adonisblue.io>",
     to: PREVIEW_TO,
-    subject: `[TEST] ${clientName}, your lips are calling 💋 (6-month backup)`,
-    html: buildBackupReminderEmail({ clientName, practiceName, bookingLink, months: 6, intakeId }),
+    subject: `[TEST] ${clientName}, it's been a while 💙 (6-month backup)`,
+    html: buildBackupReminderEmail({ clientName, practiceName, logoUrl, bookingLink, months: 6, nurseFirstName, intakeId }),
   });
   console.log("  →", resB.error ? `ERROR: ${JSON.stringify(resB.error)}` : `sent ${resB.data?.id}`);
 
@@ -93,7 +96,8 @@ async function main() {
     subject: `[TEST] 🔁 1 client due back soon — save them a spot`,
     html: buildNurseReturnEmail({
       practiceName,
-      clients: [{ clientName, procedureName, dueFormatted: "April 21" }],
+      logoUrl,
+      clients: [{ clientName, procedureName, dueFormatted: "April 20" }],
     }),
   });
   console.log("  →", resC.error ? `ERROR: ${JSON.stringify(resC.error)}` : `sent ${resC.data?.id}`);

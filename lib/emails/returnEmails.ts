@@ -3,36 +3,75 @@
  * Used by the cron routes AND the preview script — edit here, not in the routes.
  */
 
+import { dueDate } from "@/lib/reminderDate";
+
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
+
+// ── Shared email header ───────────────────────────────────────────────────────
+// Logo on the LEFT (if provided), AdonisBlue butterfly on the RIGHT.
+// Table-based so it renders correctly in Gmail, Apple Mail and Outlook.
+
+export function buildEmailHeader({
+  practiceName,
+  logoUrl,
+}: {
+  practiceName: string;
+  logoUrl?: string | null;
+}) {
+  const leftCell = logoUrl
+    ? `<img src="${logoUrl}" alt="${practiceName}" height="40" style="max-height:40px;max-width:160px;display:block;object-fit:contain;" />`
+    : `<span style="color:#fff;font-size:16px;font-weight:600;">${practiceName}</span>`;
+
+  return `<tr>
+  <td style="background:#1a2744;padding:20px 24px;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="vertical-align:middle;">${leftCell}</td>
+        <td style="vertical-align:middle;text-align:right;width:48px;">
+          <img src="${SITE_URL}/Alona.png" alt="AdonisBlue" width="36" height="36" style="border-radius:8px;display:block;margin-left:auto;" />
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>`;
+}
 
 // ── 1. Client treatment-reminder email (treatment-reminders cron) ─────────────
 
 export function buildTreatmentReminderEmail({
   clientName,
   practiceName,
+  logoUrl,
   bookingLink,
   procedureName,
+  treatmentDate,
   reminderDays,
   slug,
   intakeId,
 }: {
   clientName: string;
   practiceName: string;
+  logoUrl?: string | null;
   bookingLink: string | null;
   procedureName: string;
+  treatmentDate: string;
   reminderDays: number;
   slug: string | null;
   intakeId: string;
 }) {
+  const due = dueDate(treatmentDate, reminderDays);
+  const dueDateStr = isNaN(due.getTime())
+    ? "soon"
+    : due.toLocaleDateString("en-US", { timeZone: "UTC", month: "long", day: "numeric" });
+
   const bookingSection = bookingLink
     ? `<div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:20px 0;text-align:center;">
-            <p style="margin:0 0 12px;color:#1a2744;font-size:15px;font-weight:600;">Ready to refresh your look? ✨</p>
-            <a href="${bookingLink}" style="display:inline-block;background:#0d9488;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">Book my appointment 💙</a>
-          </div>`
+          <a href="${bookingLink}" style="display:inline-block;background:#0d9488;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">Book my appointment 💙</a>
+        </div>`
     : `<div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:20px 0;text-align:center;">
-            <p style="margin:0;color:#1a2744;font-size:15px;font-weight:600;">Ready to refresh your look? ✨</p>
-            <p style="margin:8px 0 0;color:#475569;font-size:14px;">Reply to this email or contact ${practiceName} to book your appointment.</p>
-          </div>`;
+          <p style="margin:0;color:#1a2744;font-size:15px;font-weight:600;">Ready to book?</p>
+          <p style="margin:8px 0 0;color:#475569;font-size:14px;">Reply to this email or contact ${practiceName} to book your appointment.</p>
+        </div>`;
 
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
@@ -40,15 +79,11 @@ export function buildTreatmentReminderEmail({
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
     <tr><td align="center">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0;">
-        <tr><td style="background:#1a2744;padding:28px 32px;text-align:center;">
-          <img src="${SITE_URL}/Alona.png" alt="AdonisBlue" width="44" height="44" style="border-radius:10px;display:block;margin:0 auto 10px;" />
-          <span style="color:#fff;font-size:18px;font-weight:600;">${practiceName}</span>
-        </td></tr>
+        ${buildEmailHeader({ practiceName, logoUrl })}
         <tr><td style="padding:36px 32px;">
-          <h1 style="margin:0 0 8px;color:#1a2744;font-size:22px;font-weight:600;">Hey ${clientName}, time for a refresh? 💙</h1>
-          <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.7;">It's been ${reminderDays} days since your <strong>${procedureName}</strong> — which means it's the perfect time to book your next appointment and keep looking and feeling your best!</p>
+          <h1 style="margin:0 0 8px;color:#1a2744;font-size:22px;font-weight:600;">Hey ${clientName} 💙</h1>
+          <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.7;">Your <strong>${procedureName}</strong> is due for a refresh around <strong>${dueDateStr}</strong>. Book now to get a time that works for you.</p>
           ${bookingSection}
-          <p style="margin:0;color:#94a3b8;font-size:13px;text-align:center;">We can't wait to see you again! 💕</p>
         </td></tr>
         ${slug ? `<tr>
           <td style="background:#f0fdfa;padding:24px 32px;border-top:1px solid #e2e8f0;text-align:center;">
@@ -72,44 +107,37 @@ export function buildTreatmentReminderEmail({
 export function buildBackupReminderEmail({
   clientName,
   practiceName,
+  logoUrl,
   bookingLink,
   months,
+  nurseFirstName,
   intakeId,
 }: {
   clientName: string;
   practiceName: string;
+  logoUrl?: string | null;
   bookingLink: string | null;
   months: number;
+  nurseFirstName?: string | null;
   intakeId: string;
 }) {
-  const is6 = months === 6;
-  const headline = is6
-    ? `Your results are fading, ${clientName} — and we miss you 💕`
-    : `${clientName}, it's been 9 months. Your glow is ready for a refresh ✨`;
-  const body1 = is6
-    ? `It's been about 6 months since your last appointment at ${practiceName} — which means your filler is naturally starting to soften. This is actually the perfect time to come back for a touch up before it fully fades.`
-    : `Nine months in, and your results have done their job beautifully. But the best version of your look? It's one appointment away. Coming back now means your nurse can build on what's already there — not start from scratch.`;
-  const body2 = is6
-    ? `Most clients say their 6-month touch up is their favorite appointment — it's subtle, quick, and keeps you looking effortlessly fresh. No one will know. They'll just think you look amazing.`
-    : `Your lips, cheeks, or wherever you last treated — they're ready. And so are we. Don't let the work fade completely. A small refresh now goes a long way.`;
+  const nurseRef = nurseFirstName?.trim() ? nurseFirstName.trim() : practiceName;
   const ctaHtml = bookingLink
-    ? `<a href="${bookingLink}" style="display:inline-block;background:#0d9488;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:50px;">Book my touch up 💕</a>`
-    : `<p style="color:#0d9488;font-size:15px;font-weight:600;">Reply to this email or contact ${practiceName} to book your appointment 💕</p>`;
+    ? `<div style="text-align:center;margin-top:24px;">
+          <a href="${bookingLink}" style="display:inline-block;background:#0d9488;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:50px;">Book my next visit 💙</a>
+        </div>`
+    : `<p style="color:#0d9488;font-size:15px;font-weight:600;margin-top:24px;">Reply to this email or contact ${practiceName} to book your next visit.</p>`;
 
   return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>Time to glow again</title></head>
+<html lang="en"><head><meta charset="UTF-8"><title>It's been a while</title></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
     <tr><td align="center">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0;">
-        <tr><td style="background:#1a2744;padding:28px 32px;text-align:center;">
-          <img src="${SITE_URL}/Alona.png" alt="AdonisBlue" width="44" height="44" style="border-radius:10px;display:block;margin:0 auto 10px;" />
-          <span style="color:#ffffff;font-size:18px;font-weight:600;">${practiceName}</span>
-        </td></tr>
+        ${buildEmailHeader({ practiceName, logoUrl })}
         <tr><td style="padding:36px 32px;">
-          <h1 style="margin:0 0 16px;color:#1a2744;font-size:22px;font-weight:600;line-height:1.3;">${headline}</h1>
-          <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.7;">${body1}</p>
-          <p style="margin:0 0 28px;color:#475569;font-size:15px;line-height:1.7;">${body2}</p>
+          <h1 style="margin:0 0 16px;color:#1a2744;font-size:22px;font-weight:600;line-height:1.3;">Hey ${clientName} 💙</h1>
+          <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.7;">It's been about ${months} months since your last visit at ${practiceName}. If you're thinking about your next treatment, ${nurseRef} would love to see you again.</p>
           ${ctaHtml}
         </td></tr>
         <tr><td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
@@ -126,9 +154,11 @@ export function buildBackupReminderEmail({
 
 export function buildNurseReturnEmail({
   practiceName,
+  logoUrl,
   clients,
 }: {
   practiceName: string;
+  logoUrl?: string | null;
   clients: Array<{ clientName: string; procedureName: string; dueFormatted: string }>;
 }) {
   const clientLines = clients
@@ -144,12 +174,10 @@ export function buildNurseReturnEmail({
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
     <tr><td align="center">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0;">
-        <tr><td style="background:#1a2744;padding:24px 32px;">
-          <img src="${SITE_URL}/Alona.png" alt="AdonisBlue" width="36" height="36" style="border-radius:8px;display:block;margin:0 auto 8px;" />
-          <p style="margin:0;color:#fff;font-size:18px;font-weight:700;text-align:center;">🔁 Clients coming back soon</p>
-          <p style="margin:6px 0 0;color:#94a3b8;font-size:13px;text-align:center;">${practiceName} · Save them a spot this week.</p>
-        </td></tr>
-        <tr><td style="padding:32px;">
+        ${buildEmailHeader({ practiceName, logoUrl })}
+        <tr><td style="padding:24px 32px 8px;">
+          <p style="margin:0 0 6px;color:#1a2744;font-size:18px;font-weight:700;">🔁 Clients coming back soon</p>
+          <p style="margin:0 0 20px;color:#64748b;font-size:13px;">Save them a spot this week.</p>
           ${clientLines}
           <div style="margin-top:20px;text-align:center;">
             <a href="${SITE_URL}/dashboard" style="display:inline-block;background:#0d9488;color:#fff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:50px;">View dashboard 💙</a>
@@ -163,3 +191,4 @@ export function buildNurseReturnEmail({
   </table>
 </body></html>`;
 }
+

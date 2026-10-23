@@ -181,6 +181,12 @@ const cases = [
     result: reminderSendDate(dueDate("2025-10-22", 180)).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }),
     expect: "Apr 6",
   },
+  // Email body uses long month format — must not shift the day
+  {
+    label: 'email body: dueDate("2025-10-22", 180) long format → "April 20"',
+    result: dueDate("2025-10-22", 180).toLocaleDateString("en-US", { timeZone: "UTC", month: "long", day: "numeric" }),
+    expect: "April 20",
+  },
 ];
 
 // ── Run ──────────────────────────────────────────────────────────────────────

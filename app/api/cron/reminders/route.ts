@@ -104,7 +104,7 @@ export async function GET(request: Request) {
       const nurseId = treatment.nurse_id ?? intake.nurse_id;
       const { data: bot } = await supabase
         .from("bots")
-        .select("practice_name, booking_link, rebooking_link")
+        .select("practice_name, booking_link, rebooking_link, logo_url, nurse_name")
         .eq("nurse_id", nurseId)
         .single();
 
@@ -121,18 +121,21 @@ export async function GET(request: Request) {
         continue;
       }
 
+      const clientName6 = escapeHtml(firstName(intake.first_name, "Beautiful"));
       const result = await sendEmail({
         type: "reminder_6m",
         nurse_id: nurseId,
         intake_id: intake.id,
         treatment_id: treatment.id,
         to: intake.email,
-        subject: `${escapeHtml(firstName(intake.first_name, "Beautiful"))}, your lips are calling 💋`,
+        subject: `${clientName6}, it's been a while 💙`,
         html: buildBackupReminderEmail({
-          clientName: escapeHtml(firstName(intake.first_name, "Beautiful")),
+          clientName: clientName6,
           practiceName: escapeHtml(bot.practice_name || "your provider"),
+          logoUrl: (bot as any).logo_url ?? null,
           bookingLink: returnBookingLink((bot as any).rebooking_link, bot.booking_link),
           months: 6,
+          nurseFirstName: (bot as any).nurse_name ? firstName((bot as any).nurse_name, "") : null,
           intakeId: intake.id,
         }),
         supabase,
@@ -152,7 +155,7 @@ export async function GET(request: Request) {
       const nurseId = treatment.nurse_id ?? intake.nurse_id;
       const { data: bot } = await supabase
         .from("bots")
-        .select("practice_name, booking_link, rebooking_link")
+        .select("practice_name, booking_link, rebooking_link, logo_url, nurse_name")
         .eq("nurse_id", nurseId)
         .single();
 
@@ -169,18 +172,21 @@ export async function GET(request: Request) {
         continue;
       }
 
+      const clientName9 = escapeHtml(firstName(intake.first_name, "Beautiful"));
       const result = await sendEmail({
         type: "reminder_9m",
         nurse_id: nurseId,
         intake_id: intake.id,
         treatment_id: treatment.id,
         to: intake.email,
-        subject: `It's been a while, ${escapeHtml(firstName(intake.first_name, "Beautiful"))} — time to glow again ✨`,
+        subject: `${clientName9}, it's been a while 💙`,
         html: buildBackupReminderEmail({
-          clientName: escapeHtml(firstName(intake.first_name, "Beautiful")),
+          clientName: clientName9,
           practiceName: escapeHtml(bot.practice_name || "your provider"),
+          logoUrl: (bot as any).logo_url ?? null,
           bookingLink: returnBookingLink((bot as any).rebooking_link, bot.booking_link),
           months: 9,
+          nurseFirstName: (bot as any).nurse_name ? firstName((bot as any).nurse_name, "") : null,
           intakeId: intake.id,
         }),
         supabase,

@@ -79,7 +79,7 @@ export async function GET(request: Request) {
       // Fetch nurse email from bots + auth
       const { data: bot } = await supabase
         .from("bots")
-        .select("alert_email, notification_email, practice_name")
+        .select("alert_email, notification_email, practice_name, logo_url")
         .eq("nurse_id", nurseId)
         .single();
 
@@ -99,7 +99,7 @@ export async function GET(request: Request) {
         dueFormatted: formatTreatmentDate(c.dueISO, { month: "long", day: "numeric" }),
       }));
 
-      const html = buildNurseReturnEmail({ practiceName, clients: formattedClients });
+      const html = buildNurseReturnEmail({ practiceName, logoUrl: (bot as any).logo_url ?? null, clients: formattedClients });
 
       try {
         await resend.emails.send({

@@ -110,7 +110,7 @@ export async function GET(request: Request) {
       // Step 2C: fetch bot separately; skip + log if missing
       const { data: bot } = await supabase
         .from("bots")
-        .select("practice_name, booking_link, rebooking_link, slug")
+        .select("practice_name, booking_link, rebooking_link, slug, logo_url")
         .eq("nurse_id", treatment.nurse_id)
         .single();
 
@@ -141,8 +141,10 @@ export async function GET(request: Request) {
         html: buildTreatmentReminderEmail({
           clientName,
           practiceName,
+          logoUrl: (bot as any).logo_url ?? null,
           bookingLink,
           procedureName,
+          treatmentDate: treatment.treatment_date,
           reminderDays,
           slug: bot.slug ?? null,
           intakeId: treatment.intake_id,
