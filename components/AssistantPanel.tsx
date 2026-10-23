@@ -221,15 +221,12 @@ export function AssistantPanel({
                   onClick={() => setExpandedAlert(expandedAlert === alert.id ? null : alert.id)}
                   className="flex w-full items-start gap-3 px-3 py-3 text-left"
                 >
-                  <span className="mt-0.5 shrink-0 text-base">🚨</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-[#1a2744]">
+                      🚨 Emergency from{" "}
                       {alert.client_name && alert.client_name !== "Client"
                         ? alert.client_name
-                        : alert.source === "chatbot"
-                        ? "New visitor"
-                        : "Client"}{" "}
-                      sent a concern
+                        : "a new visitor"}
                     </p>
                     {alert.flagged_message && (
                       <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">&ldquo;{alert.flagged_message}&rdquo;</p>

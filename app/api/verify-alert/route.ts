@@ -7,6 +7,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const token = url.searchParams.get("token");
   const nurse_id = url.searchParams.get("nurse_id");
+  const from = url.searchParams.get("from"); // "account" → redirect there after verify
 
   if (!token || !nurse_id) {
     return new Response(errorPage("This link is missing required information."), {
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
 
   const { data: bot, error: findErr } = await db
     .from("bots")
-    .select("nurse_id, alert_verification_token, alert_email_verified")
+    .select("nurse_id, alert_verification_token, alert_email_verified, pending_alert_email")
     .eq("nurse_id", nurse_id)
     .maybeSingle();
 
@@ -33,23 +34,34 @@ export async function GET(request: Request) {
     });
   }
 
-  const row = bot as { alert_verification_token?: string | null; alert_email_verified?: boolean };
+  const row = bot as { alert_verification_token?: string | null; alert_email_verified?: boolean; pending_alert_email?: string | null };
+  const successUrl = from === "account" ? `${SITE_URL}/account?verified=1` : `${SITE_URL}/onboarding?verified=1`;
 
   // Already verified — just redirect to success
-  if (row.alert_email_verified === true) {
-    return NextResponse.redirect(`${SITE_URL}/onboarding?verified=1`);
+  if (row.alert_email_verified === true && !row.pending_alert_email) {
+    return NextResponse.redirect(successUrl);
   }
 
   if (row.alert_verification_token !== token) {
-    return new Response(errorPage("This link has already been used or has expired. Go back to onboarding and click Resend."), {
+    return new Response(errorPage("This link has already been used or has expired. Go back and click Resend."), {
       status: 400,
       headers: { "Content-Type": "text/html" },
     });
   }
 
+  // Promote pending_alert_email → alert_email if present (Account page change-email flow)
+  const updateFields: Record<string, unknown> = {
+    alert_email_verified: true,
+    alert_verification_token: null,
+  };
+  if (row.pending_alert_email) {
+    updateFields.alert_email = row.pending_alert_email;
+    updateFields.pending_alert_email = null;
+  }
+
   const { error: updateErr } = await db
     .from("bots")
-    .update({ alert_email_verified: true, alert_verification_token: null })
+    .update(updateFields)
     .eq("nurse_id", nurse_id);
 
   if (updateErr) {
@@ -59,7 +71,7 @@ export async function GET(request: Request) {
     });
   }
 
-  return NextResponse.redirect(`${SITE_URL}/onboarding?verified=1`);
+  return NextResponse.redirect(successUrl);
 }
 
 function errorPage(msg: string): string {

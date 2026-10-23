@@ -6,6 +6,21 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
+function NurseAvatar({ initial, href }: { initial: string; href: string }) {
+  return (
+    <Link
+      href={href}
+      aria-label="My Account"
+      className="flex flex-col items-center gap-1 py-2 px-1"
+    >
+      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white transition hover:bg-[#0d9488] select-none">
+        {initial}
+      </span>
+      <span className="text-[10px] font-semibold leading-tight text-slate-400">Account</span>
+    </Link>
+  );
+}
+
 const NAV_ITEMS = [
   { href: "/dashboard", icon: "🏠", label: "Home" },
   { href: "/aftercare", icon: "🩹", label: "Log" },
@@ -40,8 +55,8 @@ export function SideNavRail() {
   const pathname = usePathname();
   const router = useRouter();
   const [alertCount, setAlertCount] = useState(0);
+  const [nurseInitial, setNurseInitial] = useState("·");
 
-  // Fetch unhandled alert count for the bell badge
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -49,12 +64,18 @@ export function SideNavRail() {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
         if (!token || cancelled) return;
-        const res = await fetch("/api/notifications", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!cancelled && res.ok) {
-          const json = await res.json() as { count?: number };
+        const [notifRes, accountRes] = await Promise.all([
+          fetch("/api/notifications", { headers: { Authorization: `Bearer ${token}` } }),
+          fetch("/api/account", { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+        if (!cancelled && notifRes.ok) {
+          const json = await notifRes.json() as { count?: number };
           setAlertCount(json.count ?? 0);
+        }
+        if (!cancelled && accountRes.ok) {
+          const a = await accountRes.json() as { nurse_name?: string };
+          const name = a.nurse_name?.trim() ?? "";
+          if (name) setNurseInitial(name[0].toUpperCase());
         }
       } catch { /* ignore */ }
     })();
@@ -100,7 +121,20 @@ export function SideNavRail() {
           </span>
           <span className="text-[10px] font-semibold leading-tight text-slate-400">Alerts</span>
         </button>
+        {/* Account avatar — bottom of rail */}
+        <div className="mt-auto">
+          <NurseAvatar initial={nurseInitial} href="/account" />
+        </div>
       </nav>
+
+      {/* ── Mobile account avatar — top-right ── */}
+      <Link
+        href="/account"
+        aria-label="My Account"
+        className="sm:hidden fixed top-3 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white shadow transition hover:bg-[#0d9488] select-none"
+      >
+        {nurseInitial}
+      </Link>
 
       {/* ── Bottom bar — mobile (< sm) ── */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white flex items-center justify-around px-1 pb-[env(safe-area-inset-bottom)]">

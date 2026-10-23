@@ -33,12 +33,12 @@ export async function GET(request: Request) {
 
     const { data: bot } = await supabase
       .from("bots")
-      .select("notification_email, alert_phone")
+      .select("alert_email, alert_phone")
       .eq("nurse_id", user.id)
       .single();
 
     return NextResponse.json({
-      alert_email: bot?.notification_email ?? "",
+      alert_email: (bot as { alert_email?: string | null } | null)?.alert_email ?? "",
       alert_phone: bot?.alert_phone ?? "",
     });
   } catch {
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       .upsert(
         {
           nurse_id: user.id,
-          notification_email: rawEmail || null,
+          alert_email: rawEmail || null,
           alert_phone: rawPhone || null,
         },
         { onConflict: "nurse_id" }

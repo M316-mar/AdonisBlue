@@ -1012,7 +1012,7 @@ export default function AftercarePage() {
                             <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-900">
                               {nurseClientPhone
                                 ? <>Clients will see this number: <strong>{nurseClientPhone}</strong></>
-                                : <>Your instructions contain <strong>[YOUR PHONE]</strong> but you haven't saved a client phone number yet. Add it in Settings → Practice, or remove the placeholder above.</>
+                                : <>Your instructions contain <strong>[YOUR PHONE]</strong> but you haven{"'"}t saved a client phone number yet. Add it in <Link href="/account#practice" className="underline font-semibold">My Account → My Practice</Link>, or remove the placeholder above.</>
                               }
                             </p>
                           )}
