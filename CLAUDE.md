@@ -23,6 +23,7 @@ Everything else (Instagram automation, Blue Room, offers, newsletter) is seconda
 - Nurse IDs: some tables store `nurse_id` as `text`, some as `uuid`. Always check the actual column type (`information_schema` or the OpenAPI spec) and cast correctly (`auth.uid()::text` in RLS when the column is `text`).
 - Before every push: run `npm run check` (build + schema-check) and show the raw output. Then `git status` (no untracked files), commit, push, `git show --stat`.
 - **Never push code that reads or writes a new column/table until the user confirms the migration ran.** Commit is fine; push must wait.
+- **Calendar dates ("today", treatment dates, due dates) always use `lib/localDate.ts` / shared date helpers — never `new Date().toISOString().slice(0, 10)` for a calendar date.** That returns the UTC date; at 22:00 Chicago it gives tomorrow.
 - Background work on Vercel uses `after()` from `next/server`, never fire-and-forget promises.
 - All client emails/SMS go through `lib/sendAndLog.ts`.
 - No false or unverifiable claims in any client- or nurse-facing text.
