@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { renderWithTelLinks } from "@/lib/renderWithTelLinks";
 type Message = { role: "user" | "assistant"; content: string; id: string };
 
 type Treatment = {
@@ -356,7 +357,7 @@ export default function HealingChatPage({
                     : "rounded-bl-sm border border-white/10 bg-white/[0.08] text-slate-100"
                 }`}
               >
-                {m.content}
+                {m.role === "assistant" ? renderWithTelLinks(m.content) : m.content}
               </div>
             </div>
           ))}

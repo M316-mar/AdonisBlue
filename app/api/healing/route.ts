@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
 import { detectEmergencySync, DEFAULT_EMERGENCY_KEYWORDS, normalizeText } from "@/lib/emergencyCheck";
 import { logError } from "@/lib/logError";
+import { formatPhone } from "@/lib/formatPhone";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -568,7 +569,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     let finalMessage = aiMessage;
     if (isFlagged) {
       const phonePart = alertPhone?.trim()
-        ? ` You can also reach ${nurseFirstName ?? practiceName} at ${alertPhone.trim()}.`
+        ? ` You can also reach ${nurseFirstName ?? practiceName} at ${formatPhone(alertPhone.trim())}.`
         : "";
       const alertedPart = alertSent
         ? ` I've alerted ${nurseFirstName ?? practiceName}.`

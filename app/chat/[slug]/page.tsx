@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { renderWithTelLinks } from "@/lib/renderWithTelLinks";
 
 type BotNameFontId = "dm-sans" | "playfair" | "inter-bold" | "nunito" | "georgia";
 
@@ -121,14 +122,16 @@ function renderMessageContent(content: string) {
   }
   const text = textChunks.join("");
 
-  const renderBold = (str: string) => {
+  const renderBoldAndTel = (str: string) => {
     const segments = str.split(/\*\*(.*?)\*\*/g);
-    return segments.map((seg, i) => (i % 2 === 1 ? <strong key={i}>{seg}</strong> : seg));
+    return segments.map((seg, i) =>
+      i % 2 === 1 ? <strong key={i}>{seg}</strong> : renderWithTelLinks(seg)
+    );
   };
 
   return (
     <>
-      {text ? <p className="whitespace-pre-wrap">{renderBold(text)}</p> : null}
+      {text ? <p className="whitespace-pre-wrap">{renderBoldAndTel(text)}</p> : null}
       {urls.map((url, i) => {
         const label = url.includes("instagram")
           ? "📸 View our Instagram"
