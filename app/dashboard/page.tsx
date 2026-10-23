@@ -2,6 +2,7 @@
 
 import { signOutCompletely, supabase } from "@/lib/supabase";
 import { formatTreatmentDate } from "@/lib/formatTreatmentDate";
+import { localDateString } from "@/lib/localDate";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -506,7 +507,7 @@ export default function NurseDashboardPage() {
                 <ul className="divide-y divide-slate-100">
                   {returnClients.map((c) => {
                     const isBooked = !!c.rebooked_at;
-                    const today = new Date().toISOString().slice(0, 10);
+                    const today = localDateString();
                     const isPastDue = !isBooked && c.due_date < today;
                     const reminderAlreadySent = c.reminder_send_date <= today;
                     const dueFmt = formatTreatmentDate(c.due_date, { month: "short", day: "numeric" });
@@ -656,7 +657,7 @@ export default function NurseDashboardPage() {
                 <ul className="divide-y divide-slate-100">
                   {returnClients.map((c) => {
                     const isBooked = !!c.rebooked_at;
-                    const today = new Date().toISOString().slice(0, 10);
+                    const today = localDateString();
                     const isPastDue = !isBooked && c.due_date < today;
                     const reminderAlreadySent = c.reminder_send_date <= today;
                     const dueFmt = formatTreatmentDate(c.due_date, { month: "short", day: "numeric" });

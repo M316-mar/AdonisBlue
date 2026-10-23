@@ -9,6 +9,7 @@ import { ClientContactCard } from "@/components/ClientContactCard";
 import { SideNavRail } from "@/components/SideNavRail";
 import { formatTreatmentDate, parseTreatmentDate } from "@/lib/formatTreatmentDate";
 import { dueDate, reminderSendDate } from "@/lib/reminderDate";
+import { localDateString } from "@/lib/localDate";
 
 // ─── Seed data ────────────────────────────────────────────────────────────────
 
@@ -462,7 +463,7 @@ export default function ClientJourneyPage() {
         procedure_id: targetProcedure.id,
         procedure_ids: [targetProcedure.id],
         procedure_name: targetProcedure.name,
-        treatment_date: new Date().toISOString().slice(0, 10),
+        treatment_date: localDateString(),
         send_aftercare: true,
         came_via_bot: intake.came_via_bot ?? false,
       }),

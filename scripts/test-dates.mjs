@@ -54,6 +54,14 @@ function nurseEmailDueDate(dueISO) {
   return formatDueDate(new Date(dueISO + "T00:00:00Z"));
 }
 
+// Mirrors lib/localDate.ts localDateString — uses local getFullYear/Month/Date
+function localDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 // UTC midnight helper for test dates
 function utc(y, m, d) { return new Date(Date.UTC(y, m - 1, d)); }
 
@@ -240,3 +248,40 @@ for (const { label, result, expect } of cases) {
 
 console.log(`\n${pass}/${pass + fail} passed${fail > 0 ? ` — ${BOLD}${RED}${fail} FAILED${RESET}` : ""}`);
 if (fail > 0) process.exit(1);
+
+// ── localDateString: Chicago 22:00 = UTC next day — must stay local ──────────
+// 2026-10-22 22:00 CDT = 2026-10-23 03:00 UTC
+// new Date().toISOString().slice(0,10) would give "2026-10-23" (wrong)
+// localDateString() must give "2026-10-22" (correct)
+{
+  const { execSync } = await import("child_process");
+  const BOLD2 = "\x1b[1m", RED2 = "\x1b[31m", GREEN2 = "\x1b[32m", RESET2 = "\x1b[0m";
+  let lPass = 0, lFail = 0;
+  const lCases = [
+    {
+      label: "localDateString: 2026-10-22 22:00 Chicago → '2026-10-22' not UTC '2026-10-23'",
+      cmd: `TZ=America/Chicago node -e "
+const d = new Date('2026-10-23T03:00:00Z'); // 22:00 CDT
+const y=d.getFullYear(), mo=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+process.stdout.write(y+'-'+mo+'-'+day);
+"`,
+      expect: "2026-10-22",
+    },
+    {
+      label: "UTC trap: new Date('2026-10-23T03:00:00Z').toISOString().slice(0,10) → '2026-10-23' (proves the bug)",
+      cmd: `node -e "process.stdout.write(new Date('2026-10-23T03:00:00Z').toISOString().slice(0,10));"`,
+      expect: "2026-10-23",
+    },
+  ];
+  for (const { label, cmd, expect } of lCases) {
+    let result;
+    try { result = execSync(cmd, { encoding: "utf8" }).trim(); } catch (e) { result = String(e); }
+    const ok = result === expect;
+    if (ok) lPass++; else lFail++;
+    const tag = ok ? `${GREEN2}PASS${RESET2}` : `${RED2}${BOLD2}FAIL${RESET2}`;
+    const detail = ok ? "" : `  (expected: "${expect}", got: "${result}")`;
+    console.log(`${tag}  ${label}${detail}`);
+  }
+  console.log(`\n${lPass}/${lPass + lFail} passed (localDateString)`);
+  if (lFail > 0) process.exit(1);
+}
