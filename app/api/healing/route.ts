@@ -144,7 +144,7 @@ export async function POST(request: Request) {
     // and bots, so PostgREST join syntax fails. A plain .eq() query always works.
     const { data: botRow } = await supabase
       .from("bots")
-      .select("practice_name, alert_email, notification_email, alert_phone")
+      .select("practice_name, alert_email, notification_email, alert_phone, nurse_name")
       .eq("nurse_id", treatment.nurse_id)
       .single();
 
@@ -163,6 +163,11 @@ export async function POST(request: Request) {
 
     const clientPhone =
       clientPhoneInput || treatment.intakes?.phone || "Not provided";
+
+    const rawNurseName: string = (botRow as { nurse_name?: string } | null)?.nurse_name?.trim() ?? "";
+    const nurseFirstName = rawNurseName
+      ? rawNurseName.split(/\s+/)[0]!.charAt(0).toUpperCase() + rawNurseName.split(/\s+/)[0]!.slice(1).toLowerCase()
+      : null;
 
     // ── SECURITY: perform emergency check SERVER-SIDE ──────────────────────
     // Fetch custom keywords again so the client cannot influence this decision
@@ -204,7 +209,8 @@ export async function POST(request: Request) {
       upsertPayload.flagged_message = lastUserMessage.slice(0, 500);
       upsertPayload.status = "active";
     }
-    await supabase.from("healing_chats").upsert(upsertPayload, { onConflict: "treatment_id" });
+    const { error: upsertErr } = await supabase.from("healing_chats").upsert(upsertPayload, { onConflict: "treatment_id" });
+    if (upsertErr) await logError("healing", `healing_chats upsert failed: ${upsertErr.message}`);
 
     // ── Server-side dedup (conversation-scoped) ──────────────────────────
     // "Same conversation" = messages already in this healing chat.
@@ -279,6 +285,7 @@ export async function POST(request: Request) {
     }
 
     // ── Emergency alerts — email + SMS ────────────────────────────────────
+    let alertSent = false;
     if (isFlagged && !isDuplicateMessage) {
       let alertEmailAddress = nurseEmail?.trim() || null;
       if (!alertEmailAddress) {
@@ -346,6 +353,8 @@ export async function POST(request: Request) {
         supabase,
       });
 
+      alertSent = true;
+
       // SMS
       if (alertPhone?.trim()) {
         const smsBody = `AdonisBlue Alert: ${clientName} needs attention after ${procedureName}. Check your dashboard or email for details.`;
@@ -364,9 +373,10 @@ export async function POST(request: Request) {
 
     const emergencyInstruction = isFlagged
       ? `\n\nEMERGENCY DETECTED — CRITICAL OVERRIDE: The client just described something that may need urgent medical attention. Your response must follow this exact order:
-1. For symptoms involving breathing difficulty, chest pain, throat or tongue swelling, vision changes, skin turning white/gray/blue, or fainting — your first sentence must be: "Please call 911 or go to the nearest emergency room right now." Then say their nurse has been notified.
-2. For other concerning symptoms — acknowledge warmly, confirm their nurse has been notified and will follow up.
-End with [[ALERT_NURSE]] on its own line. Keep your response under 3 sentences. Calm, clear, direct. Never use pet names — no "sweetie", "hun", "babe", "beautiful", or similar.`
+1. Start with exactly this sentence: "Please call 911 or go to the nearest emergency room right now."
+2. On the next sentence, tell the client you have alerted ${nurseFirstName ?? "the practice"} and they will be in touch.
+Do NOT say "your nurse" or "the number on your aftercare sheet" — always use the name ${nurseFirstName ?? "the practice"}.
+End with [[ALERT_NURSE]] on its own line. Keep your total response under 3 sentences. Calm, clear, direct. Never use pet names.`
       : "";
 
     const systemPrompt = `You are a warm, caring post-procedure recovery assistant for ${practiceName}. The client just had a ${procedureName} procedure.
@@ -431,7 +441,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     // Fire AI-triggered alert only if keyword detector did NOT already fire, and not a duplicate
     if (aiAlertToken && !isFlagged && !isDuplicateMessage) {
       // Update healing_chats: set flagged=true + status="active" so alert appears in bell
-      await supabase.from("healing_chats").upsert(
+      const { error: aiUpsertErr } = await supabase.from("healing_chats").upsert(
         {
           treatment_id,
           nurse_id: treatment.nurse_id,
@@ -442,6 +452,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
         },
         { onConflict: "treatment_id" }
       );
+      if (aiUpsertErr) await logError("healing", `healing_chats upsert (AI path) failed: ${aiUpsertErr.message}`);
 
       // Dedup for AI path — conversation-scoped, same logic as keyword path above
       let aiIsDuplicate = false;
@@ -552,7 +563,20 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
       }).then(() => {}, () => {});
     }
 
-    return NextResponse.json({ message: aiMessage, flagged: isFlagged });
+    // For keyword-flagged emergencies: server always controls the reply so the
+    // 911 instruction and nurse name are guaranteed — never rely on AI wording alone.
+    let finalMessage = aiMessage;
+    if (isFlagged) {
+      const phonePart = alertPhone?.trim()
+        ? ` You can also reach ${nurseFirstName ?? practiceName} at ${alertPhone.trim()}.`
+        : "";
+      const alertedPart = alertSent
+        ? ` I've alerted ${nurseFirstName ?? practiceName}.`
+        : "";
+      finalMessage = `Please call 911 or go to the nearest emergency room right now.${phonePart}${alertedPart}`;
+    }
+
+    return NextResponse.json({ message: finalMessage, flagged: isFlagged });
   } catch (e) {
     await logError("healing", String(e));
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });

@@ -12,9 +12,12 @@ export const DEFAULT_EMERGENCY_KEYWORDS = [
   // Vision
   "blurry vision", "blurred vision", "losing vision", "lost vision",
   "vision loss", "double vision", "can't see", "cant see",
-  // Skin color / vascular
+  // Skin color / vascular — including vascular occlusion signs
   "turning white", "turning gray", "turning blue",
   "skin is white", "skin is gray", "blanching",
+  "looks white", "is white", "turned white",
+  "feels cold", "cold to the touch",
+  "pale", "blotchy",
   // Cardiac / systemic
   "chest pain", "chest tight",
   "fainted", "passing out", "pass out",

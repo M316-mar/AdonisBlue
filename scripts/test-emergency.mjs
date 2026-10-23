@@ -14,6 +14,9 @@ const DEFAULT_EMERGENCY_KEYWORDS = [
   "vision loss","double vision","can't see","cant see",
   "turning white","turning gray","turning blue",
   "skin is white","skin is gray","blanching",
+  "looks white","is white","turned white",
+  "feels cold","cold to the touch",
+  "pale","blotchy",
   "chest pain","chest tight",
   "fainted","passing out","pass out",
   "severe pain","unbearable pain","pain is unbearable",
@@ -96,6 +99,16 @@ const cases = [
   { text: "high fever",                                                   expect: true  },
   { text: "anaphylaxis",                                                  expect: true  },
   { text: "allergic reaction",                                            expect: true  },
+  // New vascular occlusion / pale / cold keywords (Maria's exact message)
+  { text: "my lip feels cold and looks white",                            expect: true  },
+  { text: "my lip looks white",                                           expect: true  },
+  { text: "my skin is white",                                             expect: true  },
+  { text: "it turned white after the injection",                          expect: true  },
+  { text: "my lip feels cold",                                            expect: true  },
+  { text: "cold to the touch",                                            expect: true  },
+  { text: "the area is pale",                                             expect: true  },
+  { text: "my skin looks blotchy",                                        expect: true  },
+
   // Should NOT match
   { text: "my lip is a little swollen",                                   expect: false },
   { text: "some bruising is normal right?",                               expect: false },
@@ -120,3 +133,58 @@ for (const { text, expect } of cases) {
 }
 
 console.log(`\n${pass}/${pass+fail} passed${fail > 0 ? ` — ${BOLD}${RED}${fail} FAILED${RESET}` : ""}`);
+if (fail > 0) process.exit(1);
+
+// ── Full healing flow: emergency → follow-up "thank you" ──────────────────
+// Verifies:
+// 1. Emergency message triggers isFlagged=true → row gets flagged=true + status="active"
+// 2. Follow-up "Okay, thank you" triggers isFlagged=false → row flag NOT cleared
+//    (the route only sets flagged/status when isFlagged; non-flagged messages don't touch them)
+{
+  let fPass = 0, fFail = 0;
+  const flowLabel = (ok, msg) => {
+    if (ok) fPass++; else fFail++;
+    const tag = ok ? `${GREEN}PASS${RESET}` : `${RED}${BOLD}FAIL${RESET}`;
+    console.log(`${tag}  ${msg}`);
+  };
+
+  const emergencyMsg = "my lip feels cold and looks white";
+  const followUpMsg  = "Okay, thank you";
+
+  // Step 1: emergency message → isFlagged = true
+  const flaggedOnEmergency = detectEmergency(emergencyMsg);
+  flowLabel(flaggedOnEmergency === true, `healing flow step 1: emergency message triggers isFlagged=true`);
+
+  // Step 2: follow-up message → isFlagged = false (follow-up alone doesn't trigger)
+  const flaggedOnFollowUp = detectEmergency(followUpMsg);
+  flowLabel(flaggedOnFollowUp === false, `healing flow step 2: follow-up "thank you" does NOT trigger isFlagged`);
+
+  // Step 3: simulate upsert payload guard — when !isFlagged, payload must NOT include flagged/status
+  // This mirrors the guard in healing/route.ts lines 202-206
+  function buildUpsertPayload(isFlagged, lastMsg) {
+    const payload = {
+      treatment_id: "test-uuid",
+      nurse_id: "test-nurse",
+      client_name: "Maria",
+      messages: [],
+      updated_at: new Date().toISOString(),
+    };
+    if (isFlagged) {
+      payload.flagged = true;
+      payload.flagged_message = lastMsg;
+      payload.status = "active";
+    }
+    return payload;
+  }
+
+  const emergencyPayload = buildUpsertPayload(true, emergencyMsg);
+  flowLabel(emergencyPayload.flagged === true && emergencyPayload.status === "active",
+    `healing flow step 3a: emergency payload sets flagged=true + status="active"`);
+
+  const followUpPayload = buildUpsertPayload(false, followUpMsg);
+  flowLabel(!("flagged" in followUpPayload) && !("status" in followUpPayload),
+    `healing flow step 3b: follow-up payload does NOT touch flagged or status (alert stays active)`);
+
+  console.log(`\n${fPass}/${fPass+fFail} passed (healing flow)`);
+  if (fFail > 0) process.exit(1);
+}
