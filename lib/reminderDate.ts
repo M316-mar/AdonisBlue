@@ -29,6 +29,19 @@ export function reminderSendDate(due: Date): Date {
 }
 
 /**
+ * Format a due Date (UTC midnight, from dueDate()) for display in emails.
+ * Always uses timeZone: "UTC" so the day never shifts on the server.
+ * Returns "soon" for invalid dates.
+ */
+export function formatDueDate(
+  due: Date,
+  options: Intl.DateTimeFormatOptions = { month: "long", day: "numeric" }
+): string {
+  if (isNaN(due.getTime())) return "soon";
+  return due.toLocaleDateString("en-US", { timeZone: "UTC", ...options });
+}
+
+/**
  * Returns true when today falls in the send window:
  *   today >= reminderSendDate(due) AND today <= due + 7 days
  * AND reminder_sent is still false AND rebooked_at is null.

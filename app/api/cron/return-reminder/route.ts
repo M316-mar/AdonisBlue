@@ -2,8 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { logError } from "@/lib/logError";
-import { dueDate } from "@/lib/reminderDate";
-import { formatTreatmentDate } from "@/lib/formatTreatmentDate";
+import { dueDate, formatDueDate } from "@/lib/reminderDate";
 import { buildNurseReturnEmail } from "@/lib/emails/returnEmails";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -96,7 +95,7 @@ export async function GET(request: Request) {
       const formattedClients = clients.map((c) => ({
         clientName: c.clientName,
         procedureName: c.procedureName,
-        dueFormatted: formatTreatmentDate(c.dueISO, { month: "long", day: "numeric" }),
+        dueFormatted: formatDueDate(new Date(c.dueISO + "T00:00:00Z")),
       }));
 
       const html = buildNurseReturnEmail({ practiceName, logoUrl: (bot as any).logo_url ?? null, clients: formattedClients });

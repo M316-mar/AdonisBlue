@@ -43,6 +43,17 @@ function inReminderWindow(due, today) {
   return today >= sendOn && today <= cutoff;
 }
 
+// Mirrors lib/reminderDate.ts formatDueDate — always UTC
+function formatDueDate(due, options = { month: "long", day: "numeric" }) {
+  if (isNaN(due.getTime())) return "soon";
+  return due.toLocaleDateString("en-US", { timeZone: "UTC", ...options });
+}
+
+// Mirrors return-reminder/route.ts: dueISO → UTC Date → formatDueDate
+function nurseEmailDueDate(dueISO) {
+  return formatDueDate(new Date(dueISO + "T00:00:00Z"));
+}
+
 // UTC midnight helper for test dates
 function utc(y, m, d) { return new Date(Date.UTC(y, m - 1, d)); }
 
@@ -186,6 +197,31 @@ const cases = [
     label: 'email body: dueDate("2025-10-22", 180) long format → "April 20"',
     result: dueDate("2025-10-22", 180).toLocaleDateString("en-US", { timeZone: "UTC", month: "long", day: "numeric" }),
     expect: "April 20",
+  },
+  // Cross-email consistency: client reminder and nurse Monday email must show the same due date
+  // client email uses: formatDueDate(dueDate(treatmentDate, reminderDays))
+  // nurse email uses:  formatDueDate(new Date(dueISO + "T00:00:00Z"))  where dueISO = dueDate(...).toISOString().slice(0,10)
+  {
+    label: 'cross-email: client reminder date matches nurse email date (Oct 22 + 180)',
+    result: (() => {
+      const due = dueDate("2025-10-22", 180);
+      const clientDate = formatDueDate(due);
+      const dueISO = due.toISOString().slice(0, 10);
+      const nurseDate = nurseEmailDueDate(dueISO);
+      return clientDate === nurseDate ? clientDate : `MISMATCH: client=${clientDate} nurse=${nurseDate}`;
+    })(),
+    expect: "April 20",
+  },
+  {
+    label: 'cross-email: client reminder date matches nurse email date (Oct 23 + 180)',
+    result: (() => {
+      const due = dueDate("2025-10-23", 180);
+      const clientDate = formatDueDate(due);
+      const dueISO = due.toISOString().slice(0, 10);
+      const nurseDate = nurseEmailDueDate(dueISO);
+      return clientDate === nurseDate ? clientDate : `MISMATCH: client=${clientDate} nurse=${nurseDate}`;
+    })(),
+    expect: "April 21",
   },
 ];
 

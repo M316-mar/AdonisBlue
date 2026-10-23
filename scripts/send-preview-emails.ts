@@ -10,6 +10,7 @@ import { readFileSync } from "fs";
 import { Resend } from "resend";
 import { buildTreatmentReminderEmail, buildBackupReminderEmail, buildNurseReturnEmail } from "../lib/emails/returnEmails";
 import { returnBookingLink } from "../lib/returnLink";
+import { dueDate, formatDueDate } from "../lib/reminderDate";
 
 // Load .env.local
 readFileSync(".env.local", "utf8").split("\n").forEach((l) => {
@@ -67,6 +68,9 @@ async function main() {
   const procedureName = escapeHtml((treatment.procedures as any)?.name || treatment.procedure_name);
   const reminderDays: number = (treatment.procedures as any)?.reminder_days || 180;
   const intakeId: string = treatment.intake_id || "preview";
+  // Compute due date ONCE — used in both client email (A) and nurse email (C)
+  const due = dueDate(treatment.treatment_date, reminderDays);
+  const dueDateFormatted = formatDueDate(due);
 
   // ── Email A: client rebooking reminder (treatment-reminders cron) ──
   console.log("Sending (a) client rebooking reminder…");
@@ -97,7 +101,7 @@ async function main() {
     html: buildNurseReturnEmail({
       practiceName,
       logoUrl,
-      clients: [{ clientName, procedureName, dueFormatted: "April 20" }],
+      clients: [{ clientName, procedureName, dueFormatted: dueDateFormatted }],
     }),
   });
   console.log("  →", resC.error ? `ERROR: ${JSON.stringify(resC.error)}` : `sent ${resC.data?.id}`);

@@ -3,7 +3,7 @@
  * Used by the cron routes AND the preview script — edit here, not in the routes.
  */
 
-import { dueDate } from "@/lib/reminderDate";
+import { dueDate, formatDueDate } from "@/lib/reminderDate";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
@@ -60,9 +60,7 @@ export function buildTreatmentReminderEmail({
   intakeId: string;
 }) {
   const due = dueDate(treatmentDate, reminderDays);
-  const dueDateStr = isNaN(due.getTime())
-    ? "soon"
-    : due.toLocaleDateString("en-US", { timeZone: "UTC", month: "long", day: "numeric" });
+  const dueDateStr = formatDueDate(due);
 
   const bookingSection = bookingLink
     ? `<div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:20px 0;text-align:center;">
@@ -89,7 +87,7 @@ export function buildTreatmentReminderEmail({
           <td style="background:#f0fdfa;padding:24px 32px;border-top:1px solid #e2e8f0;text-align:center;">
             <p style="margin:0 0 12px;color:#1a2744;font-size:14px;font-weight:600;">Have concerns or questions?</p>
             <a href="https://www.adonisblue.io/chat/${slug}" style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:999px;font-size:14px;font-weight:600;">💬 Chat with ${practiceName}'s assistant</a>
-            <p style="margin:12px 0 0;color:#94a3b8;font-size:12px;">Anything urgent will notify ${practiceName} to reach out to you right away.</p>
+            <p style="margin:12px 0 0;color:#94a3b8;font-size:12px;">Anything urgent sends an alert to ${practiceName} immediately.</p>
           </td>
         </tr>` : ""}
         <tr><td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
