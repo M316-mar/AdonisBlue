@@ -57,7 +57,7 @@ export async function GET(request: Request) {
       // 3. Aftercare to send: last 3 days, not archived, nurse intended to send, not yet sent or scheduled
       db
         .from("treatments")
-        .select("id, treatment_date, procedure_name, intake_id, intakes(first_name)")
+        .select("id, treatment_date, procedure_name, procedure_id, intake_id, intakes(first_name)")
         .eq("nurse_id", user.id)
         .eq("archived", false)
         .eq("send_aftercare", true)
@@ -138,6 +138,7 @@ export async function GET(request: Request) {
       return {
         treatment_id: t.id as string,
         intake_id: t.intake_id as string,
+        procedure_id: (t.procedure_id ?? null) as string | null,
         client_name: (intake?.first_name ?? "Client") as string,
         procedure_name: (t.procedure_name ?? "treatment") as string,
         treatment_date: t.treatment_date as string,

@@ -228,6 +228,7 @@ export async function POST(request: Request) {
         treatment_date: treatmentDate,
         notes: notes,
         came_via_bot: cameViaBot,
+        send_aftercare: sendAftercare,
       })
       .select()
       .single();

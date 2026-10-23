@@ -16,6 +16,7 @@ type Alert = {
 type UnsentAftercare = {
   treatment_id: string;
   intake_id: string;
+  procedure_id: string | null;
   client_name: string;
   procedure_name: string;
   treatment_date: string;
@@ -91,6 +92,9 @@ export function AssistantPanel({
   const [handlingAlert, setHandlingAlert] = useState<string | null>(null);
   const [sentPrep, setSentPrep] = useState<Set<string>>(new Set());
   const [sendingPrep, setSendingPrep] = useState<string | null>(null);
+  // Aftercare send
+  const [aftercareSending, setAftercareSending] = useState<string | null>(null);
+  const [aftercareAlreadySent, setAftercareAlreadySent] = useState<Record<string, { sent_at?: string; scheduled_at?: string }>>({});
   // Help & ideas
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpText, setHelpText] = useState("");
@@ -156,6 +160,26 @@ export function AssistantPanel({
       }
     } finally {
       setHandlingAlert(null);
+    }
+  };
+
+  const handleSendAftercare = async (a: UnsentAftercare) => {
+    setAftercareSending(a.treatment_id);
+    try {
+      const res = await fetch("/api/send-aftercare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ treatment_id: a.treatment_id }),
+      });
+      const j = await res.json() as { success?: boolean; already_sent?: boolean; already_scheduled?: boolean; sent_at?: string; scheduled_at?: string; error?: string };
+      if (res.status === 409 && (j.already_sent || j.already_scheduled)) {
+        setAftercareAlreadySent(prev => ({ ...prev, [a.treatment_id]: { sent_at: j.sent_at, scheduled_at: j.scheduled_at } }));
+      } else if (j.success) {
+        // Remove from local list immediately
+        setCtx(prev => prev ? { ...prev, unsentAftercares: prev.unsentAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
+      }
+    } finally {
+      setAftercareSending(null);
     }
   };
 
@@ -281,22 +305,47 @@ export function AssistantPanel({
             ))}
 
             {/* 2. Aftercare to send (last 3 days, intended) */}
-            {(ctx?.unsentAftercares ?? []).map((a) => (
-              <div key={a.treatment_id} className="flex items-center gap-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-3">
-                <span className="shrink-0 text-base">💌</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#1a2744]">Send aftercare to {a.client_name}</p>
-                  <p className="text-xs text-slate-500">{a.procedure_name} · {fmtDate(a.treatment_date)}</p>
+            {(ctx?.unsentAftercares ?? []).map((a) => {
+              const alreadyInfo = aftercareAlreadySent[a.treatment_id];
+              const isSending = aftercareSending === a.treatment_id;
+              return (
+                <div key={a.treatment_id} className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="shrink-0 text-base">💌</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#1a2744]">Send aftercare to {a.client_name}</p>
+                      <p className="text-xs text-slate-500">{a.procedure_name} · {fmtDate(a.treatment_date)}</p>
+                    </div>
+                    {!alreadyInfo && (
+                      <button
+                        type="button"
+                        disabled={isSending}
+                        onClick={() => void handleSendAftercare(a)}
+                        className="shrink-0 rounded-full bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#243552] disabled:opacity-50"
+                      >
+                        {isSending ? "Sending…" : "Send →"}
+                      </button>
+                    )}
+                  </div>
+                  {alreadyInfo && (
+                    <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-teal-50 border border-teal-200 px-3 py-2">
+                      <p className="text-xs font-semibold text-teal-800">
+                        {alreadyInfo.sent_at
+                          ? `✅ Already sent on ${fmtDate(alreadyInfo.sent_at)}`
+                          : `⏳ Scheduled for ${fmtDate(alreadyInfo.scheduled_at ?? "")}`}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/client-journey?aftercare=${a.intake_id}&treatment_id=${a.treatment_id}&treatment_date=${a.treatment_date}${a.procedure_id ? `&procedure_id=${a.procedure_id}` : ""}`)}
+                        className="shrink-0 text-xs font-semibold text-teal-700 underline"
+                      >
+                        Send again
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => router.push(`/client-journey?aftercare=${a.intake_id}`)}
-                  className="shrink-0 rounded-full bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#243552]"
-                >
-                  Send →
-                </button>
-              </div>
-            ))}
+              );
+            })}
 
             {/* 3. Scheduled aftercares (info) */}
             {hasScheduled && (

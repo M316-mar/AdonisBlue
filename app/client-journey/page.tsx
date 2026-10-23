@@ -567,19 +567,23 @@ export default function ClientJourneyPage() {
   }, []);
 
   // Auto-open modal when navigated to with ?aftercare=<intakeId>
+  // Optional extra params from AssistantPanel: treatment_date, procedure_id (pre-populate the modal)
   const didAutoOpen = useRef(false);
   useEffect(() => {
     if (didAutoOpen.current) return;
-    const intakeId = typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("aftercare")
-      : null;
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const intakeId = params?.get("aftercare") ?? null;
     if (!intakeId || !ready || intakes.length === 0) return;
     const intake = intakes.find(i => i.id === intakeId);
     if (!intake) return;
     didAutoOpen.current = true;
+    const treatmentDate = params?.get("treatment_date") ?? null;
+    const procedureId = params?.get("procedure_id") ?? null;
+    if (treatmentDate) setAftercareDate(treatmentDate);
+    if (procedureId) setAftercareProcedureId(procedureId);
     openAftercareModal(intakeId, intake.first_name || "Client", intake.service_interested ?? "");
     router.replace("/client-journey");
-  }, [ready, intakes, openAftercareModal, router]);
+  }, [ready, intakes, openAftercareModal, router, setAftercareDate, setAftercareProcedureId]);
 
   // Fetch real preview HTML from server whenever step 2 is shown
   useEffect(() => {
