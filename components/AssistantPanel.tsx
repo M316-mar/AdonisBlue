@@ -76,6 +76,28 @@ function fmtDate(iso: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+// Format a UTC ISO timestamp (e.g. aftercare_send_at) using the browser's local
+// timezone so the nurse sees "Tonight at 11:04 PM" instead of the UTC date.
+function fmtScheduledTime(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrowStart = new Date(todayStart.getTime() + 86400000);
+  const afterTomorrowStart = new Date(tomorrowStart.getTime() + 86400000);
+  const dStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  const hour = d.getHours();
+  if (dStart.getTime() === todayStart.getTime()) {
+    const dayLabel = hour >= 18 ? "Tonight" : "Today";
+    return `${dayLabel} at ${timeStr}`;
+  }
+  if (dStart.getTime() === tomorrowStart.getTime()) return `Tomorrow at ${timeStr}`;
+  if (dStart.getTime() < afterTomorrowStart.getTime()) return `Tomorrow at ${timeStr}`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ` at ${timeStr}`;
+}
+
 export function AssistantPanel({
   nurseFirstName,
   token,
@@ -95,6 +117,9 @@ export function AssistantPanel({
   // Aftercare send
   const [aftercareSending, setAftercareSending] = useState<string | null>(null);
   const [aftercareAlreadySent, setAftercareAlreadySent] = useState<Record<string, { sent_at?: string; scheduled_at?: string }>>({});
+  // Scheduled aftercare actions
+  const [scheduledSendingNow, setScheduledSendingNow] = useState<string | null>(null);
+  const [scheduledCancelling, setScheduledCancelling] = useState<string | null>(null);
   // Help & ideas
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpText, setHelpText] = useState("");
@@ -197,13 +222,45 @@ export function AssistantPanel({
     }
   };
 
+  const handleScheduledSendNow = async (a: ScheduledAftercare) => {
+    setScheduledSendingNow(a.treatment_id);
+    try {
+      const res = await fetch("/api/send-aftercare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ treatment_id: a.treatment_id, send_now: true }),
+      });
+      const j = await res.json() as { success?: boolean; error?: string };
+      if (j.success) {
+        setCtx(prev => prev ? { ...prev, scheduledAftercares: prev.scheduledAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
+      }
+    } finally {
+      setScheduledSendingNow(null);
+    }
+  };
+
+  const handleScheduledCancel = async (a: ScheduledAftercare) => {
+    setScheduledCancelling(a.treatment_id);
+    try {
+      const res = await fetch("/api/send-aftercare", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ treatment_id: a.treatment_id }),
+      });
+      if (res.ok) {
+        setCtx(prev => prev ? { ...prev, scheduledAftercares: prev.scheduledAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
+      }
+    } finally {
+      setScheduledCancelling(null);
+    }
+  };
+
   const launched = bot?.ready_at != null || bot?.launched === true;
   const unbookedReturn = returnClients.filter((c) => !c.rebooked_at).length;
 
   const hasAlerts = visibleAlerts.length > 0;
   const hasUnsent = (ctx?.unsentAftercares.length ?? 0) > 0;
-  const hasScheduled = (ctx?.scheduledAftercares.length ?? 0) > 0;
-  const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
+const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
   const hasReturn = unbookedReturn > 0;
   const hasPrep = (ctx?.prepReminders.length ?? 0) > 0;
   const needsSetup = !launched;
@@ -347,20 +404,36 @@ export function AssistantPanel({
               );
             })}
 
-            {/* 3. Scheduled aftercares (info) */}
-            {hasScheduled && (
-              <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Scheduled to send</p>
-                <div className="space-y-1.5">
-                  {(ctx?.scheduledAftercares ?? []).map((a) => (
-                    <div key={a.treatment_id} className="flex items-center justify-between gap-2">
-                      <p className="text-sm text-[#1a2744] truncate">{a.client_name} — {a.procedure_name}</p>
-                      <p className="shrink-0 text-xs text-slate-400">{fmtDate(a.aftercare_send_at)}</p>
-                    </div>
-                  ))}
+            {/* 3. Scheduled aftercares */}
+            {(ctx?.scheduledAftercares ?? []).map((a) => (
+              <div key={a.treatment_id} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="shrink-0 text-base">⏳</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[#1a2744]">Aftercare to {a.client_name}</p>
+                    <p className="text-xs text-slate-500">{a.procedure_name} · {fmtScheduledTime(a.aftercare_send_at)}</p>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      disabled={scheduledSendingNow === a.treatment_id}
+                      onClick={() => void handleScheduledSendNow(a)}
+                      className="rounded-full bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#243552] disabled:opacity-50"
+                    >
+                      {scheduledSendingNow === a.treatment_id ? "Sending…" : "Send now"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={scheduledCancelling === a.treatment_id}
+                      onClick={() => void handleScheduledCancel(a)}
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 disabled:opacity-50"
+                    >
+                      {scheduledCancelling === a.treatment_id ? "…" : "Cancel"}
+                    </button>
+                  </div>
                 </div>
               </div>
-            )}
+            ))}
 
             {/* 4. Check-ins overdue / due today */}
             {(ctx?.checkinsOverdue ?? []).map((c) => (
