@@ -38,7 +38,7 @@ export async function GET(request: Request) {
     const db = serviceClient();
     const { data: bot, error } = await db
       .from("bots")
-      .select("nurse_name, practice_name, location, business_hours, phone_public, alert_email, alert_email_verified, pending_alert_email, alert_phone, bot_name, greeting, slug, plan, trial_ends_at, subscription_status, frozen")
+      .select("nurse_name, practice_name, location, business_hours, phone_public, rebooking_link, alert_email, alert_email_verified, pending_alert_email, alert_phone, bot_name, greeting, slug, plan, trial_ends_at, subscription_status, frozen")
       .eq("nurse_id", user.id)
       .maybeSingle();
 
@@ -58,6 +58,7 @@ export async function GET(request: Request) {
       alert_email_verified: (bot as { alert_email_verified?: boolean | null } | null)?.alert_email_verified ?? false,
       pending_alert_email: (bot as { pending_alert_email?: string | null } | null)?.pending_alert_email ?? null,
       alert_phone: (bot as { alert_phone?: string | null } | null)?.alert_phone ?? "",
+      rebooking_link: (bot as { rebooking_link?: string | null } | null)?.rebooking_link ?? "",
       bot_name: (bot as { bot_name?: string | null } | null)?.bot_name ?? "",
       greeting: (bot as { greeting?: string | null } | null)?.greeting ?? "",
       slug: (bot as { slug?: string | null } | null)?.slug ?? "",
@@ -96,7 +97,12 @@ export async function POST(request: Request) {
       const business_hours = typeof body.business_hours === "string" ? body.business_hours.trim().slice(0, 300) : null;
       const rawPhone = typeof body.phone_public === "string" ? body.phone_public.trim() : "";
       if (rawPhone && !PHONE_REGEX.test(rawPhone)) return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
-      const { error } = await db.from("bots").update({ practice_name: practice_name || null, location: location || null, business_hours: business_hours || null, phone_public: rawPhone || null }).eq("nurse_id", user.id);
+      const rebooking_link = "rebooking_link" in body
+        ? (typeof body.rebooking_link === "string" && body.rebooking_link.trim() ? body.rebooking_link.trim().slice(0, 500) : null)
+        : undefined;
+      const updatePayload: Record<string, unknown> = { practice_name: practice_name || null, location: location || null, business_hours: business_hours || null, phone_public: rawPhone || null };
+      if (rebooking_link !== undefined) updatePayload.rebooking_link = rebooking_link;
+      const { error } = await db.from("bots").update(updatePayload).eq("nurse_id", user.id);
       if (error) { await logError("account", `practice: ${error.message}`, user.id); return NextResponse.json({ error: "Save failed" }, { status: 500 }); }
       return NextResponse.json({ ok: true });
     }

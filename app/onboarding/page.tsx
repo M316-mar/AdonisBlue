@@ -75,7 +75,7 @@ function Confetti() {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 7; // steps 1–6 are content, step 7 is the success screen
+const TOTAL_STEPS = 8; // steps 1–7 are content, step 8 is the success screen
 
 const PROCEDURES = [
   "Lip Filler",
@@ -321,11 +321,12 @@ type Draft = {
   cancellationPolicy: string;
   depositInfo: string;
   bookingLink: string;
-  // Step 3 — aftercare approval (procedure names nurse has reviewed)
+  rebookingLink: string;
+  // Step 4 — aftercare approval (procedure names nurse has reviewed)
   approvedProcedures: string[];
-  // Step 3 — edited aftercare text keyed by procedure name (overrides DEFAULT_PROCEDURE_DEFAULTS)
+  // Step 4 — edited aftercare text keyed by procedure name (overrides DEFAULT_PROCEDURE_DEFAULTS)
   editedAftercare: Record<string, string>;
-  // Step 4 — alert contact + socials
+  // Step 5 — alert contact + socials
   alertEmail: string;
   alertPhone: string;
   instagram: string;
@@ -336,9 +337,9 @@ type Draft = {
   notificationEmail: string;
   googleReviewLink: string;
   facebookReviewLink: string;
-  // Step 5 — verification status from server
+  // Step 6 — verification status from server
   alertEmailVerified: boolean;
-  // Step 6 — customize
+  // Step 7 — customize
   botName: string;
   greeting: string;
   brandColor: string;
@@ -364,6 +365,7 @@ function emptyDraft(userId: string): Draft {
     cancellationPolicy: "",
     depositInfo: "",
     bookingLink: "",
+    rebookingLink: "",
     approvedProcedures: [],
     editedAftercare: {},
     alertEmail: "",
@@ -1563,6 +1565,87 @@ function StepVerify({
   );
 }
 
+// ─── Step 3: rebooking link (optional) ───────────────────────────────────────
+
+function StepRebooking({ draft, onChange }: { draft: Draft; onChange: (patch: Partial<Draft>) => void }) {
+  const [mode, setMode] = useState<"unanswered" | "yes" | "not_yet">(
+    draft.rebookingLink ? "yes" : "unanswered"
+  );
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-[#0d9488] mb-2">Optional</p>
+        <h2 className="text-xl font-semibold text-[#1a2744] sm:text-2xl">Do you keep appointment times just for returning clients?</h2>
+        <p className="mt-2 text-sm text-slate-500">
+          Some nurses reserve specific slots for clients coming back. If you have a booking link for that, we&apos;ll include it in every return reminder we send them — making it easy for clients to rebook without competing for new-client slots.
+        </p>
+      </div>
+
+      {mode === "unanswered" && (
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => setMode("yes")}
+            className="flex-1 min-h-[52px] rounded-2xl border-2 border-[#0d9488] bg-white px-5 py-3 text-sm font-semibold text-[#0d9488] transition hover:bg-teal-50 text-left"
+          >
+            Yes, I have a booking link →
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("not_yet")}
+            className="flex-1 min-h-[52px] rounded-2xl border-2 border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 text-left"
+          >
+            Not yet — I&apos;ll set it up later
+          </button>
+        </div>
+      )}
+
+      {mode === "yes" && (
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Booking link for returning clients</label>
+            <input
+              type="url"
+              value={draft.rebookingLink}
+              onChange={(e) => onChange({ rebookingLink: e.target.value })}
+              placeholder="https://book.example.com/returning"
+              maxLength={500}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488] focus:bg-white transition"
+            />
+            <p className="mt-1.5 text-xs text-slate-400">
+              Paste the link where returning clients can book. You can change or remove it any time in My Account.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setMode("unanswered"); onChange({ rebookingLink: "" }); }}
+            className="text-xs text-slate-400 hover:text-slate-600 underline transition"
+          >
+            I don&apos;t have one yet
+          </button>
+        </div>
+      )}
+
+      {mode === "not_yet" && (
+        <div className="rounded-2xl border border-teal-100 bg-teal-50 p-5">
+          <p className="text-sm font-medium text-teal-800">No problem — your return reminders will still go out.</p>
+          <p className="text-xs text-teal-600 mt-1.5">
+            Clients will be linked to your main booking page. When you&apos;re ready, add a dedicated link in My Account → My Practice.
+          </p>
+          <button
+            type="button"
+            onClick={() => setMode("unanswered")}
+            className="mt-3 text-xs text-teal-600 hover:text-teal-800 underline transition"
+          >
+            Actually, I do have a link
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 function OnboardingInner() {
@@ -1633,7 +1716,8 @@ function OnboardingInner() {
               cancellationPolicy: (bot.cancellation_policy as string | null) ?? "",
               depositInfo: (bot.deposit_info as string | null) ?? "",
               bookingLink: (bot.booking_link as string | null) ?? "",
-              // Step 4 — alert contact + socials
+              rebookingLink: (bot.rebooking_link as string | null) ?? "",
+              // Step 5 — alert contact + socials
               alertEmail: (bot.alert_email as string | null) ?? "",
               alertPhone: (bot.alert_phone as string | null) ?? "",
               instagram: (bot.instagram as string | null) ?? "",
@@ -1703,8 +1787,8 @@ function OnboardingInner() {
         initialStep = 1;
       }
       // If nurse clicked the email verification link, advance past step 5
-      if (isVerifiedCallback && initialStep <= 5) {
-        initialStep = 6;
+      if (isVerifiedCallback && initialStep <= 6) {
+        initialStep = 7;
       }
 
       const merged: Draft = {
@@ -1742,18 +1826,19 @@ function OnboardingInner() {
     if (draft.step === 1)
       return Boolean(draft.nurseName.trim() && draft.practiceName.trim() && draft.city.trim());
     if (draft.step === 2) return draft.procedures.length > 0;
-    if (draft.step === 3) {
+    if (draft.step === 3) return true; // optional — rebooking link
+    if (draft.step === 4) {
       const allProcs = [
         ...draft.procedures.filter(p => p !== "Other"),
         ...draft.customProcedures.split(",").map(s => s.trim()).filter(Boolean),
       ];
       return allProcs.length > 0 && allProcs.every(p => draft.approvedProcedures.includes(p));
     }
-    if (draft.step === 4) {
+    if (draft.step === 5) {
       const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.alertEmail.trim());
       return emailOk && draft.alertPhone.trim().length >= 7;
     }
-    if (draft.step === 5) return draft.alertEmailVerified;
+    if (draft.step === 6) return draft.alertEmailVerified;
     return true;
   }, [draft]);
 
@@ -1857,12 +1942,30 @@ function OnboardingInner() {
         return;
       }
       setSaving(false);
-      setDraft({ step: 3, approvedProcedures: [] });
+      setDraft({ step: 3 });
       return;
     }
 
-    // ── Step 3: approve procedures ─────────────────────────────────────────
+    // ── Step 3: save rebooking link (optional) ────────────────────────────
     if (draft.step === 3) {
+      if (draft.rebookingLink.trim()) {
+        setSaving(true);
+        try {
+          await fetch("/api/savebot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ rebooking_link: draft.rebookingLink.trim() }),
+          });
+        } finally {
+          setSaving(false);
+        }
+      }
+      setDraft({ step: 4, approvedProcedures: [] });
+      return;
+    }
+
+    // ── Step 4: approve procedures ─────────────────────────────────────────
+    if (draft.step === 4) {
       setSaving(true);
       try {
         const res = await fetch("/api/procedures", { headers: { Authorization: `Bearer ${token}` } });
@@ -1890,12 +1993,12 @@ function OnboardingInner() {
         return;
       }
       setSaving(false);
-      setDraft({ step: 4 });
+      setDraft({ step: 5 });
       return;
     }
 
-    // ── Step 4: save alert contact + send test email ───────────────────────
-    if (draft.step === 4) {
+    // ── Step 5: save alert contact + send test email ───────────────────────
+    if (draft.step === 5) {
       setSaving(true);
       try {
         const saveRes = await fetch("/api/savebot", {
@@ -1931,17 +2034,17 @@ function OnboardingInner() {
       } finally {
         setSaving(false);
       }
-      setDraft({ step: 5 });
-      return;
-    }
-
-    // ── Step 5: verified — advance to step 6 ──────────────────────────────
-    if (draft.step === 5) {
       setDraft({ step: 6 });
       return;
     }
 
-    // ── Step 6 (last content step): launch ────────────────────────────────
+    // ── Step 6: verified — advance to step 7 ──────────────────────────────
+    if (draft.step === 6) {
+      setDraft({ step: 7 });
+      return;
+    }
+
+    // ── Step 7 (last content step): launch ────────────────────────────────
     setSaving(true);
     try {
       const effectiveBotName = draft.botName.trim() || `${draft.practiceName.trim()} Assistant`;
@@ -2003,11 +2106,11 @@ function OnboardingInner() {
     if (draft.step > 1) setDraft({ step: draft.step - 1 });
   }, [draft.step, setDraft]);
 
-  // ── Poll for email verification on step 5 ─────────────────────────────────
+  // ── Poll for email verification on step 6 ─────────────────────────────────
   const [resending, setResending] = useState(false);
 
   useEffect(() => {
-    if (draft.step !== 5 || draft.alertEmailVerified) return;
+    if (draft.step !== 6 || draft.alertEmailVerified) return;
     const token = tokenRef.current;
     if (!token) return;
     const id = setInterval(async () => {
@@ -2016,7 +2119,7 @@ function OnboardingInner() {
         if (res.ok) {
           const { bot } = (await res.json()) as { bot?: { alert_email_verified?: boolean } | null };
           if (bot?.alert_email_verified === true) {
-            setDraft({ alertEmailVerified: true, step: 6 });
+            setDraft({ alertEmailVerified: true, step: 7 });
           }
         }
       } catch { /* ignore */ }
@@ -2050,12 +2153,12 @@ function OnboardingInner() {
     );
   }
 
-  // 6 content steps → progress shows 0% at step 1, 100% at step 6
-  const CONTENT_STEPS = TOTAL_STEPS - 1; // 6
+  // 7 content steps → progress shows 0% at step 1, 100% at step 7
+  const CONTENT_STEPS = TOTAL_STEPS - 1; // 7
   const pct = Math.min(100, Math.round(((draft.step - 1) / CONTENT_STEPS) * 100));
-  const isLastContentStep = draft.step === CONTENT_STEPS; // step 6
-  const isDone = draft.step === TOTAL_STEPS; // step 7
-  const showPreview = draft.step === 6; // Customize step
+  const isLastContentStep = draft.step === CONTENT_STEPS; // step 7
+  const isDone = draft.step === TOTAL_STEPS; // step 8
+  const showPreview = draft.step === 7; // Customize step
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
@@ -2122,10 +2225,12 @@ function OnboardingInner() {
           ) : draft.step === 2 ? (
             <StepProcedures draft={draft} onChange={setDraft} />
           ) : draft.step === 3 ? (
-            <StepAftercareReview draft={draft} onChange={setDraft} />
+            <StepRebooking draft={draft} onChange={setDraft} />
           ) : draft.step === 4 ? (
-            <StepAlertContact draft={draft} onChange={setDraft} />
+            <StepAftercareReview draft={draft} onChange={setDraft} />
           ) : draft.step === 5 ? (
+            <StepAlertContact draft={draft} onChange={setDraft} />
+          ) : draft.step === 6 ? (
             <StepVerify
               alertEmail={draft.alertEmail}
               alertEmailVerified={draft.alertEmailVerified}
@@ -2134,7 +2239,7 @@ function OnboardingInner() {
             />
           ) : null}
 
-          {/* Mobile preview button for step 4 */}
+          {/* Mobile preview button for step 7 */}
           {showPreview && (
             <div className="mt-4 md:hidden">
               <button
@@ -2222,9 +2327,11 @@ function OnboardingInner() {
                   ? "Saving…"
                   : isLastContentStep
                     ? "Go live 🚀"
-                    : draft.step === 4
+                    : draft.step === 5
                       ? "Send test alert →"
-                      : "Next →"}
+                      : draft.step === 3
+                        ? (draft.rebookingLink.trim() ? "Save & continue →" : "Skip for now →")
+                        : "Next →"}
               </button>
             )}
           </div>

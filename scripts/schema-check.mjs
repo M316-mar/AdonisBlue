@@ -251,7 +251,7 @@ const appFiles = [
 
 const allRefs = extractRefs(appFiles);
 
-const KNOWN_PENDING_COLUMNS = new Set([]);
+const KNOWN_PENDING_COLUMNS = new Set(["bots.rebooking_link"]);
 
 // Deduplicate and check
 const seenKey = new Set();

@@ -16,6 +16,7 @@ type BotRow = {
   bot_name?: string | null;
   services?: string[] | null;
   booking_link?: string | null;
+  rebooking_link?: string | null;
   photos?: string[] | null;
   cancellation_policy?: string | null;
   aftercare?: string | null;
@@ -490,6 +491,101 @@ export default function NurseDashboardPage() {
                 onAlertCountChange={setAlertCount}
               />
             )}
+
+            {/* ── Clients coming back — always visible, below Assistant ── */}
+            <section id="return-clients" className="rounded-2xl border border-slate-200 bg-white shadow-md overflow-hidden">
+              <div className="px-4 py-4 sm:px-6 border-b border-slate-100">
+                <p className="text-sm font-semibold text-[#1a2744]">💙 Clients coming back</p>
+                <p className="text-xs text-slate-400 mt-0.5">Clients due back in the next 30 days. Save them a spot in your calendar.</p>
+              </div>
+              {returnClients.length === 0 ? (
+                <div className="px-4 py-5 sm:px-6">
+                  <p className="text-sm text-slate-400">No clients due back in the next 30 days. They&apos;ll show up here automatically after you log treatments.</p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {returnClients.map((c) => {
+                    const isBooked = !!c.rebooked_at;
+                    const today = new Date().toISOString().slice(0, 10);
+                    const isPastDue = !isBooked && c.due_date < today;
+                    const reminderAlreadySent = c.reminder_send_date <= today;
+                    const dueFmt = formatTreatmentDate(c.due_date, { month: "short", day: "numeric" });
+                    const reminderFmt = formatTreatmentDate(c.reminder_send_date, { month: "short", day: "numeric" });
+
+                    // Build .ics content for "Hold a spot" calendar reminder
+                    const icsDate = c.due_date.replace(/-/g, "");
+                    const icsContent = [
+                      "BEGIN:VCALENDAR",
+                      "VERSION:2.0",
+                      "PRODID:-//AdonisBlue//EN",
+                      "BEGIN:VEVENT",
+                      `DTSTART;VALUE=DATE:${icsDate}`,
+                      `DTEND;VALUE=DATE:${icsDate}`,
+                      `SUMMARY:Keep a slot open for ${c.client_name} — ${c.procedure_name}\\, due ${dueFmt}`,
+                      `DESCRIPTION:${c.client_name} is due back for ${c.procedure_name} around ${dueFmt}. Hold a slot open for them.`,
+                      "BEGIN:VALARM",
+                      "TRIGGER:-P7D",
+                      "ACTION:DISPLAY",
+                      `DESCRIPTION:${c.client_name} is due back for ${c.procedure_name} in 7 days — save them a slot!`,
+                      "END:VALARM",
+                      "END:VEVENT",
+                      "END:VCALENDAR",
+                    ].join("\r\n");
+                    const icsBlob = `data:text/calendar;charset=utf-8,${encodeURIComponent(icsContent)}`;
+
+                    return (
+                      <li key={c.treatment_id} className={`px-4 py-3 sm:px-6 flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between ${isBooked ? "bg-green-50" : ""}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-[#1a2744]">
+                            {isBooked ? "🟢" : "🟡"} {c.client_name} {isPastDue ? "was" : "is"} due back for {c.procedure_name}{isPastDue ? ` on ${dueFmt}` : ` on ${dueFmt}`}.
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {isBooked
+                              ? "Booked. Reminders stopped."
+                              : c.opted_out
+                              ? "She turned off reminders."
+                              : reminderAlreadySent
+                              ? `We reminded her on ${reminderFmt}.`
+                              : `We'll remind her on ${reminderFmt}.`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!isBooked && (
+                            <a
+                              href={icsBlob}
+                              download={`hold-slot-${c.client_name.replace(/\s+/g, "-").toLowerCase()}.ics`}
+                              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                            >
+                              📅 Hold a spot
+                            </a>
+                          )}
+                          {isBooked ? (
+                            <button
+                              type="button"
+                              disabled={returnBookingBusy === c.treatment_id}
+                              onClick={() => void handleReturnBooking(c.treatment_id, "unbook")}
+                              className="text-xs text-slate-400 hover:text-slate-600 underline transition disabled:opacity-50"
+                            >
+                              {returnBookingBusy === c.treatment_id ? "…" : "Undo"}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={returnBookingBusy === c.treatment_id}
+                              onClick={() => void handleReturnBooking(c.treatment_id, "booked")}
+                              className="rounded-full bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                            >
+                              {returnBookingBusy === c.treatment_id ? "…" : "✅ She booked"}
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
             <section className="relative overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 shadow-lg sm:px-6 sm:py-8">
               <div
                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_85%_0%,rgba(13,148,136,0.22),transparent),radial-gradient(ellipse_60%_50%_at_0%_100%,rgba(56,189,248,0.12),transparent)] opacity-90"

@@ -99,6 +99,12 @@ export async function POST(request: Request) {
       update["logo_url"] = (typeof val === "string" && val.trim()) ? val.trim() : null;
     }
 
+    // rebooking_link — empty string or null explicitly clears it
+    if ("rebooking_link" in body) {
+      const val = body["rebooking_link"];
+      update["rebooking_link"] = (typeof val === "string" && val.trim()) ? val.trim() : null;
+    }
+
     // services array — written when present (empty array intentionally clears)
     if ("services" in body && Array.isArray(body["services"])) {
       update["services"] = body["services"];

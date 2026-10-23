@@ -4,10 +4,9 @@ import { Resend } from "resend";
 import { logError } from "@/lib/logError";
 import { dueDate } from "@/lib/reminderDate";
 import { formatTreatmentDate } from "@/lib/formatTreatmentDate";
+import { buildNurseReturnEmail } from "@/lib/emails/returnEmails";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io";
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -94,35 +93,13 @@ export async function GET(request: Request) {
       // Sort by due date
       clients.sort((a, b) => a.dueISO.localeCompare(b.dueISO));
 
-      const clientLines = clients.map((c) => {
-        const dueFormatted = formatTreatmentDate(c.dueISO, { month: "long", day: "numeric" });
-        return `<p style="margin:0 0 10px;font-size:15px;color:#334155;">🟡 <strong>${c.clientName}</strong> is due back for ${c.procedureName} around ${dueFormatted}.</p>`;
-      }).join("");
+      const formattedClients = clients.map((c) => ({
+        clientName: c.clientName,
+        procedureName: c.procedureName,
+        dueFormatted: formatTreatmentDate(c.dueISO, { month: "long", day: "numeric" }),
+      }));
 
-      const html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0;">
-        <tr><td style="background:#1a2744;padding:24px 32px;">
-          <img src="${SITE_URL}/Alona.png" alt="AdonisBlue" width="36" height="36" style="border-radius:8px;display:block;margin:0 auto 8px;" />
-          <p style="margin:0;color:#fff;font-size:18px;font-weight:700;text-align:center;">🔁 Clients coming back soon</p>
-          <p style="margin:6px 0 0;color:#94a3b8;font-size:13px;text-align:center;">${practiceName} · Save them a spot this week.</p>
-        </td></tr>
-        <tr><td style="padding:32px;">
-          ${clientLines}
-          <div style="margin-top:20px;text-align:center;">
-            <a href="${SITE_URL}/dashboard" style="display:inline-block;background:#0d9488;color:#fff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:50px;">View dashboard 💙</a>
-          </div>
-        </td></tr>
-        <tr><td style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;text-align:center;">
-          <p style="margin:0;color:#94a3b8;font-size:12px;">AdonisBlue · hi@adonisblue.io</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
+      const html = buildNurseReturnEmail({ practiceName, clients: formattedClients });
 
       try {
         await resend.emails.send({

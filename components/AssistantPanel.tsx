@@ -56,7 +56,7 @@ type Context = {
 type Props = {
   nurseFirstName: string;
   token: string;
-  bot: { launched?: boolean | null; ready_at?: string | null } | null;
+  bot: { launched?: boolean | null; ready_at?: string | null; rebooking_link?: string | null } | null;
   returnClients: { treatment_id: string; rebooked_at: string | null }[];
   onAlertCountChange?: (count: number) => void;
 };
@@ -120,6 +120,15 @@ export function AssistantPanel({
   // Scheduled aftercare actions
   const [scheduledSendingNow, setScheduledSendingNow] = useState<string | null>(null);
   const [scheduledCancelling, setScheduledCancelling] = useState<string | null>(null);
+  // Rebooking link setup nudge
+  const [rebookingDismissed, setRebookingDismissed] = useState(() => {
+    try {
+      const ts = localStorage.getItem("ab-rebooking-nudge-dismissed");
+      if (!ts) return false;
+      const daysSince = (Date.now() - new Date(ts).getTime()) / (1000 * 60 * 60 * 24);
+      return daysSince < 14;
+    } catch { return false; }
+  });
   // Help & ideas
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpText, setHelpText] = useState("");
@@ -263,7 +272,8 @@ const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
   const hasReturn = unbookedReturn > 0;
   const hasPrep = (ctx?.prepReminders.length ?? 0) > 0;
   const needsSetup = !launched;
-  const allDone = !loading && !hasAlerts && !hasUnsent && !hasCheckins && !hasReturn && !hasPrep && !needsSetup;
+  const showRebookingNudge = launched && !bot?.rebooking_link && !rebookingDismissed;
+  const allDone = !loading && !hasAlerts && !hasUnsent && !hasCheckins && !hasReturn && !hasPrep && !needsSetup && !showRebookingNudge;
 
   return (
     <section id="assistant-panel" className="rounded-2xl border border-[#1a2744]/20 bg-white shadow-lg overflow-hidden">
@@ -505,7 +515,37 @@ const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
               );
             })}
 
-            {/* 7. Setup — if not launched */}
+            {/* 7. Rebooking link gentle nudge */}
+            {showRebookingNudge && (
+              <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-3">
+                <span className="shrink-0 text-base mt-0.5">📅</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[#1a2744]">Set up a spot for returning clients</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Add a booking link just for clients coming back and we&apos;ll include it in every return reminder.</p>
+                </div>
+                <div className="flex shrink-0 flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => router.push("/account#practice")}
+                    className="rounded-full bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#243552]"
+                  >
+                    Take me there →
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRebookingDismissed(true);
+                      try { localStorage.setItem("ab-rebooking-nudge-dismissed", new Date().toISOString()); } catch { /* ignore */ }
+                    }}
+                    className="text-center text-xs text-slate-400 hover:text-slate-600 transition"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 8. Setup — if not launched */}
             {needsSetup && (
               <div className="flex items-center gap-3 rounded-xl border border-teal-200 bg-teal-50 px-3 py-3">
                 <span className="shrink-0 text-base">⚙️</span>

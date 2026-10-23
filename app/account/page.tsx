@@ -13,6 +13,7 @@ interface AccountData {
   location: string;
   business_hours: string;
   phone_public: string;
+  rebooking_link: string;
   alert_email: string;
   alert_email_verified: boolean;
   pending_alert_email: string | null;
@@ -74,6 +75,7 @@ function AccountPageInner() {
   const [location, setLocation] = useState("");
   const [businessHours, setBusinessHours] = useState("");
   const [phonePublic, setPhonePublic] = useState("");
+  const [rebookingLink, setRebookingLink] = useState("");
   const [alertEmail, setAlertEmail] = useState("");
   const [alertPhone, setAlertPhone] = useState("");
   const [botName, setBotName] = useState("");
@@ -137,6 +139,7 @@ function AccountPageInner() {
         setLocation(d.location);
         setBusinessHours(d.business_hours);
         setPhonePublic(d.phone_public);
+        setRebookingLink(d.rebooking_link ?? "");
         setAlertEmail(d.alert_email);
         setAlertPhone(d.alert_phone);
         setBotName(d.bot_name);
@@ -170,11 +173,11 @@ function AccountPageInner() {
   const savePractice = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setPracticeSaving(true);
-    const r = await post({ section: "practice", practice_name: practiceName, location, business_hours: businessHours, phone_public: phonePublic });
+    const r = await post({ section: "practice", practice_name: practiceName, location, business_hours: businessHours, phone_public: phonePublic, rebooking_link: rebookingLink.trim() || null });
     setPracticeSaving(false);
     if (r.ok) flashSaved(setPracticeSaved);
     else alert(r.error ?? "Save failed");
-  }, [post, practiceName, location, businessHours, phonePublic]);
+  }, [post, practiceName, location, businessHours, phonePublic, rebookingLink]);
 
   const saveAlertPhone = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -401,6 +404,9 @@ function AccountPageInner() {
               </Field>
               <Field label="Phone clients can call" hint="This is the number shown in aftercare instructions as [YOUR PHONE].">
                 <input value={phonePublic} onChange={e => setPhonePublic(e.target.value)} placeholder="+1 (555) 000-0000" maxLength={20} className={INPUT} />
+              </Field>
+              <Field label="Booking link for returning clients" hint="Optional. If set, return reminder emails link here instead of your main booking link. Leave blank to use your main booking link.">
+                <input type="url" value={rebookingLink} onChange={e => setRebookingLink(e.target.value)} placeholder="https://book.example.com/returning" maxLength={500} className={INPUT} />
               </Field>
               <div className="pt-1">
                 <SaveButton saving={practiceSaving} saved={practiceSaved} />
