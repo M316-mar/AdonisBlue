@@ -95,9 +95,14 @@ export async function PATCH(request: Request) {
     if (!nurseId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { id, source, field, value, nurse_notes } = body;
+    const { id, ids, source, field, value, nurse_notes } = body;
 
-    if (!id || !UUID_REGEX.test(String(id))) {
+    // Accept a single id or an array of ids (for grouped healing alerts)
+    const allIds: string[] = ids && Array.isArray(ids)
+      ? ids.map(String)
+      : id ? [String(id)] : [];
+
+    if (allIds.length === 0 || allIds.some((i) => !UUID_REGEX.test(i))) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
     if (source !== "healing" && source !== "chatbot") {
@@ -127,7 +132,7 @@ export async function PATCH(request: Request) {
     const { error } = await db
       .from(table)
       .update(update)
-      .eq("id", id)
+      .in("id", allIds)
       .eq("nurse_id", nurseId); // enforce ownership
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

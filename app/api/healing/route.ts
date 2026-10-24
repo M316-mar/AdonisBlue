@@ -474,8 +474,10 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client mentions ANY of the following
         .maybeSingle();
       const existingAILevel = (existingAIRow?.alert_level as "911" | "nurse" | null) ?? null;
       const existingAIMsgs = Array.isArray(existingAIRow?.alert_messages) ? existingAIRow.alert_messages : [];
-      // AI path is always "nurse" level — never downgrade from "911"
-      const aiMergedLevel: "911" | "nurse" = existingAILevel === "911" ? "911" : "nurse";
+      // Run level detection on the message — AI may have caught a 911-level symptom via text match
+      const aiDetectedLevel = detectEmergencyLevel(lastUserMessage) ?? "nurse";
+      // 911 always wins — never downgrade an existing 911 alert
+      const aiMergedLevel: "911" | "nurse" = (existingAILevel === "911" || aiDetectedLevel === "911") ? "911" : "nurse";
 
       const { error: aiUpsertErr } = await supabase.from("healing_chats").upsert(
         {
@@ -487,7 +489,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client mentions ANY of the following
           alert_level: aiMergedLevel,
           alert_messages: [
             ...existingAIMsgs,
-            { message: lastUserMessage.slice(0, 500), level: "nurse", timestamp: new Date().toISOString() },
+            { message: lastUserMessage.slice(0, 500), level: aiDetectedLevel, timestamp: new Date().toISOString() },
           ],
           updated_at: new Date().toISOString(),
         },

@@ -16,6 +16,7 @@ type Alert = {
   alert_level: "911" | "nurse" | null;
   alert_messages: AlertMessage[];
   timestamp: string;
+  healing_ids?: string[];
 };
 
 type UnsentAftercare = {
@@ -182,11 +183,15 @@ export function AssistantPanel({
     setHandlingAlert(alert.id);
     try {
       const note = alertNotes[alert.id]?.trim() ?? "";
+      // For grouped healing alerts, send all merged ids so every row is resolved
+      const ids = alert.healing_ids && alert.healing_ids.length > 1
+        ? alert.healing_ids
+        : undefined;
       const res = await fetch("/api/incidents", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          id: alert.id,
+          ...(ids ? { ids } : { id: alert.id }),
           source: alert.source,
           field: "status",
           value: "resolved",

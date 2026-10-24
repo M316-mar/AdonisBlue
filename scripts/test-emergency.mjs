@@ -334,3 +334,106 @@ if (fail > 0) process.exit(1);
   console.log(`\n${mPass}/${mPass+mFail} passed (level-merge)`);
   if (mFail > 0) process.exit(1);
 }
+
+// ── AI-path level tests: AI path must run detectEmergencyLevel, not hardcode "nurse" ──
+// Mirrors the fix in healing/route.ts: aiDetectedLevel = detectEmergencyLevel(msg) ?? "nurse"
+{
+  let aPass = 0, aFail = 0;
+  const aLabel = (ok, msg) => {
+    if (ok) aPass++; else aFail++;
+    const tag = ok ? `${GREEN}PASS${RESET}` : `${RED}${BOLD}FAIL${RESET}`;
+    console.log(`${tag}  ${msg}`);
+  };
+
+  function aiPathLevel(msg, existingLevel) {
+    const detected = detectEmergencyLevel(msg) ?? "nurse";
+    return (existingLevel === "911" || detected === "911") ? "911" : "nurse";
+  }
+
+  // "cant breath" via AI path → must be 911, not nurse
+  aLabel(aiPathLevel("cant breath", null) === "911",
+    `AI path: "cant breath" (typo) → level "911"`);
+
+  // "cant breath" with existing 911 → stays 911
+  aLabel(aiPathLevel("cant breath", "911") === "911",
+    `AI path: "cant breath" + existing 911 → stays "911"`);
+
+  // "my lip looks pale" via AI path → nurse
+  aLabel(aiPathLevel("my lip looks pale", null) === "nurse",
+    `AI path: "my lip looks pale" → level "nurse"`);
+
+  // "my lip looks pale" with existing 911 → stays 911
+  aLabel(aiPathLevel("my lip looks pale", "911") === "911",
+    `AI path: nurse-level msg + existing 911 → stays "911"`);
+
+  // Pure conversational message via AI path → nurse (default)
+  aLabel(aiPathLevel("thank you so much", null) === "nurse",
+    `AI path: non-emergency msg defaults to "nurse"`);
+
+  console.log(`\n${aPass}/${aPass+aFail} passed (AI-path level)`);
+  if (aFail > 0) process.exit(1);
+}
+
+// ── Grouping tests: merge two healing_chat rows for same intake_id ──
+{
+  let gPass = 0, gFail = 0;
+  const gLabel = (ok, msg) => {
+    if (ok) gPass++; else gFail++;
+    const tag = ok ? `${GREEN}PASS${RESET}` : `${RED}${BOLD}FAIL${RESET}`;
+    console.log(`${tag}  ${msg}`);
+  };
+
+  // Simulate the grouping logic from assistant/context/route.ts
+  function groupHealingAlerts(rows) {
+    const byIntake = new Map();
+    for (const r of rows) {
+      const key = r.intake_id ?? r.id;
+      const rowMsgs = r.alert_messages ?? [];
+      const rowLevel = r.alert_level ?? null;
+      const existing = byIntake.get(key);
+      if (!existing) {
+        byIntake.set(key, { ...r, healing_ids: [r.id], alert_messages: rowMsgs });
+      } else {
+        existing.healing_ids.push(r.id);
+        if (rowLevel === "911" || existing.alert_level !== "911") {
+          if (rowLevel === "911") existing.alert_level = "911";
+          else if (!existing.alert_level && rowLevel) existing.alert_level = rowLevel;
+        }
+        existing.alert_messages = [...existing.alert_messages, ...rowMsgs]
+          .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        if (new Date(r.updated_at) > new Date(existing.updated_at)) {
+          existing.updated_at = r.updated_at;
+          existing.flagged_message = r.flagged_message ?? existing.flagged_message;
+        }
+      }
+    }
+    return [...byIntake.values()];
+  }
+
+  const ts1 = "2026-10-24T01:00:00.000Z";
+  const ts2 = "2026-10-24T02:00:00.000Z";
+  const rows = [
+    { id: "row-1", intake_id: "intake-maria", alert_level: "nurse", alert_messages: [{ message: "my lip looks pale", level: "nurse", timestamp: ts1 }], flagged_message: "my lip looks pale", updated_at: ts1 },
+    { id: "row-2", intake_id: "intake-maria", alert_level: "911",   alert_messages: [{ message: "cant breath", level: "911", timestamp: ts2 }], flagged_message: "cant breath", updated_at: ts2 },
+  ];
+
+  const grouped = groupHealingAlerts(rows);
+
+  gLabel(grouped.length === 1, `grouping: 2 rows for same intake → 1 card`);
+  gLabel(grouped[0]?.alert_level === "911", `grouping: merged card level is "911" (highest wins)`);
+  gLabel(grouped[0]?.alert_messages?.length === 2, `grouping: merged card has 2 messages`);
+  gLabel(grouped[0]?.healing_ids?.length === 2, `grouping: healing_ids contains both row ids`);
+  gLabel(grouped[0]?.alert_messages?.[0]?.message === "my lip looks pale", `grouping: messages sorted oldest-first`);
+  gLabel(grouped[0]?.flagged_message === "cant breath", `grouping: flagged_message from latest row`);
+
+  // Two rows for DIFFERENT clients → two cards
+  const rows2 = [
+    { id: "row-a", intake_id: "intake-a", alert_level: "nurse", alert_messages: [], flagged_message: "scared", updated_at: ts1 },
+    { id: "row-b", intake_id: "intake-b", alert_level: "911",   alert_messages: [], flagged_message: "cant breathe", updated_at: ts2 },
+  ];
+  const grouped2 = groupHealingAlerts(rows2);
+  gLabel(grouped2.length === 2, `grouping: 2 rows for different intakes → 2 cards`);
+
+  console.log(`\n${gPass}/${gPass+gFail} passed (grouping)`);
+  if (gFail > 0) process.exit(1);
+}

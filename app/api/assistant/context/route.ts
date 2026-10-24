@@ -105,25 +105,60 @@ export async function GET(request: Request) {
     if (prepRes.error) await logError("assistant/context", prepRes.error.message);
 
     // ── Unhandled alerts ──────────────────────────────────────────────────────
-    const unhandledAlerts = [
-      ...(hcRes.data ?? []).map((r: any) => {
-        // Prefer stored client_name unless it is blank or the generic placeholder "Client".
-        // Fall back to the intake's first name via treatment_id → treatments → intakes.
-        const intakeName = r.treatments?.intakes?.first_name ?? null;
-        const realName =
-          r.client_name && r.client_name !== "Client" ? r.client_name : intakeName;
-        return {
+    // Group healing_chats alerts by intake_id so a client with multiple treatments
+    // shows as a single card with all flagged messages merged.
+    type AlertMsg = { message: string; level: "911" | "nurse"; timestamp: string };
+    type AlertRow = {
+      id: string; source: "healing" | "chatbot";
+      client_name: string | null; client_phone: string | null; client_email: string | null;
+      flagged_message: string | null; alert_level: "911" | "nurse" | null;
+      alert_messages: AlertMsg[]; timestamp: string;
+      // ids of all healing_chat rows merged into this card (for mark-handled)
+      healing_ids: string[];
+    };
+
+    const healingByIntake = new Map<string, AlertRow>();
+    for (const r of (hcRes.data ?? []) as any[]) {
+      const intakeId: string = (r.treatments?.intake_id as string | null) ?? r.id;
+      const intakeName = r.treatments?.intakes?.first_name ?? null;
+      const realName = r.client_name && r.client_name !== "Client" ? r.client_name : intakeName;
+      const rowLevel = (r.alert_level ?? null) as "911" | "nurse" | null;
+      const rowMsgs = (Array.isArray(r.alert_messages) ? r.alert_messages : []) as AlertMsg[];
+
+      const existing = healingByIntake.get(intakeId);
+      if (!existing) {
+        healingByIntake.set(intakeId, {
           id: r.id as string,
-          source: "healing" as const,
+          source: "healing",
           client_name: realName as string | null,
           client_phone: (r.client_phone ?? null) as string | null,
           client_email: (r.treatments?.intakes?.email ?? null) as string | null,
           flagged_message: (r.flagged_message ?? null) as string | null,
-          alert_level: (r.alert_level ?? null) as "911" | "nurse" | null,
-          alert_messages: (Array.isArray(r.alert_messages) ? r.alert_messages : []) as { message: string; level: "911" | "nurse"; timestamp: string }[],
+          alert_level: rowLevel,
+          alert_messages: rowMsgs,
           timestamp: r.updated_at as string,
-        };
-      }),
+          healing_ids: [r.id as string],
+        });
+      } else {
+        // Merge: 911 always wins; keep latest timestamp; combine messages sorted by time
+        existing.healing_ids.push(r.id as string);
+        if (rowLevel === "911" || existing.alert_level !== "911") {
+          if (rowLevel === "911") existing.alert_level = "911";
+          else if (!existing.alert_level && rowLevel) existing.alert_level = rowLevel;
+        }
+        existing.alert_messages = [...existing.alert_messages, ...rowMsgs]
+          .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        if (new Date(r.updated_at).getTime() > new Date(existing.timestamp).getTime()) {
+          existing.timestamp = r.updated_at as string;
+          existing.flagged_message = (r.flagged_message ?? existing.flagged_message) as string | null;
+        }
+        if (!existing.client_phone && r.client_phone) existing.client_phone = r.client_phone;
+        if (!existing.client_email && r.treatments?.intakes?.email) existing.client_email = r.treatments.intakes.email;
+      }
+    }
+
+    const unhandledAlerts: AlertRow[] = [
+      ...healingByIntake.values(),
       ...(cvRes.data ?? []).map((r: any) => ({
         id: r.id as string,
         source: "chatbot" as const,
@@ -132,8 +167,9 @@ export async function GET(request: Request) {
         client_email: null as string | null,
         flagged_message: (r.flagged_message ?? null) as string | null,
         alert_level: null as "911" | "nurse" | null,
-        alert_messages: [] as { message: string; level: "911" | "nurse"; timestamp: string }[],
+        alert_messages: [] as AlertMsg[],
         timestamp: r.created_at as string,
+        healing_ids: [] as string[],
       })),
     ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
