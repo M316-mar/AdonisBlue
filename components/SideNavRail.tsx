@@ -57,6 +57,19 @@ export function SideNavRail() {
   const [alertCount, setAlertCount] = useState(0);
   const [nurseInitial, setNurseInitial] = useState("·");
 
+  const fetchAlertCount = async () => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+      const notifRes = await fetch("/api/notifications", { headers: { Authorization: `Bearer ${token}` } });
+      if (notifRes.ok) {
+        const json = await notifRes.json() as { count?: number };
+        setAlertCount(json.count ?? 0);
+      }
+    } catch { /* ignore */ }
+  };
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -80,6 +93,11 @@ export function SideNavRail() {
       } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("alert-handled", fetchAlertCount);
+    return () => window.removeEventListener("alert-handled", fetchAlertCount);
   }, []);
 
   const handleBellClick = () => {

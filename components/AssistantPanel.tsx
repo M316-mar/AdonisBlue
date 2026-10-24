@@ -196,6 +196,7 @@ export function AssistantPanel({
       if (res.ok) {
         setHandledAlerts((prev) => new Set([...prev, alert.id]));
         setExpandedAlert(null);
+        window.dispatchEvent(new Event("alert-handled"));
       }
     } finally {
       setHandlingAlert(null);

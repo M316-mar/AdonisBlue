@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { logError } from "@/lib/logError";
 
 function makeDb() {
   return createClient(
@@ -44,6 +45,9 @@ export async function GET(request: Request) {
         .order("created_at", { ascending: false }),
     ]);
 
+    if (hcRes.error) await logError("api/notifications", hcRes.error.message);
+    if (cvRes.error) await logError("api/notifications", cvRes.error.message);
+
     const all = [
       ...(hcRes.data ?? []).map((r) => ({
         id: r.id,
@@ -60,7 +64,8 @@ export async function GET(request: Request) {
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     return NextResponse.json({ notifications: all, count: all.length });
-  } catch {
+  } catch (e) {
+    await logError("api/notifications", String(e));
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }
