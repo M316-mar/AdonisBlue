@@ -9,6 +9,7 @@ type Alert = {
   source: "healing" | "chatbot";
   client_name: string | null;
   client_phone: string | null;
+  client_email: string | null;
   flagged_message: string | null;
   timestamp: string;
 };
@@ -332,20 +333,32 @@ const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
                         <p className="text-xs text-slate-600 leading-relaxed">&ldquo;{alert.flagged_message}&rdquo;</p>
                       </div>
                     )}
-                    {alert.client_phone && (
-                      <div className="flex gap-2">
-                        <a
-                          href={`tel:${alert.client_phone}`}
-                          className="flex-1 rounded-full bg-[#1a2744] px-3 py-2 text-center text-xs font-semibold text-white transition hover:bg-[#243552]"
-                        >
-                          📞 Call
-                        </a>
-                        <a
-                          href={`sms:${alert.client_phone}`}
-                          className="flex-1 rounded-full border border-[#1a2744] bg-white px-3 py-2 text-center text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
-                        >
-                          💬 Text
-                        </a>
+                    {(alert.client_phone || alert.client_email) && (
+                      <div className="flex gap-2 flex-wrap">
+                        {alert.client_phone && (
+                          <a
+                            href={`tel:${alert.client_phone}`}
+                            className="flex-1 rounded-full bg-[#1a2744] px-3 py-2 text-center text-xs font-semibold text-white transition hover:bg-[#243552]"
+                          >
+                            📞 Call
+                          </a>
+                        )}
+                        {alert.client_phone && (
+                          <a
+                            href={`sms:${alert.client_phone}`}
+                            className="flex-1 rounded-full border border-[#1a2744] bg-white px-3 py-2 text-center text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                          >
+                            💬 Text
+                          </a>
+                        )}
+                        {alert.client_email && (
+                          <a
+                            href={`mailto:${alert.client_email}`}
+                            className="flex-1 rounded-full border border-teal-600 bg-white px-3 py-2 text-center text-xs font-semibold text-teal-700 transition hover:bg-teal-50"
+                          >
+                            ✉️ Email
+                          </a>
+                        )}
                       </div>
                     )}
                     <textarea

@@ -4,6 +4,7 @@ import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
 import { detectEmergencyLevel, normalizeText } from "@/lib/emergencyCheck";
 import { buildEmergencyReply, emergencySubject } from "@/lib/emergencyReply";
 import { logError } from "@/lib/logError";
+import { phoneHtml } from "@/lib/formatPhone";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io";
 
 /** Escape HTML special chars to prevent XSS in email bodies. */
@@ -20,7 +21,7 @@ function escapeHtml(str: string): string {
  */
 function extractContactFromHistory(
   messages: { role: string; content: string }[]
-): { name: string | null; phone: string | null } {
+): { name: string | null; phone: string | null; email: string | null } {
   const userMessages = messages
     .filter((m) => m.role === "user")
     .map((m) => m.content)
@@ -30,8 +31,11 @@ function extractContactFromHistory(
   const phoneMatch = userMessages.match(/(?:\+?1[\s\-.]?)?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}/);
   const phone = phoneMatch ? phoneMatch[0].trim() : null;
 
+  // Email: standard RFC-ish pattern
+  const emailMatch = userMessages.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+  const email = emailMatch ? emailMatch[0].trim() : null;
+
   // Name: look for lines that are 2–4 words, likely in response to "your full name" / "your name"
-  // Check assistant messages for the name-asking turn, then take the next user reply
   let name: string | null = null;
   for (let i = 0; i < messages.length - 1; i++) {
     const msg = messages[i];
@@ -43,7 +47,6 @@ function extractContactFromHistory(
       const nextUser = messages[i + 1];
       if (nextUser?.role === "user") {
         const candidate = nextUser.content.trim();
-        // A name response is typically short (1–5 words) and not a question
         if (candidate.length < 60 && candidate.split(/\s+/).length <= 5 && !candidate.includes("?")) {
           name = candidate;
           break;
@@ -52,7 +55,7 @@ function extractContactFromHistory(
     }
   }
 
-  return { name, phone };
+  return { name, phone, email };
 }
 
 export async function POST(request: Request) {
@@ -193,10 +196,10 @@ export async function POST(request: Request) {
     let responseAlertedWithoutContact = alreadyAlertedWithoutContact;
 
     // Extract contact info already given in this conversation
-    const { name: clientName, phone: clientPhone } = extractContactFromHistory(
+    const { name: clientName, phone: clientPhone, email: clientEmail } = extractContactFromHistory(
       messages as { role: string; content: string }[]
     );
-    const hasContact = Boolean(clientName || clientPhone);
+    const hasContact = Boolean(clientName || clientPhone || clientEmail);
 
     if (isFlagged) {
       console.log("[chat-emergency] Keyword detected in message");
@@ -466,6 +469,9 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
 
           const noContact = !hasContact;
 
+          const safeEmailHref = clientEmail?.trim() ? escapeHtml(clientEmail.trim()) : null;
+          const safeEmailDisplay = clientEmail?.trim() ? escapeHtml(clientEmail.trim()) : null;
+
           // Fallback chain: alert_email → notification_email → auth email
           let alertEmail = (botRow as { alert_email?: string | null } | null)?.alert_email?.trim() || botRow?.notification_email?.trim() || null;
           if (!alertEmail) {
@@ -497,7 +503,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
 
           const contactWarning = noContact
             ? `<div style="background:#fff7ed;border:2px solid #f97316;border-radius:8px;padding:12px;margin:16px 0;">
-                <p style="margin:0;color:#c2410c;font-size:14px;font-weight:700;">⚠️ Name/phone not yet provided — review chat transcript below</p>
+                <p style="margin:0;color:#c2410c;font-size:14px;font-weight:700;">⚠️ No contact info shared — they were told to call 911 / call you.</p>
               </div>`
             : "";
 
@@ -533,9 +539,12 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
             <p style="margin:0 0 8px;color:#1a2744;font-size:17px;font-weight:700;">
               👤 ${safeClient ?? '<em style="color:#94a3b8;font-weight:400;font-size:15px;">Name not provided</em>'}
             </p>
-            <p style="margin:0;color:#1a2744;font-size:17px;font-weight:700;">
-              📱 ${safePhone ?? '<em style="color:#94a3b8;font-weight:400;font-size:15px;">Phone number not provided</em>'}
-            </p>
+            ${safePhone
+              ? `<p style="margin:0 0 8px;color:#1a2744;font-size:17px;font-weight:700;">📱 ${phoneHtml(clientPhone!)}</p>`
+              : `<p style="margin:0 0 8px;color:#94a3b8;font-style:italic;font-size:15px;">No phone provided</p>`}
+            ${safeEmailDisplay
+              ? `<p style="margin:0;color:#1a2744;font-size:17px;font-weight:700;">✉️ <a href="mailto:${safeEmailHref}" style="color:#1a2744;font-weight:700;">${safeEmailDisplay}</a></p>`
+              : ""}
           </div>
           <p style="margin:0 0 8px;color:#1a2744;font-size:15px;">A client typed an emergency keyword in your AI chat bot:</p>
           <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:8px;padding:16px;margin:12px 0;">
@@ -609,7 +618,9 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
             alertEmail2 = authUser?.user?.email ?? null;
           }
           const practiceName2 = botRow2?.practice_name || botConfig.practice_name || "your practice";
-          const msgPreview2 = escapeHtml(lastUserMessage.slice(0, 60));
+          const safeClient2 = clientName?.trim() ? escapeHtml(clientName.trim()) : null;
+          const safeEmailHref2 = clientEmail?.trim() ? escapeHtml(clientEmail.trim()) : null;
+          const safeEmailDisplay2 = clientEmail?.trim() ? escapeHtml(clientEmail.trim()) : null;
           const subjectAI = emergencySubject(
             "nurse",
             isUpdate ? `same client — ${practiceName2} (AI-detected)` : `${practiceName2} (AI-detected)`,
@@ -641,6 +652,18 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
         </td></tr>
         <tr><td style="padding:32px;">
           ${updateSectionAI}
+          <div style="background:#f8fafc;border:2px solid #1a2744;border-radius:12px;padding:20px;margin:0 0 20px;">
+            <p style="margin:0 0 12px;color:#1a2744;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Client contact info</p>
+            <p style="margin:0 0 8px;color:#1a2744;font-size:17px;font-weight:700;">
+              👤 ${safeClient2 ?? '<em style="color:#94a3b8;font-weight:400;font-size:15px;">Name not provided</em>'}
+            </p>
+            ${clientPhone?.trim()
+              ? `<p style="margin:0 0 8px;color:#1a2744;font-size:17px;font-weight:700;">📱 ${phoneHtml(clientPhone)}</p>`
+              : `<p style="margin:0 0 8px;color:#94a3b8;font-style:italic;font-size:15px;">No phone provided</p>`}
+            ${safeEmailDisplay2
+              ? `<p style="margin:0;color:#1a2744;font-size:17px;font-weight:700;">✉️ <a href="mailto:${safeEmailHref2}" style="color:#1a2744;font-weight:700;">${safeEmailDisplay2}</a></p>`
+              : ""}
+          </div>
           <p style="margin:0 0 16px;color:#1a2744;font-size:15px;">The AI assistant flagged a potential emergency in your chat bot. The client's last message:</p>
           <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:8px;padding:16px;margin:12px 0;">
             <p style="margin:0;color:#dc2626;font-size:15px;font-weight:600;">&ldquo;${escapeHtml(lastUserMessage.slice(0, 500))}&rdquo;</p>

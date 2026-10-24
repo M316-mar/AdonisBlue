@@ -4,6 +4,7 @@ import { sendEmergencyAlert, sendSms } from "@/lib/sendAndLog";
 import { detectEmergencyLevel, DEFAULT_EMERGENCY_KEYWORDS, normalizeText } from "@/lib/emergencyCheck";
 import { logError } from "@/lib/logError";
 import { buildEmergencyReply, emergencySubject } from "@/lib/emergencyReply";
+import { phoneHtml } from "@/lib/formatPhone";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -162,8 +163,8 @@ export async function POST(request: Request) {
         treatment.procedures as { aftercare_instructions?: string } | null
       )?.aftercare_instructions || "";
 
-    const clientPhone =
-      clientPhoneInput || treatment.intakes?.phone || "Not provided";
+    const clientPhone = clientPhoneInput || treatment.intakes?.phone || null;
+    const clientEmail = treatment.intakes?.email?.trim() || null;
 
     const rawNurseName: string = (botRow as { nurse_name?: string } | null)?.nurse_name?.trim() ?? "";
     const nurseFirstName = rawNurseName
@@ -343,8 +344,9 @@ export async function POST(request: Request) {
             <p style="margin:0;color:#dc2626;font-size:15px;font-weight:600;">&ldquo;${safeFlaggedMessage}&rdquo;</p>
           </div>
           <p style="margin:16px 0;color:#475569;font-size:14px;">Contact details:</p>
-          <p style="margin:4px 0;color:#1a2744;font-size:14px;">📧 ${escapeHtml(treatment.intakes?.email || "No email")}</p>
-          <p style="margin:4px 0;color:#1a2744;font-size:14px;">📱 ${escapeHtml(clientPhone)}</p>
+          ${clientEmail ? `<p style="margin:4px 0;color:#1a2744;font-size:14px;">✉️ <a href="mailto:${escapeHtml(clientEmail)}" style="color:#1a2744;">${escapeHtml(clientEmail)}</a></p>` : ""}
+          ${clientPhone ? `<p style="margin:4px 0;color:#1a2744;font-size:14px;">📱 ${phoneHtml(clientPhone)}</p>` : ""}
+          ${!clientEmail && !clientPhone ? `<p style="margin:4px 0;color:#94a3b8;font-size:14px;font-style:italic;">No contact info on file</p>` : ""}
           <div style="text-align:center;margin:24px 0;">
             <a href="https://www.adonisblue.io/dashboard" style="display:inline-block;background:#ef4444;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">View in dashboard</a>
           </div>
@@ -544,8 +546,9 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           <div style="background:#fef2f2;border-left:4px solid #ef4444;border-radius:8px;padding:16px;margin:12px 0;">
             <p style="margin:0;color:#dc2626;font-size:15px;font-weight:600;">&ldquo;${escapeHtml(lastUserMessage.slice(0, 500))}&rdquo;</p>
           </div>
-          <p style="margin:8px 0;color:#1a2744;font-size:14px;">📧 ${escapeHtml(treatment.intakes?.email || "No email")}</p>
-          <p style="margin:4px 0;color:#1a2744;font-size:14px;">📱 ${escapeHtml(clientPhone)}</p>
+          ${clientEmail ? `<p style="margin:8px 0;color:#1a2744;font-size:14px;">✉️ <a href="mailto:${escapeHtml(clientEmail)}" style="color:#1a2744;">${escapeHtml(clientEmail)}</a></p>` : ""}
+          ${clientPhone ? `<p style="margin:4px 0;color:#1a2744;font-size:14px;">📱 ${phoneHtml(clientPhone)}</p>` : ""}
+          ${!clientEmail && !clientPhone ? `<p style="margin:4px 0;color:#94a3b8;font-size:14px;font-style:italic;">No contact info on file</p>` : ""}
           <p style="margin:12px 0 0;color:#64748b;font-size:13px;">Alert source: AI token (keyword list did not match)</p>
           <div style="text-align:center;margin:24px 0;">
             <a href="${SITE_URL}/dashboard" style="display:inline-block;background:#ef4444;color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:50px;">View in dashboard</a>

@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       //    Join to treatments → intakes to get the real first name when client_name is blank or "Client"
       db
         .from("healing_chats")
-        .select("id, client_name, client_phone, flagged_message, updated_at, treatment_id, treatments(intake_id, intakes(first_name))")
+        .select("id, client_name, client_phone, flagged_message, updated_at, treatment_id, treatments(intake_id, intakes(first_name, email))")
         .eq("nurse_id", user.id)
         .eq("flagged", true)
         .eq("status", "active")
@@ -117,6 +117,7 @@ export async function GET(request: Request) {
           source: "healing" as const,
           client_name: realName as string | null,
           client_phone: (r.client_phone ?? null) as string | null,
+          client_email: (r.treatments?.intakes?.email ?? null) as string | null,
           flagged_message: (r.flagged_message ?? null) as string | null,
           timestamp: r.updated_at as string,
         };
@@ -124,9 +125,9 @@ export async function GET(request: Request) {
       ...(cvRes.data ?? []).map((r: any) => ({
         id: r.id as string,
         source: "chatbot" as const,
-        // chatbot conversations store whatever the visitor entered; no intake to look up
         client_name: (r.client_name || null) as string | null,
         client_phone: (r.client_phone ?? null) as string | null,
+        client_email: null as string | null,
         flagged_message: (r.flagged_message ?? null) as string | null,
         timestamp: r.created_at as string,
       })),
