@@ -701,19 +701,17 @@ export default function AftercarePage() {
               <div>
                 <p className="text-sm font-bold text-[#1a2744] mb-1">Rebooking reminders run automatically</p>
                 <p className="text-sm text-slate-600 leading-relaxed">When you log a treatment, AdonisBlue schedules a rebooking reminder based on the procedure. Your client gets a &quot;time to refresh?&quot; email automatically — you don&apos;t have to do anything.</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {[
-                    { proc: "Botox", days: "90 days" },
-                    { proc: "Lip Filler", days: "180 days" },
-                    { proc: "Cheek Filler", days: "180 days" },
-                    { proc: "Skin Booster", days: "28 days" },
-                    { proc: "PRP", days: "120 days" },
-                  ].map(item => (
-                    <span key={item.proc} className="rounded-full bg-white border border-teal-200 px-3 py-1 text-xs font-semibold text-teal-700">
-                      {item.proc} → {item.days}
-                    </span>
-                  ))}
-                </div>
+                {procedures.filter(p => p.approved_at).length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {procedures.filter(p => p.approved_at).map(p => (
+                      <span key={p.id} className="rounded-full bg-white border border-teal-200 px-3 py-1 text-xs font-semibold text-teal-700">
+                        {p.name} → {p.reminder_days ? `${p.reminder_days} days` : "No reminder"}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-slate-400 italic">No approved treatments yet — add one above to see its reminder schedule.</p>
+                )}
               </div>
             </div>
           </div>
@@ -1320,12 +1318,14 @@ export default function AftercarePage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {hasUnsent && (
-                        <span className="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-700">⏳ Aftercare pending</span>
-                      )}
-                      {!hasUnsent && groupTreatments.some(t => t.aftercare_send_at && !isAftercareDelivered(t, aftercareSentIds)) && (
-                        <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-blue-700">💙 Aftercare scheduled</span>
-                      )}
+                      {(() => {
+                        // Find the most-urgent aftercare state across all visits in this group
+                        const hasNotSent = groupTreatments.some(t => !isAftercareDelivered(t, aftercareSentIds) && !t.aftercare_send_at);
+                        const scheduledT = groupTreatments.find(t => t.aftercare_send_at && !isAftercareDelivered(t, aftercareSentIds) && new Date(t.aftercare_send_at) > new Date());
+                        if (hasNotSent) return <span className="rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-500">Not sent</span>;
+                        if (scheduledT) return <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-blue-700">💙 Sending at {formatScheduledTime(scheduledT.aftercare_send_at!)}</span>;
+                        return null;
+                      })()}
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
                         {groupTreatments.length} visit{groupTreatments.length !== 1 ? "s" : ""}
                       </span>
@@ -1415,9 +1415,9 @@ export default function AftercarePage() {
                                 {isAftercareDelivered(treatment, aftercareSentIds) ? (
                                   <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700">✅ Aftercare sent</span>
                                 ) : treatment.aftercare_send_at && new Date(treatment.aftercare_send_at) > new Date() ? (
-                                  <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-blue-700">💙 Sending soon</span>
+                                  <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-blue-700">💙 Sending at {formatScheduledTime(treatment.aftercare_send_at)}</span>
                                 ) : (
-                                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">⏳ No aftercare</span>
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">Not sent</span>
                                 )}
                               </div>
                               <p className="text-xs text-slate-500">
@@ -1441,6 +1441,19 @@ export default function AftercarePage() {
                               </svg>
                             </button>
                           </div>
+                          {/* Not-sent: inline Send aftercare button */}
+                          {!isAftercareDelivered(treatment, aftercareSentIds) && !treatment.aftercare_send_at && (
+                            <div className="mt-2">
+                              <button
+                                type="button"
+                                disabled={aftercareSendNowId === treatment.id}
+                                onClick={() => void handleAftercareSendNow(treatment.id)}
+                                className="rounded-full bg-teal-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                              >
+                                {aftercareSendNowId === treatment.id ? "Sending…" : "Send aftercare"}
+                              </button>
+                            </div>
+                          )}
                           {/* Scheduled aftercare banner */}
                           {treatment.aftercare_send_at && !isAftercareDelivered(treatment, aftercareSentIds) && new Date(treatment.aftercare_send_at) > new Date() && (
                             <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
