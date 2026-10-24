@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { parseTreatmentDate } from "@/lib/formatTreatmentDate";
 
+type AlertMessage = { message: string; level: "911" | "nurse"; timestamp: string };
+
 type Alert = {
   id: string;
   source: "healing" | "chatbot";
@@ -11,6 +13,8 @@ type Alert = {
   client_phone: string | null;
   client_email: string | null;
   flagged_message: string | null;
+  alert_level: "911" | "nurse" | null;
+  alert_messages: AlertMessage[];
   timestamp: string;
 };
 
@@ -313,26 +317,56 @@ const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
                   className="flex w-full items-start gap-3 px-3 py-3 text-left"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#1a2744]">
-                      🚨 Emergency from{" "}
-                      {alert.client_name && alert.client_name !== "Client"
-                        ? alert.client_name
-                        : "a new visitor"}
-                    </p>
-                    {alert.flagged_message && (
-                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">&ldquo;{alert.flagged_message}&rdquo;</p>
-                    )}
+                    {(() => {
+                      const name = alert.client_name && alert.client_name !== "Client"
+                        ? alert.client_name : "a new visitor";
+                      const count = alert.alert_messages.length;
+                      return (
+                        <>
+                          <p className="text-sm font-semibold text-[#1a2744]">
+                            {alert.alert_level === "911"
+                              ? `🚨 Call-911 emergency from ${name}`
+                              : alert.alert_level === "nurse"
+                              ? `⚠️ Urgent from ${name}`
+                              : `🚨 Emergency from ${name}`}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+                            {count > 1
+                              ? `${count} flagged messages`
+                              : alert.flagged_message
+                              ? `"${alert.flagged_message}"`
+                              : null}
+                          </p>
+                        </>
+                      );
+                    })()}
                   </div>
                   <span className="shrink-0 text-slate-400 text-xs">{expandedAlert === alert.id ? "▲" : "▼"}</span>
                 </button>
 
                 {expandedAlert === alert.id && (
                   <div className="border-t border-red-100 px-3 pb-3 pt-2 space-y-3">
-                    {alert.flagged_message && (
+                    {alert.alert_messages.length > 0 ? (
+                      <div className="space-y-2">
+                        {alert.alert_messages.map((am, idx) => (
+                          <div key={idx} className="rounded-lg bg-white border border-red-100 px-3 py-2">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-semibold text-red-600">
+                                {am.level === "911" ? "🚨 Call 911" : "⚠️ Urgent"}
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                {new Date(am.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed">&ldquo;{am.message}&rdquo;</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : alert.flagged_message ? (
                       <div className="rounded-lg bg-white border border-red-100 px-3 py-2">
                         <p className="text-xs text-slate-600 leading-relaxed">&ldquo;{alert.flagged_message}&rdquo;</p>
                       </div>
-                    )}
+                    ) : null}
                     {(alert.client_phone || alert.client_email) && (
                       <div className="flex gap-2 flex-wrap">
                         {alert.client_phone && (

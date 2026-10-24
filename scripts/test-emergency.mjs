@@ -265,3 +265,49 @@ if (fail > 0) process.exit(1);
   console.log(`\n${fPass}/${fPass+fFail} passed (healing flow)`);
   if (fFail > 0) process.exit(1);
 }
+
+// ── Level-merge tests: 911 always wins; a later less-severe message must not downgrade ──
+// Mirrors the mergedLevel logic in healing/route.ts
+{
+  function mergeLevel(existing, incoming) {
+    if (existing === "911" || incoming === "911") return "911";
+    return incoming ?? "nurse";
+  }
+
+  let mPass = 0, mFail = 0;
+  const mLabel = (ok, msg) => {
+    if (ok) mPass++; else mFail++;
+    const tag = ok ? `${GREEN}PASS${RESET}` : `${RED}${BOLD}FAIL${RESET}`;
+    console.log(`${tag}  ${msg}`);
+  };
+
+  // 911 → nurse follow-up: stays 911
+  const l1 = detectEmergencyLevel("I can't breathe");       // "911"
+  const l2 = detectEmergencyLevel("my lip looks pale");      // "nurse"
+  mLabel(mergeLevel(l1, l2) === "911", `911 → nurse follow-up: merged level stays "911"`);
+
+  // nurse → 911 follow-up: upgrades to 911
+  mLabel(mergeLevel("nurse", "911") === "911", `nurse → 911 follow-up: merged level upgrades to "911"`);
+
+  // nurse → nurse: stays nurse
+  mLabel(mergeLevel("nurse", "nurse") === "nurse", `nurse → nurse: merged level stays "nurse"`);
+
+  // null → 911: becomes 911
+  mLabel(mergeLevel(null, "911") === "911", `null → 911: merged level is "911"`);
+
+  // null → nurse: becomes nurse
+  mLabel(mergeLevel(null, "nurse") === "nurse", `null → nurse: merged level is "nurse"`);
+
+  // Full scenario: 911 message then urgent follow-up → card stays 911
+  const msg1 = "I'm having trouble breathing";   // 911
+  const msg2 = "Part of my lip turned white";    // nurse
+  const lvl1 = detectEmergencyLevel(msg1);
+  const lvl2 = detectEmergencyLevel(msg2);
+  const afterFirst  = mergeLevel(null, lvl1);   // "911"
+  const afterSecond = mergeLevel(afterFirst, lvl2); // must still be "911"
+  mLabel(afterSecond === "911",
+    `scenario: "${msg1}" then "${msg2}" → card level stays "911"`);
+
+  console.log(`\n${mPass}/${mPass+mFail} passed (level-merge)`);
+  if (mFail > 0) process.exit(1);
+}

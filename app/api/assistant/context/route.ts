@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       //    Join to treatments → intakes to get the real first name when client_name is blank or "Client"
       db
         .from("healing_chats")
-        .select("id, client_name, client_phone, flagged_message, updated_at, treatment_id, treatments(intake_id, intakes(first_name, email))")
+        .select("id, client_name, client_phone, flagged_message, updated_at, treatment_id, alert_level, alert_messages, treatments(intake_id, intakes(first_name, email))")
         .eq("nurse_id", user.id)
         .eq("flagged", true)
         .eq("status", "active")
@@ -119,6 +119,8 @@ export async function GET(request: Request) {
           client_phone: (r.client_phone ?? null) as string | null,
           client_email: (r.treatments?.intakes?.email ?? null) as string | null,
           flagged_message: (r.flagged_message ?? null) as string | null,
+          alert_level: (r.alert_level ?? null) as "911" | "nurse" | null,
+          alert_messages: (Array.isArray(r.alert_messages) ? r.alert_messages : []) as { message: string; level: "911" | "nurse"; timestamp: string }[],
           timestamp: r.updated_at as string,
         };
       }),
@@ -129,6 +131,8 @@ export async function GET(request: Request) {
         client_phone: (r.client_phone ?? null) as string | null,
         client_email: null as string | null,
         flagged_message: (r.flagged_message ?? null) as string | null,
+        alert_level: null as "911" | "nurse" | null,
+        alert_messages: [] as { message: string; level: "911" | "nurse"; timestamp: string }[],
         timestamp: r.created_at as string,
       })),
     ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());

@@ -195,10 +195,23 @@ export async function POST(request: Request) {
         : lastUserMessage.slice(0, 500)
     );
 
+    // Fetch existing healing_chat row when flagged — needed to preserve the
+    // highest urgency level and append (not overwrite) the message list.
+    let existingAlertLevel: "911" | "nurse" | null = null;
+    let existingAlertMessages: { message: string; level: string; timestamp: string }[] = [];
+    if (isFlagged) {
+      const { data: existingRow } = await supabase
+        .from("healing_chats")
+        .select("alert_level, alert_messages")
+        .eq("treatment_id", treatment_id)
+        .maybeSingle();
+      existingAlertLevel = (existingRow?.alert_level as "911" | "nurse" | null) ?? null;
+      existingAlertMessages = Array.isArray(existingRow?.alert_messages) ? existingRow.alert_messages : [];
+    }
+
     // Save or update chat record.
-    // Only write flagged/flagged_message/status when isFlagged — never overwrite
-    // them to false/null on a routine follow-up message, which would clear an alert
-    // that the nurse hasn't handled yet.
+    // Only write flagged/flagged_message/status/alert_* when isFlagged — never overwrite
+    // them on a routine follow-up message, which would clear an alert the nurse hasn't handled.
     const upsertPayload: Record<string, unknown> = {
       treatment_id,
       nurse_id: treatment.nurse_id,
@@ -207,10 +220,17 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString(),
       client_phone: clientPhoneInput,
     };
-    if (isFlagged) {
+    if (isFlagged && emergencyLevel) {
+      // 911 always wins — a later less-severe message must never downgrade the level
+      const mergedLevel: "911" | "nurse" = (existingAlertLevel === "911" || emergencyLevel === "911") ? "911" : "nurse";
       upsertPayload.flagged = true;
       upsertPayload.flagged_message = lastUserMessage.slice(0, 500);
       upsertPayload.status = "active";
+      upsertPayload.alert_level = mergedLevel;
+      upsertPayload.alert_messages = [
+        ...existingAlertMessages,
+        { message: lastUserMessage.slice(0, 500), level: emergencyLevel, timestamp: new Date().toISOString() },
+      ];
     }
     const { error: upsertErr } = await supabase.from("healing_chats").upsert(upsertPayload, { onConflict: "treatment_id" });
     if (upsertErr) await logError("healing", `healing_chats upsert failed: ${upsertErr.message}`);
@@ -446,6 +466,17 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     // Fire AI-triggered alert only if keyword detector did NOT already fire, and not a duplicate
     if (aiAlertToken && !isFlagged && !isDuplicateMessage) {
       // Update healing_chats: set flagged=true + status="active" so alert appears in bell
+      // Fetch existing row to preserve level and append message
+      const { data: existingAIRow } = await supabase
+        .from("healing_chats")
+        .select("alert_level, alert_messages")
+        .eq("treatment_id", treatment_id)
+        .maybeSingle();
+      const existingAILevel = (existingAIRow?.alert_level as "911" | "nurse" | null) ?? null;
+      const existingAIMsgs = Array.isArray(existingAIRow?.alert_messages) ? existingAIRow.alert_messages : [];
+      // AI path is always "nurse" level — never downgrade from "911"
+      const aiMergedLevel: "911" | "nurse" = existingAILevel === "911" ? "911" : "nurse";
+
       const { error: aiUpsertErr } = await supabase.from("healing_chats").upsert(
         {
           treatment_id,
@@ -453,6 +484,11 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           flagged: true,
           flagged_message: lastUserMessage.slice(0, 500),
           status: "active",
+          alert_level: aiMergedLevel,
+          alert_messages: [
+            ...existingAIMsgs,
+            { message: lastUserMessage.slice(0, 500), level: "nurse", timestamp: new Date().toISOString() },
+          ],
           updated_at: new Date().toISOString(),
         },
         { onConflict: "treatment_id" }
