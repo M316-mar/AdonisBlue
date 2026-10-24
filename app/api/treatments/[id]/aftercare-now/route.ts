@@ -45,7 +45,7 @@ export async function POST(
     // Fetch treatment with ownership check
     const { data: treatment, error: tErr } = await supabase
       .from("treatments")
-      .select("id, nurse_id, intake_id, procedure_id, procedure_name, aftercare_send_at, aftercare_sent_at")
+      .select("id, nurse_id, intake_id, procedure_id, procedure_name, aftercare_send_at, aftercare_sent_at, aftercare_provider_id")
       .eq("id", id)
       .eq("nurse_id", user.id)
       .single();
@@ -57,20 +57,23 @@ export async function POST(
       return NextResponse.json({ ok: true, sent_at: treatment.aftercare_sent_at, already_sent: true });
     }
 
-    // Find the scheduled message_log row to get the Resend email id
-    const { data: logRow } = await supabase
-      .from("message_log")
-      .select("provider_id")
-      .eq("treatment_id", id)
-      .eq("type", "aftercare")
-      .eq("status", "scheduled")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Get the Resend email id — primary source is treatments.aftercare_provider_id,
+    // fallback to message_log for rows pre-dating that column.
+    let providerId: string | null = (treatment as any).aftercare_provider_id ?? null;
+    if (!providerId) {
+      const { data: logRow } = await supabase
+        .from("message_log")
+        .select("provider_id")
+        .eq("treatment_id", id)
+        .eq("type", "aftercare")
+        .eq("status", "scheduled")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      providerId = (logRow?.provider_id as string | null) ?? null;
+    }
 
-    const providerId = logRow?.provider_id as string | null;
-
-    // Try to cancel the scheduled Resend email
+    // Try to cancel any pending scheduled Resend email (graceful — nothing to cancel is fine)
     if (providerId) {
       const { error: cancelErr } = await resend.emails.cancel(providerId);
       if (cancelErr) {
@@ -174,7 +177,7 @@ export async function POST(
 
     await supabase
       .from("treatments")
-      .update({ aftercare_sent: true, aftercare_sent_at: sentAt })
+      .update({ aftercare_sent: true, aftercare_sent_at: sentAt, aftercare_provider_id: null })
       .eq("id", id);
 
     if (treatment.intake_id) {

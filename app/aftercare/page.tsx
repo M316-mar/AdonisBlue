@@ -164,6 +164,7 @@ export default function AftercarePage() {
   const [aftercareSendingId, setAftercareSendingId] = useState<string | null>(null);
   const [aftercareSentIds, setAftercareSentIds] = useState<Set<string>>(new Set());
   const [aftercareSendNowId, setAftercareSendNowId] = useState<string | null>(null);
+  const [aftercareSchedulingId, setAftercareSchedulingId] = useState<string | null>(null);
   const [aftercareCancelingId, setAftercareCancelingId] = useState<string | null>(null);
 
   const [prepPrompt, setPrepPrompt] = useState<{
@@ -476,6 +477,9 @@ export default function AftercarePage() {
   }, [newTreatment, customProcedure, customProcedureAftercare, customProcedureReminderDays, rebookChecked, rebookDate, rebookProcedureIds, rebookCustomProcedure, procedures, token, intakes]);
 
   // ── Scheduled aftercare: Send now / Cancel ────────────────────────────────
+
+  // "Send now" — cancels any pending Resend job and delivers immediately.
+  // Only shown when aftercare_send_at is set (the scheduled banner).
   const handleAftercareSendNow = useCallback(async (treatmentId: string) => {
     setAftercareSendNowId(treatmentId);
     try {
@@ -491,7 +495,13 @@ export default function AftercarePage() {
             ? { ...t, aftercare_sent_at: sentAt, aftercare_send_at: null }
             : t
         ));
-        flash(j.already_sent ? "Aftercare was already sent! ✅" : "Aftercare sent now! 💙");
+        if (j.already_sent) {
+          const d = new Date(sentAt);
+          const formatted = isNaN(d.getTime()) ? "" : ` on ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+          flash(`Already sent${formatted} ✅`);
+        } else {
+          flash("Aftercare sent now! 💙");
+        }
       } else {
         flash(j.error ?? "Couldn't send aftercare right now");
       }
@@ -499,6 +509,44 @@ export default function AftercarePage() {
       flash("Couldn't send aftercare right now");
     }
     setAftercareSendNowId(null);
+  }, [token]);
+
+  // "Send aftercare" — schedules the email 1 hour out, same as the normal logging flow.
+  // Shown on Not-sent visits (no aftercare_send_at and not yet delivered).
+  const handleAftercareSchedule = useCallback(async (treatmentId: string) => {
+    setAftercareSchedulingId(treatmentId);
+    try {
+      const res = await fetch("/api/send-aftercare", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ treatment_id: treatmentId }),
+      });
+      const j = await res.json();
+      if (res.status === 409 && j.already_sent) {
+        const sentAt = j.sent_at as string;
+        setTreatments(prev => prev.map(t =>
+          t.id === treatmentId ? { ...t, aftercare_sent_at: sentAt, aftercare_send_at: null } : t
+        ));
+        const d = new Date(sentAt);
+        const formatted = isNaN(d.getTime()) ? "" : ` on ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+        flash(`Already sent${formatted} ✅`);
+      } else if (res.status === 409 && j.already_scheduled) {
+        setTreatments(prev => prev.map(t =>
+          t.id === treatmentId ? { ...t, aftercare_send_at: j.scheduled_at ?? t.aftercare_send_at } : t
+        ));
+        flash("Aftercare is already scheduled 💙");
+      } else if (res.ok && j.success) {
+        setTreatments(prev => prev.map(t =>
+          t.id === treatmentId ? { ...t, aftercare_send_at: j.aftercare_send_at ?? null } : t
+        ));
+        flash("Aftercare scheduled! 💙");
+      } else {
+        flash(j.error ?? "Couldn't schedule aftercare right now");
+      }
+    } catch {
+      flash("Couldn't schedule aftercare right now");
+    }
+    setAftercareSchedulingId(null);
   }, [token]);
 
   const handleAftercareCancel = useCallback(async (treatmentId: string) => {
@@ -1446,11 +1494,11 @@ export default function AftercarePage() {
                             <div className="mt-2">
                               <button
                                 type="button"
-                                disabled={aftercareSendNowId === treatment.id}
-                                onClick={() => void handleAftercareSendNow(treatment.id)}
+                                disabled={aftercareSchedulingId === treatment.id}
+                                onClick={() => void handleAftercareSchedule(treatment.id)}
                                 className="rounded-full bg-teal-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
                               >
-                                {aftercareSendNowId === treatment.id ? "Sending…" : "Send aftercare"}
+                                {aftercareSchedulingId === treatment.id ? "Scheduling…" : "Send aftercare"}
                               </button>
                             </div>
                           )}

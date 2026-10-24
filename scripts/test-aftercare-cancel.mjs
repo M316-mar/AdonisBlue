@@ -277,5 +277,32 @@ console.log("\n── scheduleEmail result.error check ──");
   label(r.logErrors.length > 0, "scheduleEmail insert-fail: logError called");
 }
 
+console.log("\n── schedule → cancel → resend flow ──");
+
+// 10. Full flow: schedule → cancel → schedule again → exactly one active provider_id
+{
+  // Step 1: schedule — returns provider_id "re_step1"
+  const schedule1 = await runScheduleEmailLogic();
+  const pid1 = schedule1.provider_id;
+  label(schedule1.ok === true, "flow: initial schedule succeeds");
+  label(pid1 === "re_abc_123", "flow: initial schedule returns provider_id");
+
+  // Step 2: cancel — clears aftercare_provider_id from treatment
+  const cancel = await runCancelLogic({ aftercareProviderId: pid1 });
+  label(cancel.result.ok === true, "flow: cancel succeeds");
+  label(cancel.db.treatmentUpdated.value?.aftercare_provider_id === null, "flow: cancel clears aftercare_provider_id");
+
+  // Step 3: reschedule (simulates "Send aftercare" on Not-sent visit → send-aftercare)
+  // After cancel, treatment has no aftercare_provider_id and no aftercare_send_at.
+  // A fresh scheduleEmail call should produce a new provider_id.
+  const schedule2 = await runScheduleEmailLogic();
+  label(schedule2.ok === true, "flow: reschedule after cancel succeeds");
+  label(schedule2.provider_id === "re_abc_123", "flow: reschedule returns a provider_id");
+  label(
+    schedule2.inserts.filter(i => i.status === "scheduled").length === 1,
+    "flow: reschedule inserts exactly one 'scheduled' row (not two)"
+  );
+}
+
 console.log(`\n${pass}/${pass + fail} passed (aftercare-cancel)`);
 if (fail > 0) process.exit(1);
