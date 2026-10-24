@@ -4,11 +4,18 @@
 // ── Inline the logic from lib/emergencyCheck.ts ────────────────────────────
 
 const EMERGENCY_KEYWORDS_911 = [
-  // Breathing
-  "trouble breathing","difficulty breathing","hard to breathe",
-  "hard time breathing","short of breath","shortness of breath",
+  // Breathing — common typos/truncations included
+  "trouble breathing","trouble breath","difficulty breathing",
+  "hard to breathe","hard to breath",
+  "hard time breathing",
+  "short of breath","shortness of breath",
   "can't breathe","cant breathe","cannot breathe",
+  "can't breath","cant breath",
   "can't catch my breath","cant catch my breath",
+  "can't get air","cant get air","cannot get air",
+  "can't get any air","cant get any air","cannot get any air",
+  "losing my breath","lost my breath",
+  "no air","out of air",
   // Throat / tongue / airway
   "throat swelling","throat is swelling","throat closing","throat is closing",
   "tongue swelling","tongue is swelling",
@@ -52,10 +59,11 @@ const EMERGENCY_KEYWORDS_NURSE = [
 function normalizeText(text) {
   return text
     .toLowerCase()
-    .replace(/['‘’ʼ`]/g, "'")
+    .replace(/[‘’’ʼ`]/g, "'")
     .replace(/[“”]/g, '"')
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    .replace(/\bcan not\b/g, "cannot");
 }
 
 function expandKeyword(kw) {
@@ -106,6 +114,21 @@ const cases = [
   { text: "I’m having trouble breathing",                            expect: true  },
   { text: "I can’t breathe",                                         expect: true  },
   { text: "I can’t catch my breath",                                 expect: true  },
+  // Missing trailing ‘e’ — Maria’s exact typo ("cant breath")
+  { text: "cant breath",                                             expect: true  },
+  { text: "can’t breath",                                            expect: true  },
+  { text: "hard to breath",                                          expect: true  },
+  { text: "trouble breath",                                          expect: true  },
+  // Two-word "can not" variants
+  { text: "I can not breathe",                                       expect: true  },
+  { text: "can not breath",                                          expect: true  },
+  // "cant get air" family
+  { text: "cant get air",                                            expect: true  },
+  { text: "can’t get air",                                           expect: true  },
+  { text: "I cannot get any air",                                    expect: true  },
+  // Other common phrasings
+  { text: "losing my breath",                                        expect: true  },
+  { text: "im out of air",                                           expect: true  },
   // Original list — breathing
   { text: "trouble breathing",                                            expect: true  },
   { text: "difficulty breathing",                                         expect: true  },

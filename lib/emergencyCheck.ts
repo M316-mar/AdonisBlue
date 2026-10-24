@@ -2,11 +2,18 @@ import { createClient } from "@supabase/supabase-js";
 
 // ── 🔴 CALL 911 — airway, breathing, cardiac, neurological, anaphylaxis ──────
 export const EMERGENCY_KEYWORDS_911 = [
-  // Breathing
-  "trouble breathing", "difficulty breathing", "hard to breathe",
-  "hard time breathing", "short of breath", "shortness of breath",
+  // Breathing — include common typos/truncations (breath without 'e', breathin, etc.)
+  "trouble breathing", "trouble breath", "difficulty breathing",
+  "hard to breathe", "hard to breath",
+  "hard time breathing", "hard time breathing",
+  "short of breath", "shortness of breath",
   "can't breathe", "cant breathe", "cannot breathe",
+  "can't breath", "cant breath",
   "can't catch my breath", "cant catch my breath",
+  "can't get air", "cant get air", "cannot get air",
+  "can't get any air", "cant get any air", "cannot get any air",
+  "losing my breath", "lost my breath",
+  "no air", "out of air",
   // Throat / tongue / airway
   "throat swelling", "throat is swelling", "throat closing", "throat is closing",
   "tongue swelling", "tongue is swelling",
@@ -54,14 +61,16 @@ export const DEFAULT_EMERGENCY_KEYWORDS = [
   ...EMERGENCY_KEYWORDS_NURSE,
 ];
 
-/** Normalize for matching: lowercase, straighten curly quotes/apostrophes, collapse spaces. */
+/** Normalize for matching: lowercase, straighten curly quotes/apostrophes, collapse spaces,
+ *  and fold common two-word negations ("can not" → "cannot") so expansion works uniformly. */
 export function normalizeText(text: string): string {
   return text
     .toLowerCase()
     .replace(/[''ʼ`]/g, "'")
     .replace(/[""]/g, '"')
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    .replace(/\bcan not\b/g, "cannot");
 }
 
 /** Expand a keyword into cant/can't/cannot variants after normalizing. */
