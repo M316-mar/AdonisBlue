@@ -7,8 +7,11 @@ import { formatPhone } from "@/lib/formatPhone";
  *  - US phone numbers in common formats:
  *      (214) 717-7944 | 214-717-7944 | 214.717.7944 | 2147177944 | +12147177944
  */
+// Two phone alternatives keep the "+1 " prefix from eating the preceding
+// sentence space: the +1 form captures the country-code prefix explicitly;
+// the bare form starts at "(" or a digit and never eats surrounding spaces.
 const TEL_SPLIT_REGEX =
-  /(\b911\b|\+?1?[\s.\-]?\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}\b|\b\d{10}\b)/g;
+  /(\b911\b|\+1[\s.\-]\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}\b|\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}\b|\b\d{10}\b)/g;
 
 function telHref(raw: string): string {
   if (raw.trim() === "911") return "tel:911";
