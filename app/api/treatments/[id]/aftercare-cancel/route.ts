@@ -50,7 +50,7 @@ export async function POST(
     // Find the scheduled message_log row
     const { data: logRow } = await supabase
       .from("message_log")
-      .select("provider_id")
+      .select("id, provider_id")
       .eq("treatment_id", id)
       .eq("type", "aftercare")
       .eq("status", "scheduled")
@@ -58,12 +58,37 @@ export async function POST(
       .limit(1)
       .maybeSingle();
 
-    const providerId = logRow?.provider_id as string | null;
+    const providerId = (logRow?.provider_id as string | null) ?? null;
 
-    if (providerId) {
-      const { error: cancelErr } = await resend.emails.cancel(providerId);
-      if (cancelErr) {
-        // Resend says it's already delivered — promote and tell the UI
+    // No provider_id means Resend was never told about this email — we can't cancel it.
+    // This happens if the message_log row is missing or provider_id was null at schedule time.
+    if (!providerId) {
+      await logError(
+        "aftercare-cancel",
+        `No provider_id found for treatment ${id} — cannot cancel with Resend`
+      );
+      return NextResponse.json({
+        ok: false,
+        error: "Couldn't cancel — it may still send. Contact support.",
+      }, { status: 500 });
+    }
+
+    // Ask Resend to cancel the scheduled email
+    const { error: cancelErr } = await resend.emails.cancel(providerId);
+
+    if (cancelErr) {
+      // statusCode 422 typically means the email was already sent/delivered
+      const alreadySent =
+        (cancelErr as { statusCode?: number }).statusCode === 422 ||
+        (cancelErr as { name?: string }).name === "validation_error";
+
+      await logError(
+        "aftercare-cancel",
+        `Resend cancel failed for provider_id ${providerId}: ${cancelErr.message ?? String(cancelErr)}`
+      );
+
+      if (alreadySent) {
+        // Promote and surface the sent_at to the UI
         await promoteScheduledAftercares(supabase);
         const { data: refreshed } = await supabase
           .from("treatments")
@@ -77,16 +102,21 @@ export async function POST(
         });
       }
 
-      // Mark the scheduled log row as canceled
-      await supabase
-        .from("message_log")
-        .update({ status: "canceled" })
-        .eq("treatment_id", id)
-        .eq("type", "aftercare")
-        .eq("status", "scheduled");
+      // Some other Resend error (network, auth, unknown) — don't pretend cancel succeeded
+      return NextResponse.json({
+        ok: false,
+        error: "Couldn't cancel — it may still send. Try again.",
+      }, { status: 502 });
     }
 
-    // Clear aftercare_send_at — aftercare_sent_at stays NULL (nurse can send manually later)
+    // Resend confirmed cancel — mark the log row and clear the treatment field
+    await supabase
+      .from("message_log")
+      .update({ status: "canceled" })
+      .eq("treatment_id", id)
+      .eq("type", "aftercare")
+      .eq("status", "scheduled");
+
     const { error: updateErr } = await supabase
       .from("treatments")
       .update({ aftercare_send_at: null })
@@ -94,7 +124,7 @@ export async function POST(
 
     if (updateErr) {
       await logError("aftercare-cancel", updateErr.message);
-      return NextResponse.json({ error: "Failed to cancel" }, { status: 500 });
+      return NextResponse.json({ error: "Failed to update treatment" }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
