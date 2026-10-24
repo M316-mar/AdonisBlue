@@ -405,7 +405,10 @@ export async function POST(request: Request) {
       if (scheduleResult.ok) {
         await supabase
           .from("treatments")
-          .update({ aftercare_send_at: scheduledAt })
+          .update({
+            aftercare_send_at: scheduledAt,
+            aftercare_provider_id: scheduleResult.provider_id ?? null,
+          })
           .eq("id", treatment.id);
         aftercareSendAt = scheduledAt;
       } else {

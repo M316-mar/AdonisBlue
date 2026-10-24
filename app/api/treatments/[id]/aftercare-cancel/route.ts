@@ -32,10 +32,10 @@ export async function POST(
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Fetch treatment with ownership check
+    // Fetch treatment with ownership check — include aftercare_provider_id (set at schedule time)
     const { data: treatment, error: tErr } = await supabase
       .from("treatments")
-      .select("id, nurse_id, intake_id, aftercare_send_at, aftercare_sent_at")
+      .select("id, nurse_id, intake_id, aftercare_send_at, aftercare_sent_at, aftercare_provider_id")
       .eq("id", id)
       .eq("nurse_id", user.id)
       .single();
@@ -47,21 +47,23 @@ export async function POST(
       return NextResponse.json({ ok: false, already_sent: true, sent_at: treatment.aftercare_sent_at });
     }
 
-    // Find the scheduled message_log row
-    const { data: logRow } = await supabase
-      .from("message_log")
-      .select("id, provider_id")
-      .eq("treatment_id", id)
-      .eq("type", "aftercare")
-      .eq("status", "scheduled")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // aftercare_provider_id is written at schedule time — it is the canonical source for the Resend id.
+    // Fall back to message_log for rows scheduled before this column existed.
+    let providerId: string | null = (treatment as any).aftercare_provider_id ?? null;
 
-    const providerId = (logRow?.provider_id as string | null) ?? null;
+    if (!providerId) {
+      const { data: logRow } = await supabase
+        .from("message_log")
+        .select("provider_id")
+        .eq("treatment_id", id)
+        .eq("type", "aftercare")
+        .eq("status", "scheduled")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      providerId = (logRow?.provider_id as string | null) ?? null;
+    }
 
-    // No provider_id means Resend was never told about this email — we can't cancel it.
-    // This happens if the message_log row is missing or provider_id was null at schedule time.
     if (!providerId) {
       await logError(
         "aftercare-cancel",
@@ -109,7 +111,7 @@ export async function POST(
       }, { status: 502 });
     }
 
-    // Resend confirmed cancel — mark the log row and clear the treatment field
+    // Resend confirmed cancel — mark the log row, clear the treatment fields
     await supabase
       .from("message_log")
       .update({ status: "canceled" })
@@ -119,7 +121,7 @@ export async function POST(
 
     const { error: updateErr } = await supabase
       .from("treatments")
-      .update({ aftercare_send_at: null })
+      .update({ aftercare_send_at: null, aftercare_provider_id: null })
       .eq("id", id);
 
     if (updateErr) {

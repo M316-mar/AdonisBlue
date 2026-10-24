@@ -205,7 +205,7 @@ export async function POST(request: Request) {
       const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
       const scheduleResult = await scheduleEmail({ type: "aftercare", nurse_id: user.id, treatment_id: treatmentIdDirect, intake_id: (t as any).intake_id, to: intake.email, subject: emailSubject, html: emailHtml, scheduledAt, supabase });
       if (scheduleResult.ok) {
-        await supabase.from("treatments").update({ aftercare_send_at: scheduledAt }).eq("id", treatmentIdDirect);
+        await supabase.from("treatments").update({ aftercare_send_at: scheduledAt, aftercare_provider_id: scheduleResult.provider_id ?? null }).eq("id", treatmentIdDirect);
         aftercareSendAt = scheduledAt;
       } else {
         await logError("send-aftercare", `schedule failed, sending immediately: ${scheduleResult.error}`);
@@ -362,7 +362,7 @@ export async function POST(request: Request) {
     if (scheduleResult.ok) {
       const { error: updateErr } = await supabase
         .from("treatments")
-        .update({ aftercare_send_at: scheduledAt })
+        .update({ aftercare_send_at: scheduledAt, aftercare_provider_id: scheduleResult.provider_id ?? null })
         .eq("id", treatmentId);
       if (updateErr) await logError("send-aftercare", `aftercare_send_at update: ${updateErr.message}`);
       aftercareSendAt = scheduledAt;

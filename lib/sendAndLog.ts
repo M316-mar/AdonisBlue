@@ -55,13 +55,30 @@ export async function scheduleEmail(opts: ScheduleEmailOpts): Promise<SendResult
       scheduledAt,
     });
 
+    if (result.error) {
+      const error = result.error.message ?? String(result.error);
+      await supabase.from("message_log").insert({
+        type, channel: "email",
+        nurse_id: nurse_id ?? null, intake_id: intake_id ?? null, treatment_id: treatment_id ?? null,
+        to_address: to, status: "failed", error,
+      });
+      return { ok: false, error };
+    }
+
     const provider_id = (result.data as { id?: string } | null)?.id ?? null;
 
-    await supabase.from("message_log").insert({
+    const { error: insertErr } = await supabase.from("message_log").insert({
       type, channel: "email",
       nurse_id: nurse_id ?? null, intake_id: intake_id ?? null, treatment_id: treatment_id ?? null,
       to_address: to, status: "scheduled", provider_id, scheduled_at: scheduledAt,
     });
+    if (insertErr) {
+      // Log but don't fail — the email is already scheduled with Resend; provider_id is returned
+      // so callers can persist it on their own table.
+      import("@/lib/logError").then(({ logError }) =>
+        logError("scheduleEmail/insert", insertErr.message)
+      );
+    }
 
     return { ok: true, provider_id: provider_id ?? undefined };
   } catch (e) {

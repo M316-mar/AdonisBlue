@@ -2,11 +2,14 @@
 // Run from project root: node scripts/test-aftercare-cancel.mjs
 //
 // Verifies:
-// 1. cancel called with the right provider_id when a scheduled row exists
-// 2. cancel success → message_log updated, treatment cleared, ok: true
-// 3. no provider_id → returns error without calling Resend
-// 4. Resend cancel fails (non-422) → returns error, does NOT clear treatment
-// 5. Resend cancel fails with 422 (already sent) → returns already_sent: true
+// 1. provider_id read from treatments.aftercare_provider_id (primary path)
+// 2. provider_id read from message_log fallback (rows pre-migration)
+// 3. cancel success → message_log updated, treatment cleared (both fields), ok: true
+// 4. no provider_id anywhere → returns error without calling Resend
+// 5. Resend cancel fails (non-422) → returns error, does NOT clear treatment
+// 6. Resend cancel fails with 422 (already sent) → returns already_sent: true
+// 7. pre-sent treatment → early return, Resend never called
+// 8. scheduleEmail result.error → returns ok: false (never inserts "scheduled" row with null id)
 
 const BOLD = "\x1b[1m", RED = "\x1b[31m", GREEN = "\x1b[32m", RESET = "\x1b[0m";
 let pass = 0, fail = 0;
@@ -18,14 +21,13 @@ function label(ok, msg) {
 
 // ── Mock helpers ──────────────────────────────────────────────────────────────
 
-function makeDb({ providerId, aftercare_sent_at = null, updateFails = false } = {}) {
+function makeDb({ aftercareProviderId = null, logProviderId = null, aftercare_sent_at = null, updateFails = false } = {}) {
   const logRowUpdated = { count: 0 };
   const treatmentUpdated = { count: 0, value: null };
   return {
     logRowUpdated,
     treatmentUpdated,
     from(table) {
-      const self = this;
       return {
         select() { return this; },
         eq() { return this; },
@@ -33,13 +35,24 @@ function makeDb({ providerId, aftercare_sent_at = null, updateFails = false } = 
         limit() { return this; },
         single() {
           if (table === "treatments") {
-            return Promise.resolve({ data: { id: "t1", nurse_id: "n1", aftercare_send_at: "2026-10-24T14:23:00Z", aftercare_sent_at }, error: null });
+            return Promise.resolve({
+              data: {
+                id: "t1", nurse_id: "n1",
+                aftercare_send_at: "2026-10-24T14:23:00Z",
+                aftercare_sent_at,
+                aftercare_provider_id: aftercareProviderId,
+              },
+              error: null,
+            });
           }
           return Promise.resolve({ data: null, error: null });
         },
         maybeSingle() {
           if (table === "message_log") {
-            return Promise.resolve({ data: providerId ? { id: "log1", provider_id: providerId } : null, error: null });
+            return Promise.resolve({
+              data: logProviderId ? { id: "log1", provider_id: logProviderId } : null,
+              error: null,
+            });
           }
           return Promise.resolve({ data: null, error: null });
         },
@@ -76,32 +89,35 @@ function makeResend({ cancelError = null } = {}) {
   };
 }
 
-// Simplified version of the cancel logic (mirrors route.ts)
-async function runCancelLogic({ providerId, cancelError = null, updateFails = false, aftercare_sent_at = null }) {
-  const db = makeDb({ providerId, updateFails, aftercare_sent_at });
+// Mirrors the cancel route logic with aftercare_provider_id primary + message_log fallback
+async function runCancelLogic({ aftercareProviderId = null, logProviderId = null, cancelError = null, updateFails = false, aftercare_sent_at = null }) {
+  const db = makeDb({ aftercareProviderId, logProviderId, updateFails, aftercare_sent_at });
   const resend = makeResend({ cancelError });
   const logErrors = [];
 
   async function logError(area, msg) { logErrors.push({ area, msg }); }
   async function promoteScheduledAftercares() {}
 
-  // Fetch treatment
   const { data: treatment } = await db.from("treatments").select().eq().single();
   if (treatment.aftercare_sent_at) {
     return { result: { ok: false, already_sent: true }, db, resend, logErrors };
   }
 
-  // Find log row
-  const { data: logRow } = await db.from("message_log").select().eq().eq().order().limit().maybeSingle();
-  const pid = logRow?.provider_id ?? null;
+  // Primary: read from treatments.aftercare_provider_id
+  let providerId = treatment.aftercare_provider_id ?? null;
 
-  if (!pid) {
+  // Fallback: message_log (rows scheduled before the migration)
+  if (!providerId) {
+    const { data: logRow } = await db.from("message_log").select().eq().eq().order().limit().maybeSingle();
+    providerId = logRow?.provider_id ?? null;
+  }
+
+  if (!providerId) {
     await logError("aftercare-cancel", `No provider_id found`);
     return { result: { ok: false, error: "Couldn't cancel — it may still send. Contact support." }, db, resend, logErrors };
   }
 
-  // Call Resend
-  const { error: cancelErr } = await resend.emails.cancel(pid);
+  const { error: cancelErr } = await resend.emails.cancel(providerId);
 
   if (cancelErr) {
     const alreadySent = cancelErr.statusCode === 422 || cancelErr.name === "validation_error";
@@ -113,9 +129,8 @@ async function runCancelLogic({ providerId, cancelError = null, updateFails = fa
     return { result: { ok: false, error: "Couldn't cancel — it may still send. Try again." }, db, resend, logErrors };
   }
 
-  // Success — update log + treatment
   await db.from("message_log").update({ status: "canceled" }).eq().eq().eq();
-  const { error: updateErr } = await db.from("treatments").update({ aftercare_send_at: null }).eq().then(r => r);
+  const { error: updateErr } = await db.from("treatments").update({ aftercare_send_at: null, aftercare_provider_id: null }).eq().then(r => r);
   if (updateErr) {
     await logError("aftercare-cancel", updateErr.message);
     return { result: { ok: false, error: "Failed to update treatment" }, db, resend, logErrors };
@@ -124,45 +139,99 @@ async function runCancelLogic({ providerId, cancelError = null, updateFails = fa
   return { result: { ok: true }, db, resend, logErrors };
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// Mirrors scheduleEmail logic — checks result.error before using result.data
+async function runScheduleEmailLogic({ resendError = null, insertFails = false } = {}) {
+  const inserts = [];
+  const logErrors = [];
+  async function logError(area, msg) { logErrors.push({ area, msg }); }
 
-// 1. Happy path: cancel called with the right id, ok: true
-{
-  const { result, resend, db } = await runCancelLogic({ providerId: "resend-abc-123" });
-  label(result.ok === true, "happy path: result.ok === true");
-  label(resend.calls.length === 1, "happy path: resend.emails.cancel called once");
-  label(resend.calls[0] === "resend-abc-123", `happy path: cancel called with correct provider_id "resend-abc-123"`);
-  label(db.treatmentUpdated.count === 1, "happy path: treatment.aftercare_send_at cleared");
-  label(db.treatmentUpdated.value?.aftercare_send_at === null, "happy path: cleared value is null");
-  label(db.logRowUpdated.count === 1, "happy path: message_log row marked canceled");
+  const supabase = {
+    from() {
+      return {
+        insert(row) {
+          return {
+            then(resolve) {
+              inserts.push(row);
+              return resolve({ error: insertFails ? { message: "insert failed" } : null });
+            },
+          };
+        },
+      };
+    },
+  };
+
+  const resendResult = resendError
+    ? { data: null, error: resendError }
+    : { data: { id: "re_abc_123" }, error: null };
+
+  if (resendResult.error) {
+    const error = resendResult.error.message ?? String(resendResult.error);
+    await supabase.from("message_log").insert({ status: "failed", error }).then(r => r);
+    return { ok: false, error, inserts, logErrors };
+  }
+
+  const provider_id = resendResult.data?.id ?? null;
+
+  const { error: insertErr } = await supabase.from("message_log").insert({ status: "scheduled", provider_id }).then(r => r);
+  if (insertErr) {
+    await logError("scheduleEmail/insert", insertErr.message);
+  }
+
+  return { ok: true, provider_id: provider_id ?? undefined, inserts, logErrors };
 }
 
-// 2. No provider_id → error returned, Resend never called
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+console.log("\n── aftercare_provider_id primary path ──");
+
+// 1. Provider id comes from treatments.aftercare_provider_id
 {
-  const { result, resend, logErrors } = await runCancelLogic({ providerId: null });
+  const { result, resend, db } = await runCancelLogic({ aftercareProviderId: "re_from_treatment" });
+  label(result.ok === true, "primary: result.ok === true");
+  label(resend.calls[0] === "re_from_treatment", "primary: cancel called with treatments.aftercare_provider_id");
+  label(db.treatmentUpdated.value?.aftercare_provider_id === null, "primary: aftercare_provider_id cleared on success");
+  label(db.treatmentUpdated.value?.aftercare_send_at === null, "primary: aftercare_send_at cleared on success");
+  label(db.logRowUpdated.count === 1, "primary: message_log row marked canceled");
+}
+
+console.log("\n── message_log fallback path ──");
+
+// 2. No aftercare_provider_id → falls back to message_log
+{
+  const { result, resend } = await runCancelLogic({ aftercareProviderId: null, logProviderId: "re_from_log" });
+  label(result.ok === true, "fallback: result.ok === true");
+  label(resend.calls[0] === "re_from_log", "fallback: cancel called with message_log provider_id");
+}
+
+console.log("\n── no provider_id anywhere ──");
+
+// 3. Neither source has a provider_id → error, Resend not called
+{
+  const { result, resend, logErrors } = await runCancelLogic({ aftercareProviderId: null, logProviderId: null });
   label(result.ok === false, "no provider_id: ok is false");
   label(typeof result.error === "string", "no provider_id: error message returned");
   label(resend.calls.length === 0, "no provider_id: resend.cancel NOT called");
   label(logErrors.length > 0, "no provider_id: logError called");
 }
 
-// 3. Resend cancel returns generic error → error returned, treatment NOT cleared
+console.log("\n── Resend errors ──");
+
+// 4. Resend generic error → error returned, treatment NOT cleared
 {
-  const { result, resend, db, logErrors } = await runCancelLogic({
-    providerId: "resend-abc-999",
+  const { result, db, logErrors } = await runCancelLogic({
+    aftercareProviderId: "re_abc",
     cancelError: { message: "Network error", statusCode: 500, name: "api_error" },
   });
   label(result.ok === false, "resend error: ok is false");
-  label(!result.already_sent, "resend error: already_sent is NOT set");
-  label(typeof result.error === "string", "resend error: error message returned");
-  label(db.treatmentUpdated.count === 0, "resend error: treatment NOT updated (send may still fire)");
+  label(!result.already_sent, "resend error: already_sent not set");
+  label(db.treatmentUpdated.count === 0, "resend error: treatment NOT updated");
   label(logErrors.length > 0, "resend error: logError called");
 }
 
-// 4. Resend cancel returns 422 (already sent) → already_sent: true, logError called
+// 5. Resend 422 → already_sent: true
 {
   const { result, logErrors } = await runCancelLogic({
-    providerId: "resend-sent-already",
+    aftercareProviderId: "re_sent",
     cancelError: { message: "Email already sent", statusCode: 422, name: "validation_error" },
   });
   label(result.ok === false, "already-sent 422: ok is false");
@@ -170,14 +239,42 @@ async function runCancelLogic({ providerId, cancelError = null, updateFails = fa
   label(logErrors.length > 0, "already-sent 422: logError called");
 }
 
-// 5. Treatment already sent before we start → early return, Resend never called
+console.log("\n── pre-sent treatment ──");
+
+// 6. Treatment already sent → early return, Resend never called
 {
   const { result, resend } = await runCancelLogic({
-    providerId: "resend-xyz",
+    aftercareProviderId: "re_xyz",
     aftercare_sent_at: "2026-10-24T14:23:01Z",
   });
   label(result.ok === false && result.already_sent === true, "pre-sent: returns already_sent immediately");
   label(resend.calls.length === 0, "pre-sent: resend.cancel NOT called");
+}
+
+console.log("\n── scheduleEmail result.error check ──");
+
+// 7. scheduleEmail: Resend returns error → inserts "failed" row, returns ok: false
+{
+  const r = await runScheduleEmailLogic({ resendError: { message: "rate limited", statusCode: 429 } });
+  label(r.ok === false, "scheduleEmail error: ok is false");
+  label(r.inserts.some(i => i.status === "failed"), "scheduleEmail error: inserts 'failed' row");
+  label(!r.inserts.some(i => i.status === "scheduled"), "scheduleEmail error: does NOT insert 'scheduled' row");
+}
+
+// 8. scheduleEmail: Resend succeeds → inserts "scheduled" row with provider_id
+{
+  const r = await runScheduleEmailLogic();
+  label(r.ok === true, "scheduleEmail success: ok is true");
+  label(r.provider_id === "re_abc_123", "scheduleEmail success: provider_id returned");
+  label(r.inserts.some(i => i.status === "scheduled" && i.provider_id === "re_abc_123"), "scheduleEmail success: inserts 'scheduled' row with provider_id");
+}
+
+// 9. scheduleEmail: message_log insert fails → logError called, still returns ok: true with provider_id
+{
+  const r = await runScheduleEmailLogic({ insertFails: true });
+  label(r.ok === true, "scheduleEmail insert-fail: still returns ok (email is scheduled in Resend)");
+  label(r.provider_id === "re_abc_123", "scheduleEmail insert-fail: provider_id still returned for caller to persist");
+  label(r.logErrors.length > 0, "scheduleEmail insert-fail: logError called");
 }
 
 console.log(`\n${pass}/${pass + fail} passed (aftercare-cancel)`);
