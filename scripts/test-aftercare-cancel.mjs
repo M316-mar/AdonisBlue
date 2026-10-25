@@ -304,5 +304,59 @@ console.log("\n── schedule → cancel → resend flow ──");
   );
 }
 
+console.log("\n── CancelAftercarePopup UI logic ──");
+
+// Mirrors the popup's doCancel + handleChangeIt / handleDontSend contract.
+async function runPopupLogic({ cancelOk = true, alreadySent = false, cancelError = null } = {}) {
+  let onCanceledCalled = false;
+  let onChangeItCalled = false;
+  let shownError = null;
+
+  async function doCancel() {
+    if (cancelOk) return true;
+    shownError = alreadySent ? "Already sent — it's on its way!" : (cancelError ?? "Couldn't cancel. Try again.");
+    return false;
+  }
+
+  async function handleDontSend() {
+    const ok = await doCancel();
+    if (ok) onCanceledCalled = true;
+  }
+
+  async function handleChangeIt() {
+    const ok = await doCancel();
+    if (ok) onChangeItCalled = true;
+  }
+
+  return { handleDontSend, handleChangeIt, result: () => ({ onCanceledCalled, onChangeItCalled, shownError }) };
+}
+
+// 11. Cancel success → "Don't send" calls onCanceled
+{
+  const sim = await runPopupLogic({ cancelOk: true });
+  await sim.handleDontSend();
+  const r = sim.result();
+  label(r.onCanceledCalled === true, "popup: cancel success + Don't send → onCanceled called");
+  label(r.onChangeItCalled === false, "popup: cancel success + Don't send → onChangeIt NOT called");
+}
+
+// 12. Cancel failure → "Change it" never calls onChangeIt (two-email guard)
+{
+  const sim = await runPopupLogic({ cancelOk: false, cancelError: "Network error" });
+  await sim.handleChangeIt();
+  const r = sim.result();
+  label(r.onChangeItCalled === false, "popup: cancel failure → onChangeIt NOT called (two-email guard)");
+  label(typeof r.shownError === "string" && r.shownError.length > 0, "popup: cancel failure → error message shown");
+}
+
+// 13. Cancel success → "Change it" calls onChangeIt (and NOT onCanceled)
+{
+  const sim = await runPopupLogic({ cancelOk: true });
+  await sim.handleChangeIt();
+  const r = sim.result();
+  label(r.onChangeItCalled === true, "popup: cancel success + Change it → onChangeIt called");
+  label(r.onCanceledCalled === false, "popup: cancel success + Change it → onCanceled NOT called");
+}
+
 console.log(`\n${pass}/${pass + fail} passed (aftercare-cancel)`);
 if (fail > 0) process.exit(1);

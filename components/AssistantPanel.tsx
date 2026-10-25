@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { parseTreatmentDate } from "@/lib/formatTreatmentDate";
+import CancelAftercarePopup from "@/components/CancelAftercarePopup";
 
 type AlertMessage = { message: string; level: "911" | "nurse"; timestamp: string };
 
@@ -125,7 +126,7 @@ export function AssistantPanel({
   const [aftercareAlreadySent, setAftercareAlreadySent] = useState<Record<string, { sent_at?: string; scheduled_at?: string }>>({});
   // Scheduled aftercare actions
   const [scheduledSendingNow, setScheduledSendingNow] = useState<string | null>(null);
-  const [scheduledCancelling, setScheduledCancelling] = useState<string | null>(null);
+  const [cancelPopupItem, setCancelPopupItem] = useState<ScheduledAftercare | null>(null);
   // Rebooking link setup nudge
   const [rebookingDismissed, setRebookingDismissed] = useState(() => {
     try {
@@ -258,21 +259,6 @@ export function AssistantPanel({
     }
   };
 
-  const handleScheduledCancel = async (a: ScheduledAftercare) => {
-    setScheduledCancelling(a.treatment_id);
-    try {
-      const res = await fetch(`/api/treatments/${a.treatment_id}/aftercare-cancel`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const j = await res.json() as { ok?: boolean; already_sent?: boolean; error?: string };
-      if (j.ok && !j.already_sent) {
-        setCtx(prev => prev ? { ...prev, scheduledAftercares: prev.scheduledAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
-      }
-    } finally {
-      setScheduledCancelling(null);
-    }
-  };
 
   const launched = bot?.ready_at != null || bot?.launched === true;
   const unbookedReturn = returnClients.filter((c) => !c.rebooked_at).length;
@@ -486,14 +472,29 @@ const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
                     </button>
                     <button
                       type="button"
-                      disabled={scheduledCancelling === a.treatment_id}
-                      onClick={() => void handleScheduledCancel(a)}
-                      className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 disabled:opacity-50"
+                      onClick={() => setCancelPopupItem(a)}
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100"
                     >
-                      {scheduledCancelling === a.treatment_id ? "…" : "Cancel"}
+                      Cancel
                     </button>
                   </div>
                 </div>
+                {cancelPopupItem?.treatment_id === a.treatment_id && (
+                  <CancelAftercarePopup
+                    treatmentId={a.treatment_id}
+                    token={token}
+                    onCanceled={() => {
+                      setCtx(prev => prev ? { ...prev, scheduledAftercares: prev.scheduledAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
+                      setCancelPopupItem(null);
+                    }}
+                    onChangeIt={() => {
+                      setCtx(prev => prev ? { ...prev, scheduledAftercares: prev.scheduledAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
+                      setCancelPopupItem(null);
+                      router.push(`/client-journey?aftercare=${a.intake_id}&treatment_id=${a.treatment_id}`);
+                    }}
+                    onDismiss={() => setCancelPopupItem(null)}
+                  />
+                )}
               </div>
             ))}
 

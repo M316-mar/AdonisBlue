@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { ClientContactCard } from "@/components/ClientContactCard";
 import { SideNavRail } from "@/components/SideNavRail";
 import { formatTreatmentDate, parseTreatmentDate } from "@/lib/formatTreatmentDate";
+import CancelAftercarePopup from "@/components/CancelAftercarePopup";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -165,7 +166,7 @@ export default function AftercarePage() {
   const [aftercareSentIds, setAftercareSentIds] = useState<Set<string>>(new Set());
   const [aftercareSendNowId, setAftercareSendNowId] = useState<string | null>(null);
   const [aftercareSchedulingId, setAftercareSchedulingId] = useState<string | null>(null);
-  const [aftercareCancelingId, setAftercareCancelingId] = useState<string | null>(null);
+  const [cancelPopupId, setCancelPopupId] = useState<string | null>(null);
 
   const [prepPrompt, setPrepPrompt] = useState<{
     intakeId: string;
@@ -549,35 +550,6 @@ export default function AftercarePage() {
     setAftercareSchedulingId(null);
   }, [token]);
 
-  const handleAftercareCancel = useCallback(async (treatmentId: string) => {
-    setAftercareCancelingId(treatmentId);
-    try {
-      const res = await fetch(`/api/treatments/${treatmentId}/aftercare-cancel`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const j = await res.json();
-      if (res.ok) {
-        setTreatments(prev => prev.map(t =>
-          t.id === treatmentId ? { ...t, aftercare_send_at: null } : t
-        ));
-        flash("Scheduled aftercare canceled. You can send it manually later.");
-      } else if (j.already_sent) {
-        const sentAt = j.sent_at as string;
-        setTreatments(prev => prev.map(t =>
-          t.id === treatmentId
-            ? { ...t, aftercare_sent_at: sentAt, aftercare_send_at: null }
-            : t
-        ));
-        flash("Already sent! ✅");
-      } else {
-        flash(j.error ?? "Couldn't cancel scheduled aftercare");
-      }
-    } catch {
-      flash("Couldn't cancel scheduled aftercare");
-    }
-    setAftercareCancelingId(null);
-  }, [token]);
 
   // ── Archive handlers ───────────────────────────────────────────────────────
   const loadArchivedTreatments = useCallback(async () => {
@@ -1495,7 +1467,7 @@ export default function AftercarePage() {
                               <button
                                 type="button"
                                 disabled={aftercareSchedulingId === treatment.id}
-                                onClick={() => void handleAftercareSchedule(treatment.id)}
+                                onClick={(e) => { e.stopPropagation(); void handleAftercareSchedule(treatment.id); }}
                                 className="rounded-full bg-teal-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
                               >
                                 {aftercareSchedulingId === treatment.id ? "Scheduling…" : "Send aftercare"}
@@ -1513,21 +1485,44 @@ export default function AftercarePage() {
                                   <button
                                     type="button"
                                     disabled={aftercareSendNowId === treatment.id}
-                                    onClick={() => void handleAftercareSendNow(treatment.id)}
+                                    onClick={(e) => { e.stopPropagation(); void handleAftercareSendNow(treatment.id); }}
                                     className="rounded-full bg-teal-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
                                   >
                                     {aftercareSendNowId === treatment.id ? "Sending…" : "Send now"}
                                   </button>
                                   <button
                                     type="button"
-                                    disabled={aftercareCancelingId === treatment.id}
-                                    onClick={() => void handleAftercareCancel(treatment.id)}
-                                    className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                                    onClick={(e) => { e.stopPropagation(); setCancelPopupId(treatment.id); }}
+                                    className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
                                   >
-                                    {aftercareCancelingId === treatment.id ? "Canceling…" : "Cancel"}
+                                    Cancel
                                   </button>
                                 </div>
                               </div>
+                              {/* Cancel-choice popup */}
+                              {cancelPopupId === treatment.id && (
+                                <CancelAftercarePopup
+                                  treatmentId={treatment.id}
+                                  token={token}
+                                  onCanceled={() => {
+                                    setTreatments(prev => prev.map(t =>
+                                      t.id === treatment.id ? { ...t, aftercare_send_at: null } : t
+                                    ));
+                                    setCancelPopupId(null);
+                                    flash("Scheduled aftercare canceled. You can send it manually later.");
+                                  }}
+                                  onChangeIt={() => {
+                                    setTreatments(prev => prev.map(t =>
+                                      t.id === treatment.id ? { ...t, aftercare_send_at: null } : t
+                                    ));
+                                    setCancelPopupId(null);
+                                    router.push(
+                                      `/client-journey?aftercare=${treatment.intake_id ?? ""}&treatment_id=${treatment.id}&treatment_date=${treatment.treatment_date}${treatment.procedure_id ? `&procedure_id=${treatment.procedure_id}` : ""}`
+                                    );
+                                  }}
+                                  onDismiss={() => setCancelPopupId(null)}
+                                />
+                              )}
                             </div>
                           )}
 
