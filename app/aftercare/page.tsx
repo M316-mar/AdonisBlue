@@ -138,6 +138,7 @@ export default function AftercarePage() {
   const [addingTreatment, setAddingTreatment] = useState(false);
   const [treatmentSaving, setTreatmentSaving] = useState(false);
   const [treatmentSubmitted, setTreatmentSubmitted] = useState(false);
+  const [treatmentError, setTreatmentError] = useState<string | null>(null);
   const [expandedClientIds, setExpandedClientIds] = useState<Set<string>>(new Set());
   const [customProcedure, setCustomProcedure] = useState("");
   const [customProcedureAftercare, setCustomProcedureAftercare] = useState("");
@@ -318,6 +319,7 @@ export default function AftercarePage() {
     const hasCustom = !!capturedCustomProcedure;
     if ((!capturedIntakeId && !capturedIsWalkin) || (newTreatment.procedure_ids.length === 0 && !hasCustom)) return;
     setTreatmentSaving(true);
+    setTreatmentError(null);
 
     const selectedProcedures = procedures.filter(p => newTreatment.procedure_ids.includes(p.id));
     const procedureNames = selectedProcedures.length > 0
@@ -472,6 +474,13 @@ export default function AftercarePage() {
           setPrepTab("auto");
           setPrepCustomText(instructions);
         }
+      }
+    } else {
+      const j = await res.json().catch(() => ({})) as { error?: string; procedures?: string[] };
+      if (j.error === "unapproved_procedures" && j.procedures?.length) {
+        setTreatmentError(`Aftercare hasn't been set up for ${j.procedures.join(", ")} yet. Tap the procedure name above to add aftercare instructions first.`);
+      } else {
+        setTreatmentError(j.error ?? "Couldn't save the treatment. Try again.");
       }
     }
     setTreatmentSaving(false);
@@ -1180,6 +1189,9 @@ export default function AftercarePage() {
                   )}
                 </div>
 
+                {treatmentError && (
+                  <p className="mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{treatmentError}</p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -1192,7 +1204,7 @@ export default function AftercarePage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setAddingTreatment(false); clearDraft(nurseId); setDraftBanner(null); setCustomProcedure(""); setCustomProcedureAftercare(""); setCustomProcedureReminderDays(null); setInlineApproveId(null); setTreatmentSubmitted(false); }}
+                    onClick={() => { setAddingTreatment(false); clearDraft(nurseId); setDraftBanner(null); setCustomProcedure(""); setCustomProcedureAftercare(""); setCustomProcedureReminderDays(null); setInlineApproveId(null); setTreatmentSubmitted(false); setTreatmentError(null); }}
                     style={{ touchAction: "manipulation" }}
                     className="min-h-[48px] rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 active:scale-[0.97]"
                   >
