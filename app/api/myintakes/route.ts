@@ -1,7 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { promoteScheduledAftercares } from "@/lib/promoteScheduledAftercares";
-
 export async function GET(request: Request) {
   try {
     const token = request.headers.get("authorization")?.replace("Bearer ", "");
@@ -18,9 +16,6 @@ export async function GET(request: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-
-    // Promote any scheduled aftercare emails that Resend has delivered
-    await promoteScheduledAftercares(supabase);
 
     const { data } = await supabase
       .from("intakes")

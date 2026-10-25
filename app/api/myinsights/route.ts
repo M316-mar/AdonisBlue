@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { promoteScheduledAftercares } from "@/lib/promoteScheduledAftercares";
 
 export async function GET(request: Request) {
   try {
@@ -21,9 +20,6 @@ export async function GET(request: Request) {
     );
 
     const nurse_id = user.id;
-
-    // Promote any scheduled aftercare emails that Resend has delivered
-    await promoteScheduledAftercares(supabase);
 
     // Date boundaries for this month / last month
     const now = new Date();

@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { sendEmail, scheduleEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
 import { firstName } from "@/lib/firstName";
 import { substitutePlaceholdersSafeHtml } from "@/lib/substitutePlaceholders";
@@ -193,27 +192,11 @@ export async function POST(request: Request) {
       if (!intake) return NextResponse.json({ error: "Client not found" }, { status: 404 });
       if (!intake.email) return NextResponse.json({ error: "This client doesn't have an email address on file" }, { status: 422 });
 
-      const { data: bot } = await supabase.from("bots").select("practice_name, nurse_name, alert_phone, phone_public").eq("nurse_id", user.id).single();
-      const sendNurseName = bot?.nurse_name || bot?.practice_name || "";
-      const sendNursePhone = bot?.phone_public || bot?.alert_phone || "";
-      const rawInstr = (procedure.aftercare_instructions ?? "").trim() || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";
-      const instructions = substitutePlaceholdersSafeHtml(rawInstr, sendNurseName, sendNursePhone);
-      const clientName = escapeHtml(firstName(intake.first_name, "Beautiful"));
-      const emailHtml = buildAftercareHtml({ clientName, escapedPracticeName: escapeHtml(bot?.practice_name || "your provider"), treatmentId: treatmentIdDirect, procedureName: procedure.name, instructions, personalNote });
-      const emailSubject = `Your aftercare instructions from ${escapeHtml(bot?.practice_name || "your provider")} 💙`;
-      let aftercareSendAt: string | null = null;
-      const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-      const scheduleResult = await scheduleEmail({ type: "aftercare", nurse_id: user.id, treatment_id: treatmentIdDirect, intake_id: (t as any).intake_id, to: intake.email, subject: emailSubject, html: emailHtml, scheduledAt, supabase });
-      if (scheduleResult.ok) {
-        await supabase.from("treatments").update({ aftercare_send_at: scheduledAt, aftercare_provider_id: scheduleResult.provider_id ?? null }).eq("id", treatmentIdDirect);
-        aftercareSendAt = scheduledAt;
-      } else {
-        await logError("send-aftercare", `schedule failed, sending immediately: ${scheduleResult.error}`);
-        const fallbackResult = await sendEmail({ type: "aftercare", nurse_id: user.id, treatment_id: treatmentIdDirect, intake_id: (t as any).intake_id, to: intake.email, subject: emailSubject, html: emailHtml, supabase });
-        if (!fallbackResult.ok) return NextResponse.json({ error: "Failed to send aftercare email — please try again" }, { status: 500 });
-        const sentAt = new Date().toISOString();
-        await supabase.from("treatments").update({ aftercare_sent: true, aftercare_sent_at: sentAt }).eq("id", treatmentIdDirect);
-        await supabase.from("intakes").update({ aftercare_sent_at: sentAt }).eq("id", (t as any).intake_id);
+      const aftercareSendAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const { error: updateErr } = await supabase.from("treatments").update({ aftercare_send_at: aftercareSendAt }).eq("id", treatmentIdDirect);
+      if (updateErr) {
+        await logError("send-aftercare", `aftercare_send_at update: ${updateErr.message}`);
+        return NextResponse.json({ error: "Failed to schedule aftercare — please try again" }, { status: 500 });
       }
 
       return NextResponse.json({ success: true, treatment_id: treatmentIdDirect, treatment_date: (t as any).treatment_date, aftercare_send_at: aftercareSendAt, procedure_name: procedure.name, reminder_days: procedure.reminder_days ?? null, client_name: intake.first_name || "Beautiful", marketing_opt_out: intake.marketing_opt_out ?? false, review_submitted_at: intake.review_submitted_at ?? null, review_request_sent: intake.review_request_sent ?? false });
@@ -317,79 +300,14 @@ export async function POST(request: Request) {
       treatmentId = newT.id;
     }
 
-    const { data: bot } = await supabase
-      .from("bots")
-      .select("practice_name, nurse_name, alert_phone, phone_public")
-      .eq("nurse_id", user.id)
-      .single();
-
-    const practiceName = bot?.practice_name || "your provider";
-    const sendNurseName = bot?.nurse_name || bot?.practice_name || "";
-    const sendNursePhone = bot?.phone_public || bot?.alert_phone || "";
-    const rawSendInstructions = (procedure.aftercare_instructions ?? "").trim()
-      || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";
-    const instructions = substitutePlaceholdersSafeHtml(rawSendInstructions, sendNurseName, sendNursePhone);
-
-    const clientName = escapeHtml(firstName(intake.first_name, "Beautiful"));
-    const escapedPracticeName = escapeHtml(practiceName);
-
-    const emailHtml = buildAftercareHtml({
-      clientName,
-      escapedPracticeName,
-      treatmentId,
-      procedureName: procedure.name,
-      instructions,
-      personalNote,
-    });
-
-    const emailSubject = `Your aftercare instructions from ${escapedPracticeName} 💙`;
-    const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-
-    const scheduleResult = await scheduleEmail({
-      type: "aftercare",
-      nurse_id: user.id,
-      treatment_id: treatmentId,
-      intake_id: intakeIdRaw,
-      to: intake.email,
-      subject: emailSubject,
-      html: emailHtml,
-      scheduledAt,
-      supabase,
-    });
-
-    let aftercareSendAt: string | null = null;
-
-    if (scheduleResult.ok) {
-      const { error: updateErr } = await supabase
-        .from("treatments")
-        .update({ aftercare_send_at: scheduledAt, aftercare_provider_id: scheduleResult.provider_id ?? null })
-        .eq("id", treatmentId);
-      if (updateErr) await logError("send-aftercare", `aftercare_send_at update: ${updateErr.message}`);
-      aftercareSendAt = scheduledAt;
-    } else {
-      await logError("send-aftercare", `schedule failed, sending immediately: ${scheduleResult.error}`);
-      const fallbackResult = await sendEmail({
-        type: "aftercare",
-        nurse_id: user.id,
-        treatment_id: treatmentId,
-        intake_id: intakeIdRaw,
-        to: intake.email,
-        subject: emailSubject,
-        html: emailHtml,
-        supabase,
-      });
-      if (!fallbackResult.ok) {
-        return NextResponse.json({ error: "Failed to send aftercare email — please try again" }, { status: 500 });
-      }
-      const sentAt = new Date().toISOString();
-      await supabase
-        .from("treatments")
-        .update({ aftercare_sent: true, aftercare_sent_at: sentAt })
-        .eq("id", treatmentId);
-      await supabase
-        .from("intakes")
-        .update({ aftercare_sent_at: sentAt })
-        .eq("id", intakeIdRaw);
+    const aftercareSendAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const { error: updateErr } = await supabase
+      .from("treatments")
+      .update({ aftercare_send_at: aftercareSendAt })
+      .eq("id", treatmentId);
+    if (updateErr) {
+      await logError("send-aftercare", `aftercare_send_at update: ${updateErr.message}`);
+      return NextResponse.json({ error: "Failed to schedule aftercare — please try again" }, { status: 500 });
     }
 
     return NextResponse.json({

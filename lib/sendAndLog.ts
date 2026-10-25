@@ -30,68 +30,6 @@ interface SendResult {
   provider_id?: string;
 }
 
-interface ScheduleEmailOpts extends EmailOpts {
-  scheduledAt: string; // ISO-8601 UTC
-}
-
-export async function scheduleEmail(opts: ScheduleEmailOpts): Promise<SendResult> {
-  const { type, nurse_id, intake_id, treatment_id, to, subject, html, supabase, scheduledAt } = opts;
-
-  if (!to) {
-    await supabase.from("message_log").insert({
-      type, channel: "email",
-      nurse_id: nurse_id ?? null, intake_id: intake_id ?? null, treatment_id: treatment_id ?? null,
-      to_address: null, status: "skipped", error: "no to address",
-    });
-    return { ok: false, error: "no to address" };
-  }
-
-  try {
-    const result = await resend.emails.send({
-      from: "AdonisBlue <hi@adonisblue.io>",
-      to,
-      subject,
-      html,
-      scheduledAt,
-    });
-
-    if (result.error) {
-      const error = result.error.message ?? String(result.error);
-      await supabase.from("message_log").insert({
-        type, channel: "email",
-        nurse_id: nurse_id ?? null, intake_id: intake_id ?? null, treatment_id: treatment_id ?? null,
-        to_address: to, status: "failed", error,
-      });
-      return { ok: false, error };
-    }
-
-    const provider_id = (result.data as { id?: string } | null)?.id ?? null;
-
-    const { error: insertErr } = await supabase.from("message_log").insert({
-      type, channel: "email",
-      nurse_id: nurse_id ?? null, intake_id: intake_id ?? null, treatment_id: treatment_id ?? null,
-      to_address: to, status: "scheduled", provider_id, scheduled_at: scheduledAt,
-    });
-    if (insertErr) {
-      // Log but don't fail — the email is already scheduled with Resend; provider_id is returned
-      // so callers can persist it on their own table.
-      import("@/lib/logError").then(({ logError }) =>
-        logError("scheduleEmail/insert", insertErr.message)
-      );
-    }
-
-    return { ok: true, provider_id: provider_id ?? undefined };
-  } catch (e) {
-    const error = e instanceof Error ? e.message : String(e);
-    await supabase.from("message_log").insert({
-      type, channel: "email",
-      nurse_id: nurse_id ?? null, intake_id: intake_id ?? null, treatment_id: treatment_id ?? null,
-      to_address: to, status: "failed", error,
-    });
-    return { ok: false, error };
-  }
-}
-
 export async function sendEmail(opts: EmailOpts): Promise<SendResult> {
   const { type, nurse_id, intake_id, treatment_id, to, subject, html, supabase } = opts;
 

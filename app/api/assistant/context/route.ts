@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { promoteScheduledAftercares } from "@/lib/promoteScheduledAftercares";
 import { logError } from "@/lib/logError";
 
 function serviceClient() {
@@ -27,7 +26,6 @@ export async function GET(request: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const db = serviceClient();
-    await promoteScheduledAftercares(db);
 
     const now = new Date();
     const today = now.toISOString().slice(0, 10);

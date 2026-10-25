@@ -1,13 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
 import { logError } from "@/lib/logError";
-import { promoteScheduledAftercares } from "@/lib/promoteScheduledAftercares";
 import { substitutePlaceholdersSafeHtml } from "@/lib/substitutePlaceholders";
 import { sendEmail } from "@/lib/sendAndLog";
 import { firstName } from "@/lib/firstName";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -45,57 +42,15 @@ export async function POST(
     // Fetch treatment with ownership check
     const { data: treatment, error: tErr } = await supabase
       .from("treatments")
-      .select("id, nurse_id, intake_id, procedure_id, procedure_name, aftercare_send_at, aftercare_sent_at, aftercare_provider_id")
+      .select("id, nurse_id, intake_id, procedure_id, procedure_name, aftercare_sent_at")
       .eq("id", id)
       .eq("nurse_id", user.id)
       .single();
 
     if (tErr || !treatment) return NextResponse.json({ error: "Treatment not found" }, { status: 404 });
 
-    // If already promoted (Resend delivered, promotion ran) — just return success
     if (treatment.aftercare_sent_at) {
       return NextResponse.json({ ok: true, sent_at: treatment.aftercare_sent_at, already_sent: true });
-    }
-
-    // Get the Resend email id — primary source is treatments.aftercare_provider_id,
-    // fallback to message_log for rows pre-dating that column.
-    let providerId: string | null = (treatment as any).aftercare_provider_id ?? null;
-    if (!providerId) {
-      const { data: logRow } = await supabase
-        .from("message_log")
-        .select("provider_id")
-        .eq("treatment_id", id)
-        .eq("type", "aftercare")
-        .eq("status", "scheduled")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      providerId = (logRow?.provider_id as string | null) ?? null;
-    }
-
-    // Try to cancel any pending scheduled Resend email (graceful — nothing to cancel is fine)
-    if (providerId) {
-      const { error: cancelErr } = await resend.emails.cancel(providerId);
-      if (cancelErr) {
-        // If already delivered, Resend returns an error — run promotion and return
-        await promoteScheduledAftercares(supabase);
-        const { data: refreshed } = await supabase
-          .from("treatments")
-          .select("aftercare_sent_at")
-          .eq("id", id)
-          .single();
-        if (refreshed?.aftercare_sent_at) {
-          return NextResponse.json({ ok: true, sent_at: refreshed.aftercare_sent_at, already_sent: true });
-        }
-      } else {
-        // Mark the scheduled log row as canceled
-        await supabase
-          .from("message_log")
-          .update({ status: "canceled" })
-          .eq("treatment_id", id)
-          .eq("type", "aftercare")
-          .eq("status", "scheduled");
-      }
     }
 
     // Build and send immediately
@@ -177,7 +132,7 @@ export async function POST(
 
     await supabase
       .from("treatments")
-      .update({ aftercare_sent: true, aftercare_sent_at: sentAt, aftercare_provider_id: null })
+      .update({ aftercare_sent: true, aftercare_sent_at: sentAt, aftercare_send_at: null, aftercare_claimed_at: null })
       .eq("id", id);
 
     if (treatment.intake_id) {

@@ -1,25 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { sendEmail, scheduleEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
-import { substitutePlaceholdersSafeHtml } from "@/lib/substitutePlaceholders";
-import { firstName } from "@/lib/firstName";
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[0-9\s\+\-\(\)]{7,20}$/;
 // ISO date: YYYY-MM-DD
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 function getAuthToken(request: Request): string | null {
   return request.headers.get("authorization")?.replace("Bearer ", "").trim() || null;
@@ -286,156 +273,18 @@ export async function POST(request: Request) {
       await logError("treatments", `checkin_reminders insert failed: ${String(e)}`);
     }
 
-    // ── Get bot info ───────────────────────────────────────────────────────
-    const { data: bot } = await supabase
-      .from("bots")
-      .select("practice_name, booking_link, nurse_name, alert_phone, phone_public")
-      .eq("nurse_id", user.id)
-      .single();
-
-    const practiceName = bot?.practice_name || "your provider";
-    const nurseDisplayName = bot?.nurse_name || bot?.practice_name || "";
-    const nursePhone = bot?.phone_public || bot?.alert_phone || "";
-
-    // ── Get procedures for aftercare ───────────────────────────────────────
-    const allProcedureIds = procedureIds.length > 0
-      ? procedureIds
-      : (procedureId ? [procedureId] : []);
-
-    const { data: selectedProcedures } = allProcedureIds.length > 0
-      ? await supabase.from("procedures").select("*").in("id", allProcedureIds)
-      : { data: [] };
-
-    // Custom (non-list) procedure support: the client sends AI-generated instructions
-    // for a typed-in procedure that isn't in the nurse's saved Procedures list.
-    const customAftercareInstructions = typeof body.custom_aftercare_instructions === "string"
-      ? body.custom_aftercare_instructions.trim()
-      : "";
-
-    // Optional per-client extra notes (e.g. more discomfort than usual, unusual visit) —
-    // appended to whatever aftercare content is sent, on top of the normal instructions.
-    const extraAftercareNotes = typeof body.extra_aftercare_notes === "string"
-      ? body.extra_aftercare_notes.trim().slice(0, 1000)
-      : "";
-
-    const hasStandardProcedures = !!(selectedProcedures && selectedProcedures.length > 0);
-    const hasCustomAftercare = !!(procedureName && customAftercareInstructions);
-
-    // ── Schedule aftercare email (60 min from now) ────────────────────────────
+    // ── Queue aftercare email (60 min from now, cron sends) ──────────────────
     let aftercareSendAt: string | null = null;
 
-    if (
-      clientEmail &&
-      sendAftercare &&
-      (hasStandardProcedures || hasCustomAftercare)
-    ) {
-      let combinedAftercareHtml = "";
-
-      if (hasStandardProcedures) {
-        combinedAftercareHtml = selectedProcedures
-          .map((proc) => {
-            const rawInstructions = (proc.aftercare_instructions ?? "").trim()
-              || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours. Reach out if you have any questions or concerns!";
-            const instructionsHtml = substitutePlaceholdersSafeHtml(rawInstructions, nurseDisplayName, nursePhone);
-            return `
-        <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
-          <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(proc.name ?? "")} Aftercare</h3>
-          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${instructionsHtml}</p>
-        </div>`;
-          })
-          .join("");
-      } else if (hasCustomAftercare) {
-        combinedAftercareHtml = `
-        <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
-          <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(procedureName)} Aftercare</h3>
-          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${substitutePlaceholdersSafeHtml(customAftercareInstructions, nurseDisplayName, nursePhone)}</p>
-        </div>`;
-      }
-
-      if (extraAftercareNotes) {
-        combinedAftercareHtml += `
-        <div style="background:#fff7ed;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #f97316;">
-          <h3 style="margin:0 0 10px;color:#c2410c;font-size:15px;font-weight:600;">💬 A note just for you</h3>
-          <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(extraAftercareNotes)}</p>
-        </div>`;
-      }
-
-      const emailHtml = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0;">
-        <tr><td style="background:#1a2744;padding:28px 32px;text-align:center;">
-          <img src="${SITE_URL}/Alona.png" alt="AdonisBlue" width="44" height="44" style="border-radius:10px;display:block;margin:0 auto 10px;" />
-          <span style="color:#fff;font-size:18px;font-weight:600;">${escapeHtml(practiceName)}</span>
-        </td></tr>
-        <tr><td style="padding:36px 32px;">
-          <h1 style="margin:0 0 8px;color:#1a2744;font-size:22px;font-weight:600;">You're glowing, ${escapeHtml(firstName(clientName, "beautiful"))}! 🌸</h1>
-          <p style="margin:0 0 8px;color:#475569;font-size:14px;">Thank you for your visit today. Here are your aftercare instructions for everything we did:</p>
-          ${combinedAftercareHtml}
-          <div style="background:#1a2744;border-radius:14px;padding:20px;margin:20px 0;text-align:center;">
-            <p style="margin:0 0 8px;color:#ffffff;font-size:15px;font-weight:600;">Have recovery questions? 💙</p>
-            <p style="margin:0 0 12px;color:#94a3b8;font-size:13px;">Our 24/7 recovery chat is here for you.</p>
-            <a href="${SITE_URL}/healing/${treatment.id}" style="display:inline-block;background:#0d9488;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:50px;">💬 Open recovery chat</a>
-          </div>
-        </td></tr>
-        <tr><td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
-          <p style="margin:0;color:#94a3b8;font-size:12px;">Sent with care by ${escapeHtml(practiceName)} via AdonisBlue</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
-
-      const emailSubject = `Your aftercare instructions from ${practiceName} 💙`;
-      const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-
-      const scheduleResult = await scheduleEmail({
-        type: "aftercare",
-        nurse_id: user.id,
-        treatment_id: treatment.id,
-        to: clientEmail,
-        subject: emailSubject,
-        html: emailHtml,
-        scheduledAt,
-        supabase,
-      });
-
-      if (scheduleResult.ok) {
-        await supabase
-          .from("treatments")
-          .update({
-            aftercare_send_at: scheduledAt,
-            aftercare_provider_id: scheduleResult.provider_id ?? null,
-          })
-          .eq("id", treatment.id);
-        aftercareSendAt = scheduledAt;
-      } else {
-        // Resend scheduling failed — fall back to immediate send so aftercare is never silently skipped
-        await logError("treatments", `schedule failed, sending immediately: ${scheduleResult.error}`);
-        const fallbackResult = await sendEmail({
-          type: "aftercare",
-          nurse_id: user.id,
-          treatment_id: treatment.id,
-          to: clientEmail,
-          subject: emailSubject,
-          html: emailHtml,
-          supabase,
-        });
-        if (fallbackResult.ok) {
-          const sentAt = new Date().toISOString();
-          await supabase
-            .from("treatments")
-            .update({ aftercare_sent: true, aftercare_sent_at: sentAt })
-            .eq("id", treatment.id);
-          if (resolvedIntakeId) {
-            await supabase
-              .from("intakes")
-              .update({ aftercare_sent_at: sentAt })
-              .eq("id", resolvedIntakeId);
-          }
-        }
+    if (clientEmail && sendAftercare && (procedureId || procedureName)) {
+      aftercareSendAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const { error: queueErr } = await supabase
+        .from("treatments")
+        .update({ aftercare_send_at: aftercareSendAt })
+        .eq("id", treatment.id);
+      if (queueErr) {
+        await logError("treatments", `aftercare_send_at update: ${queueErr.message}`);
+        aftercareSendAt = null;
       }
     }
 

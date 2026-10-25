@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
 import { firstName } from "@/lib/firstName";
-import { promoteScheduledAftercares } from "@/lib/promoteScheduledAftercares";
 import { phoneHtml } from "@/lib/formatPhone";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.adonisblue.io";
@@ -32,9 +31,6 @@ export async function GET(request: Request) {
   let failedCount = 0;
 
   try {
-    // Promote any scheduled aftercare emails that Resend has delivered
-    await promoteScheduledAftercares(supabase);
-
     const now = new Date();
     const windowEnd = new Date(now.getTime() - 16 * 60 * 60 * 1000);   // 16h ago
     const windowStart = new Date(now.getTime() - 40 * 60 * 60 * 1000); // 40h ago

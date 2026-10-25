@@ -123,14 +123,27 @@ export async function GET(request: Request) {
     return todayUTC > grace;
   }).length;
 
-  const hasProblems = failures.length > 0 || appErrors.length > 0 || missedJobs.length > 0 || overdueCount > 0;
+  // Overdue aftercare: queued more than 15 min ago, not yet claimed/sent
+  const overdueAftercareCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const { data: overdueAftercareRows, error: overdueAftercareErr } = await supabase
+    .from("treatments")
+    .select("id")
+    .lte("aftercare_send_at", overdueAftercareCutoff)
+    .is("aftercare_sent_at", null)
+    .eq("archived", false)
+    .limit(10);
+
+  if (overdueAftercareErr) await logError("cron:health-report", `overdue-aftercare check: ${overdueAftercareErr.message}`);
+  const overdueAftercareCount = overdueAftercareRows?.length ?? 0;
+
+  const hasProblems = failures.length > 0 || appErrors.length > 0 || missedJobs.length > 0 || overdueCount > 0 || overdueAftercareCount > 0;
 
   // Log heartbeat before deciding whether to send
   await supabase.from("message_log").insert({
     type: "cron:health-report",
     channel: "email",
     status: "sent",
-    error: `failures=${failures.length}, errors=${appErrors.length}, missed=${missedJobs.length}, overdue_reminders=${overdueCount}`,
+    error: `failures=${failures.length}, errors=${appErrors.length}, missed=${missedJobs.length}, overdue_reminders=${overdueCount}, overdue_aftercare=${overdueAftercareCount}`,
   }).then(() => {}, () => {});
 
   if (!hasProblems) {
@@ -160,6 +173,10 @@ export async function GET(request: Request) {
 
   if (overdueCount > 0) {
     problemLines.push(`⚠️ ${overdueCount} client${overdueCount !== 1 ? "s" : ""} should have received a come-back reminder but didn't.`);
+  }
+
+  if (overdueAftercareCount > 0) {
+    problemLines.push(`⚠️ ${overdueAftercareCount} aftercare email${overdueAftercareCount !== 1 ? "s are" : " is"} more than 15 minutes overdue — the cron may not be running.`);
   }
 
   if (appErrors.length > 0) {
