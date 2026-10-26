@@ -6,29 +6,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-function NurseAvatar({ initial, href }: { initial: string; href: string }) {
-  return (
-    <Link
-      href={href}
-      aria-label="My Account"
-      className="flex flex-col items-center gap-1 py-2 px-1"
-    >
-      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white transition hover:bg-[#0d9488] select-none">
-        {initial}
-      </span>
-      <span className="text-[10px] font-semibold leading-tight text-slate-400">Account</span>
-    </Link>
-  );
-}
 
 const NAV_ITEMS = [
-  { href: "/dashboard", icon: "🏠", label: "Home" },
-  { href: "/aftercare", icon: "🩹", label: "Log" },
-  { href: "/checkin", icon: "📞", label: "Check-Ins" },
-  { href: "/client-journey", icon: "✉️", label: "Emails" },
-  { href: "/offers", icon: "🎁", label: "Offers" },
+  { href: "/dashboard",       icon: "🏠", label: "Home" },
+  { href: "/aftercare",       icon: "🩹", label: "Log" },
+  { href: "/checkin",         icon: "📞", label: "Check-Ins" },
+  { href: "/client-journey",  icon: "✉️", label: "Emails" },
+  { href: "/offers",          icon: "🎁", label: "Offers" },
   { href: "/booking-connect", icon: "🔗", label: "Booking" },
-  { href: "/insights", icon: "📊", label: "Insights" },
+  { href: "/insights",        icon: "📊", label: "Insights" },
+  { href: "/account",         icon: "⚙️", label: "Account", desktopOnly: true },
 ] as const;
 
 function NavItem({ href, icon, label, active }: { href: string; icon: string; label: string; active: boolean }) {
@@ -139,10 +126,6 @@ export function SideNavRail() {
           </span>
           <span className="text-[10px] font-semibold leading-tight text-slate-400">Alerts</span>
         </button>
-        {/* Account avatar — bottom of rail */}
-        <div className="mt-auto">
-          <NurseAvatar initial={nurseInitial} href="/account" />
-        </div>
       </nav>
 
       {/* ── Mobile account avatar — top-right ── */}
@@ -154,9 +137,9 @@ export function SideNavRail() {
         {nurseInitial}
       </Link>
 
-      {/* ── Bottom bar — mobile (< sm) ── */}
+      {/* ── Bottom bar — mobile (< sm) — no desktopOnly items ── */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white flex items-center justify-around px-1 pb-[env(safe-area-inset-bottom)]">
-        {NAV_ITEMS.map((item) => (
+        {NAV_ITEMS.filter(item => !("desktopOnly" in item && item.desktopOnly)).map((item) => (
           <NavItem key={item.href} {...item} active={isActive(item.href)} />
         ))}
       </nav>

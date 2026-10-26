@@ -465,9 +465,18 @@ export default function NurseDashboardPage() {
                 </span>
               )}
             </button>
-            <span className="hidden max-w-[12rem] truncate text-sm font-medium text-[#1a2744] sm:inline sm:max-w-xs md:text-base">
-              {nurseName}
-            </span>
+            <Link
+              href="/account"
+              className="hidden items-center gap-2 sm:flex min-w-0 max-w-[14rem]"
+              aria-label="My Account"
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-xs font-bold text-white transition hover:bg-[#0d9488] select-none">
+                {nurseName ? nurseName.trim()[0]?.toUpperCase() : "·"}
+              </span>
+              <span className="truncate text-sm font-medium text-[#1a2744] hover:text-teal-700 md:text-base">
+                {nurseName}
+              </span>
+            </Link>
             <button
               type="button"
               onClick={handleLogout}
@@ -477,7 +486,7 @@ export default function NurseDashboardPage() {
             </button>
           </div>
         </div>
-        <p className="mx-auto max-w-6xl truncate px-4 pb-2 text-xs font-medium text-teal-100/90 sm:hidden">{nurseName}</p>
+        <Link href="/account" className="mx-auto block max-w-6xl truncate px-4 pb-2 text-xs font-medium text-teal-100/90 sm:hidden hover:text-white">{nurseName}</Link>
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-28 lg:px-8 lg:py-10 lg:pb-28">

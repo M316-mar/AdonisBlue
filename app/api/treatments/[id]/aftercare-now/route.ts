@@ -132,7 +132,7 @@ export async function POST(
 
     await supabase
       .from("treatments")
-      .update({ aftercare_sent: true, aftercare_sent_at: sentAt, aftercare_send_at: null, aftercare_claimed_at: null })
+      .update({ aftercare_sent: true, aftercare_sent_at: sentAt, aftercare_send_at: null, aftercare_claimed_at: null, aftercare_canceled_at: null })
       .eq("id", id);
 
     if (treatment.intake_id) {

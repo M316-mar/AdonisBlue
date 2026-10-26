@@ -193,7 +193,7 @@ export async function POST(request: Request) {
       if (!intake.email) return NextResponse.json({ error: "This client doesn't have an email address on file" }, { status: 422 });
 
       const aftercareSendAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-      const { error: updateErr } = await supabase.from("treatments").update({ aftercare_send_at: aftercareSendAt }).eq("id", treatmentIdDirect);
+      const { error: updateErr } = await supabase.from("treatments").update({ aftercare_send_at: aftercareSendAt, aftercare_canceled_at: null }).eq("id", treatmentIdDirect);
       if (updateErr) {
         await logError("send-aftercare", `aftercare_send_at update: ${updateErr.message}`);
         return NextResponse.json({ error: "Failed to schedule aftercare — please try again" }, { status: 500 });
@@ -303,7 +303,7 @@ export async function POST(request: Request) {
     const aftercareSendAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     const { error: updateErr } = await supabase
       .from("treatments")
-      .update({ aftercare_send_at: aftercareSendAt })
+      .update({ aftercare_send_at: aftercareSendAt, aftercare_canceled_at: null })
       .eq("id", treatmentId);
     if (updateErr) {
       await logError("send-aftercare", `aftercare_send_at update: ${updateErr.message}`);

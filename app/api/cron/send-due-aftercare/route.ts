@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     .select("id, nurse_id, intake_id, procedure_id, procedure_name")
     .lte("aftercare_send_at", now)
     .is("aftercare_sent_at", null)
+    .is("aftercare_canceled_at", null)
     .or(`aftercare_claimed_at.is.null,aftercare_claimed_at.lt.${staleClaimBefore}`)
     .eq("archived", false)
     .limit(50);

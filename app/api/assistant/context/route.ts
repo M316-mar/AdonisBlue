@@ -52,7 +52,8 @@ export async function GET(request: Request) {
         .eq("status", "active")
         .order("created_at", { ascending: false }),
 
-      // 3. Aftercare to send: last 3 days, not archived, nurse intended to send, not yet sent or scheduled
+      // 3. Aftercare to send: last 3 days, not archived, nurse intended to send,
+      //    not yet sent/scheduled, and nurse hasn't explicitly canceled it
       db
         .from("treatments")
         .select("id, treatment_date, procedure_name, procedure_id, intake_id, intakes(first_name)")
@@ -61,6 +62,7 @@ export async function GET(request: Request) {
         .eq("send_aftercare", true)
         .is("aftercare_sent_at", null)
         .is("aftercare_send_at", null)
+        .is("aftercare_canceled_at", null)
         .gte("treatment_date", threeDaysAgo)
         .not("intake_id", "is", null),
 

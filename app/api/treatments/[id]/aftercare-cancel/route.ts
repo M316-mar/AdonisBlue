@@ -43,10 +43,11 @@ export async function POST(
       return NextResponse.json({ ok: false, already_sent: true, sent_at: treatment.aftercare_sent_at });
     }
 
-    // Cancel = remove from the DB queue. No Resend call needed.
+    // Cancel = remove from DB queue + record the decision so the Assistant
+    // knows not to re-surface this treatment as "needs aftercare".
     const { error: updateErr } = await supabase
       .from("treatments")
-      .update({ aftercare_send_at: null, aftercare_claimed_at: null })
+      .update({ aftercare_send_at: null, aftercare_claimed_at: null, aftercare_canceled_at: new Date().toISOString() })
       .eq("id", id)
       .eq("nurse_id", user.id);
 
