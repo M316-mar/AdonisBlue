@@ -39,8 +39,8 @@ const botFontNunito = Nunito({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.adonisblue.io"),
-  title: "AdonisBlue — Keep Your Clients Coming Back",
-  description: "AdonisBlue helps nurse injectors keep clients coming back with automatic aftercare, healing check-ins, and follow-up that makes every client feel cared for — not just treated.",
+  title: "AdonisBlue — Care that brings clients back. Aftercare, check-ins and come-back reminders for nurse injectors.",
+  description: "AdonisBlue — Care that brings clients back. Aftercare, check-ins and come-back reminders for nurse injectors.",
   icons: {
     icon: [
       { url: "/Alona.png", type: "image/png" },
@@ -49,8 +49,8 @@ export const metadata: Metadata = {
     shortcut: "/Alona.png",
   },
   openGraph: {
-    title: "AdonisBlue — Keep Your Clients Coming Back",
-    description: "Automatic aftercare, healing check-ins, and follow-up that makes every client feel cared for — not just treated.",
+    title: "AdonisBlue — Care that brings clients back.",
+    description: "Aftercare, check-ins and come-back reminders for nurse injectors.",
     url: "https://www.adonisblue.io",
     siteName: "AdonisBlue",
     images: [{ url: "/Alona.png", width: 1200, height: 630, alt: "AdonisBlue" }],
@@ -58,8 +58,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "AdonisBlue — Keep Your Clients Coming Back",
-    description: "Automatic aftercare, healing check-ins, and follow-up that makes every client feel cared for — not just treated.",
+    title: "AdonisBlue — Care that brings clients back.",
+    description: "Aftercare, check-ins and come-back reminders for nurse injectors.",
     images: ["/Alona.png"],
   },
 };

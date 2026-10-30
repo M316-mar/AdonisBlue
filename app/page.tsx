@@ -183,20 +183,17 @@ export default function Home() {
                 <span className="text-xs font-semibold uppercase tracking-widest text-teal-700">Built to keep your clients coming back</span>
               </div>
               <h1 className="text-balance text-4xl font-bold leading-tight tracking-tight text-[#1a2744] sm:text-5xl lg:text-[3.25rem]">
-                Getting a new client feels good.{" "}
-                <span className="bg-gradient-to-r from-teal-300 to-sky-300 bg-clip-text text-transparent">Getting her to rebook — that&apos;s the goal.</span>
+                You worked hard to get her.{" "}
+                <span className="bg-gradient-to-r from-teal-300 to-sky-300 bg-clip-text text-transparent">AdonisBlue helps you keep her.</span>
               </h1>
-              <p className="mt-4 max-w-xl text-base font-medium leading-relaxed text-[#0d9488]">
-                The 24/7 AI Triage &amp; Retention Assistant built specifically for solo aesthetic nurses. Protect your weekends, secure 5-star reviews, and never lose a regular patient to a competitor again—without changing your booking software.
-              </p>
               <p className="mt-4 max-w-xl text-lg leading-relaxed text-slate-600">
-                AdonisBlue checks in on every client after their treatment. Real aftercare. Real care. So they feel remembered — and they stay with you.
+                AdonisBlue checks on your clients after every visit, answers their questions day or night, alerts you if they need you, and reminds them when it&apos;s time to come back.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <a href="#pricing" className="inline-flex min-h-[52px] items-center justify-center rounded-full bg-[#0d9488] px-8 py-3 text-base font-semibold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600">
-                  Start free — no card needed
+                <a href="/beta" className="inline-flex min-h-[52px] items-center justify-center rounded-full bg-[#0d9488] px-8 py-3 text-base font-semibold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600">
+                  Apply for a free beta spot
                 </a>
-                <a href="https://www.adonisblue.io/chat/adonispracticespa" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-slate-300 px-8 py-3 text-base font-semibold text-[#1a2744] transition hover:border-teal-400 hover:text-[#0d9488]">
+                <a href="#features" className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-slate-300 px-8 py-3 text-base font-semibold text-[#1a2744] transition hover:border-teal-400 hover:text-[#0d9488]">
                   See how it works
                 </a>
                 <a href="/ask" className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-teal-300 bg-teal-50 px-8 py-3 text-base font-semibold text-teal-700 transition hover:bg-teal-100 hover:text-teal-800">
@@ -206,7 +203,8 @@ export default function Home() {
                   📋 Free aftercare templates
                 </a>
               </div>
-              <p className="mt-4 text-sm text-slate-500">No credit card needed · Cancel anytime · Setup in under an hour</p>
+              <p className="mt-4 text-base font-semibold text-[#0d9488]">💙 Care that brings clients back.</p>
+              <p className="mt-1 text-sm text-slate-500">No credit card needed · Cancel anytime · Setup in under an hour</p>
               <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-600">
                 <div className="flex items-center gap-2">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">1</span>
