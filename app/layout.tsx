@@ -39,8 +39,8 @@ const botFontNunito = Nunito({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.adonisblue.io"),
-  title: "AdonisBlue — Care that brings clients back. Aftercare, check-ins and come-back reminders for nurse injectors.",
-  description: "AdonisBlue — Care that brings clients back. Aftercare, check-ins and come-back reminders for nurse injectors.",
+  title: "AdonisBlue — Care that brings clients back",
+  description: "Aftercare, check-ins and come-back reminders for nurse injectors.",
   icons: {
     icon: [
       { url: "/Alona.png", type: "image/png" },

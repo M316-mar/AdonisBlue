@@ -121,7 +121,7 @@ export default function Home() {
 
       {/* ── ANNOUNCEMENT BAR ── */}
       <div className="bg-gradient-to-r from-[#1a2744] via-[#0d9488] to-[#1a2744] px-4 py-2.5 text-center">
-        <p className="text-xs font-semibold text-white sm:text-sm">🎉 Now live — 6 & 9 month automatic client reminder emails. <a href="/auth" className="underline underline-offset-2 hover:text-teal-200">Start free →</a></p>
+        <p className="text-xs font-semibold text-white sm:text-sm">New: see which clients are coming back, and save them a spot 💙</p>
       </div>
 
       {/* ── NAV ── */}
@@ -137,8 +137,8 @@ export default function Home() {
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <a href="/auth" className="hidden rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:border-teal-300 hover:text-[#0d9488] sm:inline-flex">Log in</a>
-            <a href="/auth" className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-teal-200 transition hover:bg-teal-700">Get Started</a>
+            <a href="/auth" className="inline-flex rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:border-teal-300 hover:text-[#0d9488]">Log in</a>
+            <a href="#start" className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-teal-200 transition hover:bg-teal-700">Get Started</a>
             <button
               type="button"
               onClick={() => setMobileMenuOpen((o) => !o)}
@@ -189,19 +189,26 @@ export default function Home() {
               <p className="mt-4 max-w-xl text-lg leading-relaxed text-slate-600">
                 AdonisBlue checks on your clients after every visit, answers their questions day or night, alerts you if they need you, and reminds them when it&apos;s time to come back.
               </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a href="/beta" className="inline-flex min-h-[52px] items-center justify-center rounded-full bg-[#0d9488] px-8 py-3 text-base font-semibold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600">
-                  Apply for a free beta spot
-                </a>
-                <a href="#features" className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-slate-300 px-8 py-3 text-base font-semibold text-[#1a2744] transition hover:border-teal-400 hover:text-[#0d9488]">
-                  See how it works
-                </a>
-                <a href="/ask" className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-teal-300 bg-teal-50 px-8 py-3 text-base font-semibold text-teal-700 transition hover:bg-teal-100 hover:text-teal-800">
-                  💬 Chat with our AI
-                </a>
-                <a href="/templates" className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-slate-300 px-8 py-3 text-base font-semibold text-[#1a2744] transition hover:border-teal-400 hover:text-[#0d9488]">
-                  📋 Free aftercare templates
-                </a>
+              <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col items-center gap-1.5 sm:items-start">
+                  <a href="/beta" className="inline-flex min-h-[52px] w-full items-center justify-center rounded-full bg-[#0d9488] px-8 py-3 text-base font-semibold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600">
+                    🤝 Free beta (5 spots)
+                  </a>
+                  <p className="text-xs text-slate-500 text-center sm:text-left">We&apos;ll help you set it up, in exchange for your honest feedback.</p>
+                </div>
+                <div className="flex flex-col items-center gap-1.5 sm:items-start">
+                  <a href="/auth" className="inline-flex min-h-[52px] w-full items-center justify-center rounded-full border-2 border-[#0d9488] px-8 py-3 text-base font-semibold text-[#0d9488] transition hover:bg-teal-50">
+                    ⚡ 14-day free trial
+                  </a>
+                  <p className="text-xs text-slate-500 text-center sm:text-left">Set it up yourself, today. No card needed.</p>
+                </div>
+              </div>
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                <a href="#daily-flow" className="font-semibold text-[#1a2744] transition hover:text-[#0d9488]">See how it works ↓</a>
+                <span className="text-slate-300">·</span>
+                <a href="/ask" className="text-slate-500 transition hover:text-[#0d9488]">💬 Chat with our AI</a>
+                <span className="text-slate-300">·</span>
+                <a href="/templates" className="text-slate-500 transition hover:text-[#0d9488]">📋 Free aftercare templates</a>
               </div>
               <p className="mt-4 text-base font-semibold text-[#0d9488]">💙 Care that brings clients back.</p>
               <p className="mt-1 text-sm text-slate-500">No credit card needed · Cancel anytime · Setup in under an hour</p>
@@ -353,7 +360,7 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 border border-slate-100 lg:grid-cols-4">
               {[
-                { stat: "24/7", sub: "Client coverage", desc: "Never miss an inquiry again, day or night" },
+                { stat: "24/7", sub: "Answers, day or night", desc: "Questions answered, even after hours." },
                 { stat: "5 min", sub: "Setup time", desc: "From signup to live bot in under 5 minutes" },
                 { stat: "↑", sub: "More returning clients", desc: "Clients who feel cared for come back" },
                 { stat: "0", sub: "Missed questions", desc: "Every client question gets a clear answer" },
@@ -373,8 +380,8 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <div className="flex flex-col items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#1a2744] via-[#0d4f6b] to-[#0d9488] px-6 py-5 sm:flex-row sm:px-8 sm:py-6">
               <p className="text-base font-semibold text-white sm:text-lg">See how AdonisBlue keeps your clients coming back</p>
-              <a href="#pricing" className="shrink-0 rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#1a2744] shadow-md transition hover:bg-teal-50">
-                Start free trial →
+              <a href="#start" className="shrink-0 rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#1a2744] shadow-md transition hover:bg-teal-50">
+                How to get started →
               </a>
             </div>
           </div>
@@ -530,7 +537,7 @@ export default function Home() {
             </div>
             <div className="mt-10 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               {[
-                { feature: "24/7 AI chatbot (intake + FAQ)", value: "$300/mo" },
+                { feature: "24/7 AI assistant for your clients' questions", value: "$300/mo" },
                 { feature: "Automated aftercare emails", value: "$150/mo" },
                 { feature: "At-Home Healing Chat", value: "$200/mo" },
                 { feature: "Emergency alert system", value: "included" },
@@ -552,6 +559,34 @@ export default function Home() {
               <div className="flex items-center justify-between border-t border-teal-200 bg-teal-50 px-6 py-4">
                 <span className="text-sm font-bold text-[#1a2744]">AdonisBlue Starter</span>
                 <span className="text-sm font-bold text-[#0d9488]">$200/mo</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── HOW DO YOU WANT TO START? ── */}
+        <section id="start" className="bg-slate-50 px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-3xl">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">How do you want to start?</h2>
+              <p className="mt-3 text-base text-slate-500">Two ways in. Pick what feels right.</p>
+            </div>
+            <div className="mt-10 grid gap-6 sm:grid-cols-2">
+              <div className="flex flex-col rounded-2xl border-2 border-[#0d9488] bg-white p-7">
+                <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">🤝 Free beta · 5 spots</p>
+                <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Apply for a beta spot</h3>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">We&apos;ll help you set it up, in exchange for your honest feedback.</p>
+                <a href="/beta" className="mt-7 inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#0d9488] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-teal-200 transition hover:bg-teal-700">
+                  Apply for a beta spot
+                </a>
+              </div>
+              <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-7">
+                <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">⚡ 14-day free trial</p>
+                <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Start my free trial</h3>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">Set it up yourself, today. No card needed.</p>
+                <a href="/auth" className="mt-7 inline-flex min-h-[48px] w-full items-center justify-center rounded-full border-2 border-[#0d9488] px-5 py-3 text-sm font-semibold text-[#0d9488] transition hover:bg-teal-50">
+                  Start my free trial
+                </a>
               </div>
             </div>
           </div>
@@ -587,7 +622,7 @@ export default function Home() {
                 <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Starter</h3>
                 <p className="mt-2 text-sm text-slate-500">Your complete AI front desk. One extra booking a month pays for this.</p>
                 <ul className="mt-6 flex-1 space-y-2.5">
-                  {["Unlimited client conversations","24/7 AI front desk chatbot","Aftercare + healing chat + emergency alerts","Automated rebooking reminders","Booking link built into bot","Embed chat on your website","Conversation insights dashboard","Weekly summary of top questions","Blue Room community access"].map(l => (
+                  {["Unlimited client conversations","24/7 AI assistant for your clients' questions","Aftercare + healing chat + emergency alerts","Automated rebooking reminders","Booking link built into bot","Embed chat on your website","Conversation insights dashboard","Weekly summary of top questions","Blue Room community access"].map(l => (
                     <li key={l} className="flex gap-2 text-sm text-slate-600"><span className="text-[#0d9488]">✓</span>{l}</li>
                   ))}
                 </ul>
@@ -705,11 +740,11 @@ export default function Home() {
             <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Give it a try. See if it keeps your flow. If it fits, you&apos;ll know.</h2>
             <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-slate-300">Start your 14-day free trial and have your AI front desk running today.</p>
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <a href="/auth" className="inline-flex min-h-[52px] w-full min-w-[200px] items-center justify-center rounded-full bg-[#0d9488] px-8 py-3.5 text-base font-bold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600 sm:w-auto">
-                Get started free →
+              <a href="/beta" className="inline-flex min-h-[52px] w-full min-w-[200px] items-center justify-center rounded-full bg-[#0d9488] px-8 py-3.5 text-base font-bold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600 sm:w-auto">
+                🤝 Apply for a beta spot
               </a>
               <a href="/auth" className="inline-flex min-h-[52px] w-full min-w-[200px] items-center justify-center rounded-full border border-white/25 bg-white/8 px-8 py-3.5 text-base font-semibold text-white transition hover:border-white/50 hover:bg-white/15 sm:w-auto">
-                Log in
+                ⚡ Start my free trial
               </a>
             </div>
             <p className="mt-5 text-sm text-slate-400">No credit card · Cancel anytime · Setup in under an hour</p>
