@@ -384,7 +384,7 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Features</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">The follow-up your clients never get anywhere else.</h2>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Care that doesn&apos;t stop when she walks out the door.</h2>
               <p className="mt-4 text-base leading-relaxed text-slate-500">Every client feels cared for. Every time. Without you lifting a finger.</p>
             </div>
             <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -413,14 +413,13 @@ export default function Home() {
         <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Why you&apos;ll stay with AdonisBlue</p>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">You are the injector clients trust. Not just liked. Known.</h2>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl"><strong>You are the injector clients trust. Not just liked. Known.</strong></h2>
             <div className="mt-8 space-y-5 text-lg leading-relaxed text-slate-500">
-              <p>She asks for you by name. She tells her friends about you. She never thinks twice about coming back.</p>
-              <p>Other injectors blend together. You don&apos;t.</p>
-              <p className="font-medium text-slate-700">That&apos;s not luck. That&apos;s what happens when your clients never feel forgotten after they leave your chair.</p>
-              <p>Your very next client can feel this today. No setup. Nothing new to learn.</p>
-              <p>You don&apos;t change how you treat your clients. You keep doing what you do best. We just make sure no one feels alone after they walk out the door.</p>
-              <p>We don&apos;t replace you or your staff — we work alongside you, so the whole practice runs smoother.</p>
+              <p>She asks for you by name. She tells her friends about you. Coming back feels easy.</p>
+              <p>That trust is built in the days after the visit, when your clients feel cared for, not forgotten.</p>
+              <p>You don&apos;t change how you treat your clients. You keep doing what you do best. We make sure no one feels alone after they walk out the door.</p>
+              <p>We don&apos;t replace you or your staff. We work alongside you.</p>
+              <p>Set up in about 15 minutes. Your next client can feel the difference.</p>
               <p className="font-semibold text-[#1a2744]">You become the name they trust. Not just another option.</p>
             </div>
           </div>
