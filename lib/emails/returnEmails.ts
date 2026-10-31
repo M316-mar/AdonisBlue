@@ -100,55 +100,7 @@ export function buildTreatmentReminderEmail({
 </body></html>`;
 }
 
-// ── 2. Client 6/9-month backup reminder email (reminders cron) ───────────────
-
-export function buildBackupReminderEmail({
-  clientName,
-  practiceName,
-  logoUrl,
-  bookingLink,
-  months,
-  nurseFirstName,
-  intakeId,
-}: {
-  clientName: string;
-  practiceName: string;
-  logoUrl?: string | null;
-  bookingLink: string | null;
-  months: number;
-  nurseFirstName?: string | null;
-  intakeId: string;
-}) {
-  const nurseRef = nurseFirstName?.trim() ? nurseFirstName.trim() : practiceName;
-  const ctaHtml = bookingLink
-    ? `<div style="text-align:center;margin-top:24px;">
-          <a href="${bookingLink}" style="display:inline-block;background:#0d9488;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:50px;">Book my next visit 💙</a>
-        </div>`
-    : `<p style="color:#0d9488;font-size:15px;font-weight:600;margin-top:24px;">Reply to this email or contact ${practiceName} to book your next visit.</p>`;
-
-  return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>It's been a while</title></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0;">
-        ${buildEmailHeader({ practiceName, logoUrl })}
-        <tr><td style="padding:36px 32px;">
-          <h1 style="margin:0 0 16px;color:#1a2744;font-size:22px;font-weight:600;line-height:1.3;">Hey ${clientName} 💙</h1>
-          <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.7;">It's been about ${months} months since your last visit at ${practiceName}. If you're thinking about your next treatment, ${nurseRef} would love to see you again.</p>
-          ${ctaHtml}
-        </td></tr>
-        <tr><td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
-          <p style="margin:0 0 6px;color:#94a3b8;font-size:12px;">Sent with care by ${practiceName} via AdonisBlue</p>
-          <p style="margin:0;color:#cbd5e1;font-size:11px;"><a href="${SITE_URL}/api/unsubscribe?id=${intakeId}" style="color:#cbd5e1;text-decoration:underline;">Unsubscribe from reminders</a></p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
-}
-
-// ── 3. Nurse "clients coming back" weekly email (return-reminder cron) ────────
+// ── 2. Nurse "clients coming back" weekly email (return-reminder cron) ────────
 
 export function buildNurseReturnEmail({
   practiceName,

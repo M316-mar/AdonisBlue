@@ -67,78 +67,6 @@ async function dryRunPrepReminders() {
   }
 }
 
-// ── cron:reminders ───────────────────────────────────────────────────────────
-async function dryRunReminders() {
-  header("cron:reminders  (10:00 UTC)  — 6m/9m backup (no reminder_days on procedure)");
-
-  const now = new Date();
-  const sixMonthsAgo  = new Date(now); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  const nineMonthsAgo = new Date(now); nineMonthsAgo.setMonth(nineMonthsAgo.getMonth() - 9);
-
-  // Query opted-in intakes directly
-  const { data: eligibleIntakes, error: intakesError } = await db
-    .from("intakes")
-    .select("id, first_name, email, nurse_id")
-    .eq("marketing_opt_out", false)
-    .not("email", "is", null);
-
-  if (intakesError) { console.error("  query error:", intakesError.message); return; }
-  if (!eligibleIntakes?.length) { console.log(`  ${GREEN}nothing to send${RESET}`); return; }
-
-  const intakeIds = eligibleIntakes.map(i => i.id);
-
-  // ALL non-archived treatments (no date filter — needed to detect recent revisits)
-  const { data: allTreatments, error: treatmentsError } = await db
-    .from("treatments")
-    .select("id, treatment_date, intake_id, procedure_id, nurse_id, reminder_6m_sent_at, reminder_9m_sent_at, procedures(reminder_days)")
-    .in("intake_id", intakeIds)
-    .eq("archived", false);
-
-  if (treatmentsError) { console.error("  query error:", treatmentsError.message); return; }
-
-  // Most recent treatment per intake across ALL dates
-  const mostRecentByIntake = new Map();
-  for (const t of allTreatments ?? []) {
-    const ex = mostRecentByIntake.get(t.intake_id);
-    if (!ex || new Date(t.treatment_date) > new Date(ex.treatment_date)) mostRecentByIntake.set(t.intake_id, t);
-  }
-
-  let count = 0;
-  for (const intake of eligibleIntakes) {
-    const mostRecent = mostRecentByIntake.get(intake.id);
-    if (!mostRecent) {
-      console.log(`  ${DIM}SKIP no non-archived treatment: ${intake.first_name}${RESET}`);
-      continue;
-    }
-
-    const reminderDays = mostRecent.procedures?.reminder_days;
-    if (reminderDays) {
-      console.log(`  ${DIM}SKIP (procedure has reminder_days=${reminderDays}): ${intake.first_name}${RESET}`);
-      continue;
-    }
-
-    const tDate = new Date(mostRecent.treatment_date);
-
-    if (!mostRecent.reminder_6m_sent_at && tDate <= sixMonthsAgo) {
-      row("intake_id", intake.id);
-      row("client", `${intake.first_name} <${intake.email}>`);
-      row("most_recent_treatment", mostRecent.treatment_date.split("T")[0]);
-      console.log(`  ${YELLOW}→ WOULD SEND reminder_6m${RESET}\n`); count++;
-    }
-    if (!mostRecent.reminder_9m_sent_at && tDate <= nineMonthsAgo) {
-      row("intake_id", intake.id);
-      row("client", `${intake.first_name} <${intake.email}>`);
-      row("most_recent_treatment", mostRecent.treatment_date.split("T")[0]);
-      console.log(`  ${YELLOW}→ WOULD SEND reminder_9m${RESET}\n`); count++;
-    }
-
-    if (tDate > sixMonthsAgo) {
-      console.log(`  ${DIM}SKIP recent visit (${mostRecent.treatment_date.split("T")[0]}): ${intake.first_name}${RESET}`);
-    }
-  }
-  if (!count) console.log(`  ${GREEN}nothing to send${RESET}`);
-}
-
 // ── cron:reviews ─────────────────────────────────────────────────────────────
 async function dryRunReviews() {
   header("cron:reviews  (11:00 UTC)  — most recent treatment 14–30 days ago");
@@ -319,112 +247,13 @@ async function dryRunAftercareNudge() {
   }
 }
 
-// ── Simulated test cases ──────────────────────────────────────────────────────
-function runTestCases() {
-  header("SIMULATED TEST CASES  (no DB reads or writes)");
-
-  const now = new Date();
-  const sixMonthsAgo  = new Date(now); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  const nineMonthsAgo = new Date(now); nineMonthsAgo.setMonth(nineMonthsAgo.getMonth() - 9);
-
-  // Helper: evaluate cron:reminders logic against simulated data
-  function evalReminders(label, intake, treatments) {
-    console.log(`\n  ${BOLD}Test: ${label}${RESET}`);
-
-    if (intake.marketing_opt_out) {
-      console.log(`    reminders:    ${DIM}skip — marketing_opt_out=true${RESET}`);
-      console.log(`    reviews:      ${DIM}skip — marketing_opt_out=true${RESET}`);
-      // Care emails still send
-      const careT = treatments.find(t => !t.archived && t.aftercare_sent && !t.wellness_checkin_sent_at);
-      if (careT) {
-        console.log(`    wellness-checkin: ${YELLOW}→ WOULD SEND (transactional, ignores opt-out)${RESET}`);
-      } else {
-        console.log(`    wellness-checkin: ${DIM}skip — no eligible treatment${RESET}`);
-      }
-      const prepT = treatments.find(t => !t.archived && !t.prep_guide_sent_at);
-      if (prepT) {
-        console.log(`    prep-reminders:   ${YELLOW}→ WOULD SEND (transactional, ignores opt-out)${RESET}`);
-      } else {
-        console.log(`    prep-reminders:   ${DIM}skip — no upcoming unprepped treatment${RESET}`);
-      }
-      return;
-    }
-
-    const nonArchived = treatments.filter(t => !t.archived);
-    if (!nonArchived.length) {
-      console.log(`    reminders:    ${DIM}skip — no non-archived treatments${RESET}`);
-      return;
-    }
-
-    // Most recent overall
-    const mostRecent = nonArchived.sort((a, b) => new Date(b.treatment_date) - new Date(a.treatment_date))[0];
-    const tDate = new Date(mostRecent.treatment_date);
-
-    if (mostRecent.reminder_days) {
-      console.log(`    reminders:    ${DIM}skip — procedure has reminder_days=${mostRecent.reminder_days}${RESET}`);
-    } else if (tDate > sixMonthsAgo) {
-      console.log(`    reminders:    ${DIM}skip — most recent visit (${mostRecent.treatment_date}) < 6 months ago${RESET}`);
-    } else {
-      if (!mostRecent.reminder_6m_sent_at) {
-        console.log(`    reminders 6m: ${YELLOW}→ WOULD SEND (most recent: ${mostRecent.treatment_date})${RESET}`);
-      }
-      if (!mostRecent.reminder_9m_sent_at && tDate <= nineMonthsAgo) {
-        console.log(`    reminders 9m: ${YELLOW}→ WOULD SEND (most recent: ${mostRecent.treatment_date})${RESET}`);
-      }
-      if (mostRecent.reminder_6m_sent_at) {
-        console.log(`    reminders 6m: ${DIM}skip — reminder_6m_sent_at already set${RESET}`);
-      }
-    }
-  }
-
-  // ── Case (a): visit 7 months ago + visit 1 month ago → NO reminder ─────────
-  evalReminders(
-    "(a) 7-month visit + 1-month visit → no reminder",
-    { marketing_opt_out: false, email: "test@example.com" },
-    [
-      { archived: false, treatment_date: new Date(now.getTime() - 7 * 30 * 864e5).toISOString().split("T")[0], reminder_days: null, reminder_6m_sent_at: null, reminder_9m_sent_at: null },
-      { archived: false, treatment_date: new Date(now.getTime() - 30 * 864e5).toISOString().split("T")[0], reminder_days: null, reminder_6m_sent_at: null, reminder_9m_sent_at: null },
-    ]
-  );
-
-  // ── Case (b): only visit 7 months ago, no reminder_days → 6m reminder ─────
-  evalReminders(
-    "(b) only 7-month visit, no reminder_days → 6m reminder",
-    { marketing_opt_out: false, email: "test@example.com" },
-    [
-      { archived: false, treatment_date: new Date(now.getTime() - 7 * 30 * 864e5).toISOString().split("T")[0], reminder_days: null, reminder_6m_sent_at: null, reminder_9m_sent_at: null },
-    ]
-  );
-
-  // ── Case (c): opted-out client → no reminders/reviews, but still gets check-in
-  const optedOutIntake = { marketing_opt_out: true, email: "opteout@example.com" };
-  const optedOutTreatments = [
-    {
-      archived: false,
-      treatment_date: new Date(now.getTime() - 17 * 3600_000).toISOString(), // 17h ago
-      aftercare_sent: true,
-      wellness_checkin_sent_at: null,
-      prep_guide_sent_at: "already-sent",
-    }
-  ];
-  evalReminders(
-    "(c) opted-out client → no reminders/reviews, still gets wellness check-in",
-    optedOutIntake,
-    optedOutTreatments
-  );
-
-  console.log();
-}
-
 // ── Run all ──────────────────────────────────────────────────────────────────
 console.log(`${BOLD}AdonisBlue cron dry-run — ${new Date().toUTCString()}${RESET}`);
 
 await dryRunPrepReminders();
-await dryRunReminders();
 await dryRunReviews();
 await dryRunTreatmentReminders();
 await dryRunWellnessCheckin();
 await dryRunAftercareNudge();
-runTestCases();
 
 console.log(`\n${BOLD}Done.${RESET}\n`);

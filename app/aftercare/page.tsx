@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { ClientContactCard } from "@/components/ClientContactCard";
 import { SideNavRail } from "@/components/SideNavRail";
 import { formatTreatmentDate, parseTreatmentDate } from "@/lib/formatTreatmentDate";
+import { DEFAULT_RETURN_DAYS } from "@/lib/reminderDate";
 import CancelAftercarePopup from "@/components/CancelAftercarePopup";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -16,7 +17,7 @@ type Procedure = {
   id: string;
   name: string;
   aftercare_instructions: string;
-  reminder_days: number;
+  reminder_days: number | null;
   created_at: string;
   approved_at: string | null;
 };
@@ -734,12 +735,23 @@ export default function AftercarePage() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     {procedures.filter(p => p.approved_at).map(p => (
                       <span key={p.id} className="rounded-full bg-white border border-teal-200 px-3 py-1 text-xs font-semibold text-teal-700">
-                        {p.name} → {p.reminder_days ? `${p.reminder_days} days` : "No reminder"}
+                        {p.name} → {p.reminder_days ? `${p.reminder_days} days` : `${DEFAULT_RETURN_DAYS} days (default) — tap to change`}
                       </span>
                     ))}
                   </div>
                 ) : (
                   <p className="mt-2 text-xs text-slate-400 italic">No approved treatments yet — add one above to see its reminder schedule.</p>
+                )}
+                {procedures.filter(p => p.approved_at && !p.reminder_days).length > 0 && (
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-1">
+                    <p className="text-xs font-bold text-amber-900">⚠️ Set when clients come back</p>
+                    {procedures.filter(p => p.approved_at && !p.reminder_days).map(p => (
+                      <p key={p.id} className="text-xs text-amber-800">
+                        Set when clients come back for <strong>{p.name}</strong> — currently using the {DEFAULT_RETURN_DAYS}-day default.
+                      </p>
+                    ))}
+                    <p className="text-xs text-amber-700 mt-1">Edit each procedure in the Templates tab to set the right interval.</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -1002,7 +1014,7 @@ export default function AftercarePage() {
                             onClick={() => {
                               setInlineApproveId(unapproved[0].id);
                               setInlineApproveText(unapproved[0].aftercare_instructions ?? "");
-                              setInlineApproveReminderDays(unapproved[0].reminder_days ?? null);
+                              setInlineApproveReminderDays(unapproved[0].reminder_days ?? DEFAULT_RETURN_DAYS);
                               setInlineApproveError(null);
                             }}
                             className="text-amber-900 font-semibold underline text-sm"
@@ -1021,15 +1033,15 @@ export default function AftercarePage() {
                             placeholder="e.g. Keep the area clean, avoid sun exposure for 48 hours…"
                           />
                           <div>
-                            <label className="mb-1 block text-xs font-semibold text-amber-900">When should she come back?</label>
+                            <label className="mb-1 block text-xs font-semibold text-amber-900">When should she come back? <span className="font-normal">(required)</span></label>
                             <select
-                              value={inlineApproveReminderDays ?? ""}
-                              onChange={e => setInlineApproveReminderDays(e.target.value ? Number(e.target.value) : null)}
+                              value={inlineApproveReminderDays ?? DEFAULT_RETURN_DAYS}
+                              onChange={e => setInlineApproveReminderDays(Number(e.target.value))}
                               className="w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
                             >
-                              <option value="">Not needed</option>
-                              <option value="28">4 weeks</option>
+                              <option value="30">1 month</option>
                               <option value="90">3 months</option>
+                              <option value="120">4 months</option>
                               <option value="180">6 months</option>
                               <option value="270">9 months</option>
                               <option value="365">12 months</option>
@@ -1061,7 +1073,7 @@ export default function AftercarePage() {
                                     name: approving.name,
                                     approved: true,
                                     aftercare_instructions: inlineApproveText.trim(),
-                                    ...(inlineApproveReminderDays !== null ? { reminder_days: inlineApproveReminderDays } : {}),
+                                    reminder_days: inlineApproveReminderDays ?? DEFAULT_RETURN_DAYS,
                                   }),
                                 });
                                 if (r.ok) {
@@ -1133,7 +1145,7 @@ export default function AftercarePage() {
                         if (e.target.checked) {
                           // Default date = procedure.reminder_days from the first selected procedure
                           const firstProc = procedures.find(p => newTreatment.procedure_ids.includes(p.id));
-                          const reminderDays = firstProc?.reminder_days ?? 90;
+                          const reminderDays = firstProc?.reminder_days ?? DEFAULT_RETURN_DAYS;
                           const d = new Date();
                           d.setUTCDate(d.getUTCDate() + reminderDays);
                           setRebookDate(toLocalDateString(d));

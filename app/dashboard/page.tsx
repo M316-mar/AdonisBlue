@@ -43,8 +43,6 @@ type IntakeRow = {
   survey_sent?: boolean | null;
   review_submitted_at?: string | null;
   aftercare_sent_at?: string | null;
-  reminder_6m_sent?: boolean | null;
-  reminder_9m_sent?: boolean | null;
 };
 
 function slugify(input: string): string {
@@ -241,11 +239,7 @@ export default function NurseDashboardPage() {
     [intakes]
   );
   const reviewsRequested = useMemo(() => intakes.filter((i) => i.survey_sent).length, [intakes]);
-  const remindersScheduled = useMemo(
-    () => intakes.filter((i) => i.aftercare_sent_at && !i.reminder_6m_sent).length,
-    [intakes]
-  );
-
+  const pendingCare = useMemo(() => intakes.filter((i) => !i.aftercare_sent_at || !i.survey_sent).length, [intakes]);
   const handleReturnBooking = useCallback(async (treatmentId: string, action: "booked" | "unbook") => {
     setReturnBookingBusy(treatmentId);
     try {
@@ -829,7 +823,7 @@ export default function NurseDashboardPage() {
                   { label: "Total Clients", value: totalClients, emoji: "💌" },
                   { label: "Aftercare Sent", value: aftercareSent, emoji: "✅" },
                   { label: "Reviews Requested", value: reviewsRequested, emoji: "⭐" },
-                  { label: "Auto Reminders", value: remindersScheduled, emoji: "🔔" },
+                  { label: "Pending Care", value: pendingCare, emoji: "🔔" },
                 ].map((stat) => (
                   <div
                     key={stat.label}

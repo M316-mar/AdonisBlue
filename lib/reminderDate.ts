@@ -6,6 +6,9 @@
 
 import { parseTreatmentDate } from "@/lib/formatTreatmentDate";
 
+/** Days used when a procedure has no reminder_days set. */
+export const DEFAULT_RETURN_DAYS = 180;
+
 /**
  * Date the client is due back (treatment_date + reminder_days).
  *

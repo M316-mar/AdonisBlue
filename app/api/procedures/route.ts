@@ -52,6 +52,11 @@ export async function POST(request: Request) {
     // Approval is set server-side only — never trust a client-supplied timestamp or user id.
     const { approved, ...rest } = body;
 
+    // reminder_days is required on any approved procedure save
+    if (approved && (rest.reminder_days == null || !Number.isInteger(rest.reminder_days) || rest.reminder_days <= 0)) {
+      return NextResponse.json({ error: "Set when clients come back before approving." }, { status: 400 });
+    }
+
     // Block approval if the instructions still contain [YOUR PHONE] but the nurse
     // hasn't saved a phone number yet — clients must never receive a placeholder.
     if (approved && typeof rest.aftercare_instructions === "string" && /\[YOUR PHONE\]/i.test(rest.aftercare_instructions)) {

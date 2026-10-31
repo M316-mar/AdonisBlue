@@ -8,7 +8,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "fs";
 import { Resend } from "resend";
-import { buildTreatmentReminderEmail, buildBackupReminderEmail, buildNurseReturnEmail } from "../lib/emails/returnEmails";
+import { buildTreatmentReminderEmail, buildNurseReturnEmail } from "../lib/emails/returnEmails";
 import { returnBookingLink } from "../lib/returnLink";
 import { dueDate, formatDueDate } from "../lib/reminderDate";
 
@@ -82,19 +82,9 @@ async function main() {
   });
   console.log("  →", resA.error ? `ERROR: ${JSON.stringify(resA.error)}` : `sent ${resA.data?.id}`);
 
-  // ── Email B: 6-month backup reminder (reminders cron) ──
-  console.log("Sending (b) 6-month backup reminder…");
+  // ── Email B: Monday nurse "clients coming back" (return-reminder cron) ──
+  console.log("Sending (b) Monday nurse 'clients coming back' email…");
   const resB = await resend.emails.send({
-    from: "AdonisBlue <hi@adonisblue.io>",
-    to: PREVIEW_TO,
-    subject: `[TEST] ${clientName}, it's been a while 💙 (6-month backup)`,
-    html: buildBackupReminderEmail({ clientName, practiceName, logoUrl, bookingLink, months: 6, nurseFirstName, intakeId }),
-  });
-  console.log("  →", resB.error ? `ERROR: ${JSON.stringify(resB.error)}` : `sent ${resB.data?.id}`);
-
-  // ── Email C: Monday nurse "clients coming back" (return-reminder cron) ──
-  console.log("Sending (c) Monday nurse 'clients coming back' email…");
-  const resC = await resend.emails.send({
     from: "AdonisBlue <hi@adonisblue.io>",
     to: PREVIEW_TO,
     subject: `[TEST] 🔁 1 client due back soon — save them a spot`,
@@ -104,7 +94,7 @@ async function main() {
       clients: [{ clientName, procedureName, dueFormatted: dueDateFormatted }],
     }),
   });
-  console.log("  →", resC.error ? `ERROR: ${JSON.stringify(resC.error)}` : `sent ${resC.data?.id}`);
+  console.log("  →", resB.error ? `ERROR: ${JSON.stringify(resB.error)}` : `sent ${resB.data?.id}`);
 
   console.log("\nDone. Check hi@adonisblue.io inbox.");
 }

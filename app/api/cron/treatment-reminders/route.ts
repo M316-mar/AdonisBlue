@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { firstName } from "@/lib/firstName";
 import { getClientSender } from "@/lib/clientEmailSender";
-import { dueDate, inReminderWindow } from "@/lib/reminderDate";
+import { dueDate, inReminderWindow, DEFAULT_RETURN_DAYS } from "@/lib/reminderDate";
 import { buildTreatmentReminderEmail } from "@/lib/emails/returnEmails";
 import { returnBookingLink } from "@/lib/returnLink";
 
@@ -43,7 +43,6 @@ export async function GET(request: Request) {
       `)
       .eq("reminder_sent", false)
       .is("rebooked_at", null)
-      .not("procedure_id", "is", null)
       .eq("archived", false);
 
     if (treatmentsError) {
@@ -94,8 +93,7 @@ export async function GET(request: Request) {
     todayUTC.setUTCHours(0, 0, 0, 0);
 
     for (const treatment of mostRecentMap.values()) {
-      const reminderDays = (treatment.procedures as any)?.reminder_days;
-      if (!reminderDays) continue;
+      const reminderDays: number = (treatment.procedures as any)?.reminder_days ?? DEFAULT_RETURN_DAYS;
 
       const due = dueDate(treatment.treatment_date, reminderDays);
       if (!inReminderWindow(due, todayUTC)) continue;

@@ -1970,11 +1970,13 @@ function OnboardingInner() {
       try {
         const res = await fetch("/api/procedures", { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) throw new Error("Could not load procedures");
-        const { procedures } = (await res.json()) as { procedures?: Array<{ id: string; name?: string }> | null };
+        const { procedures } = (await res.json()) as { procedures?: Array<{ id: string; name?: string; reminder_days?: number | null }> | null };
         if (procedures && procedures.length > 0) {
           for (const p of procedures) {
             const edited = p.name ? draft.editedAftercare[p.name] : undefined;
-            const body: Record<string, unknown> = { id: p.id, approved: true };
+            const defaults = p.name ? DEFAULT_PROCEDURE_DEFAULTS[p.name] : undefined;
+            const reminderDays = p.reminder_days ?? defaults?.reminder_days ?? 180;
+            const body: Record<string, unknown> = { id: p.id, approved: true, reminder_days: reminderDays };
             if (edited !== undefined) body.aftercare_instructions = edited;
             const r = await fetch("/api/procedures", {
               method: "POST",
