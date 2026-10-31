@@ -70,7 +70,7 @@ export default function TermsPage() {
             <li>AdonisBlue offers a free trial period (currently 14 days, subject to change) before a paid subscription begins.</li>
             <li>Paid plans are billed monthly or annually through our payment processor, Stripe, in advance.</li>
             <li>You may cancel your subscription at any time; cancellation takes effect at the end of your current billing period unless otherwise stated.</li>
-            <li>You may cancel anytime and receive a prorated refund for any unused time remaining in your billing period.</li>
+            <li>You may cancel anytime. No contracts. Cancellation takes effect at the end of your current billing period.</li>
             <li>We may change our pricing with notice; continued use after a price change constitutes acceptance of the new pricing.</li>
           </ul>
         </section>
