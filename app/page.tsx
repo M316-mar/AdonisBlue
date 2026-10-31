@@ -10,18 +10,16 @@ const features = [
   { emoji: "🩹", title: "Send real care, not just instructions", description: "Log a treatment and the right aftercare message goes out right away. Not just steps to follow — a message that shows you care. Lip filler and Botox in the same visit? One email, everything covered." },
   { emoji: "🚨", title: "Make sure no one feels alone while healing", description: "Every aftercare message includes a private healing chat. If something feels wrong, you get an alert right away with their name and number. Your client feels safe, not forgotten." },
   { emoji: "🔁", title: "Make sure they never forget you", description: "Rebooking reminders go out at 6 and 9 months. Review requests go out 2–3 days after treatment. All without you lifting a finger — so your clients feel remembered, not chased." },
-  { emoji: "📊", title: "Know your numbers", description: "See every client who came through AdonisBlue, what they asked, and your conversion rate — proof the system is working." },
-  { emoji: "🔗", title: "Works with your booking software", description: "Connects to Vagaro, Jane App, Square, Acuity, Mindbody, and more. Your booking flow stays exactly the same." },
 ];
 
 const faqItems = [
   { q: "Is my clients' payment information safe?", a: "AdonisBlue never receives, stores, or processes payment or credit card information. When a client books and pays a deposit, that transaction happens entirely within your booking software (Vagaro, Jane App, Square, etc.) — AdonisBlue only receives the appointment details like client name, service, and date. Your clients' financial data never touches AdonisBlue." },
   { q: "I'm not techy.", a: "If you can fill out a form and send a text, you can set up AdonisBlue. Most nurses are live in under an hour." },
-  { q: "I already use Vagaro / Jane / Square.", a: "Good. AdonisBlue connects to all of them. Your booking flow doesn't change — it just gets smarter." },
+  { q: "I already use Vagaro / Jane / Square.", a: "Keep using your booking software. Clients book through your own booking link." },
   { q: "I have a small practice.", a: "That's exactly who this is for. Solo injectors get the most out of automation because they don't have a front desk person handling this." },
   { q: "Is AdonisBlue HIPAA compliant?", a: "We follow industry best practices for data protection including encryption in transit and at rest. We do not store medical records or treatment notes. However, we are not currently HIPAA-certified. We recommend not entering any PHI (protected health information) into the chatbot." },
   { q: "Does this replace me or my nurse?", a: "No — and it's not meant to. AdonisBlue is not a 911 line and doesn't replace your medical judgment. It answers routine questions quickly and makes sure nothing falls through the cracks. If a client's message sounds urgent, AdonisBlue tells them to call 911 or go to the nearest ER right away — and alerts you immediately so you're never caught off guard." },
-  { q: "Does this work with my booking software?", a: "AdonisBlue works alongside Vagaro, Jane, Square, Acuity, Mindbody, and most booking platforms. You embed the chatbot on your website or link to it from your Instagram bio — no integration required." },
+  { q: "Does this work with my booking software?", a: "Keep using your booking software. Clients book through your own booking link." },
   { q: "Can I cancel anytime?", a: "Yes. There are no contracts, no lock-in, and no cancellation fees. Cancel from your dashboard and your subscription ends at the next billing cycle." },
   { q: "How does the AI chatbot work?", a: "The chatbot uses AI trained on aesthetic treatment aftercare best practices. It answers common client questions about healing, aftercare, prep instructions, and pricing — so you don't have to respond to the same messages all day. You remain in control and can step in anytime." },
 ];
@@ -53,65 +51,6 @@ function FaqAccordion() {
 }
 
 
-function NewsletterForm() {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setStatus("loading");
-    try {
-      const res = await fetch("/api/newsletter-signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      if (res.ok) {
-        setStatus("success");
-      } else {
-        setStatus("error");
-      }
-    } catch {
-      setStatus("error");
-    }
-  }
-
-  if (status === "success") {
-    return (
-      <p className="mt-6 text-sm font-semibold text-[#0d9488]">
-        You&apos;re in! Check your inbox for a welcome email 🦋
-      </p>
-    );
-  }
-
-  return (
-    <form onSubmit={(e) => void handleSubmit(e)} className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-      <input
-        type="email"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="your@email.com"
-        disabled={status === "loading"}
-        className="w-full rounded-full border border-slate-200 bg-slate-50 px-5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#0d9488] focus:ring-2 focus:ring-[#0d9488]/20 sm:w-72"
-      />
-      <button
-        type="submit"
-        disabled={status === "loading"}
-        className="shrink-0 rounded-full bg-[#0d9488] px-6 py-3 text-sm font-bold text-white shadow-md transition hover:bg-teal-700 disabled:opacity-60"
-      >
-        {status === "loading" ? "Subscribing…" : "Subscribe free →"}
-      </button>
-      {status === "error" && (
-        <p className="w-full text-center text-xs text-red-500">Something went wrong. Please try again.</p>
-      )}
-      {status === "idle" || status === "error" ? (
-        <p className="w-full text-center text-xs text-slate-400">Built for aesthetic nurses who care about follow-up</p>
-      ) : null}
-    </form>
-  );
-}
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -528,39 +467,31 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── VALUE STACK ── */}
+        {/* ── EVERYTHING INCLUDED ── */}
         <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-3xl">
             <div className="text-center">
               <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">What you get</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Everything included. No add-ons.</h2>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Everything included.</h2>
             </div>
-            <div className="mt-10 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <ul className="mt-10 space-y-3 max-w-xl mx-auto">
               {[
-                { feature: "24/7 AI assistant for your clients' questions", value: "$300/mo" },
-                { feature: "Automated aftercare emails", value: "$150/mo" },
-                { feature: "At-Home Healing Chat", value: "$200/mo" },
-                { feature: "Emergency alert system", value: "included" },
-                { feature: "Booking software integration", value: "$100/mo" },
-                { feature: "6 & 9 month rebooking reminders", value: "$100/mo" },
-                { feature: "Automated review requests", value: "$75/mo" },
-                { feature: "Conversation insights dashboard", value: "$50/mo" },
-                { feature: "Blue Room community access", value: "$30/mo" },
-              ].map((row, i) => (
-                <div key={row.feature} className={`flex items-center justify-between px-6 py-4 ${i % 2 === 0 ? "bg-white" : "bg-slate-50"}`}>
-                  <span className="flex items-center gap-2 text-sm font-medium text-[#1a2744]"><span className="text-[#0d9488]">✓</span>{row.feature}</span>
-                  <span className="text-sm font-semibold text-slate-500">{row.value}</span>
-                </div>
+                "Answers your clients' questions 24/7",
+                "Aftercare emailed after every visit",
+                "24-hour check-in plus a healing chat",
+                "Emergency alerts straight to you, day or night",
+                "Reminders when clients are due back",
+                "Your “clients coming back” list",
+                "Review requests",
+                "Offers",
+              ].map(item => (
+                <li key={item} className="flex items-start gap-3 text-base text-slate-700">
+                  <span className="mt-0.5 text-[#0d9488] font-bold">✓</span>
+                  {item}
+                </li>
               ))}
-              <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4">
-                <span className="text-sm font-bold text-[#1a2744]">Total value</span>
-                <span className="text-sm font-bold text-slate-500 line-through">$1,005/mo</span>
-              </div>
-              <div className="flex items-center justify-between border-t border-teal-200 bg-teal-50 px-6 py-4">
-                <span className="text-sm font-bold text-[#1a2744]">AdonisBlue Starter</span>
-                <span className="text-sm font-bold text-[#0d9488]">$200/mo</span>
-              </div>
-            </div>
+            </ul>
+            <p className="mt-8 text-center text-xl font-bold text-[#1a2744]">All for $200/month.</p>
           </div>
         </section>
 
@@ -622,7 +553,7 @@ export default function Home() {
                 <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Starter</h3>
                 <p className="mt-2 text-sm text-slate-500">Your complete AI front desk. One extra booking a month pays for this.</p>
                 <ul className="mt-6 flex-1 space-y-2.5">
-                  {["Unlimited client conversations","24/7 AI assistant for your clients' questions","Aftercare + healing chat + emergency alerts","Automated rebooking reminders","Booking link built into bot","Embed chat on your website","Conversation insights dashboard","Weekly summary of top questions","Blue Room community access"].map(l => (
+                  {["Unlimited client conversations","Answers your clients' questions 24/7","Aftercare emailed after every visit","24-hour check-in plus a healing chat","Emergency alerts straight to you, day or night","Reminders when clients are due back","Your “clients coming back” list","Review requests","Offers","Booking link built into bot","Embed chat on your website"].map(l => (
                     <li key={l} className="flex gap-2 text-sm text-slate-600"><span className="text-[#0d9488]">✓</span>{l}</li>
                   ))}
                 </ul>
@@ -677,20 +608,6 @@ export default function Home() {
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">Questions you probably have</h2>
             </div>
             <div className="mt-12"><FaqAccordion /></div>
-          </div>
-        </section>
-
-        {/* ── NEWSLETTER SIGNUP ── */}
-        <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-xl text-center">
-            <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">The Injector Edge</p>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
-              Weekly tips for nurse injectors — free.
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-500 sm:text-base">
-              Get one actionable tip every week on growing your aesthetic practice, using AI, and saving time. No spam. Unsubscribe anytime.
-            </p>
-            <NewsletterForm />
           </div>
         </section>
 

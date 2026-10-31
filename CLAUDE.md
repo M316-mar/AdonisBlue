@@ -28,3 +28,10 @@ Everything else (Instagram automation, Blue Room, offers, newsletter) is seconda
 - All client emails/SMS go through `lib/sendAndLog.ts`.
 - No false or unverifiable claims in any client- or nurse-facing text.
 - Keep the UI simple enough to use without a tutorial. Plain language.
+## Removed features
+
+These features were removed from the codebase on 2026-10-30 to narrow the product to Core 4 + Offers. The git tag `before-simplify` marks the state before removal — use it to restore any of these.
+
+**Removed:** Loyalty points, Blue Room community, Instagram automation (pages + API routes only — no backend existed), Insights dashboard, Newsletter signup/unsubscribe.
+
+**DB tables still exist** (`blueroom_posts`, `blueroom_comments`, `blueroom_comment_reactions`, `blueroom_post_reactions`, `blueroom_post_views`, `blueroom_notifications`, `loyalty_points`, `loyalty_programs`). The delete-account and delete-nurse routes still erase these tables' data for any deleted user.

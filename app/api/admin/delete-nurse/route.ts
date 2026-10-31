@@ -33,8 +33,8 @@ export async function POST(request: Request) {
     // Delete in dependency order (children first, parents last)
     await db.from("healing_chats").delete().eq("nurse_id", nurse_id);
     await db.from("checkin_reminders").delete().eq("nurse_id", nurse_id);
+    // blueroom + loyalty — tables kept after feature removal, still delete user data
     await db.from("blueroom_comment_reactions").delete().eq("nurse_id", nurse_id);
-
     const { data: ownPosts } = await db.from("blueroom_posts").select("id").eq("author_id", nurse_id);
     const postIds = (ownPosts ?? []).map((p) => p.id as string);
     if (postIds.length > 0) {

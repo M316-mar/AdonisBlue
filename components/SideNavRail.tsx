@@ -13,8 +13,6 @@ const NAV_ITEMS = [
   { href: "/checkin",         icon: "📞", label: "Check-Ins" },
   { href: "/client-journey",  icon: "✉️", label: "Emails" },
   { href: "/offers",          icon: "🎁", label: "Offers" },
-  { href: "/booking-connect", icon: "🔗", label: "Booking" },
-  { href: "/insights",        icon: "📊", label: "Insights" },
   { href: "/account",         icon: "⚙️", label: "Account", desktopOnly: true },
 ] as const;
 

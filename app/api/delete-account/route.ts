@@ -34,15 +34,9 @@ export async function POST(request: Request) {
     await db.from("healing_chats").delete().eq("nurse_id", nurse_id);
     await db.from("checkin_reminders").delete().eq("nurse_id", nurse_id);
 
-    // 2. blueroom_comment_reactions
+    // 2–6. blueroom + loyalty — tables kept after feature removal, still delete user data
     await db.from("blueroom_comment_reactions").delete().eq("nurse_id", nurse_id);
-
-    // 3. blueroom_comments (own comments + comments on own posts)
-    //    Get own post IDs first so we can cascade-delete comments on those posts too
-    const { data: ownPosts } = await db
-      .from("blueroom_posts")
-      .select("id")
-      .eq("author_id", nurse_id);
+    const { data: ownPosts } = await db.from("blueroom_posts").select("id").eq("author_id", nurse_id);
     const postIds = (ownPosts ?? []).map((p) => p.id as string);
     if (postIds.length > 0) {
       await db.from("blueroom_comments").delete().in("post_id", postIds);
@@ -53,14 +47,8 @@ export async function POST(request: Request) {
     await db.from("blueroom_post_reactions").delete().eq("nurse_id", nurse_id);
     await db.from("blueroom_post_views").delete().eq("nurse_id", nurse_id);
     await db.from("blueroom_notifications").delete().eq("nurse_id", nurse_id);
-
-    // 4. blueroom_posts (author_id = nurse_id)
     await db.from("blueroom_posts").delete().eq("author_id", nurse_id);
-
-    // 5. loyalty_points
     await db.from("loyalty_points").delete().eq("nurse_id", nurse_id);
-
-    // 6. loyalty_programs
     await db.from("loyalty_programs").delete().eq("nurse_id", nurse_id);
 
     // 7. referrals (referrer_nurse_id)

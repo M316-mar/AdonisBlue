@@ -89,7 +89,6 @@ export default function NurseDashboardPage() {
   const [showEmailNotice, setShowEmailNotice] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
-  const [hasBooking, setHasBooking] = useState(false);
   const [hasOffer, setHasOffer] = useState(false);
   const [showAccountManagement, setShowAccountManagement] = useState(false);
   const [noShowDialog, setNoShowDialog] = useState<{ id: string; name: string } | null>(null);
@@ -169,15 +168,6 @@ export default function NurseDashboardPage() {
           if (!cancelled && intakesRes.ok) {
             const intakesJson = await intakesRes.json();
             setIntakes(intakesJson.intakes ?? []);
-          }
-
-          // Fetch booking connect status
-          const bookingRes = await fetch("/api/booking-connect", {
-            headers: { authorization: `Bearer ${token}` },
-          });
-          if (!cancelled && bookingRes.ok) {
-            const bookingJson = await bookingRes.json() as { has_secret?: boolean };
-            setHasBooking(Boolean(bookingJson.has_secret));
           }
 
           // Fetch offers count
@@ -797,20 +787,6 @@ export default function NurseDashboardPage() {
 
             {launched ? (
               <>
-                {/* ── The Blue Room (main content) — de-emphasized, secondary to core actions ── */}
-                <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[#1a2744]">The Blue Room</p>
-                    <p className="text-xs text-slate-500">Your private community of nurse injectors.</p>
-                  </div>
-                  <Link
-                    href="/blueroom"
-                    className="shrink-0 rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
-                  >
-                    Enter →
-                  </Link>
-                </div>
-
                 {/* ── Add to your website (collapsible, main content) ── */}
                 <section id="embed" className="rounded-2xl border border-slate-200 bg-white shadow-md overflow-hidden">
                   <button
@@ -847,23 +823,6 @@ export default function NurseDashboardPage() {
 
             {/* ── Instagram Automation, Stats, My Plan ── */}
             <div className="max-w-2xl space-y-4">
-              {/* ── Instagram Automation ── */}
-              <div className="rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50 to-rose-50 p-4 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">📱</span>
-                  <h3 className="text-sm font-bold text-[#1a2744]">Instagram Automation</h3>
-                </div>
-                <p className="text-xs leading-relaxed text-slate-500 mb-3">
-                  Let clients comment a keyword on your posts and automatically receive your bot link in a DM — hands free.
-                </p>
-                <Link
-                  href="/instagram-automation"
-                  className="inline-flex w-full items-center justify-center rounded-full border border-pink-200 bg-white px-4 py-2 text-xs font-bold text-pink-600 transition hover:bg-pink-50"
-                >
-                  Set up Instagram automation →
-                </Link>
-              </div>
-
               {/* ── Stats ── */}
               <div className="grid grid-cols-4 gap-2">
                 {[

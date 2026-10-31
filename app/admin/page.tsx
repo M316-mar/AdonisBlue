@@ -31,7 +31,7 @@ type FeedbackRow = {
   created_at: string;
 };
 
-type TabId = "nurses" | "subscriptions" | "feedback" | "blueroom" | "newsletter" | "refunds";
+type TabId = "nurses" | "subscriptions" | "feedback" | "refunds";
 
 type RefundRow = {
   id: string;
@@ -104,13 +104,6 @@ export default function AdminPage() {
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<TabId>("nurses");
-  const [blueroomPosts, setBlueroomPosts] = useState<{id:string;title:string;content:string;category:string;emoji:string;created_at:string;}[]>([]);
-  const [newPost, setNewPost] = useState({ title: "", content: "", category: "general", emoji: "💙" });
-  const [postLoading, setPostLoading] = useState(false);
-  const [postSuccess, setPostSuccess] = useState(false);
-  const [newsletter, setNewsletter] = useState({ subject: "", content: "", preview_text: "" });
-  const [newsletterLoading, setNewsletterLoading] = useState(false);
-  const [newsletterSent, setNewsletterSent] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [refunds, setRefunds] = useState<RefundRow[]>([]);
   const [refundForm, setRefundForm] = useState({ customer_name: "", customer_email: "", amount: "", reason: "" });
@@ -133,11 +126,6 @@ export default function AdminPage() {
         const json = await r.json();
         setNurses(Array.isArray(json.nurses) ? json.nurses : []);
         setFeedback(Array.isArray(json.feedback) ? json.feedback : []);
-        const blueroomRes = await fetch("/api/blueroom/posts");
-        if (blueroomRes.ok) {
-          const blueroomJson = await blueroomRes.json();
-          setBlueroomPosts(blueroomJson.posts ?? []);
-        }
         const refundRes = await fetch("/api/admin/refund-log", { headers: { Authorization: `Bearer ${token}` } });
         if (refundRes.ok) {
           const refundJson = await refundRes.json();
@@ -226,43 +214,6 @@ export default function AdminPage() {
     }
   }, [adminToken]);
 
-  const handleCreatePost = useCallback(async () => {
-    if (!newPost.title.trim() || !newPost.content.trim()) return;
-    setPostLoading(true);
-    const res = await fetch("/api/blueroom/posts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
-      body: JSON.stringify(newPost),
-    });
-    if (res.ok) {
-      const json = await res.json();
-      setBlueroomPosts(prev => [json.post, ...prev]);
-      setNewPost({ title: "", content: "", category: "general", emoji: "💙" });
-      setPostSuccess(true);
-      setTimeout(() => setPostSuccess(false), 3000);
-    }
-    setPostLoading(false);
-  }, [newPost]);
-
-  const handleSendNewsletter = useCallback(async () => {
-    if (!newsletter.subject.trim() || !newsletter.content.trim()) return;
-    setNewsletterLoading(true);
-    setNewsletterSent(null);
-    try {
-      const res = await fetch("/api/admin/send-newsletter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
-        body: JSON.stringify(newsletter),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setNewsletterSent(json.sent_count ?? 0);
-        setNewsletter({ subject: "", content: "", preview_text: "" });
-      }
-    } finally {
-      setNewsletterLoading(false);
-    }
-  }, [newsletter]);
 
   // ── Derived stats ──────────────────────────────────────────────────────────
   const totalActive = nurses.filter(n => n.launched && !n.frozen).length;
@@ -298,8 +249,6 @@ export default function AdminPage() {
     { id: "nurses", label: `👩‍⚕️ Nurses (${nurses.length})` },
     { id: "subscriptions", label: `💳 Subscriptions` },
     { id: "feedback", label: `💬 Feedback (${feedback.length})` },
-    { id: "blueroom", label: "💙 Blue Room" },
-    { id: "newsletter", label: "📧 Newsletter" },
     { id: "refunds", label: "💸 Refunds" },
   ];
 
@@ -689,120 +638,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ── Blue Room tab ── */}
-        {tab === "blueroom" && (
-          <div className="space-y-6">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-              <h2 className="mb-4 text-lg font-bold text-white">Create a new post 💙</h2>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {["💙","🔥","💉","📈","📰","✨","💡","⚠️"].map(e => (
-                    <button
-                      key={e}
-                      type="button"
-                      onClick={() => setNewPost(p => ({ ...p, emoji: e }))}
-                      className={`rounded-xl border py-2 text-xl transition ${newPost.emoji === e ? "border-teal-400 bg-teal-400/20" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
-                    >
-                      {e}
-                    </button>
-                  ))}
-                </div>
-                <select
-                  value={newPost.category}
-                  onChange={e => setNewPost(p => ({ ...p, category: e.target.value }))}
-                  className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none"
-                >
-                  <option value="general" className="text-black">💙 General</option>
-                  <option value="trending" className="text-black">🔥 Trending</option>
-                  <option value="techniques" className="text-black">💉 Techniques</option>
-                  <option value="business" className="text-black">📈 Business Tips</option>
-                  <option value="news" className="text-black">📰 Industry News</option>
-                </select>
-                <input
-                  value={newPost.title}
-                  onChange={e => setNewPost(p => ({ ...p, title: e.target.value }))}
-                  placeholder="Post title…"
-                  className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400/50"
-                />
-                <textarea
-                  value={newPost.content}
-                  onChange={e => setNewPost(p => ({ ...p, content: e.target.value }))}
-                  placeholder="Write your post content… Share trends, tips, news, techniques."
-                  rows={5}
-                  className="w-full resize-none rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400/50"
-                />
-                <button
-                  type="button"
-                  disabled={postLoading || !newPost.title.trim() || !newPost.content.trim()}
-                  onClick={() => void handleCreatePost()}
-                  className="w-full rounded-full bg-teal-400 px-6 py-3 text-sm font-bold text-[#0d1628] transition hover:bg-teal-300 disabled:opacity-50"
-                >
-                  {postLoading ? "Publishing…" : postSuccess ? "Published! ✅" : "Publish to Blue Room 💙"}
-                </button>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-widest">Published posts ({blueroomPosts.length})</h3>
-              {blueroomPosts.length === 0 && (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
-                  <p className="text-slate-500">No posts yet — create your first one above!</p>
-                </div>
-              )}
-              {blueroomPosts.map(post => (
-                <div key={post.id} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">{post.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="rounded-full bg-teal-400/20 px-2 py-0.5 text-xs font-bold text-teal-300">{post.category}</span>
-                        <span className="text-xs text-slate-500">{new Date(post.created_at).toLocaleDateString()}</span>
-                      </div>
-                      <p className="mt-1 font-semibold text-white">{post.title}</p>
-                      <p className="mt-1 text-sm text-slate-400 line-clamp-2">{post.content}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Newsletter tab ── */}
-        {tab === "newsletter" && (
-          <div className="space-y-6">
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2744] to-[#0d4f6b] p-6">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_80%_0%,rgba(56,189,248,0.2),transparent)]" aria-hidden />
-              <div className="relative">
-                <h2 className="text-lg font-bold text-white">📧 Send Newsletter to All Nurses</h2>
-                <p className="mt-1 text-sm text-slate-300">Write a newsletter and send it to every active nurse on AdonisBlue.</p>
-              </div>
-            </div>
-            {newsletterSent !== null && (
-              <div className="rounded-2xl border border-teal-400/30 bg-teal-400/10 p-4 text-center">
-                <p className="text-lg font-bold text-teal-300">✅ Sent to {newsletterSent} nurse{newsletterSent !== 1 ? "s" : ""}!</p>
-              </div>
-            )}
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">Subject line</label>
-                  <input value={newsletter.subject} onChange={e => setNewsletter(p => ({ ...p, subject: e.target.value }))} placeholder="e.g. 🔥 Top 3 trending procedures this month" className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500" />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">Preview text</label>
-                  <input value={newsletter.preview_text} onChange={e => setNewsletter(p => ({ ...p, preview_text: e.target.value }))} placeholder="e.g. What clients are asking for most right now..." className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500" />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">Content</label>
-                  <textarea value={newsletter.content} onChange={e => setNewsletter(p => ({ ...p, content: e.target.value }))} placeholder={"Hi nurse family! 💙\n\nHere is what we have been seeing this week...\n\nWrite your newsletter here."} rows={10} className="w-full resize-none rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500" />
-                </div>
-                <button type="button" disabled={newsletterLoading || !newsletter.subject.trim() || !newsletter.content.trim()} onClick={() => void handleSendNewsletter()} className="w-full rounded-full bg-teal-400 px-6 py-3 text-sm font-bold text-[#0d1628] transition hover:bg-teal-300 disabled:opacity-50">
-                  {newsletterLoading ? "Sending…" : "📧 Send newsletter to all nurses"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         {/* ── Refunds tab ── */}
         {tab === "refunds" && (
           <div className="space-y-6">

@@ -411,6 +411,10 @@ function AccountPageInner() {
               <div className="pt-1">
                 <SaveButton saving={practiceSaving} saved={practiceSaved} />
               </div>
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                <a href="/booking-connect" className="font-semibold text-[#0d9488] hover:underline">Connect your booking software →</a>
+                <span className="ml-2 text-slate-400">Vagaro, Jane, Square, Acuity, and more</span>
+              </div>
             </form>
           </Section>
 
