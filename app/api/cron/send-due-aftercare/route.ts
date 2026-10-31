@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { logError } from "@/lib/logError";
 import { sendEmail } from "@/lib/sendAndLog";
+import { getClientSender } from "@/lib/clientEmailSender";
 import { firstName } from "@/lib/firstName";
 import { substitutePlaceholdersSafeHtml } from "@/lib/substitutePlaceholders";
 
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
       treatment.intake_id
         ? supabase.from("intakes").select("first_name, email").eq("id", treatment.intake_id).single()
         : Promise.resolve({ data: null, error: null }),
-      supabase.from("bots").select("practice_name, nurse_name, alert_phone, phone_public").eq("nurse_id", treatment.nurse_id).single(),
+      supabase.from("bots").select("practice_name, nurse_name, alert_phone, phone_public, alert_email, alert_email_verified, notification_email").eq("nurse_id", treatment.nurse_id).single(),
       treatment.procedure_id
         ? supabase.from("procedures").select("name, aftercare_instructions").eq("id", treatment.procedure_id).single()
         : Promise.resolve({ data: null, error: null }),
@@ -137,6 +138,7 @@ export async function POST(request: Request) {
   </table>
 </body></html>`;
 
+    const { from_name, reply_to } = getClientSender(bot ?? {});
     const result = await sendEmail({
       type: "aftercare",
       nurse_id: treatment.nurse_id,
@@ -146,6 +148,8 @@ export async function POST(request: Request) {
       subject: `Your aftercare instructions from ${practiceName} 💙`,
       html,
       supabase,
+      from_name,
+      reply_to,
     });
 
     if (!result.ok) {

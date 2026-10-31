@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { firstName } from "@/lib/firstName";
+import { getClientSender } from "@/lib/clientEmailSender";
 
 function escapeHtml(str: string): string {
   return str
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
     // Fetch nurse's bot for practice name + custom prep instructions
     const { data: bot } = await supabase
       .from("bots")
-      .select("practice_name, pre_appointment_instructions, slug")
+      .select("practice_name, pre_appointment_instructions, slug, alert_email, alert_email_verified, notification_email")
       .eq("nurse_id", user.id)
       .single();
 
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
       intake_id: intake.id,
       to: intake.email,
       subject: `See you soon, ${clientName}! Here's how to prepare 💙`,
+      ...getClientSender(bot ?? {}),
       html: `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">

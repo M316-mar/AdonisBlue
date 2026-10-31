@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { sendEmail } from "@/lib/sendAndLog";
+import { getClientSender } from "@/lib/clientEmailSender";
 
 function escapeHtml(str: string): string {
   return str
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     // Fetch bot fields
     const { data: bot, error: botError } = await supabase
       .from("bots")
-      .select("aftercare, practice_name, primary_color, google_review_link")
+      .select("aftercare, practice_name, primary_color, google_review_link, alert_email, alert_email_verified, notification_email")
       .eq("nurse_id", intake.nurse_id)
       .single();
     if (botError) console.error("[send-survey] bot fetch error:", JSON.stringify(botError));
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
       intake_id: intake.id,
       to: intake.email,
       subject: `Thank you for your visit! 💙 Your aftercare + a quick favor`,
+      ...getClientSender(bot ?? {}),
       html: `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
       <h2 style="color: #1a2744;">Thank you for visiting ${practiceName}! 🌸</h2>

@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { firstName } from "@/lib/firstName";
+import { getClientSender } from "@/lib/clientEmailSender";
 import { dueDate, inReminderWindow } from "@/lib/reminderDate";
 import { buildTreatmentReminderEmail } from "@/lib/emails/returnEmails";
 import { returnBookingLink } from "@/lib/returnLink";
@@ -110,7 +111,7 @@ export async function GET(request: Request) {
       // Step 2C: fetch bot separately; skip + log if missing
       const { data: bot } = await supabase
         .from("bots")
-        .select("practice_name, booking_link, rebooking_link, slug, logo_url")
+        .select("practice_name, booking_link, rebooking_link, slug, logo_url, alert_email, alert_email_verified, notification_email")
         .eq("nurse_id", treatment.nurse_id)
         .single();
 
@@ -138,6 +139,7 @@ export async function GET(request: Request) {
         treatment_id: treatment.id,
         to: clientEmail,
         subject: `Time to refresh your ${procedureName}? ✨`,
+        ...getClientSender(bot),
         html: buildTreatmentReminderEmail({
           clientName,
           practiceName,

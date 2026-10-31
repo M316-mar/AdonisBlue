@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
 import { firstName } from "@/lib/firstName";
 import { formatTreatmentDate } from "@/lib/formatTreatmentDate";
+import { getClientSender } from "@/lib/clientEmailSender";
 
 function escapeHtml(str: string): string {
   return str
@@ -81,7 +82,7 @@ export async function GET(request: Request) {
       // Step 2C: fetch bot separately; skip + log if missing
       const { data: bot } = await supabase
         .from("bots")
-        .select("practice_name, pre_appointment_instructions, slug")
+        .select("practice_name, pre_appointment_instructions, slug, alert_email, alert_email_verified, notification_email")
         .eq("nurse_id", nurseId)
         .single();
 
@@ -119,6 +120,7 @@ export async function GET(request: Request) {
         treatment_id: treatment.id,
         to: intake.email,
         subject: `See you soon, ${clientName}! Here's how to prepare 💙`,
+        ...getClientSender(bot),
         html: `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">

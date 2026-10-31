@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { logError } from "@/lib/logError";
 import { sendEmail } from "@/lib/sendAndLog";
 import { firstName } from "@/lib/firstName";
+import { getClientSender } from "@/lib/clientEmailSender";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
@@ -80,7 +81,7 @@ export async function GET(request: Request) {
       // Step 2C: fetch bot separately; skip + log if missing
       const { data: bot } = await supabase
         .from("bots")
-        .select("practice_name, booking_link, instagram, google_review_link, facebook_review_link")
+        .select("practice_name, booking_link, instagram, google_review_link, facebook_review_link, alert_email, alert_email_verified, notification_email")
         .eq("nurse_id", intake.nurse_id)
         .single();
 
@@ -127,6 +128,7 @@ export async function GET(request: Request) {
         subject: `How are you feeling, ${clientName}? 💙`,
         html: buildReviewEmail({ clientName, practiceName, bookingLink, instagram, intakeId: intake.id, reviewUrl: mainReviewUrl }),
         supabase,
+        ...getClientSender(bot),
       });
 
       if (result.ok) {

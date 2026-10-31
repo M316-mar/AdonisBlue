@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { getClientSender } from "@/lib/clientEmailSender";
 
 // SQL to add the confirmation_sent_at column (run once in Supabase SQL editor):
 //
@@ -43,6 +44,9 @@ interface BotRow {
   nurse_id: string;
   practice_name: string | null;
   booking_link: string | null;
+  alert_email: string | null;
+  alert_email_verified: boolean | null;
+  notification_email: string | null;
 }
 
 function isBlocked(key: string): boolean {
@@ -230,7 +234,7 @@ export async function POST(request: Request) {
     // Look up nurse by webhook secret
     const { data: bot } = await supabase
       .from("bots")
-      .select("nurse_id, practice_name, booking_link")
+      .select("nurse_id, practice_name, booking_link, alert_email, alert_email_verified, notification_email")
       .eq("webhook_secret", secret)
       .single();
 
@@ -402,6 +406,7 @@ export async function POST(request: Request) {
             treatment_id: treatmentId,
             to: clientEmail,
             subject: `You're booked with ${botRow.practice_name ?? "your provider"} 💙`,
+            ...getClientSender(botRow),
             html: `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>You're booked!</title></head>

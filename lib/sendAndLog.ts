@@ -12,6 +12,10 @@ interface EmailOpts {
   subject: string;
   html: string;
   supabase: SupabaseClient;
+  /** Display name for the "from" field. Rendered as "{from_name} via AdonisBlue <hi@adonisblue.io>". */
+  from_name?: string;
+  /** Reply-to address. When omitted, replies go to hi@adonisblue.io. */
+  reply_to?: string;
 }
 
 interface SmsOpts {
@@ -31,7 +35,7 @@ interface SendResult {
 }
 
 export async function sendEmail(opts: EmailOpts): Promise<SendResult> {
-  const { type, nurse_id, intake_id, treatment_id, to, subject, html, supabase } = opts;
+  const { type, nurse_id, intake_id, treatment_id, to, subject, html, supabase, from_name, reply_to } = opts;
 
   if (!to) {
     await supabase.from("message_log").insert({
@@ -48,11 +52,13 @@ export async function sendEmail(opts: EmailOpts): Promise<SendResult> {
   }
 
   try {
+    const fromField = from_name ? `${from_name} via AdonisBlue <hi@adonisblue.io>` : "AdonisBlue <hi@adonisblue.io>";
     const result = await resend.emails.send({
-      from: "AdonisBlue <hi@adonisblue.io>",
+      from: fromField,
       to,
       subject,
       html,
+      ...(reply_to ? { reply_to } : {}),
     });
 
     const provider_id = (result.data as { id?: string } | null)?.id ?? null;

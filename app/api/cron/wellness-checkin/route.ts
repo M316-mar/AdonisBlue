@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/sendAndLog";
 import { logError } from "@/lib/logError";
 import { firstName } from "@/lib/firstName";
 import { phoneHtml } from "@/lib/formatPhone";
+import { getClientSender } from "@/lib/clientEmailSender";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.adonisblue.io";
 
@@ -69,7 +70,7 @@ export async function GET(request: Request) {
       // Step 2C: fetch bot separately; skip + log if missing
       const { data: bot } = await supabase
         .from("bots")
-        .select("practice_name, slug, alert_phone")
+        .select("practice_name, slug, alert_phone, alert_email, alert_email_verified, notification_email")
         .eq("nurse_id", nurseId)
         .single();
 
@@ -154,6 +155,7 @@ export async function GET(request: Request) {
 </body>
 </html>`,
         supabase,
+        ...getClientSender(bot),
       });
 
       if (result.ok) {

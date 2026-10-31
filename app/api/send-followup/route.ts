@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { firstName } from "@/lib/firstName";
+import { getClientSender } from "@/lib/clientEmailSender";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
 
     const { data: bot } = await supabase
       .from("bots")
-      .select("practice_name, booking_link, slug")
+      .select("practice_name, booking_link, slug, alert_email, alert_email_verified, notification_email")
       .eq("nurse_id", user.id)
       .single();
 
@@ -99,6 +100,7 @@ export async function POST(request: Request) {
           treatment_id: treatment.id,
           to: clientEmail,
           subject: `${clientName}, time to glow again? ✨`,
+          ...getClientSender(bot ?? {}),
           html: `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><title>Time to rebook</title></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
