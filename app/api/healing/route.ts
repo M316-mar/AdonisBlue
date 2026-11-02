@@ -5,6 +5,7 @@ import { detectEmergencyLevel, DEFAULT_EMERGENCY_KEYWORDS, normalizeText } from 
 import { logError } from "@/lib/logError";
 import { buildEmergencyReply, emergencySubject } from "@/lib/emergencyReply";
 import { phoneHtml } from "@/lib/formatPhone";
+import { checkRateLimit, getClientIp, serviceClient, RATE_LIMITS, EMERGENCY_RATE_LIMIT, RATE_WINDOW_SECONDS } from "@/lib/rateLimit";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -119,6 +120,17 @@ export async function POST(request: Request) {
     const messages = sanitiseMessages(rawMessages);
     if (messages.length === 0) {
       return NextResponse.json({ error: "No valid messages" }, { status: 400 });
+    }
+
+    // Rate limiting — emergency messages get a higher ceiling but are still capped
+    const ip = getClientIp(request);
+    const earlyLastMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+    const earlyEmergency = detectEmergencyLevel(earlyLastMsg);
+    const rlKey = earlyEmergency !== null ? `healing-emergency:${treatment_id}:${ip}` : `healing:${treatment_id}:${ip}`;
+    const rlMax = earlyEmergency !== null ? EMERGENCY_RATE_LIMIT : RATE_LIMITS.healing;
+    const rlAllowed = await checkRateLimit(serviceClient(), rlKey, rlMax, RATE_WINDOW_SECONDS);
+    if (!rlAllowed) {
+      return NextResponse.json({ rateLimited: true, message: "You're sending messages quickly. Please wait a few minutes." });
     }
 
     // Sanitise optional client_phone — digits, spaces, +, -, () only

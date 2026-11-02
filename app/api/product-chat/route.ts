@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { detectEmergencyLevel } from "@/lib/emergencyCheck";
+import { logError } from "@/lib/logError";
+import { checkRateLimit, getClientIp, serviceClient, RATE_LIMITS, EMERGENCY_RATE_LIMIT, RATE_WINDOW_SECONDS } from "@/lib/rateLimit";
 
 function escapeHtml(str: string): string {
   return str
@@ -75,7 +78,21 @@ FORMATTING: Never use markdown. No asterisks, no bullet points, no headers. Plai
 
 export async function POST(request: Request) {
   try {
-    const { messages } = await request.json();
+    const { messages: rawMessages } = await request.json();
+    const messages = (Array.isArray(rawMessages) ? rawMessages as { role: string; content: string }[] : [])
+      .slice(-40)
+      .map((m) => ({ ...m, content: typeof m.content === "string" ? m.content.slice(0, 2000) : "" }));
+
+    // Rate limiting — emergency messages get a higher ceiling but are still capped
+    const ip = getClientIp(request);
+    const rlKey = `product-chat:${ip}`;
+    const earlyLastMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+    const earlyEmergency = detectEmergencyLevel(earlyLastMsg);
+    const rlMax = earlyEmergency !== null ? EMERGENCY_RATE_LIMIT : RATE_LIMITS.productChat;
+    const rlAllowed = await checkRateLimit(serviceClient(), rlKey, rlMax, RATE_WINDOW_SECONDS);
+    if (!rlAllowed) {
+      return NextResponse.json({ rateLimited: true, reply: "You're sending messages quickly. Please wait a few minutes, or email us at hi@adonisblue.io." });
+    }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
@@ -179,6 +196,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ reply });
   } catch (e) {
+    await logError("product-chat", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

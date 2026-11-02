@@ -5,6 +5,7 @@ import { detectEmergencyLevel, normalizeText } from "@/lib/emergencyCheck";
 import { buildEmergencyReply, emergencySubject } from "@/lib/emergencyReply";
 import { logError } from "@/lib/logError";
 import { phoneHtml } from "@/lib/formatPhone";
+import { checkRateLimit, getClientIp, serviceClient, RATE_LIMITS, EMERGENCY_RATE_LIMIT, RATE_WINDOW_SECONDS } from "@/lib/rateLimit";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io";
 
 /** Escape HTML special chars to prevent XSS in email bodies. */
@@ -60,8 +61,28 @@ function extractContactFromHistory(
 
 export async function POST(request: Request) {
   try {
-    const { messages, botContext } = await request.json();
+    const { messages: rawMessages, botContext } = await request.json();
     const botConfig = botContext || {};
+    const messages = (Array.isArray(rawMessages) ? rawMessages as { role: string; content: string }[] : [])
+      .slice(-40)
+      .map((m) => ({ ...m, content: typeof m.content === "string" ? m.content.slice(0, 2000) : "" }));
+
+    // Rate limiting — emergency messages get a higher ceiling but are still capped
+    const ip = getClientIp(request);
+    const rlSlug: string = typeof botConfig.bot_slug === "string" ? botConfig.bot_slug : (typeof botConfig.nurse_id === "string" ? botConfig.nurse_id : "unknown");
+    const earlyLastMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+    const earlyEmergency = detectEmergencyLevel(earlyLastMsg);
+    const rlKey = earlyEmergency !== null ? `chat-emergency:${rlSlug}:${ip}` : `chat:${rlSlug}:${ip}`;
+    const rlMax = earlyEmergency !== null ? EMERGENCY_RATE_LIMIT : RATE_LIMITS.chat;
+    const rlAllowed = await checkRateLimit(serviceClient(), rlKey, rlMax, RATE_WINDOW_SECONDS);
+    if (!rlAllowed) {
+      const phonePublic = typeof botConfig.phone_public === "string" ? botConfig.phone_public : "";
+      const practiceDisplay = typeof botConfig.practice_name === "string" && botConfig.practice_name ? botConfig.practice_name : "the practice";
+      const waitMsg = phonePublic
+        ? `You're sending messages quickly. Please wait a few minutes. If this is urgent, call ${practiceDisplay} at ${phonePublic}.`
+        : `You're sending messages quickly. Please wait a few minutes.`;
+      return NextResponse.json({ rateLimited: true, reply: waitMsg });
+    }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
