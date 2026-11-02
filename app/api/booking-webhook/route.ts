@@ -204,6 +204,14 @@ export function GET() {
 }
 
 export async function POST(request: Request) {
+  // Booking integration is disabled until a nurse needs it and per-nurse
+  // webhook secret verification is in place. Re-enable below when ready.
+  return NextResponse.json(
+    { error: "Booking integration is not enabled" },
+    { status: 410 }
+  );
+
+  /* ── Re-enable with per-nurse signature verification when a nurse needs it ─
   try {
     const url = new URL(request.url);
     const secret = url.searchParams.get("secret") ?? "";
@@ -470,4 +478,5 @@ export async function POST(request: Request) {
     console.error("Booking webhook error:", e);
     return NextResponse.json({ ok: false, debug: String(e) }, { status: 500 });
   }
+  ── end disabled block ── */
 }
