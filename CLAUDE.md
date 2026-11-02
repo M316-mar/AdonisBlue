@@ -21,6 +21,7 @@ Everything else (Instagram automation, Blue Room, offers, newsletter) is seconda
   - `GRANT SELECT, INSERT, UPDATE, DELETE ON <table> TO authenticated;` — required if nurses access the table, plus an RLS policy so nurses see only their own rows.
   - `GRANT SELECT ON <table> TO anon;` — only if a public, not-logged-in page truly needs to read it directly (add a comment explaining why). Never grant `anon` write access.
 - Nurse IDs: some tables store `nurse_id` as `text`, some as `uuid`. Always check the actual column type (`information_schema` or the OpenAPI spec) and cast correctly (`auth.uid()::text` in RLS when the column is `text`).
+- **Internal-only routes** (e.g. `/api/extract-intake`) require `Authorization: Bearer <INTERNAL_SECRET>` and must never be called from the browser. Server callers pass the header; the route rejects anything without it with 401. If `INTERNAL_SECRET` is unset on the server, the route must fail closed (500) and call `logError`.
 - Before every push: run `npm run check` (build + schema-check) and show the raw output. Then `git status` (no untracked files), commit, push, `git show --stat`.
 - **Never push code that reads or writes a new column/table until the user confirms the migration ran.** Commit is fine; push must wait.
 - **Calendar dates ("today", treatment dates, due dates) always use `lib/localDate.ts` / shared date helpers — never `new Date().toISOString().slice(0, 10)` for a calendar date.** That returns the UTC date; at 22:00 Chicago it gives tomorrow.

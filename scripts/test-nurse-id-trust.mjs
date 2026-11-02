@@ -66,9 +66,15 @@ console.log("\n/api/chat nurse_id trust:");
 }
 
 // ── /api/extract-intake ────────────────────────────────────────────────────
-console.log("\n/api/extract-intake nurse_id trust:");
+console.log("\n/api/extract-intake internal-only + nurse_id trust:");
 {
   const src = readRoute("app/api/extract-intake/route.ts");
+
+  // Must require INTERNAL_SECRET header — fail closed when env var missing
+  assert(src.includes("INTERNAL_SECRET"), "checks INTERNAL_SECRET env var");
+  assert(src.includes("Server misconfiguration"), "returns 500 when INTERNAL_SECRET unset (fail closed)");
+  assert(src.includes("Unauthorized"), "returns 401 when header missing/wrong");
+  assert(src.includes("logError"), "calls logError when INTERNAL_SECRET unset");
 
   // Must NOT destructure nurse_id from the request body
   const bodyDestructure = src.match(/const\s*\{([^}]+)\}\s*=\s*await request\.json\(\)/s)?.[1] ?? "";
@@ -92,34 +98,20 @@ console.log("\n/api/extract-intake nurse_id trust:");
   assert(!insertBlock.includes("nurse_id: body") && !insertBlock.includes("nurse_id: req"), "insert does not use body nurse_id");
 }
 
-// ── /api/intake ────────────────────────────────────────────────────────────
-console.log("\n/api/intake nurse_id trust:");
+// ── /api/chat passes INTERNAL_SECRET to extract-intake ───────────────────
+console.log("\n/api/chat → extract-intake header:");
 {
-  const src = readRoute("app/api/intake/route.ts");
+  const src = readRoute("app/api/chat/route.ts");
+  assert(src.includes("INTERNAL_SECRET"), "passes INTERNAL_SECRET header to extract-intake");
+  assert(src.includes("Authorization"), "Authorization header present in extract-intake fetch");
+}
 
-  // Must NOT destructure nurse_id or nurse_email from the request body
-  const bodyDestructure = src.match(/const\s*\{([^}]+)\}\s*=\s*body/s)?.[1] ?? "";
-  assert(!bodyDestructure.includes("nurse_id"), "nurse_id not in body destructure");
-  assert(!bodyDestructure.includes("nurse_email"), "nurse_email not in body destructure");
-
-  // Must validate bot_id
-  assert(src.includes("Invalid bot_id"), "rejects missing/invalid bot_id");
-
-  // Must look up nurse_id from bots table by bot_id
-  assert(
-    src.includes('.select("nurse_id")') || src.includes(".select('nurse_id')"),
-    "selects nurse_id from bots table"
-  );
-  assert(
-    src.includes("botRow.nurse_id") || src.includes("botRow?.nurse_id"),
-    "derives nurse_id from DB result"
-  );
-
-  // Nurse email must come from DB / auth, not the request body
-  assert(
-    src.includes("notification_email") && src.includes("auth.admin.getUserById"),
-    "nurse email resolved server-side (notification_email → auth fallback)"
-  );
+// ── /api/intake deleted ────────────────────────────────────────────────────
+console.log("\n/api/intake deleted:");
+{
+  let exists = false;
+  try { readRoute("app/api/intake/route.ts"); exists = true; } catch {}
+  assert(!exists, "/api/intake/route.ts does not exist (deleted)");
 }
 
 // ── /api/bot/[slug] ────────────────────────────────────────────────────────

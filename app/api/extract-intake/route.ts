@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 
 function escapeHtml(str: string): string {
   return str
@@ -13,6 +14,17 @@ function escapeHtml(str: string): string {
 
 export async function POST(request: Request) {
   try {
+    // Internal-only route — must be called from our server with INTERNAL_SECRET.
+    const secret = process.env.INTERNAL_SECRET;
+    if (!secret) {
+      await logError("extract-intake", "INTERNAL_SECRET env var is not set");
+      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+    }
+    const auth = request.headers.get("authorization");
+    if (!auth || auth !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { conversation, bot_id, practice_name, pronouns } = await request.json();
 
     if (!bot_id || typeof bot_id !== "string") {

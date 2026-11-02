@@ -787,7 +787,10 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
       // Fire and forget — don't await
       fetch(`${process.env.NEXT_PUBLIC_APP_URL || "https://www.adonisblue.io"}/api/extract-intake`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.INTERNAL_SECRET ?? ""}`,
+        },
         body: JSON.stringify({
           conversation: conversationText,
           bot_id: serverBotId,
