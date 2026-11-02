@@ -1614,9 +1614,12 @@ export default function ClientJourneyPage() {
                 onClick={async () => {
                   setReviewSending(true);
                   try {
+                    const { data: sd } = await supabase.auth.getSession();
+                    const tok = sd.session?.access_token;
+                    if (!tok) { flash("Session expired — please reload."); return; }
                     await fetch("/api/send-survey", {
                       method: "POST",
-                      headers: { "Content-Type": "application/json" },
+                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
                       body: JSON.stringify({ intake_id: reviewClientId }),
                     });
                     flash("⭐ Review request sent!");

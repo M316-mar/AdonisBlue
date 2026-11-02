@@ -366,9 +366,12 @@ export default function NurseDashboardPage() {
 
   const handleSendSurvey = useCallback(async (intake: IntakeRow) => {
     setSurveyLoading(intake.id);
+    const { data } = await supabase.auth.getSession();
+    const tok = data.session?.access_token;
+    if (!tok) { setSurveyLoading(null); return; }
     await fetch("/api/send-survey", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
       body: JSON.stringify({ intake_id: intake.id }),
     });
     setIntakes((prev) => prev.map((i) => i.id === intake.id ? { ...i, survey_sent: true } : i));
@@ -398,9 +401,12 @@ export default function NurseDashboardPage() {
   }, [bot]);
 
   const handleDeleteIntake = useCallback(async (id: string) => {
+    const { data } = await supabase.auth.getSession();
+    const tok = data.session?.access_token;
+    if (!tok) return;
     await fetch("/api/delete-intake", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
       body: JSON.stringify({ id }),
     });
     setIntakes((prev) => prev.filter((i) => i.id !== id));
