@@ -13,7 +13,26 @@ function escapeHtml(str: string): string {
 
 export async function POST(request: Request) {
   try {
-    const { conversation, bot_id, nurse_id, practice_name, pronouns } = await request.json();
+    const { conversation, bot_id, practice_name, pronouns } = await request.json();
+
+    if (!bot_id || typeof bot_id !== "string") {
+      return NextResponse.json({ error: "Invalid bot_id" }, { status: 400 });
+    }
+
+    const supabaseResolve = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    const { data: botRow } = await supabaseResolve
+      .from("bots")
+      .select("nurse_id")
+      .eq("id", bot_id)
+      .single();
+    if (!botRow?.nurse_id) {
+      return NextResponse.json({ error: "Bot not found" }, { status: 404 });
+    }
+    // Authoritative nurse_id from DB — ignore any nurse_id the caller sent
+    const nurse_id: string = botRow.nurse_id;
 
     const apiKey = process.env.ANTHROPIC_API_KEY!;
     const res = await fetch("https://api.anthropic.com/v1/messages", {

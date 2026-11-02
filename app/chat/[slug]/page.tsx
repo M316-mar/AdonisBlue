@@ -8,8 +8,6 @@ import { renderWithTelLinks } from "@/lib/renderWithTelLinks";
 type BotNameFontId = "dm-sans" | "playfair" | "inter-bold" | "nunito" | "georgia";
 
 type BotRow = {
-  id: string;
-  nurse_id: string;
   practice_name: string | null;
   city?: string | null;
   instagram?: string | null;
@@ -280,8 +278,7 @@ export default function PublicChatPage() {
       }));
 
       const botContext = {
-        bot_id: bot.id,
-        nurse_id: bot.nurse_id,
+        bot_slug: slug,
         practice_name: bot.practice_name,
         city: bot.city,
         instagram: bot.instagram,

@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 
 function escapeHtml(str: string): string {
   return str
@@ -16,8 +17,6 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       bot_id,
-      nurse_id,
-      nurse_email,
       practice_name,
       first_name,
       email,
@@ -30,10 +29,26 @@ export async function POST(request: Request) {
       service_interested,
     } = body;
 
+    if (!bot_id || typeof bot_id !== "string") {
+      return NextResponse.json({ error: "Invalid bot_id" }, { status: 400 });
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
+
+    // Resolve nurse_id server-side from bot_id — never trust it from the client
+    const { data: botRow, error: botErr } = await supabase
+      .from("bots")
+      .select("nurse_id")
+      .eq("id", bot_id)
+      .single();
+    if (botErr || !botRow?.nurse_id) {
+      await logError("intake", `bot lookup failed: ${botErr?.message ?? "not found"}`);
+      return NextResponse.json({ error: "Bot not found" }, { status: 404 });
+    }
+    const nurse_id: string = botRow.nurse_id;
 
     // Normalize email for matching
     const normalizedEmail = typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
@@ -60,8 +75,7 @@ export async function POST(request: Request) {
     }
 
     if (existingIntake) {
-      // Returning client — update their existing folder instead of creating a duplicate
-      await supabase.from("intakes").update({
+      const { error: updateErr } = await supabase.from("intakes").update({
         first_name,
         email: normalizedEmail,
         phone,
@@ -73,8 +87,9 @@ export async function POST(request: Request) {
         service_interested,
         notified_nurse: false,
       }).eq("id", existingIntake.id);
+      if (updateErr) await logError("intake", `update failed: ${updateErr.message}`, nurse_id);
     } else {
-      await supabase.from("intakes").insert({
+      const { error: insertErr } = await supabase.from("intakes").insert({
         bot_id,
         nurse_id,
         first_name,
@@ -88,14 +103,26 @@ export async function POST(request: Request) {
         service_interested,
         notified_nurse: false,
       });
+      if (insertErr) await logError("intake", `insert failed: ${insertErr.message}`, nurse_id);
     }
 
-    // Email the nurse (only if we actually have an address to send to)
-    if (nurse_email) {
-      await sendEmail({
+    // Fetch nurse notification email server-side
+    const { data: notifRow } = await supabase
+      .from("bots")
+      .select("notification_email")
+      .eq("nurse_id", nurse_id)
+      .single();
+    let nurseEmail: string | null = notifRow?.notification_email || null;
+    if (!nurseEmail) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(nurse_id);
+      nurseEmail = authUser?.user?.email ?? null;
+    }
+
+    if (nurseEmail) {
+      const sendResult = await sendEmail({
         type: "intake_notification",
         nurse_id,
-        to: nurse_email,
+        to: nurseEmail,
         subject: `💙 New client intake — ${first_name} is ready to book!`,
         html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
@@ -125,11 +152,12 @@ export async function POST(request: Request) {
       `,
         supabase,
       });
+      if (!sendResult.ok) await logError("intake", `email send failed: ${sendResult.error ?? "unknown"}`, nurse_id);
     }
 
     return NextResponse.json({ success: true });
   } catch (e) {
-    console.error("Intake error:", e);
+    await logError("intake", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

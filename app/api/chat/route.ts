@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
     // Rate limiting — emergency messages get a higher ceiling but are still capped
     const ip = getClientIp(request);
-    const rlSlug: string = typeof botConfig.bot_slug === "string" ? botConfig.bot_slug : (typeof botConfig.nurse_id === "string" ? botConfig.nurse_id : "unknown");
+    const rlSlug: string = typeof botConfig.bot_slug === "string" && botConfig.bot_slug ? botConfig.bot_slug : "unknown";
     const earlyLastMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
     const earlyEmergency = detectEmergencyLevel(earlyLastMsg);
     const rlKey = earlyEmergency !== null ? `chat-emergency:${rlSlug}:${ip}` : `chat:${rlSlug}:${ip}`;
@@ -84,6 +84,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ rateLimited: true, reply: waitMsg });
     }
 
+    // Resolve nurse_id and bot_id server-side — never trust values from the browser
+    const botSlug = typeof botConfig.bot_slug === "string" ? botConfig.bot_slug.trim() : "";
+    if (!botSlug) {
+      return NextResponse.json({ error: "Bot not found" }, { status: 400 });
+    }
+    const resolveDb = serviceClient();
+    const { data: botLookup, error: lookupErr } = await resolveDb
+      .from("bots")
+      .select("id, nurse_id")
+      .eq("slug", botSlug)
+      .eq("launched", true)
+      .single();
+    if (lookupErr || !botLookup) {
+      return NextResponse.json({ error: "Bot not found" }, { status: 404 });
+    }
+    const serverNurseId: string = botLookup.nurse_id;
+    const serverBotId: string = botLookup.id;
+
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: "Configuration error" }, { status: 500 });
@@ -91,7 +109,7 @@ export async function POST(request: Request) {
 
     // ── Fetch active offers for this nurse ────────────────────────────────
     let activeOffersBlock = "";
-    if (botConfig.nurse_id) {
+    if (serverNurseId) {
       try {
         const db = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -101,7 +119,7 @@ export async function POST(request: Request) {
         const { data: offerRows } = await db
           .from("offers")
           .select("title, description, discount_type, discount_value, expires_at")
-          .eq("nurse_id", botConfig.nurse_id)
+          .eq("nurse_id", serverNurseId)
           .eq("active", true)
           .or(`starts_at.is.null,starts_at.lte.${now}`)
           .or(`expires_at.is.null,expires_at.gte.${now}`);
@@ -129,7 +147,7 @@ export async function POST(request: Request) {
     // ── Fetch procedures from procedures table for this nurse ─────────────
     // These are the source of truth — richer than bots.services (include aftercare_instructions)
     let procedureRows: { name: string; aftercare_instructions?: string | null }[] = [];
-    if (botConfig.nurse_id) {
+    if (serverNurseId) {
       try {
         const db = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -138,7 +156,7 @@ export async function POST(request: Request) {
         const { data } = await db
           .from("procedures")
           .select("name, aftercare_instructions")
-          .eq("nurse_id", botConfig.nurse_id)
+          .eq("nurse_id", serverNurseId)
           .order("created_at", { ascending: true });
         if (data && data.length > 0) procedureRows = data;
       } catch {
@@ -165,7 +183,7 @@ export async function POST(request: Request) {
 
     // ── Fetch custom emergency keywords for this nurse ────────────────────
     let customKeywords: string[] = [];
-    if (botConfig.nurse_id) {
+    if (serverNurseId) {
       try {
         const db = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -174,7 +192,7 @@ export async function POST(request: Request) {
         const { data: kwRows } = await db
           .from("emergency_keywords")
           .select("keyword")
-          .eq("nurse_id", botConfig.nurse_id);
+          .eq("nurse_id", serverNurseId);
         if (kwRows && kwRows.length > 0) {
           customKeywords = kwRows.map((r: { keyword: string }) => r.keyword);
         }
@@ -195,7 +213,7 @@ export async function POST(request: Request) {
 
     // Fetch nurse phone synchronously when flagged — needed for server reply
     let nurseAlertPhone: string | null = null;
-    if (isFlagged && botConfig.nurse_id) {
+    if (isFlagged && serverNurseId) {
       try {
         const phoneDb = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -204,7 +222,7 @@ export async function POST(request: Request) {
         const { data: phoneRow } = await phoneDb
           .from("bots")
           .select("alert_phone")
-          .eq("nurse_id", botConfig.nurse_id)
+          .eq("nurse_id", serverNurseId)
           .single();
         nurseAlertPhone = (phoneRow as { alert_phone?: string | null } | null)?.alert_phone?.trim() || null;
       } catch {
@@ -367,7 +385,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
       await aiSupabase.from("message_log").insert({
         type: "ai_error",
         channel: "email",
-        nurse_id: botConfig.nurse_id ?? null,
+        nurse_id: serverNurseId ?? null,
         status: "failed",
         error: errText.slice(0, 500),
       }).then(() => {}, () => {});
@@ -399,7 +417,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     let isUpdate = false;
     let earlierAlertMsgs: string[] = [];
 
-    if ((isFlagged || aiAlertToken) && botConfig.nurse_id) {
+    if ((isFlagged || aiAlertToken) && serverNurseId) {
       try {
         const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
         const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
@@ -411,7 +429,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           .from("message_log")
           .select("error, created_at")
           .eq("type", "emergency_alert")
-          .eq("nurse_id", botConfig.nurse_id)
+          .eq("nurse_id", serverNurseId)
           .eq("status", "sent")
           .gte("created_at", twoHoursAgo)
           .order("created_at", { ascending: false });
@@ -451,7 +469,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     }
 
     // Log skip if exact duplicate within 10 min
-    if (isDuplicateMessage && botConfig.nurse_id) {
+    if (isDuplicateMessage && serverNurseId) {
       const skipDb = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -459,7 +477,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
       skipDb.from("message_log").insert({
         type: "emergency_alert",
         channel: "email",
-        nurse_id: botConfig.nurse_id,
+        nurse_id: serverNurseId,
         status: "skipped",
         error: "duplicate within 10 min",
       }).then(() => {}, () => {});
@@ -467,9 +485,9 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     }
 
     // ── Alert decisions ────────────────────────────────────────────────────
-    const shouldAlertKeyword = isFlagged && botConfig.nurse_id && !isDuplicateMessage;
+    const shouldAlertKeyword = isFlagged && !!serverNurseId && !isDuplicateMessage;
     // AI alert fires only if keyword didn't already fire (and not a duplicate)
-    const shouldAlertAI = aiAlertToken && !isFlagged && botConfig.nurse_id && !isDuplicateMessage;
+    const shouldAlertAI = aiAlertToken && !isFlagged && serverNurseId && !isDuplicateMessage;
     // Contact follow-up: keyword fired, we had an earlier no-contact alert, now have contact
     const isContactFollowUp = shouldAlertKeyword && alreadyAlertedWithoutContact && hasContact;
 
@@ -485,7 +503,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           const { data: botRow } = await db
             .from("bots")
             .select("alert_email, notification_email, alert_phone, practice_name")
-            .eq("nurse_id", botConfig.nurse_id)
+            .eq("nurse_id", serverNurseId)
             .single();
 
           const noContact = !hasContact;
@@ -497,10 +515,10 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           let alertEmail = (botRow as { alert_email?: string | null } | null)?.alert_email?.trim() || botRow?.notification_email?.trim() || null;
           if (!alertEmail) {
             try {
-              const { data: authUser } = await db.auth.admin.getUserById(botConfig.nurse_id);
+              const { data: authUser } = await db.auth.admin.getUserById(serverNurseId);
               alertEmail = authUser?.user?.email ?? null;
               if (alertEmail) console.log("[chat-emergency] no alert_email/notification_email — falling back to auth email");
-              else console.warn(`[chat-emergency] No email found for nurse ${botConfig.nurse_id} — email skipped`);
+              else console.warn(`[chat-emergency] No email found for nurse ${serverNurseId} — email skipped`);
             } catch (err) {
               console.error("[chat-emergency] Failed to fetch auth fallback email:", err);
             }
@@ -583,7 +601,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
 
           await sendEmergencyAlert({
             nurseEmail: alertEmail,
-            nurseId: botConfig.nurse_id,
+            nurseId: serverNurseId,
             practiceName,
             type: "chat",
             subject,
@@ -601,7 +619,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
               : `AdonisBlue Alert: ${clientName || "Client"} (${clientPhone || "no phone"}) needs attention. Check your email & dashboard.`;
             await sendSms({
               type: "emergency_alert",
-              nurse_id: botConfig.nurse_id,
+              nurse_id: serverNurseId,
               to: alertPhone,
               body: smsBody.slice(0, 160),
               supabase: db,
@@ -631,11 +649,11 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           const { data: botRow2 } = await db
             .from("bots")
             .select("alert_email, notification_email, alert_phone, practice_name")
-            .eq("nurse_id", botConfig.nurse_id)
+            .eq("nurse_id", serverNurseId)
             .single();
           let alertEmail2 = (botRow2 as { alert_email?: string | null } | null)?.alert_email?.trim() || botRow2?.notification_email?.trim() || null;
           if (!alertEmail2) {
-            const { data: authUser } = await db.auth.admin.getUserById(botConfig.nurse_id);
+            const { data: authUser } = await db.auth.admin.getUserById(serverNurseId);
             alertEmail2 = authUser?.user?.email ?? null;
           }
           const practiceName2 = botRow2?.practice_name || botConfig.practice_name || "your practice";
@@ -657,7 +675,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
 
           await sendEmergencyAlert({
             nurseEmail: alertEmail2,
-            nurseId: botConfig.nurse_id,
+            nurseId: serverNurseId,
             practiceName: practiceName2,
             type: "chat",
             subject: subjectAI,
@@ -708,7 +726,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           if (alertPhone2) {
             await sendSms({
               type: "emergency_alert",
-              nurse_id: botConfig.nurse_id,
+              nurse_id: serverNurseId,
               to: alertPhone2,
               body: `AdonisBlue AI Alert: Client may need attention. Check your email & dashboard.`,
               supabase: db,
@@ -738,15 +756,15 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     // Save conversation to Supabase for insights and emergency flagging
     // Flag is set for keyword alerts AND AI-triggered alerts so they appear in bell/Secretary
     const shouldFlag = isFlagged || (aiAlertToken && !isDuplicateMessage);
-    if (botConfig.nurse_id && messages.length >= 1) {
+    if (serverNurseId && messages.length >= 1) {
       try {
         const supabaseInsights = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
         await supabaseInsights.from("conversations").insert({
-          nurse_id: botConfig.nurse_id,
-          bot_id: botConfig.bot_id || null,
+          nurse_id: serverNurseId,
+          bot_id: serverBotId || null,
           messages: messages,
           ...(shouldFlag && {
             flagged: true,
@@ -761,7 +779,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
       }
     }
 
-    if (intakeComplete && botConfig.nurse_id && messages.length > 5) {
+    if (intakeComplete && serverNurseId && messages.length > 5) {
       const conversationText = messages
         .map((m: { role: string; content: string }) => `${m.role}: ${m.content}`)
         .join("\n");
@@ -772,8 +790,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversation: conversationText,
-          bot_id: botConfig.bot_id,
-          nurse_id: botConfig.nurse_id,
+          bot_id: serverBotId,
           practice_name: botConfig.practice_name,
           pronouns: pronouns || null,
         }),

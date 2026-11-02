@@ -22,7 +22,7 @@ function test(name, fn) {
 // ── Inline the allowlist from the route ──────────────────────────────────────
 
 const PUBLIC_BOT_FIELDS =
-  "id, nurse_id, practice_name, city, instagram, facebook, tiktok, website, other_social, " +
+  "practice_name, city, instagram, facebook, tiktok, website, other_social, " +
   "bot_name, greeting, tone, booking_link, cancellation_policy, aftercare, numbing_method, " +
   "previous_work_policy, touch_up_policy, same_day_consultation, deposit_info, forward_questions, " +
   "services, logo_image, logo_data_url, logo_url, brand_name_image, bot_name_font, " +
@@ -33,6 +33,8 @@ const fields = new Set(PUBLIC_BOT_FIELDS.split(",").map((f) => f.trim()));
 // ── Private fields that must NEVER appear ────────────────────────────────────
 
 const PRIVATE_FIELDS = [
+  "id",
+  "nurse_id",
   "nurse_email",
   "notification_email",
   "alert_email",
@@ -63,7 +65,7 @@ for (const f of PRIVATE_FIELDS) {
 // ── Fields the chat page requires must be present ────────────────────────────
 
 const REQUIRED_FIELDS = [
-  "id", "nurse_id", "practice_name", "city",
+  "practice_name", "city",
   "instagram", "facebook", "tiktok", "website", "other_social",
   "bot_name", "greeting", "tone", "booking_link",
   "cancellation_policy", "aftercare", "numbing_method",

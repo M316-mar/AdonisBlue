@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 // Private fields (notification_email, alert_email, alert_phone, nurse auth email,
 // stripe fields, created_at, state, slug) are intentionally excluded.
 const PUBLIC_BOT_FIELDS =
-  "id, nurse_id, practice_name, city, instagram, facebook, tiktok, website, other_social, " +
+  "practice_name, city, instagram, facebook, tiktok, website, other_social, " +
   "bot_name, greeting, tone, booking_link, cancellation_policy, aftercare, numbing_method, " +
   "previous_work_policy, touch_up_policy, same_day_consultation, deposit_info, forward_questions, " +
   "services, logo_image, logo_data_url, logo_url, brand_name_image, bot_name_font, " +
