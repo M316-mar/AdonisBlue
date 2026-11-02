@@ -1,5 +1,18 @@
 @AGENTS.md
 
+## Security rules
+
+These 8 rules are enforced by `scripts/security-check.mjs`, which runs as part of `npm run check`. **After every change, run `npm run check`. Never push if it fails. Never weaken this script to make a change pass — tell Valentina instead.**
+
+1. **Route auth** — every `app/api/**/route.ts` must either check the user's auth token, call `requireAdmin`, check `CRON_SECRET`, check `INTERNAL_SECRET`, or appear in the `PUBLIC_ROUTES` allowlist in `scripts/security-check.mjs` with a one-line reason. Adding a new public route requires adding it to that list on purpose.
+2. **Trust boundary** — public routes must not read `nurse_id` or `bot_id` from the request body/query and use them for DB writes or emails. Resolve them server-side from a slug, token, or DB lookup instead.
+3. **No NEXT_PUBLIC_ secrets** — `NEXT_PUBLIC_` variable names must not contain KEY, SECRET, TOKEN, or SERVICE (except the allowed Supabase/Stripe vars). No hardcoded key patterns (`sk_live_`, `sk_test_`, `rk_`, `whsec_`, `re_`, service-role JWTs) in source code.
+4. **No service-role key in client code** — `"use client"` files must not import or reference `SUPABASE_SERVICE_ROLE_KEY`.
+5. **No `dangerouslySetInnerHTML`** — use plain text or a sanitized component instead.
+6. **Migration safety** — any new migration that runs `CREATE TABLE` must include `ENABLE ROW LEVEL SECURITY`. Any `GRANT ... TO anon` requires a `-- anon justified:` comment explaining why public read is necessary.
+7. **Bot field allowlist** — `/api/bot/[slug]` must only return fields in its `PUBLIC_BOT_FIELDS` constant. Private fields (`nurse_id`, `id`, `notification_email`, `alert_*`, `stripe_*`, etc.) must never be included.
+8. **Dependency audit** — `npm audit --omit=dev` must report zero high or critical vulnerabilities.
+
 ## What AdonisBlue must always deliver (in priority order)
 1. SAFETY — emergency alerts always reach the nurse. Never let any change risk this.
 2. CARE — aftercare email + 24h check-in go out after every logged treatment.
