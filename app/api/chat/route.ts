@@ -761,7 +761,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
       }
     }
 
-    if (intakeComplete && botConfig.nurse_email && botConfig.nurse_id && messages.length > 5) {
+    if (intakeComplete && botConfig.nurse_id && messages.length > 5) {
       const conversationText = messages
         .map((m: { role: string; content: string }) => `${m.role}: ${m.content}`)
         .join("\n");
@@ -774,7 +774,6 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
           conversation: conversationText,
           bot_id: botConfig.bot_id,
           nurse_id: botConfig.nurse_id,
-          nurse_email: botConfig.nurse_email,
           practice_name: botConfig.practice_name,
           pronouns: pronouns || null,
         }),

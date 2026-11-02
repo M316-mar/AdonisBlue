@@ -13,7 +13,7 @@ function escapeHtml(str: string): string {
 
 export async function POST(request: Request) {
   try {
-    const { conversation, bot_id, nurse_id, nurse_email, practice_name, pronouns } = await request.json();
+    const { conversation, bot_id, nurse_id, practice_name, pronouns } = await request.json();
 
     const apiKey = process.env.ANTHROPIC_API_KEY!;
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -114,7 +114,12 @@ ${conversation}`
       .eq("nurse_id", nurse_id)
       .single();
 
-    const emailTo = botData?.notification_email || nurse_email;
+    // Fallback chain: notification_email → auth email (never accept email from client)
+    let emailTo: string | null = botData?.notification_email || null;
+    if (!emailTo) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(nurse_id);
+      emailTo = authUser?.user?.email ?? null;
+    }
 
     await sendEmail({
       type: "intake_notification",

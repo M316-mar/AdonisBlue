@@ -10,7 +10,6 @@ type BotNameFontId = "dm-sans" | "playfair" | "inter-bold" | "nunito" | "georgia
 type BotRow = {
   id: string;
   nurse_id: string;
-  nurse_email?: string | null;
   practice_name: string | null;
   city?: string | null;
   instagram?: string | null;
@@ -281,7 +280,6 @@ export default function PublicChatPage() {
       }));
 
       const botContext = {
-        nurse_email: (bot as BotRow & { nurse_email?: string }).nurse_email,
         bot_id: bot.id,
         nurse_id: bot.nurse_id,
         practice_name: bot.practice_name,
