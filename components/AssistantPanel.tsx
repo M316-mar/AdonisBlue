@@ -656,7 +656,7 @@ const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
                     setHelpSending(true);
                     void fetch("/api/send-feedback", {
                       method: "POST",
-                      headers: { "Content-Type": "application/json" },
+                      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
                       body: JSON.stringify({ feedback: helpText.trim(), nurse_name: nurseFirstName }),
                     })
                       .then(() => { setHelpSent(true); setHelpSending(false); })

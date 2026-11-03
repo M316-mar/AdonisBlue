@@ -83,13 +83,6 @@ const PUBLIC_ROUTES = {
   "notify-new-signup":      "Supabase auth hook — called by Supabase mailer, not the browser",
   "send-confirmation":      "Supabase auth hook — custom email hook called by Supabase, not browser",
 
-  // Nurse-only AI generation (called from authenticated pages — no direct auth check in route)
-  // TODO: add auth check to these routes
-  "generate-greeting":      "TODO: add auth check — currently called only from authenticated pages",
-  "generate-aftercare":     "TODO: add auth check — currently called only from authenticated pages",
-  "generate-prep-instructions": "TODO: add auth check — currently called only from authenticated pages",
-  "send-feedback":          "TODO: add auth check — nurse feedback form, low risk (no PII returned)",
-
   // Admin-gated (requireAdmin checked inside)
   "admin/delete-nurse":     "requireAdmin checked inside route",
   "admin/feedback":         "requireAdmin checked inside route",
@@ -145,10 +138,7 @@ const TRUST_EXCEPTIONS = new Set([
   // real gate is alert_verification_token checked against DB row — the lookup
   // returns nothing for a fake nurse_id; no PII or data is exposed.
   "verify-alert",
-  // send-feedback: nurse_id is an optional label on an internal-only feedback row.
-  // No data is returned, no other nurse's records are accessed, and the feedback
-  // table is admin-only. TODO: add auth check so nurse_id comes from session.
-  "send-feedback",
+
 ]);
 
 let rule2Pass = 0;

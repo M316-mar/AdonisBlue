@@ -4,7 +4,17 @@ import { sendEmail } from "@/lib/sendAndLog";
 
 export async function POST(request: Request) {
   try {
-    const { feedback, nurse_name, nurse_id } = await request.json();
+    const supabaseAuth = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const token = request.headers.get("authorization")?.replace("Bearer ", "").trim();
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { data: { user } } = await supabaseAuth.auth.getUser(token);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { feedback, nurse_name } = await request.json();
+    const nurse_id = user.id;
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,7 +24,7 @@ export async function POST(request: Request) {
     // Save to Supabase so we can see it in admin
     await supabase.from("feedback").insert({
       nurse_name: nurse_name || "Unknown",
-      nurse_id: nurse_id || null,
+      nurse_id: nurse_id,
       message: feedback || "",
     });
 

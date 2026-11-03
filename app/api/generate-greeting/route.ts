@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 const SYSTEM_PROMPT = `You are a conversion copywriter specialising in aesthetic clinics and med-spas.
@@ -18,6 +19,15 @@ Rules:
 - Every message you generate must be completely unique. Vary the opening word, the tone, the sentence structure, and the emoji placement. Never start two messages the same way. Think of 10 different ways to open a welcome message and pick one at random.`;
 
 export async function POST(request: Request) {
+  const supabaseAuth = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  const token = request.headers.get("authorization")?.replace("Bearer ", "").trim();
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { data: { user } } = await supabaseAuth.auth.getUser(token);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json(

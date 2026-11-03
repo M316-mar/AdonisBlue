@@ -1014,9 +1014,11 @@ function StepGetFound({
 function StepCustomize({
   draft,
   onChange,
+  token,
 }: {
   draft: Draft;
   onChange: (patch: Partial<Draft>) => void;
+  token: string;
 }) {
   const [generating, setGenerating] = useState(false);
 
@@ -1140,7 +1142,10 @@ function StepCustomize({
               };
               const res = await fetch("/api/generate-greeting", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}`,
+                },
                 body: JSON.stringify(greetingPayload),
               });
               const j = (await res.json()) as { greeting?: string };
@@ -2203,7 +2208,7 @@ function OnboardingInner() {
             // Step 6: two-column layout with live preview
             <div className="grid gap-8 md:grid-cols-[1fr_320px]">
               <div>
-                <StepCustomize draft={draft} onChange={setDraft} />
+                <StepCustomize draft={draft} onChange={setDraft} token={tokenRef.current} />
               </div>
               <div className="hidden md:block">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
