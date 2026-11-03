@@ -1,5 +1,10 @@
 @AGENTS.md
 
+## Who we serve
+The solo nurse injector who chooses to work for herself. She handles the front (attracting and treating clients). AdonisBlue handles the back: after the visit, every client feels seen, and remembers to come back for touch-ups and return visits.
+
+Before building anything, ask: does this help her clients feel cared for after the visit, or help them come back? If not, don't build it.
+
 ## Security rules
 
 These 8 rules are enforced by `scripts/security-check.mjs`, which runs as part of `npm run check`. **After every change, run `npm run check`. Never push if it fails. Never weaken this script to make a change pass — tell Valentina instead.**
