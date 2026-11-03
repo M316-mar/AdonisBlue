@@ -3,6 +3,9 @@
 ## Who we serve
 The solo nurse injector who chooses to work for herself. She handles the front (attracting and treating clients). AdonisBlue handles the back: after the visit, every client feels seen, and remembers to come back for touch-ups and return visits.
 
+## How we build
+We build what is needed, not what is trendy. Even if other tools have a feature, we deliver it more reliably and with better care. Fewer features, done really well.
+
 Before building anything, ask: does this help her clients feel cared for after the visit, or help them come back? If not, don't build it.
 
 ## Security rules
