@@ -1,0 +1,49 @@
+name: Check
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # CI never gets the service role key — check:ci skips schema-check (which
+      # needs the key to call Supabase). All other build + test + security checks run.
+      # Runtime-only vars get dummy values so next build doesn't crash on missing refs.
+      - name: Write .env.local
+        run: |
+          cat > .env.local <<'EOF'
+          NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY=dummy
+          NEXT_PUBLIC_APP_URL=https://www.adonisblue.io
+          NEXT_PUBLIC_SITE_URL=https://www.adonisblue.io
+          ANTHROPIC_API_KEY=dummy
+          RESEND_API_KEY=dummy
+          STRIPE_SECRET_KEY=dummy
+          STRIPE_WEBHOOK_SECRET=dummy
+          STRIPE_PRICE_PRO_MONTHLY=dummy
+          STRIPE_PRICE_PRO_ANNUAL=dummy
+          STRIPE_PRICE_STARTER_MONTHLY=dummy
+          STRIPE_PRICE_STARTER_ANNUAL=dummy
+          CRON_SECRET=dummy
+          INTERNAL_SECRET=dummy
+          ADMIN_EMAILS=dummy@example.com
+          EOF
+
+      - name: Run checks (no service role key needed)
+        run: npm run check:ci
