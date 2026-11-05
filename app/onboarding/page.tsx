@@ -1290,7 +1290,6 @@ function StepAftercareReview({
   onChange: (patch: Partial<Draft>) => void;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
-  const [editBuf, setEditBuf] = useState("");
 
   const baseServices = draft.procedures.filter((p) => p !== "Other");
   const customList = draft.customProcedures.split(",").map((s) => s.trim()).filter(Boolean);
@@ -1307,21 +1306,17 @@ function StepAftercareReview({
   };
 
   const startEdit = (name: string) => {
-    const defaults = DEFAULT_PROCEDURE_DEFAULTS[name];
-    setEditBuf(draft.editedAftercare[name] ?? defaults?.aftercare_instructions ?? "");
     setEditing(name);
   };
 
   const saveEdit = (name: string) => {
-    const newText = editBuf.trim();
-    const updatedAftercare = { ...draft.editedAftercare };
-    if (newText) updatedAftercare[name] = editBuf;
+    // The textarea writes directly to draft.editedAftercare on every keystroke,
+    // so by the time Save is clicked, draft already has the latest text.
+    const currentText = (draft.editedAftercare[name] ?? DEFAULT_PROCEDURE_DEFAULTS[name]?.aftercare_instructions ?? "").trim();
     // Auto-approve when saving with non-empty text for the first time
-    const updatedApproved =
-      newText && !draft.approvedProcedures.includes(name)
-        ? [...draft.approvedProcedures, name]
-        : draft.approvedProcedures;
-    onChange({ editedAftercare: updatedAftercare, approvedProcedures: updatedApproved });
+    if (currentText && !draft.approvedProcedures.includes(name)) {
+      onChange({ approvedProcedures: [...draft.approvedProcedures, name] });
+    }
     setEditing(null);
   };
 
@@ -1383,8 +1378,8 @@ function StepAftercareReview({
                       <textarea
                         rows={6}
                         className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-700 leading-relaxed outline-none focus:border-[#0d9488] focus:ring-1 ring-[#0d9488]/30"
-                        value={editBuf}
-                        onChange={(e) => setEditBuf(e.target.value)}
+                        value={draft.editedAftercare[name] ?? DEFAULT_PROCEDURE_DEFAULTS[name]?.aftercare_instructions ?? ""}
+                        onChange={(e) => onChange({ editedAftercare: { ...draft.editedAftercare, [name]: e.target.value } })}
                         placeholder={`Write your aftercare for ${name}. Your clients will receive exactly this.`}
                         autoFocus
                       />
@@ -1988,7 +1983,13 @@ function OnboardingInner() {
             const isApproved = p.name ? draft.approvedProcedures.includes(p.name) : false;
             const body: Record<string, unknown> = { id: p.id, approved: isApproved, reminder_days: reminderDays };
             if (p.name) body.name = p.name; // defensive: if id is somehow falsy, route falls back to upsert by (nurse_id,name)
-            if (edited !== undefined) body.aftercare_instructions = edited;
+            // Send aftercare text: user-typed takes priority; fall back to defaults.
+            // Always include when approving so the server can enforce non-empty.
+            const aftercareText = edited !== undefined
+              ? (edited.trim() ? edited : undefined) // explicitly cleared → omit (don't overwrite DB)
+              : defaults?.aftercare_instructions;    // not edited → use defaults (may be undefined)
+            if (aftercareText !== undefined) body.aftercare_instructions = aftercareText;
+            else if (isApproved) body.aftercare_instructions = ""; // triggers server 400 — no text anywhere
             const r = await fetch("/api/procedures", {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

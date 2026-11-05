@@ -68,6 +68,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Set when clients come back before approving." }, { status: 400 });
     }
 
+    // Reject approval when aftercare_instructions is explicitly present but empty.
+    // (Absent means the DB already has content — the route trusts it.)
+    if (approved && "aftercare_instructions" in rest) {
+      const instr = typeof rest.aftercare_instructions === "string"
+        ? (rest.aftercare_instructions as string).trim()
+        : "";
+      if (!instr) {
+        return NextResponse.json({ error: "Write your aftercare instructions before approving." }, { status: 400 });
+      }
+    }
+
     // Block approval if the instructions still contain [YOUR PHONE] but the nurse
     // hasn't saved a phone number yet — clients must never receive a placeholder.
     if (approved && typeof rest.aftercare_instructions === "string" && /\[YOUR PHONE\]/i.test(rest.aftercare_instructions)) {
