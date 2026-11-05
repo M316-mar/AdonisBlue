@@ -110,6 +110,9 @@ export default function NurseDashboardPage() {
     rebooked_at: string | null;
     rebooked_source: string | null;
     opted_out: boolean;
+    return_reason: string | null;
+    has_personal_plan: boolean;
+    personal_reminder_sent: boolean;
   };
   const [returnClients, setReturnClients] = useState<ReturnClient[]>([]);
   const [returnBookingBusy, setReturnBookingBusy] = useState<string | null>(null);
@@ -537,7 +540,7 @@ export default function NurseDashboardPage() {
                       <li key={c.treatment_id} className={`px-4 py-3 sm:px-6 flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between ${isBooked ? "bg-green-50" : ""}`}>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-[#1a2744]">
-                            {isBooked ? "🟢" : "🟡"} {c.client_name} {isPastDue ? "was" : "is"} due back for {c.procedure_name}{isPastDue ? ` on ${dueFmt}` : ` on ${dueFmt}`}.
+                            {isBooked ? "🟢" : "🟡"} {c.client_name} · {c.has_personal_plan && c.return_reason ? c.return_reason : c.procedure_name} · can come back from {dueFmt}.
                           </p>
                           <p className="text-xs text-slate-500 mt-0.5">
                             {isBooked
@@ -545,8 +548,8 @@ export default function NurseDashboardPage() {
                               : c.opted_out
                               ? "She turned off reminders."
                               : reminderAlreadySent
-                              ? `We reminded her on ${reminderFmt}.`
-                              : `We'll remind her on ${reminderFmt}.`}
+                              ? `Reminder sent on ${reminderFmt}.`
+                              : `Reminder sends on ${reminderFmt}.`}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -665,7 +668,7 @@ export default function NurseDashboardPage() {
                       <li key={c.treatment_id} className={`px-4 py-3 sm:px-6 flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between ${isBooked ? "bg-green-50" : ""}`}>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-[#1a2744]">
-                            {isBooked ? "🟢" : "🟡"} {c.client_name} {isPastDue ? "was" : "is"} due back for {c.procedure_name}{isPastDue ? ` on ${dueFmt}` : ` on ${dueFmt}`}.
+                            {isBooked ? "🟢" : "🟡"} {c.client_name} · {c.has_personal_plan && c.return_reason ? c.return_reason : c.procedure_name} · can come back from {dueFmt}.
                           </p>
                           <p className="text-xs text-slate-500 mt-0.5">
                             {isBooked
@@ -673,8 +676,8 @@ export default function NurseDashboardPage() {
                               : c.opted_out
                               ? "She turned off reminders."
                               : reminderAlreadySent
-                              ? `We reminded her on ${reminderFmt}.`
-                              : `We'll remind her on ${reminderFmt}.`}
+                              ? `Reminder sent on ${reminderFmt}.`
+                              : `Reminder sends on ${reminderFmt}.`}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">

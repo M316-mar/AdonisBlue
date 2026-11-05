@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { logError } from "@/lib/logError";
-import { dueDate, reminderSendDate } from "@/lib/reminderDate";
+import { dueDate, reminderSendDate, personalReminderSendDate } from "@/lib/reminderDate";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     // Fetch non-archived, non-rebooked treatments with a procedure that has reminder_days
     const { data: treatments, error: tErr } = await supabase
       .from("treatments")
-      .select("id, treatment_date, procedure_id, procedure_name, intake_id, rebooked_at, rebooked_source, procedures(name, reminder_days), intakes(first_name, email, marketing_opt_out)")
+      .select("id, treatment_date, procedure_id, procedure_name, intake_id, rebooked_at, rebooked_source, planned_return_at, return_reason, reminder_lead_days, planned_reminder_sent_at, procedures(name, reminder_days), intakes(first_name, email, marketing_opt_out)")
       .eq("nurse_id", user.id)
       .eq("archived", false)
       .not("procedure_id", "is", null);
@@ -68,31 +68,44 @@ export async function GET(request: Request) {
       rebooked_at: string | null;
       rebooked_source: string | null;
       opted_out: boolean;
+      return_reason: string | null;
+      has_personal_plan: boolean;
+      personal_reminder_sent: boolean;
     };
 
     const clients: ReturnClient[] = [];
 
     for (const t of mostRecentMap.values()) {
-      const reminderDays = (t.procedures as any)?.reminder_days as number | null;
-      if (!reminderDays) continue;
+      const hasPersonalPlan = (t as any).planned_return_at != null && (t as any).reminder_lead_days != null;
 
-      const due = dueDate(t.treatment_date, reminderDays);
-      if (isNaN(due.getTime())) {
-        await logError("return-clients", `invalid treatment_date for treatment ${t.id}: "${t.treatment_date}"`);
-        continue;
+      let dueStr: string;
+      let sendOnStr: string;
+
+      if (hasPersonalPlan) {
+        const plannedAt: string = (t as any).planned_return_at;
+        const leadDays: number = (t as any).reminder_lead_days;
+        dueStr = plannedAt;
+        sendOnStr = personalReminderSendDate(plannedAt, leadDays).toISOString().slice(0, 10);
+      } else {
+        const reminderDays = (t.procedures as any)?.reminder_days as number | null;
+        if (!reminderDays) continue;
+        const due = dueDate(t.treatment_date, reminderDays);
+        if (isNaN(due.getTime())) {
+          await logError("return-clients", `invalid treatment_date for treatment ${t.id}: "${t.treatment_date}"`);
+          continue;
+        }
+        dueStr = due.toISOString().slice(0, 10);
+        sendOnStr = reminderSendDate(due).toISOString().slice(0, 10);
       }
-      const sendOn = reminderSendDate(due);
 
-      // Show if due within 30 days from today (or already past due but not rebooked)
-      // Also show recently rebooked (within 7 days) so nurse sees the green card
+      // Show if due within 30 days (or already past), or recently rebooked
       if (t.rebooked_at) {
         const rebookedDate = new Date(t.rebooked_at);
         if (isNaN(rebookedDate.getTime())) continue;
         const daysSinceRebooked = (today.getTime() - rebookedDate.getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSinceRebooked > 7) continue; // green card expires after 7 days
+        if (daysSinceRebooked > 7) continue;
       } else {
-        // Yellow: show if due date is within 30 days OR already past due
-        if (due > thirtyDaysOut) continue;
+        if (dueStr > thirtyDaysOut.toISOString().slice(0, 10)) continue;
       }
 
       const intake = Array.isArray(t.intakes) ? t.intakes[0] : t.intakes;
@@ -104,11 +117,14 @@ export async function GET(request: Request) {
         intake_id: t.intake_id,
         client_name: clientName,
         procedure_name: (t.procedures as any)?.name || t.procedure_name || "treatment",
-        due_date: due.toISOString().slice(0, 10),
-        reminder_send_date: sendOn.toISOString().slice(0, 10),
+        due_date: dueStr,
+        reminder_send_date: sendOnStr,
         rebooked_at: t.rebooked_at ?? null,
         rebooked_source: t.rebooked_source ?? null,
         opted_out: optedOut,
+        return_reason: (t as any).return_reason ?? null,
+        has_personal_plan: hasPersonalPlan,
+        personal_reminder_sent: (t as any).planned_reminder_sent_at != null,
       });
     }
 

@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { logError } from "@/lib/logError";
-import { dueDate, formatDueDate } from "@/lib/reminderDate";
+import { dueDate, formatDueDate, personalReminderSendDate } from "@/lib/reminderDate";
 import { buildNurseReturnEmail } from "@/lib/emails/returnEmails";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     // Fetch all non-archived, non-rebooked treatments with reminder_days
     const { data: treatments, error: tErr } = await supabase
       .from("treatments")
-      .select("id, treatment_date, procedure_id, procedure_name, nurse_id, intake_id, procedures(name, reminder_days), intakes(first_name, marketing_opt_out)")
+      .select("id, treatment_date, procedure_id, procedure_name, nurse_id, intake_id, planned_return_at, return_reason, reminder_lead_days, procedures(name, reminder_days), intakes(first_name, marketing_opt_out)")
       .eq("archived", false)
       .is("rebooked_at", null)
       .not("procedure_id", "is", null);
@@ -53,21 +53,39 @@ export async function GET(request: Request) {
     const byNurse = new Map<string, Array<{ clientName: string; procedureName: string; dueISO: string }>>();
 
     for (const t of mostRecentMap.values()) {
-      const reminderDays = (t.procedures as any)?.reminder_days as number | null;
-      if (!reminderDays) continue;
+      const hasPersonalPlan = (t as any).planned_return_at != null && (t as any).reminder_lead_days != null;
+
+      let dueISO: string;
+      let reminderSendISO: string;
+
+      if (hasPersonalPlan) {
+        dueISO = (t as any).planned_return_at;
+        reminderSendISO = personalReminderSendDate(dueISO, (t as any).reminder_lead_days).toISOString().slice(0, 10);
+      } else {
+        const reminderDays = (t.procedures as any)?.reminder_days as number | null;
+        if (!reminderDays) continue;
+        const due = dueDate(t.treatment_date, reminderDays);
+        if (due > thirtyDaysOut) continue;
+        dueISO = due.toISOString().slice(0, 10);
+        reminderSendISO = dueISO; // unused below, but keep symmetry
+      }
+
+      const dueDate_ = new Date(dueISO + "T00:00:00Z");
+      if (dueDate_ > thirtyDaysOut) continue;
 
       const intake = Array.isArray(t.intakes) ? t.intakes[0] : t.intakes;
       if ((intake as any)?.marketing_opt_out) continue;
 
-      const due = dueDate(t.treatment_date, reminderDays);
-      if (due > thirtyDaysOut) continue; // not due within 30 days yet
+      const returnReason: string | null = (t as any).return_reason ?? null;
+      const procedureName: string = (t.procedures as any)?.name || t.procedure_name || "their treatment";
+      const displayProcedure = returnReason || procedureName;
 
       const nurseId = t.nurse_id;
       if (!byNurse.has(nurseId)) byNurse.set(nurseId, []);
       byNurse.get(nurseId)!.push({
         clientName: (intake as any)?.first_name || "A client",
-        procedureName: (t.procedures as any)?.name || t.procedure_name || "their treatment",
-        dueISO: due.toISOString().slice(0, 10),
+        procedureName: displayProcedure,
+        dueISO,
       });
     }
 

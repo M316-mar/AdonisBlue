@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
 import { firstName } from "@/lib/firstName";
 import { getClientSender } from "@/lib/clientEmailSender";
-import { dueDate, inReminderWindow, DEFAULT_RETURN_DAYS } from "@/lib/reminderDate";
-import { buildTreatmentReminderEmail } from "@/lib/emails/returnEmails";
+import { dueDate, inReminderWindow, DEFAULT_RETURN_DAYS, inPersonalReminderWindow, personalReminderSendDate, formatDueDate } from "@/lib/reminderDate";
+import { buildTreatmentReminderEmail, buildPersonalReturnEmail } from "@/lib/emails/returnEmails";
 import { returnBookingLink } from "@/lib/returnLink";
 
 function escapeHtml(str: string): string {
@@ -38,6 +38,10 @@ export async function GET(request: Request) {
         nurse_id,
         intake_id,
         procedure_id,
+        planned_return_at,
+        return_reason,
+        reminder_lead_days,
+        planned_reminder_sent_at,
         intakes(first_name, email),
         procedures(name, reminder_days)
       `)
@@ -93,10 +97,19 @@ export async function GET(request: Request) {
     todayUTC.setUTCHours(0, 0, 0, 0);
 
     for (const treatment of mostRecentMap.values()) {
-      const reminderDays: number = (treatment.procedures as any)?.reminder_days ?? DEFAULT_RETURN_DAYS;
+      const hasPersonalPlan = treatment.planned_return_at != null && treatment.reminder_lead_days != null;
+      const personalAlreadySent = treatment.planned_reminder_sent_at != null;
 
-      const due = dueDate(treatment.treatment_date, reminderDays);
-      if (!inReminderWindow(due, todayUTC)) continue;
+      // Personal plan: use planned dates; skip default path entirely for this treatment
+      if (hasPersonalPlan) {
+        if (personalAlreadySent) continue;
+        if (!inPersonalReminderWindow(treatment.planned_return_at!, treatment.reminder_lead_days!, todayUTC)) continue;
+      } else {
+        // Default path
+        const reminderDays: number = (treatment.procedures as any)?.reminder_days ?? DEFAULT_RETURN_DAYS;
+        const due = dueDate(treatment.treatment_date, reminderDays);
+        if (!inReminderWindow(due, todayUTC)) continue;
+      }
 
       const intake = Array.isArray(treatment.intakes) ? treatment.intakes[0] : treatment.intakes;
       if (optOutMap.get(treatment.intake_id)) continue;
@@ -106,7 +119,6 @@ export async function GET(request: Request) {
       const clientName = escapeHtml(firstName((intake as any)?.first_name, "Beautiful"));
       const procedureName = escapeHtml((treatment.procedures as any)?.name || treatment.procedure_name || "your treatment");
 
-      // Step 2C: fetch bot separately; skip + log if missing
       const { data: bot } = await supabase
         .from("bots")
         .select("practice_name, booking_link, rebooking_link, slug, logo_url, alert_email, alert_email_verified, notification_email")
@@ -130,15 +142,29 @@ export async function GET(request: Request) {
       const practiceName = escapeHtml(bot.practice_name || "your provider");
       const bookingLink = returnBookingLink((bot as any).rebooking_link, bot.booking_link);
 
-      const result = await sendEmail({
-        type: "treatment_reminder",
-        nurse_id: treatment.nurse_id,
-        intake_id: treatment.intake_id,
-        treatment_id: treatment.id,
-        to: clientEmail,
-        subject: `Time to refresh your ${procedureName}? ✨`,
-        ...getClientSender(bot),
-        html: buildTreatmentReminderEmail({
+      let emailHtml: string;
+      let emailSubject: string;
+
+      if (hasPersonalPlan) {
+        const returnDateStr = formatDueDate(new Date(treatment.planned_return_at! + "T00:00:00Z"));
+        const reasonSafe = treatment.return_reason ? escapeHtml(treatment.return_reason) : null;
+        emailSubject = reasonSafe
+          ? `${reasonSafe} — you can book starting ${returnDateStr} 💙`
+          : `You can come back starting ${returnDateStr} 💙`;
+        emailHtml = buildPersonalReturnEmail({
+          clientName,
+          practiceName,
+          logoUrl: (bot as any).logo_url ?? null,
+          bookingLink,
+          returnReason: reasonSafe,
+          plannedReturnAt: treatment.planned_return_at!,
+          slug: bot.slug ?? null,
+          intakeId: treatment.intake_id,
+        });
+      } else {
+        const reminderDays: number = (treatment.procedures as any)?.reminder_days ?? DEFAULT_RETURN_DAYS;
+        emailSubject = `Time to refresh your ${procedureName}? ✨`;
+        emailHtml = buildTreatmentReminderEmail({
           clientName,
           practiceName,
           logoUrl: (bot as any).logo_url ?? null,
@@ -148,14 +174,32 @@ export async function GET(request: Request) {
           reminderDays,
           slug: bot.slug ?? null,
           intakeId: treatment.intake_id,
-        }),
+        });
+      }
+
+      const result = await sendEmail({
+        type: "treatment_reminder",
+        nurse_id: treatment.nurse_id,
+        intake_id: treatment.intake_id,
+        treatment_id: treatment.id,
+        to: clientEmail,
+        subject: emailSubject,
+        ...getClientSender(bot),
+        html: emailHtml,
         supabase,
       });
 
       if (result.ok) {
+        const updateFields: Record<string, unknown> = {
+          reminder_sent: true,
+          reminder_sent_at: new Date().toISOString(),
+        };
+        if (hasPersonalPlan) {
+          updateFields.planned_reminder_sent_at = new Date().toISOString();
+        }
         await supabase
           .from("treatments")
-          .update({ reminder_sent: true, reminder_sent_at: new Date().toISOString() })
+          .update(updateFields)
           .eq("id", treatment.id);
         sentCount++;
       } else {

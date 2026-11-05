@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { logError } from "@/lib/logError";
+import { localDateString } from "@/lib/localDate";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -94,6 +95,46 @@ export async function POST(request: Request) {
     const isWalkin = body.is_walkin === true;
     const sendAftercare = body.send_aftercare !== false; // default true
     const cameViaBot = body.came_via_bot === true;
+
+    // ── Validate personal return plan (optional) ───────────────────────────
+    const ALLOWED_LEAD_DAYS = new Set([0, 3, 7, 14]);
+
+    const rawPlannedReturnAt = typeof body.planned_return_at === "string" ? body.planned_return_at.trim() : null;
+    const rawReturnReason = typeof body.return_reason === "string" ? body.return_reason : null;
+    const rawLeadDays = typeof body.reminder_lead_days === "number" ? body.reminder_lead_days : null;
+
+    let plannedReturnAt: string | null = null;
+    let returnReason: string | null = null;
+    let reminderLeadDays: number | null = null;
+
+    if (rawPlannedReturnAt !== null) {
+      if (!DATE_REGEX.test(rawPlannedReturnAt) || isNaN(Date.parse(rawPlannedReturnAt))) {
+        return NextResponse.json({ error: "Invalid planned return date" }, { status: 400 });
+      }
+      const today = localDateString();
+      if (rawPlannedReturnAt <= today) {
+        return NextResponse.json({ error: "Planned return date must be in the future" }, { status: 400 });
+      }
+      if (rawLeadDays === null || !ALLOWED_LEAD_DAYS.has(rawLeadDays)) {
+        return NextResponse.json({ error: "reminder_lead_days must be 0, 3, 7, or 14" }, { status: 400 });
+      }
+      // Reminder send date must be at least tomorrow
+      const tomorrow = new Date();
+      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+      tomorrow.setUTCHours(0, 0, 0, 0);
+      const reminderDate = new Date(rawPlannedReturnAt + "T00:00:00Z");
+      reminderDate.setUTCDate(reminderDate.getUTCDate() - rawLeadDays);
+      if (reminderDate < tomorrow) {
+        return NextResponse.json({ error: "Reminder date must be at least tomorrow" }, { status: 400 });
+      }
+      plannedReturnAt = rawPlannedReturnAt;
+      reminderLeadDays = rawLeadDays;
+      if (rawReturnReason !== null) {
+        // Trim, strip line breaks and control characters, enforce 120-char max
+        const cleaned = rawReturnReason.replace(/[\r\n\t\x00-\x1F\x7F]/g, " ").trim().slice(0, 120);
+        returnReason = cleaned || null;
+      }
+    }
 
     // ── Walk-in validation ─────────────────────────────────────────────────
     const walkinName = typeof body.walkin_name === "string" ? body.walkin_name.trim().slice(0, 100) : "";
@@ -216,6 +257,9 @@ export async function POST(request: Request) {
         notes: notes,
         came_via_bot: cameViaBot,
         send_aftercare: sendAftercare,
+        planned_return_at: plannedReturnAt,
+        return_reason: returnReason,
+        reminder_lead_days: reminderLeadDays,
       })
       .select()
       .single();
@@ -329,6 +373,77 @@ export async function PATCH(request: Request) {
     );
 
     const action = typeof body.action === "string" ? body.action : "archive";
+
+    if (action === "set_return_plan") {
+      const ALLOWED_LEAD = new Set([0, 3, 7, 14]);
+      const rawAt = typeof body.planned_return_at === "string" ? body.planned_return_at.trim() : "";
+      const rawLead = typeof body.reminder_lead_days === "number" ? body.reminder_lead_days : null;
+      const rawReason = typeof body.return_reason === "string" ? body.return_reason : null;
+
+      if (!rawAt || !DATE_REGEX.test(rawAt) || isNaN(Date.parse(rawAt))) {
+        return NextResponse.json({ error: "Invalid planned return date" }, { status: 400 });
+      }
+      const today = localDateString();
+      if (rawAt <= today) {
+        return NextResponse.json({ error: "Planned return date must be in the future" }, { status: 400 });
+      }
+      if (rawLead === null || !ALLOWED_LEAD.has(rawLead)) {
+        return NextResponse.json({ error: "reminder_lead_days must be 0, 3, 7, or 14" }, { status: 400 });
+      }
+      const tomorrow = new Date();
+      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+      tomorrow.setUTCHours(0, 0, 0, 0);
+      const reminderDate = new Date(rawAt + "T00:00:00Z");
+      reminderDate.setUTCDate(reminderDate.getUTCDate() - rawLead);
+      if (reminderDate < tomorrow) {
+        return NextResponse.json({ error: "Reminder date must be at least tomorrow" }, { status: 400 });
+      }
+      const cleanedReason = rawReason
+        ? rawReason.replace(/[\r\n\t\x00-\x1F\x7F]/g, " ").trim().slice(0, 120) || null
+        : null;
+
+      const { error } = await supabase
+        .from("treatments")
+        .update({
+          planned_return_at: rawAt,
+          return_reason: cleanedReason,
+          reminder_lead_days: rawLead,
+          // Reset sent flags so the updated plan fires
+          planned_reminder_sent_at: null,
+          reminder_sent: false,
+          reminder_sent_at: null,
+        })
+        .eq("id", id)
+        .eq("nurse_id", user.id);
+
+      if (error) {
+        await logError("treatments", error.message);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === "remove_return_plan") {
+      const { error } = await supabase
+        .from("treatments")
+        .update({
+          planned_return_at: null,
+          return_reason: null,
+          reminder_lead_days: null,
+          planned_reminder_sent_at: null,
+          // Reset reminder_sent so the default reminder can still fire
+          reminder_sent: false,
+          reminder_sent_at: null,
+        })
+        .eq("id", id)
+        .eq("nurse_id", user.id);
+
+      if (error) {
+        await logError("treatments", error.message);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true });
+    }
 
     if (action === "set_next_appointment") {
       const nextApptAt = typeof body.next_appointment_at === "string" && DATE_REGEX.test(body.next_appointment_at.trim())

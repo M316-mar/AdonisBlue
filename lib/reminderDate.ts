@@ -57,3 +57,30 @@ export function inReminderWindow(due: Date, today: Date): boolean {
   cutoff.setUTCDate(cutoff.getUTCDate() + 7);
   return today >= sendOn && today <= cutoff;
 }
+
+/**
+ * Date we send the personal return plan reminder
+ * (planned_return_at − reminder_lead_days).
+ *
+ * plannedReturnAt: "YYYY-MM-DD" string (DATE column value).
+ * leadDays: 0, 3, 7, or 14.
+ */
+export function personalReminderSendDate(plannedReturnAt: string, leadDays: number): Date {
+  const d = new Date(plannedReturnAt + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() - leadDays);
+  return d;
+}
+
+/**
+ * Returns true when today is in the personal reminder send window:
+ *   today >= personalReminderSendDate AND today <= planned_return_at + 7 days.
+ *
+ * "today" is a Date with time zeroed to UTC midnight.
+ */
+export function inPersonalReminderWindow(plannedReturnAt: string, leadDays: number, today: Date): boolean {
+  const sendOn = personalReminderSendDate(plannedReturnAt, leadDays);
+  const returnDate = new Date(plannedReturnAt + "T00:00:00Z");
+  const cutoff = new Date(returnDate);
+  cutoff.setUTCDate(cutoff.getUTCDate() + 7);
+  return today >= sendOn && today <= cutoff;
+}

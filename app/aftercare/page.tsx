@@ -34,6 +34,10 @@ type Treatment = {
   came_via_bot: boolean;
   archived: boolean;
   intakes: { first_name: string; email: string; phone: string; service_interested: string } | null;
+  planned_return_at: string | null;
+  return_reason: string | null;
+  reminder_lead_days: number | null;
+  planned_reminder_sent_at: string | null;
 };
 
 type Intake = {
@@ -149,6 +153,15 @@ export default function AftercarePage() {
   const [rebookDate, setRebookDate] = useState("");
   const [rebookProcedureIds, setRebookProcedureIds] = useState<string[]>([]);
   const [rebookCustomProcedure, setRebookCustomProcedure] = useState("");
+  const [returnPlanChecked, setReturnPlanChecked] = useState(false);
+  const [returnPlanDate, setReturnPlanDate] = useState("");
+  const [returnPlanReason, setReturnPlanReason] = useState("");
+  const [returnPlanLeadDays, setReturnPlanLeadDays] = useState(7);
+  const [editingReturnPlanId, setEditingReturnPlanId] = useState<string | null>(null);
+  const [editReturnPlanDate, setEditReturnPlanDate] = useState("");
+  const [editReturnPlanReason, setEditReturnPlanReason] = useState("");
+  const [editReturnPlanLeadDays, setEditReturnPlanLeadDays] = useState(7);
+  const [returnPlanSavingId, setReturnPlanSavingId] = useState<string | null>(null);
   // Inline approval for unapproved procedures (E)
   const [inlineApproveId, setInlineApproveId] = useState<string | null>(null);
   const [inlineApproveText, setInlineApproveText] = useState("");
@@ -203,6 +216,7 @@ export default function AftercarePage() {
         newTreatment, customProcedure, customProcedureAftercare,
         customProcedureReminderDays, extraAftercareNotes,
         rebookChecked, rebookDate, rebookProcedureIds, rebookCustomProcedure,
+        returnPlanChecked, returnPlanDate, returnPlanReason, returnPlanLeadDays,
         savedAt: new Date().toISOString(),
       };
       localStorage.setItem(draftKey(id), JSON.stringify(draft));
@@ -233,6 +247,7 @@ export default function AftercarePage() {
     newTreatment, customProcedure, customProcedureAftercare,
     customProcedureReminderDays, extraAftercareNotes,
     rebookChecked, rebookDate, rebookProcedureIds, rebookCustomProcedure,
+    returnPlanChecked, returnPlanDate, returnPlanReason, returnPlanLeadDays,
   ]);
 
   // ── Load data ──────────────────────────────────────────────────────────────
@@ -310,6 +325,10 @@ export default function AftercarePage() {
     const capturedRebookDate = rebookDate;
     const capturedRebookProcedureIds = rebookProcedureIds;
     const capturedRebookCustomProcedure = rebookCustomProcedure.trim();
+    const capturedReturnPlanChecked = returnPlanChecked && !rebookChecked;
+    const capturedReturnPlanDate = returnPlanDate;
+    const capturedReturnPlanReason = returnPlanReason.trim();
+    const capturedReturnPlanLeadDays = returnPlanLeadDays;
     const capturedCustomProcedure = customProcedure.trim();
     const capturedCustomProcedureAftercare = customProcedureAftercare.trim();
     const capturedCustomProcedureReminderDays = customProcedureReminderDays;
@@ -409,6 +428,11 @@ export default function AftercarePage() {
         walkin_phone: newTreatment.walkin_phone,
         send_aftercare: newTreatment.send_aftercare,
         came_via_bot: newTreatment.came_via_bot,
+        ...(capturedReturnPlanChecked && capturedReturnPlanDate ? {
+          planned_return_at: capturedReturnPlanDate,
+          return_reason: capturedReturnPlanReason || null,
+          reminder_lead_days: capturedReturnPlanLeadDays,
+        } : {}),
       }),
     });
     if (res.ok) {
@@ -426,6 +450,10 @@ export default function AftercarePage() {
       setCustomProcedure("");
       setCustomProcedureAftercare("");
       setCustomProcedureReminderDays(null);
+      setReturnPlanChecked(false);
+      setReturnPlanDate("");
+      setReturnPlanReason("");
+      setReturnPlanLeadDays(7);
       setAddingTreatment(false);
       clearDraft(nurseId);
       setDraftBanner(null);
@@ -460,6 +488,10 @@ export default function AftercarePage() {
         setRebookDate("");
         setRebookProcedureIds([]);
         setRebookCustomProcedure("");
+        setReturnPlanChecked(false);
+        setReturnPlanDate("");
+        setReturnPlanReason("");
+        setReturnPlanLeadDays(7);
 
         // Offer prep guide for the upcoming appointment
         if (j.treatment.intake_id && !capturedIsWalkin) {
@@ -786,6 +818,10 @@ export default function AftercarePage() {
                         setRebookDate(draft.rebookDate ?? "");
                         setRebookProcedureIds(draft.rebookProcedureIds ?? []);
                         setRebookCustomProcedure(draft.rebookCustomProcedure ?? "");
+                        setReturnPlanChecked(draft.returnPlanChecked ?? false);
+                        setReturnPlanDate(draft.returnPlanDate ?? "");
+                        setReturnPlanReason(draft.returnPlanReason ?? "");
+                        setReturnPlanLeadDays(draft.returnPlanLeadDays ?? 7);
                         setDraftBanner(null);
                       }}
                       className="rounded-full bg-amber-700 px-4 py-1.5 text-sm font-bold text-white"
@@ -800,6 +836,7 @@ export default function AftercarePage() {
                         setNewTreatment({ intake_id: "", procedure_ids: [], procedure_name: "", treatment_date: toLocalDateString(), notes: "", is_walkin: false, walkin_name: "", walkin_email: "", walkin_phone: "", send_aftercare: true, came_via_bot: false });
                         setCustomProcedure(""); setCustomProcedureAftercare(""); setCustomProcedureReminderDays(null);
                         setExtraAftercareNotes(""); setRebookChecked(false); setRebookDate(""); setRebookProcedureIds([]); setRebookCustomProcedure("");
+                        setReturnPlanChecked(false); setReturnPlanDate(""); setReturnPlanReason(""); setReturnPlanLeadDays(7);
                       }}
                       className="rounded-full border border-amber-300 px-4 py-1.5 text-sm font-semibold text-amber-900"
                     >
@@ -1201,6 +1238,106 @@ export default function AftercarePage() {
                   )}
                 </div>
 
+                {/* ── Personal return plan (only when no rebook booked) ── */}
+                {!rebookChecked && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="flex cursor-pointer items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={returnPlanChecked}
+                        onChange={e => {
+                          setReturnPlanChecked(e.target.checked);
+                          if (e.target.checked && !returnPlanDate) {
+                            const firstProc = procedures.find(p => newTreatment.procedure_ids.includes(p.id));
+                            const days = firstProc?.reminder_days ?? DEFAULT_RETURN_DAYS;
+                            const d = new Date();
+                            d.setUTCDate(d.getUTCDate() + days);
+                            setReturnPlanDate(toLocalDateString(d));
+                          }
+                        }}
+                        className="h-4 w-4 rounded"
+                      />
+                      <span className="text-sm font-semibold text-teal-800">💙 Plan her return</span>
+                    </label>
+                    {returnPlanChecked && (
+                      <div className="mt-3 space-y-3">
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-slate-600">Earliest she can come back</label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              { label: "2 wk", days: 14 },
+                              { label: "1 mo", days: 30 },
+                              { label: "2 mo", days: 60 },
+                              { label: "3 mo", days: 90 },
+                              { label: "6 mo", days: 180 },
+                            ].map(opt => {
+                              const d = new Date();
+                              d.setUTCDate(d.getUTCDate() + opt.days);
+                              const val = toLocalDateString(d);
+                              return (
+                                <button
+                                  key={opt.label}
+                                  type="button"
+                                  onClick={() => setReturnPlanDate(val)}
+                                  className={`min-h-[36px] rounded-full px-3 py-1 text-xs font-semibold transition ${returnPlanDate === val ? "bg-teal-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                                >
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                            <input
+                              type="date"
+                              value={returnPlanDate}
+                              onChange={e => setReturnPlanDate(e.target.value)}
+                              className="min-h-[36px] rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs text-slate-800 outline-none focus:border-[#0d9488]"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-slate-600">What for? <span className="font-normal text-slate-400">(optional)</span></label>
+                          <input
+                            type="text"
+                            value={returnPlanReason}
+                            onChange={e => setReturnPlanReason(e.target.value.slice(0, 120))}
+                            placeholder="Adding more volume to your lips"
+                            maxLength={120}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                          />
+                          <p className="mt-1 text-xs text-slate-400">This makes her reminder personal. It&apos;s what she&apos;ll read.</p>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-slate-600">When should we remind her?</label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {([
+                              { label: "2 wk before", days: 14 },
+                              { label: "1 wk before", days: 7 },
+                              { label: "3 days before", days: 3 },
+                              { label: "On the day", days: 0 },
+                            ] as { label: string; days: number }[]).filter(opt => {
+                              if (!returnPlanDate) return true;
+                              const reminderDate = new Date(returnPlanDate + "T00:00:00Z");
+                              reminderDate.setUTCDate(reminderDate.getUTCDate() - opt.days);
+                              const tomorrow = new Date();
+                              tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+                              tomorrow.setUTCHours(0, 0, 0, 0);
+                              return reminderDate >= tomorrow;
+                            }).map(opt => (
+                              <button
+                                key={opt.days}
+                                type="button"
+                                onClick={() => setReturnPlanLeadDays(opt.days)}
+                                className={`min-h-[36px] rounded-full px-3 py-1 text-xs font-semibold transition ${returnPlanLeadDays === opt.days ? "bg-teal-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {treatmentError && (
                   <p className="mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{treatmentError}</p>
                 )}
@@ -1570,6 +1707,124 @@ export default function AftercarePage() {
                                 >
                                   Cancel
                                 </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Return plan display / edit */}
+                          {treatment.planned_return_at && editingReturnPlanId !== treatment.id && (
+                            <div className="mt-3 rounded-xl border border-teal-100 bg-teal-50 px-4 py-3">
+                              <p className="text-xs font-semibold text-teal-800 mb-0.5">
+                                💙 Return plan: {treatment.return_reason || "coming back"}
+                                {" · "}can return from {formatTreatmentDate(treatment.planned_return_at, { month: "short", day: "numeric" })}
+                                {treatment.planned_reminder_sent_at ? " · Reminder sent ✓" : ""}
+                              </p>
+                              <div className="mt-1.5 flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingReturnPlanId(treatment.id);
+                                    setEditReturnPlanDate(treatment.planned_return_at!);
+                                    setEditReturnPlanReason(treatment.return_reason ?? "");
+                                    setEditReturnPlanLeadDays(treatment.reminder_lead_days ?? 7);
+                                  }}
+                                  className="rounded-full border border-teal-200 bg-white px-3 py-1 text-xs font-semibold text-teal-700 hover:bg-teal-100 transition"
+                                >
+                                  Edit plan
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={returnPlanSavingId === treatment.id}
+                                  onClick={async () => {
+                                    setReturnPlanSavingId(treatment.id);
+                                    try {
+                                      const res = await fetch("/api/treatments", {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                        body: JSON.stringify({ action: "remove_return_plan", id: treatment.id }),
+                                      });
+                                      if (res.ok) {
+                                        setTreatments(prev => prev.map(t => t.id === treatment.id
+                                          ? { ...t, planned_return_at: null, return_reason: null, reminder_lead_days: null, planned_reminder_sent_at: null }
+                                          : t));
+                                      }
+                                    } catch { /* fall through */ }
+                                    setReturnPlanSavingId(null);
+                                  }}
+                                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition disabled:opacity-50"
+                                >
+                                  {returnPlanSavingId === treatment.id ? "…" : "Remove plan"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {editingReturnPlanId === treatment.id && (
+                            <div className="mt-3 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 space-y-3">
+                              <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-600">Earliest she can come back</label>
+                                <input
+                                  type="date"
+                                  value={editReturnPlanDate}
+                                  onChange={e => setEditReturnPlanDate(e.target.value)}
+                                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-600">What for? <span className="font-normal text-slate-400">(optional)</span></label>
+                                <input
+                                  type="text"
+                                  value={editReturnPlanReason}
+                                  onChange={e => setEditReturnPlanReason(e.target.value.slice(0, 120))}
+                                  maxLength={120}
+                                  placeholder="Adding more volume to your lips"
+                                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-600">When should we remind her?</label>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {([{ label: "2 wk before", days: 14 }, { label: "1 wk before", days: 7 }, { label: "3 days before", days: 3 }, { label: "On the day", days: 0 }] as { label: string; days: number }[]).map(opt => (
+                                    <button key={opt.days} type="button"
+                                      onClick={() => setEditReturnPlanLeadDays(opt.days)}
+                                      className={`min-h-[32px] rounded-full px-3 py-0.5 text-xs font-semibold transition ${editReturnPlanLeadDays === opt.days ? "bg-teal-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                                    >{opt.label}</button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  disabled={returnPlanSavingId === treatment.id}
+                                  onClick={async () => {
+                                    setReturnPlanSavingId(treatment.id);
+                                    try {
+                                      const res = await fetch("/api/treatments", {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                        body: JSON.stringify({
+                                          action: "set_return_plan",
+                                          id: treatment.id,
+                                          planned_return_at: editReturnPlanDate,
+                                          return_reason: editReturnPlanReason || null,
+                                          reminder_lead_days: editReturnPlanLeadDays,
+                                        }),
+                                      });
+                                      if (res.ok) {
+                                        setTreatments(prev => prev.map(t => t.id === treatment.id
+                                          ? { ...t, planned_return_at: editReturnPlanDate, return_reason: editReturnPlanReason || null, reminder_lead_days: editReturnPlanLeadDays, planned_reminder_sent_at: null }
+                                          : t));
+                                        setEditingReturnPlanId(null);
+                                      }
+                                    } catch { /* fall through */ }
+                                    setReturnPlanSavingId(null);
+                                  }}
+                                  className="rounded-full bg-teal-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 transition disabled:opacity-50"
+                                >
+                                  {returnPlanSavingId === treatment.id ? "Saving…" : "Save plan"}
+                                </button>
+                                <button type="button" onClick={() => setEditingReturnPlanId(null)}
+                                  className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                                >Cancel</button>
                               </div>
                             </div>
                           )}
