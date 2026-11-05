@@ -479,7 +479,7 @@ export default function NurseDashboardPage() {
             </button>
           </div>
         </div>
-        <Link href="/account" className="mx-auto block max-w-6xl truncate px-4 pb-2 text-xs font-medium text-teal-100/90 sm:hidden hover:text-white">{nurseName}</Link>
+        <Link href="/account" className="mx-auto block max-w-6xl truncate px-4 pb-2 text-xs font-medium text-slate-600 sm:hidden hover:text-teal-700">{nurseName}</Link>
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-28 lg:px-8 lg:py-10 lg:pb-28">
@@ -824,33 +824,8 @@ export default function NurseDashboardPage() {
               </>
             ) : null}
 
-            {/* ── Instagram Automation, Stats, My Plan ── */}
+            {/* ── My Plan ── */}
             <div className="max-w-2xl space-y-4">
-              {/* ── Stats ── */}
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { label: "Total Clients", value: totalClients, emoji: "💌" },
-                  { label: "Aftercare Sent", value: aftercareSent, emoji: "✅" },
-                  { label: "Reviews Requested", value: reviewsRequested, emoji: "⭐" },
-                  { label: "Pending Care", value: pendingCare, emoji: "🔔" },
-                ].map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
-                  >
-                    <div
-                      className="pointer-events-none absolute inset-0 opacity-60"
-                      style={{ background: "radial-gradient(ellipse 80% 60% at 80% 0%, rgba(13,148,136,0.25), transparent)" }}
-                      aria-hidden
-                    />
-                    <div className="relative">
-                      <p className="text-xl font-bold tabular-nums text-[#1a2744]">{stat.value}</p>
-                      <p className="mt-0.5 text-xs font-medium text-slate-500">{stat.emoji} {stat.label}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
               {/* ── My Plan ── */}
               {(() => {
                 const plan = (bot?.plan ?? "trial").toLowerCase();
