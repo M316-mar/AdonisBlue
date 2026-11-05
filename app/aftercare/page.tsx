@@ -258,7 +258,7 @@ export default function AftercarePage() {
     }
   }, [addingTreatment]);
 
-  // ── Auto-select reminder lead days when only one valid option remains ───────
+  // ── Auto-select reminder lead days: switch to largest still-valid option ─────
   useEffect(() => {
     if (!returnPlanChecked || !returnPlanDate) return;
     const OPTIONS = [14, 7, 3, 0];
