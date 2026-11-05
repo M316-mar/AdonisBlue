@@ -1297,10 +1297,8 @@ function StepAftercareReview({
   const allProcs = [...baseServices, ...customList];
 
   const toggle = (name: string) => {
-    const defaults = DEFAULT_PROCEDURE_DEFAULTS[name];
-    const hasText = (draft.editedAftercare[name] ?? defaults?.aftercare_instructions ?? "").trim();
-    // No-default procedures must have written text before they can be approved
-    if (!defaults && !hasText && !draft.approvedProcedures.includes(name)) return;
+    const currentText = (draft.editedAftercare[name] ?? DEFAULT_PROCEDURE_DEFAULTS[name]?.aftercare_instructions ?? "").trim();
+    if (!currentText && !draft.approvedProcedures.includes(name)) return;
     onChange({
       approvedProcedures: draft.approvedProcedures.includes(name)
         ? draft.approvedProcedures.filter((n) => n !== name)
@@ -1315,7 +1313,15 @@ function StepAftercareReview({
   };
 
   const saveEdit = (name: string) => {
-    onChange({ editedAftercare: { ...draft.editedAftercare, [name]: editBuf } });
+    const newText = editBuf.trim();
+    const updatedAftercare = { ...draft.editedAftercare };
+    if (newText) updatedAftercare[name] = editBuf;
+    // Auto-approve when saving with non-empty text for the first time
+    const updatedApproved =
+      newText && !draft.approvedProcedures.includes(name)
+        ? [...draft.approvedProcedures, name]
+        : draft.approvedProcedures;
+    onChange({ editedAftercare: updatedAftercare, approvedProcedures: updatedApproved });
     setEditing(null);
   };
 
@@ -1341,12 +1347,13 @@ function StepAftercareReview({
           return (
             <div
               key={name}
-              className={`rounded-2xl border-2 p-4 transition ${approved ? "border-[#0d9488] bg-teal-50/50" : "border-slate-200 bg-white"}`}
+              onClick={() => { if (!isEditingThis && !currentText) startEdit(name); }}
+              className={`rounded-2xl border-2 p-4 transition ${approved ? "border-[#0d9488] bg-teal-50/50" : "border-slate-200 bg-white"} ${!isEditingThis && !currentText ? "cursor-pointer active:bg-slate-50" : ""}`}
             >
               <div className="flex items-start gap-3">
                 <button
                   type="button"
-                  onClick={() => toggle(name)}
+                  onClick={(e) => { e.stopPropagation(); toggle(name); }}
                   disabled={!canApprove && !approved}
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition ${approved ? "border-[#0d9488] bg-[#0d9488]" : canApprove ? "border-slate-300 bg-white hover:border-[#0d9488]" : "border-slate-200 bg-slate-50 cursor-not-allowed opacity-40"}`}
                   aria-label={`${approved ? "Uncheck" : "Approve"} ${name}`}
@@ -1363,10 +1370,10 @@ function StepAftercareReview({
                     {!isEditingThis && (
                       <button
                         type="button"
-                        onClick={() => startEdit(name)}
-                        className="shrink-0 text-xs font-medium text-slate-400 hover:text-[#0d9488] transition"
+                        onClick={(e) => { e.stopPropagation(); startEdit(name); }}
+                        className="shrink-0 -m-2 p-2 min-h-[44px] min-w-[44px] flex items-center justify-end text-xs font-medium text-slate-400 hover:text-[#0d9488] transition"
                       >
-                        ✏️ Edit
+                        ✏️ {currentText ? "Edit" : "Write"}
                       </button>
                     )}
                   </div>
@@ -1375,23 +1382,24 @@ function StepAftercareReview({
                     <div className="mt-2 flex flex-col gap-2">
                       <textarea
                         rows={6}
-                        className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 leading-relaxed outline-none focus:border-[#0d9488] focus:ring-1 ring-[#0d9488]/30"
+                        className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-700 leading-relaxed outline-none focus:border-[#0d9488] focus:ring-1 ring-[#0d9488]/30"
                         value={editBuf}
                         onChange={(e) => setEditBuf(e.target.value)}
+                        placeholder={`Write your aftercare for ${name}. Your clients will receive exactly this.`}
                         autoFocus
                       />
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => saveEdit(name)}
-                          className="rounded-full bg-[#0d9488] px-4 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 transition"
+                          className="min-h-[44px] rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 transition"
                         >
                           Save
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditing(null)}
-                          className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 transition"
+                          className="min-h-[44px] rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 transition"
                         >
                           Cancel
                         </button>
@@ -1407,8 +1415,8 @@ function StepAftercareReview({
                       </div>
                     </details>
                   ) : (
-                    <p className="mt-1 text-xs text-slate-400">
-                      Write your aftercare for this treatment, or uncheck it if you don&apos;t offer it.
+                    <p className="mt-1 text-xs text-[#0d9488]">
+                      Tap to write your aftercare instructions →
                     </p>
                   )}
                 </div>
@@ -1833,11 +1841,7 @@ function OnboardingInner() {
     if (draft.step === 2) return draft.procedures.length > 0;
     if (draft.step === 3) return true; // optional — rebooking link
     if (draft.step === 4) {
-      const allProcs = [
-        ...draft.procedures.filter(p => p !== "Other"),
-        ...draft.customProcedures.split(",").map(s => s.trim()).filter(Boolean),
-      ];
-      return allProcs.length > 0 && allProcs.every(p => draft.approvedProcedures.includes(p));
+      return draft.approvedProcedures.length >= 1;
     }
     if (draft.step === 5) {
       const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.alertEmail.trim());
@@ -1981,7 +1985,8 @@ function OnboardingInner() {
             const edited = p.name ? draft.editedAftercare[p.name] : undefined;
             const defaults = p.name ? DEFAULT_PROCEDURE_DEFAULTS[p.name] : undefined;
             const reminderDays = p.reminder_days ?? defaults?.reminder_days ?? 180;
-            const body: Record<string, unknown> = { id: p.id, approved: true, reminder_days: reminderDays };
+            const isApproved = p.name ? draft.approvedProcedures.includes(p.name) : false;
+            const body: Record<string, unknown> = { id: p.id, approved: isApproved, reminder_days: reminderDays };
             if (edited !== undefined) body.aftercare_instructions = edited;
             const r = await fetch("/api/procedures", {
               method: "POST",
@@ -2302,6 +2307,18 @@ function OnboardingInner() {
 
         {/* ── Bottom nav ───────────────────────────────────────────────── */}
         <div className="shrink-0 border-t border-slate-100 bg-white px-4 py-4 sm:px-6">
+          {draft.step === 4 && (() => {
+            const ap = [
+              ...draft.procedures.filter(p => p !== "Other"),
+              ...draft.customProcedures.split(",").map(s => s.trim()).filter(Boolean),
+            ];
+            return (
+              <p className="mb-3 text-center text-xs text-slate-500">
+                {draft.approvedProcedures.length} of {ap.length} approved.
+                {draft.approvedProcedures.length < ap.length && " You can finish the rest later."}
+              </p>
+            );
+          })()}
           <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
             {!isDone && draft.step > 1 ? (
               <button
