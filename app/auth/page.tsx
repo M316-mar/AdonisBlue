@@ -53,7 +53,7 @@ function PasswordToggleButton({
     <button
       type="button"
       onClick={onToggle}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+      className="absolute right-0 top-1/2 -translate-y-1/2 flex min-h-[44px] min-w-[44px] items-center justify-center text-slate-400 hover:text-slate-600 transition"
       aria-label={visible ? "Hide password" : "Show password"}
     >
       {visible ? (
@@ -253,7 +253,7 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={() => switchToSignup()}
-                className={`relative flex-1 pb-3 text-center text-sm font-semibold transition sm:text-base ${
+                className={`relative flex-1 min-h-[44px] pb-3 pt-3 text-center text-sm font-semibold transition sm:text-base ${
                   mode === "signup" ? "text-[#1a2744]" : "text-slate-500 hover:text-[#1a2744]"
                 }`}
               >
@@ -265,7 +265,7 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={() => switchToLogin()}
-                className={`relative flex-1 pb-3 text-center text-sm font-semibold transition sm:text-base ${
+                className={`relative flex-1 min-h-[44px] pb-3 pt-3 text-center text-sm font-semibold transition sm:text-base ${
                   mode === "login" ? "text-[#1a2744]" : "text-slate-500 hover:text-[#1a2744]"
                 }`}
               >
@@ -362,13 +362,13 @@ export default function AuthPage() {
                       <PasswordToggleButton visible={showConfirm} onToggle={() => setShowConfirm((p) => !p)} />
                     </div>
                   </div>
-                  <label className="flex cursor-pointer items-start gap-3 pt-1">
+                  <label className="flex min-h-[44px] cursor-pointer items-center gap-3 pt-1">
                     <input
                       type="checkbox"
                       name="terms"
                       checked={termsAccepted}
                       onChange={(e) => setTermsAccepted(e.target.checked)}
-                      className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-[#0d9488] focus:ring-[#0d9488]"
+                      className="h-5 w-5 shrink-0 rounded border-slate-300 text-[#0d9488] focus:ring-[#0d9488]"
                     />
                     <span className="text-sm leading-snug text-slate-600">
                       I agree to keep my clients privacy and AdonisBlue terms

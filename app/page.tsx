@@ -67,21 +67,21 @@ export default function Home() {
       <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 shadow-sm backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
           <a href="/" className="flex min-w-0 shrink items-center gap-2">
-            <Image src="/Alona.png" alt="AdonisBlue" width={44} height={44} className="rounded-xl" />
-            <span className="text-lg font-bold tracking-tight text-[#1a2744]">AdonisBlue</span>
+            <Image src="/Alona.png" alt="AdonisBlue" width={44} height={44} className="rounded-xl shrink-0" />
+            <span className="text-lg font-bold tracking-tight text-[#1a2744] truncate">AdonisBlue</span>
           </a>
           <nav className="hidden items-center gap-7 lg:flex">
             {[["#daily-flow","How it Works"],["/templates","Free Templates"],["#features","Features"],["#pricing","Pricing"],["#faq","FAQ"]].map(([href,label]) => (
-              <a key={label} href={href} className="text-sm font-medium text-slate-600 transition hover:text-[#0d9488]">{label}</a>
+              <a key={label} href={href} className="inline-flex min-h-[44px] items-center text-sm font-medium text-slate-600 transition hover:text-[#0d9488]">{label}</a>
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <a href="/auth" className="inline-flex rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:border-teal-300 hover:text-[#0d9488]">Log in</a>
-            <a href="#start" className="rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-teal-200 transition hover:bg-teal-700">Get Started</a>
+            <a href="/auth" className="inline-flex min-h-[44px] items-center rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-[#1a2744] transition hover:border-teal-300 hover:text-[#0d9488]">Log in</a>
+            <a href="#start" className="inline-flex min-h-[44px] items-center rounded-full bg-[#0d9488] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-teal-200 transition hover:bg-teal-700">Get Started</a>
             <button
               type="button"
               onClick={() => setMobileMenuOpen((o) => !o)}
-              className="ml-1 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-[#1a2744] lg:hidden"
+              className="ml-1 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-[#1a2744] lg:hidden"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? (
@@ -94,18 +94,18 @@ export default function Home() {
         </div>
         {mobileMenuOpen && (
           <div className="border-t border-slate-100 bg-white px-4 py-4 lg:hidden">
-            <nav className="flex flex-col gap-4">
+            <nav className="flex flex-col gap-1">
               {[["#daily-flow","How it Works"],["/templates","Free Templates"],["#features","Features"],["#pricing","Pricing"],["#faq","FAQ"]].map(([href,label]) => (
                 <a
                   key={label}
                   href={href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-sm font-medium text-slate-600 transition hover:text-[#0d9488]"
+                  className="flex min-h-[44px] items-center text-sm font-medium text-slate-600 transition hover:text-[#0d9488]"
                 >
                   {label}
                 </a>
               ))}
-              <a href="/auth" onClick={() => setMobileMenuOpen(false)} className="text-sm font-semibold text-[#0d9488]">Log in</a>
+              <a href="/auth" onClick={() => setMobileMenuOpen(false)} className="flex min-h-[44px] items-center text-sm font-semibold text-[#0d9488]">Log in</a>
             </nav>
           </div>
         )}
@@ -142,12 +142,12 @@ export default function Home() {
                   <p className="text-xs text-slate-500 text-center sm:text-left">Set it up yourself, today. No card needed.</p>
                 </div>
               </div>
-              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                <a href="#daily-flow" className="font-semibold text-[#1a2744] transition hover:text-[#0d9488]">See how it works ↓</a>
-                <span className="text-slate-300">·</span>
-                <a href="/ask" className="text-slate-500 transition hover:text-[#0d9488]">💬 Chat with our AI</a>
-                <span className="text-slate-300">·</span>
-                <a href="/templates" className="text-slate-500 transition hover:text-[#0d9488]">📋 Free aftercare templates</a>
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+                <a href="#daily-flow" className="inline-flex min-h-[44px] items-center font-semibold text-[#1a2744] transition hover:text-[#0d9488]">See how it works ↓</a>
+                <span className="text-slate-300" aria-hidden>·</span>
+                <a href="/ask" className="inline-flex min-h-[44px] items-center text-slate-500 transition hover:text-[#0d9488]">💬 Chat with our AI</a>
+                <span className="text-slate-300" aria-hidden>·</span>
+                <a href="/templates" className="inline-flex min-h-[44px] items-center text-slate-500 transition hover:text-[#0d9488]">📋 Free aftercare templates</a>
               </div>
               <p className="mt-4 text-base font-semibold text-[#0d9488]">💙 Care that brings clients back.</p>
               <p className="mt-1 text-sm text-slate-500">No credit card needed · Cancel anytime · Setup in under an hour</p>
