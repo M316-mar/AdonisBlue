@@ -2,20 +2,25 @@
  * Device-check: runs Playwright against the dev server and checks every screen at
  * 3 viewport sizes for common mobile-UX failures.
  *
- * Logged-out screens run everywhere (including CI).
+ * Logged-out screens run in TWO states per viewport:
+ *   • first-visit  — no cookie consent in localStorage (banner is visible)
+ *   • returning    — adonisblue_cookie_consent=true (banner dismissed)
+ * In CI (--ci flag) only the first-visit state is tested (no credentials available).
+ *
  * Logged-in screens require TEST_NURSE_EMAIL + TEST_NURSE_PASSWORD in .env.local;
  * if either is absent the script skips them with a warning (does not fail).
+ * Logged-in screens are tested only in the "returning" state (the nurse has consented).
  *
  * Usage:
  *   node scripts/device-check.mjs            # all screens (uses dev server on :3000)
- *   node scripts/device-check.mjs --ci       # logged-out screens only (CI-safe)
+ *   node scripts/device-check.mjs --ci       # logged-out screens, first-visit only (CI-safe)
  *
- * Failure conditions per screen × viewport:
+ * Failure conditions per screen × viewport × state:
  *   1. Horizontal scrolling (scrollWidth > clientWidth on <body>)
  *   2. Any element wider than the viewport
  *   3. Any visible button/link/input/select/textarea with hit area < 44×44 px
- *   4. Any interactive element whose centre point is covered by another element
- *      (fixed bars, the avatar, cookie banners)
+ *   4. Any interactive element that remains covered after scrolling it to the
+ *      centre of the viewport (simulates a user scrolling to reach the element)
  *   5. Any visible <input>/<textarea> with computed font-size < 16px
  *   6. The primary submit button is disabled AND no sibling/nearby reason text is visible
  */
@@ -50,6 +55,15 @@ const VIEWPORTS = [
   { label: "iPad 820", width: 820, height: 1180 },
   { label: "Laptop 1440", width: 1440, height: 900 },
 ];
+
+// ── Visit states for logged-out screens ───────────────────────────────────────
+// CI runs first-visit only (no need to test returning state without credentials).
+const LOGGED_OUT_STATES = CI_MODE
+  ? [{ label: "first-visit", cookieConsented: false }]
+  : [
+      { label: "first-visit", cookieConsented: false },
+      { label: "returning", cookieConsented: true },
+    ];
 
 // ── Screens ────────────────────────────────────────────────────────────────────
 // loggedIn: false = run everywhere; true = requires credentials, skip in CI
@@ -115,16 +129,27 @@ async function runChecks(page, viewport) {
       }
     }
 
-    // 4. Interactive element covered by another element
+    // 4. Interactive element covered by another element.
+    // Each element is scrolled to the centre of the viewport first — this simulates
+    // a real user scrolling to reach it. If anything still covers it after that scroll,
+    // it is truly inaccessible.
     for (const el of interactive) {
       const style = window.getComputedStyle(el);
       if (style.display === "none" || style.visibility === "hidden") continue;
+      const r0 = el.getBoundingClientRect();
+      if (r0.width === 0 || r0.height === 0) continue;
+
+      // Scroll element to viewport centre so we test reachability, not initial position.
+      el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+
+      // Re-read rect after scroll.
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       const cx = r.left + r.width / 2;
       const cy = r.top + r.height / 2;
-      // Only check elements whose centre is in the viewport
+      // After scrollIntoView the element should be in the viewport; skip if not.
       if (cy < 0 || cy > window.innerHeight || cx < 0 || cx > window.innerWidth) continue;
+
       const top = document.elementFromPoint(cx, cy);
       if (!top) continue;
       if (top !== el && !el.contains(top) && !top.contains(el)) {
@@ -201,70 +226,119 @@ const browser = await chromium.launch({ headless: true });
 
 try {
   for (const vp of VIEWPORTS) {
-    const context = await browser.newContext({
-      viewport: { width: vp.width, height: vp.height },
-      userAgent: vp.width < 768
-        ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-        : undefined,
-      isMobile: vp.width < 768,
-    });
+    // ── Logged-out screens: run in each visit state ──────────────────────────
+    for (const visitState of LOGGED_OUT_STATES) {
+      const context = await browser.newContext({
+        viewport: { width: vp.width, height: vp.height },
+        userAgent: vp.width < 768
+          ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+          : undefined,
+        isMobile: vp.width < 768,
+      });
 
-    // Sign in once per viewport if credentials are available
-    let isSignedIn = false;
+      for (const screen of SCREENS) {
+        if (screen.loggedIn) continue; // logged-in screens handled separately below
+
+        totalScreens++;
+        const page = await context.newPage();
+
+        if (visitState.cookieConsented) {
+          await page.addInitScript(() => {
+            try { localStorage.setItem("adonisblue_cookie_consent", "true"); } catch {}
+          });
+        }
+
+        try {
+          await page.goto(`${BASE_URL}${screen.path}`, { waitUntil: "networkidle", timeout: 20_000 });
+          // Brief pause for client-side rendering (cookie banner useEffect) to settle
+          await page.waitForTimeout(500);
+
+          const issues = await runChecks(page, vp);
+          const label = `${vp.label} [${visitState.label}] — ${screen.label}`;
+          if (issues.length > 0) {
+            process.stdout.write(`\n❌ ${label} (${BASE_URL}${screen.path})\n`);
+            for (const iss of issues) {
+              process.stdout.write(`   • ${iss}\n`);
+              totalIssues++;
+            }
+          } else {
+            process.stdout.write(`  ✓ ${label}\n`);
+          }
+        } catch (e) {
+          process.stdout.write(`  ⚠ ${vp.label} [${visitState.label}] — ${screen.label}: ${e.message}\n`);
+        }
+        await page.close();
+      }
+
+      await context.close();
+    }
+
+    // ── Logged-in screens: returning state only, skip in CI or without creds ──
     if (!CI_MODE && hasCredentials) {
-      const signInPage = await context.newPage();
+      const context = await browser.newContext({
+        viewport: { width: vp.width, height: vp.height },
+        userAgent: vp.width < 768
+          ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+          : undefined,
+        isMobile: vp.width < 768,
+      });
+
+      // Set cookie consent for the signed-in context
+      const setupPage = await context.newPage();
+      await setupPage.addInitScript(() => {
+        try { localStorage.setItem("adonisblue_cookie_consent", "true"); } catch {}
+      });
+
+      let isSignedIn = false;
       try {
-        await signIn(signInPage);
+        await signIn(setupPage);
         isSignedIn = true;
       } catch (e) {
         process.stderr.write(`  ⚠ Sign-in failed at ${vp.label}: ${e.message}\n`);
       }
-      await signInPage.close();
-    }
+      await setupPage.close();
 
-    for (const screen of SCREENS) {
-      if (screen.loggedIn && (CI_MODE || !hasCredentials || !isSignedIn)) {
-        if (!CI_MODE && !hasCredentials) {
-          process.stderr.write(`  ⚠ Skipping logged-in screen "${screen.label}" — TEST_NURSE_EMAIL/TEST_NURSE_PASSWORD not set\n`);
-        }
-        continue;
-      }
+      if (isSignedIn) {
+        for (const screen of SCREENS) {
+          if (!screen.loggedIn) continue;
 
-      totalScreens++;
-      const page = await context.newPage();
-      // Simulate a returning user who has already consented to cookies.
-      // This prevents the cookie consent banner from appearing and covering form fields.
-      await page.addInitScript(() => {
-        try { localStorage.setItem("adonisblue_cookie_consent", "true"); } catch {}
-      });
-      try {
-        await page.goto(`${BASE_URL}${screen.path}`, { waitUntil: "networkidle", timeout: 20_000 });
-        // If we got redirected to /auth (not signed in), skip
-        if (screen.loggedIn && page.url().includes("/auth")) {
-          process.stderr.write(`  ⚠ "${screen.label}" redirected to /auth — session may have expired\n`);
-          await page.close();
-          continue;
-        }
-        // Brief pause for any client-side rendering to settle
-        await page.waitForTimeout(500);
+          totalScreens++;
+          const page = await context.newPage();
+          await page.addInitScript(() => {
+            try { localStorage.setItem("adonisblue_cookie_consent", "true"); } catch {}
+          });
 
-        const issues = await runChecks(page, vp);
-        if (issues.length > 0) {
-          process.stdout.write(`\n❌ ${vp.label} — ${screen.label} (${BASE_URL}${screen.path})\n`);
-          for (const iss of issues) {
-            process.stdout.write(`   • ${iss}\n`);
-            totalIssues++;
+          try {
+            await page.goto(`${BASE_URL}${screen.path}`, { waitUntil: "networkidle", timeout: 20_000 });
+            if (page.url().includes("/auth")) {
+              process.stderr.write(`  ⚠ "${screen.label}" redirected to /auth — session may have expired\n`);
+              await page.close();
+              continue;
+            }
+            await page.waitForTimeout(500);
+
+            const issues = await runChecks(page, vp);
+            const label = `${vp.label} [returning] — ${screen.label}`;
+            if (issues.length > 0) {
+              process.stdout.write(`\n❌ ${label} (${BASE_URL}${screen.path})\n`);
+              for (const iss of issues) {
+                process.stdout.write(`   • ${iss}\n`);
+                totalIssues++;
+              }
+            } else {
+              process.stdout.write(`  ✓ ${label}\n`);
+            }
+          } catch (e) {
+            process.stdout.write(`  ⚠ ${vp.label} [returning] — ${screen.label}: ${e.message}\n`);
           }
-        } else {
-          process.stdout.write(`  ✓ ${vp.label} — ${screen.label}\n`);
+          await page.close();
         }
-      } catch (e) {
-        process.stdout.write(`  ⚠ ${vp.label} — ${screen.label}: ${e.message}\n`);
       }
-      await page.close();
-    }
 
-    await context.close();
+      await context.close();
+    } else if (!CI_MODE && !hasCredentials) {
+      process.stderr.write(`  ⚠ Skipping logged-in screens at ${vp.label} — TEST_NURSE_EMAIL/TEST_NURSE_PASSWORD not set\n`);
+    }
   }
 } finally {
   await browser.close();
