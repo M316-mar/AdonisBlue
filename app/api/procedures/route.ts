@@ -51,6 +51,15 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    // When creating (no id), name is required — catch this before it reaches the DB.
+    const hasId = typeof body.id === "string" && body.id.trim().length > 0;
+    if (!hasId) {
+      const bodyName = typeof body.name === "string" ? body.name.trim() : "";
+      if (!bodyName) {
+        return NextResponse.json({ error: "Procedure name is required." }, { status: 400 });
+      }
+    }
+
     // Approval is set server-side only — never trust a client-supplied timestamp or user id.
     const { approved, ...rest } = body;
 

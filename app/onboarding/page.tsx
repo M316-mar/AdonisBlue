@@ -1987,6 +1987,7 @@ function OnboardingInner() {
             const reminderDays = p.reminder_days ?? defaults?.reminder_days ?? 180;
             const isApproved = p.name ? draft.approvedProcedures.includes(p.name) : false;
             const body: Record<string, unknown> = { id: p.id, approved: isApproved, reminder_days: reminderDays };
+            if (p.name) body.name = p.name; // defensive: if id is somehow falsy, route falls back to upsert by (nurse_id,name)
             if (edited !== undefined) body.aftercare_instructions = edited;
             const r = await fetch("/api/procedures", {
               method: "POST",
