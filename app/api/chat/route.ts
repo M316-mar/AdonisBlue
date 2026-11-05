@@ -59,10 +59,20 @@ function extractContactFromHistory(
   return { name, phone, email };
 }
 
+function chatFallbackReply(botConfig: Record<string, unknown>): string {
+  const nurseFirst = (typeof botConfig.nurse_name === "string" ? botConfig.nurse_name.trim().split(/\s+/)[0] : "") || null;
+  const phone = typeof botConfig.phone_public === "string" && botConfig.phone_public.trim() ? botConfig.phone_public.trim() : null;
+  const contactLine = phone
+    ? ` If this is urgent, call ${nurseFirst ? nurseFirst : "your nurse"} at ${phone}.`
+    : "";
+  return `Sorry, I'm having trouble right now.${contactLine} If you have trouble breathing, chest pain, or vision changes, call 911.`;
+}
+
 export async function POST(request: Request) {
+  let botConfig: Record<string, unknown> = {};
   try {
     const { messages: rawMessages, botContext } = await request.json();
-    const botConfig = botContext || {};
+    botConfig = botContext || {};
     const messages = (Array.isArray(rawMessages) ? rawMessages as { role: string; content: string }[] : [])
       .slice(-40)
       .map((m) => ({ ...m, content: typeof m.content === "string" ? m.content.slice(0, 2000) : "" }));
@@ -173,7 +183,7 @@ export async function POST(request: Request) {
     const serviceNames: string[] =
       uniqueProcedureRows.length > 0
         ? uniqueProcedureRows.map((p) => p.name)
-        : (botConfig.services || []);
+        : ((botConfig.services as string[]) || []);
 
     // Build per-procedure aftercare block (only for procedures that have instructions)
     const procedureAftercareBlock = uniqueProcedureRows
@@ -389,14 +399,14 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
         status: "failed",
         error: errText.slice(0, 500),
       }).then(() => {}, () => {});
-      return NextResponse.json({ reply: "I'm here to help! Could you tell me a little more?" });
+      return NextResponse.json({ reply: chatFallbackReply(botConfig) });
     }
 
     const data = await res.json();
     const textBlock = Array.isArray(data.content)
       ? data.content.find((block: { type?: string; text?: string }) => block?.type === "text")
       : null;
-    const rawReply = textBlock?.text || "I'm here to help! Could you tell me a little more?";
+    const rawReply = textBlock?.text || chatFallbackReply(botConfig);
 
     // ── Strip [[ALERT_NURSE]] token ────────────────────────────────────────
     const aiAlertToken = rawReply.includes("[[ALERT_NURSE]]");
@@ -821,6 +831,6 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     });
   } catch (e) {
     await logError("chat", String(e));
-    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+    return NextResponse.json({ reply: chatFallbackReply(botConfig) });
   }
 }

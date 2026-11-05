@@ -106,7 +106,16 @@ export async function GET(request: Request) {
   }
 }
 
+function healingFallbackMessage(nurseFirst: string | null, phone: string | null): string {
+  const contactLine = phone
+    ? ` If this is urgent, call ${nurseFirst ?? "your nurse"} at ${phone}.`
+    : "";
+  return `Sorry, I'm having trouble right now.${contactLine} If you have trouble breathing, chest pain, or vision changes, call 911.`;
+}
+
 export async function POST(request: Request) {
+  let _healingNurseFirst: string | null = null;
+  let _healingAlertPhone: string | null = null;
   try {
     const body = await request.json();
     const { treatment_id, messages: rawMessages, flagged_message } = body;
@@ -182,6 +191,8 @@ export async function POST(request: Request) {
     const nurseFirstName = rawNurseName
       ? rawNurseName.split(/\s+/)[0]!.charAt(0).toUpperCase() + rawNurseName.split(/\s+/)[0]!.slice(1).toLowerCase()
       : null;
+    _healingNurseFirst = nurseFirstName;
+    _healingAlertPhone = alertPhone?.trim() || null;
 
     // ── SECURITY: perform emergency check SERVER-SIDE ──────────────────────
     // Fetch custom keywords again so the client cannot influence this decision
@@ -460,7 +471,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client mentions ANY of the following
         status: "failed",
         error: errText.slice(0, 500),
       }).then(() => {}, () => {});
-      return NextResponse.json({ message: "I'm here to help with your recovery! Could you tell me more about what you're experiencing?", flagged: false });
+      return NextResponse.json({ message: healingFallbackMessage(_healingNurseFirst, _healingAlertPhone), flagged: false });
     }
 
     const aiData = await aiRes.json();
@@ -469,7 +480,7 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client mentions ANY of the following
       : null;
     const rawAiMessage =
       textBlock?.text ||
-      "I'm here to help with your recovery! Could you tell me more about what you're experiencing?";
+      healingFallbackMessage(_healingNurseFirst, _healingAlertPhone);
 
     // ── AI second alarm: strip [[ALERT_NURSE]] token ──────────────────────
     const aiAlertToken = rawAiMessage.includes("[[ALERT_NURSE]]");
@@ -632,6 +643,6 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client mentions ANY of the following
     return NextResponse.json({ message: finalMessage, flagged: isFlagged || aiAlertToken });
   } catch (e) {
     await logError("healing", String(e));
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+    return NextResponse.json({ message: healingFallbackMessage(_healingNurseFirst, _healingAlertPhone), flagged: false });
   }
 }
