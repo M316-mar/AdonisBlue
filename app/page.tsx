@@ -72,7 +72,7 @@ export default function Home() {
           </a>
           <nav className="hidden items-center gap-7 lg:flex">
             {[["#daily-flow","How it Works"],["/templates","Free Templates"],["#features","Features"],["#pricing","Pricing"],["#faq","FAQ"]].map(([href,label]) => (
-              <a key={label} href={href} className="inline-flex min-h-[44px] items-center text-sm font-medium text-slate-600 transition hover:text-[#0d9488]">{label}</a>
+              <a key={label} href={href} className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-sm font-medium text-slate-600 transition hover:text-[#0d9488]">{label}</a>
             ))}
           </nav>
           <div className="flex items-center gap-2">
@@ -81,7 +81,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen((o) => !o)}
-              className="ml-1 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-[#1a2744] lg:hidden"
+              className="ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 text-[#1a2744] lg:hidden"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? (
@@ -319,7 +319,7 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <div className="flex flex-col items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#1a2744] via-[#0d4f6b] to-[#0d9488] px-6 py-5 sm:flex-row sm:px-8 sm:py-6">
               <p className="text-base font-semibold text-white sm:text-lg">See how AdonisBlue keeps your clients coming back</p>
-              <a href="#start" className="shrink-0 rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#1a2744] shadow-md transition hover:bg-teal-50">
+              <a href="#start" className="shrink-0 inline-flex min-h-[44px] items-center rounded-full bg-white px-6 py-3 text-sm font-bold text-[#1a2744] shadow-md transition hover:bg-teal-50">
                 How to get started →
               </a>
             </div>
@@ -461,7 +461,7 @@ export default function Home() {
               These numbers are based on what you enter — not a promise of results. Revenue before your costs, like product and supplies.
             </p>
             <p className="mt-3 text-center text-sm">
-              <a href="/roi" className="text-[#2F7F70] underline underline-offset-2 hover:text-teal-700">See how AdonisBlue helps clients come back →</a>
+              <a href="/roi" className="inline-flex min-h-[44px] items-center text-[#2F7F70] underline underline-offset-2 hover:text-teal-700">See how AdonisBlue helps clients come back →</a>
             </p>
           </div>
         </section>
@@ -650,7 +650,7 @@ export default function Home() {
         <section id="final-cta" className="relative overflow-hidden bg-[#0d1628] px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="pointer-events-none absolute inset-0" aria-hidden>
             <div className="absolute inset-0 bg-gradient-to-br from-teal-500/15 via-transparent to-sky-500/10" />
-            <div className="absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-400/10 blur-[80px]" />
+            <div data-decorative="true" aria-hidden="true" className="absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-400/10 blur-[80px]" />
           </div>
           <div className="relative mx-auto max-w-3xl text-center">
             <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Give it a try. See if it keeps your flow. If it fits, you&apos;ll know.</h2>
@@ -672,29 +672,29 @@ export default function Home() {
       {/* ── FOOTER ── */}
       <footer className="border-t border-slate-100 bg-white px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 lg:flex-row lg:justify-between">
-          <a href="/" className="flex items-center gap-2">
+          <a href="/" className="inline-flex min-h-[44px] items-center gap-2">
             <Image src="/Alona.png" alt="AdonisBlue" width={36} height={36} className="rounded-xl" />
             <span className="text-base font-semibold text-[#1a2744]">AdonisBlue</span>
           </a>
-          <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+          <nav className="flex flex-wrap justify-center gap-x-2 gap-y-1">
             {[["#daily-flow","How it Works"],["/templates","Free Templates"],["#features","Features"],["#pricing","Pricing"],["#faq","FAQ"]].map(([href,label]) => (
-              <a key={label} href={href} className="text-sm font-medium text-slate-500 transition hover:text-[#0d9488]">{label}</a>
+              <a key={label} href={href} className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-2 text-sm font-medium text-slate-500 transition hover:text-[#0d9488]">{label}</a>
             ))}
           </nav>
           <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-4">
-              <a href="mailto:hi@adonisblue.io" className="text-sm text-slate-400 transition hover:text-[#0d9488]">hi@adonisblue.io</a>
-              <a href="#" aria-label="Instagram" className="text-slate-400 transition hover:text-[#0d9488]">
+            <div className="flex items-center gap-2">
+              <a href="mailto:hi@adonisblue.io" className="inline-flex min-h-[44px] items-center px-1 text-sm text-slate-400 transition hover:text-[#0d9488]">hi@adonisblue.io</a>
+              <a href="#" aria-label="Instagram" className="inline-flex h-11 w-11 items-center justify-center text-slate-400 transition hover:text-[#0d9488]">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none"/></svg>
               </a>
-              <a href="#" aria-label="TikTok" className="text-slate-400 transition hover:text-[#0d9488]">
+              <a href="#" aria-label="TikTok" className="inline-flex h-11 w-11 items-center justify-center text-slate-400 transition hover:text-[#0d9488]">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z"/></svg>
               </a>
             </div>
             <p className="text-xs text-slate-400">© {new Date().getFullYear()} AdonisBlue. All rights reserved.</p>
-            <div className="flex gap-4">
-              <a href="/privacy" className="text-xs text-slate-400 transition hover:text-[#0d9488]">Privacy Policy</a>
-              <a href="/terms" className="text-xs text-slate-400 transition hover:text-[#0d9488]">Terms of Service</a>
+            <div className="flex gap-2">
+              <a href="/privacy" className="inline-flex min-h-[44px] items-center px-1 text-xs text-slate-400 transition hover:text-[#0d9488]">Privacy Policy</a>
+              <a href="/terms" className="inline-flex min-h-[44px] items-center px-1 text-xs text-slate-400 transition hover:text-[#0d9488]">Terms of Service</a>
             </div>
           </div>
         </div>

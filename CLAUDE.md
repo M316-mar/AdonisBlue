@@ -8,6 +8,10 @@ We build what is needed, not what is trendy. Even if other tools have a feature,
 
 Before building anything, ask: does this help her clients feel cared for after the visit, or help them come back? If not, don't build it.
 
+## Phone-first
+
+Nurses use phone, then iPad, then laptop. Every UI change must pass device-check at 390px, 820px, and 1440px before pushing. `scripts/device-check.mjs` runs as part of `npm run check`. **Never weaken device-check to make a change pass — tell Valentina instead.**
+
 ## Security rules
 
 These 8 rules are enforced by `scripts/security-check.mjs`, which runs as part of `npm run check`. **After every change, run `npm run check`. Never push if it fails. Never weaken this script to make a change pass — tell Valentina instead.**

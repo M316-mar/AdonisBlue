@@ -392,7 +392,7 @@ export default function AuthPage() {
                   </p>
                   <p className="text-center text-sm text-slate-600">
                     Already have an account?{" "}
-                    <button type="button" onClick={() => switchToLogin()} className="font-semibold text-[#0d9488] hover:underline">
+                    <button type="button" onClick={() => switchToLogin()} className="inline-flex min-h-[44px] items-center px-1 font-semibold text-[#0d9488] hover:underline">
                       Log in
                     </button>
                   </p>
