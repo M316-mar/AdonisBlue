@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 
 export async function POST(request: Request) {
   try {
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    await logError("send-feedback", String(e));
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 
 function escapeHtml(str: string): string {
   return str
@@ -245,9 +246,13 @@ export async function POST(request: Request) {
 
     const { error } = await db.from("bots").upsert(update, { onConflict: "nurse_id" });
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      await logError("savebot", error.message);
+      return NextResponse.json({ error: "Something went wrong saving your settings. Please try again." }, { status: 500 });
+    }
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Unexpected error." }, { status: 500 });
+  } catch (e) {
+    await logError("savebot", String(e));
+    return NextResponse.json({ error: "Something went wrong saving your settings. Please try again." }, { status: 500 });
   }
 }

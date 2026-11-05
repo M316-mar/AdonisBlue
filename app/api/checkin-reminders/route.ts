@@ -155,7 +155,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ reminders: built, total, done });
   } catch (e) {
     await logError("checkin-reminders", String(e));
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
 
@@ -213,10 +213,13 @@ export async function PATCH(request: Request) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      await logError("checkin-reminders", error.message);
+      return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+    }
     return NextResponse.json({ reminder: updated });
   } catch (e) {
     await logError("checkin-reminders", String(e));
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

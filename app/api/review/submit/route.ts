@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { checkForEmergency } from "@/lib/emergencyCheck";
 import { sendEmergencyAlert, sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
 function escapeHtml(str: string): string {
@@ -191,7 +192,7 @@ export async function POST(request: Request) {
       facebookReviewLink,
     });
   } catch (e) {
-    console.error("Review submit error:", e);
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    await logError("review:submit", String(e));
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

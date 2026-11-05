@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { logError } from "@/lib/logError";
 
 async function getAuthenticatedUser(request: Request) {
   const token = request.headers.get("authorization")?.replace("Bearer ", "");
@@ -34,7 +35,10 @@ export async function GET(request: Request) {
       .eq("nurse_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      await logError("offers:GET", error.message);
+      return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+    }
 
     // Auto-set active = false for expired or not-yet-started offers.
     // Ongoing offers have no expiry — they stay active as long as active=true.
@@ -106,10 +110,14 @@ export async function PATCH(request: Request) {
       .eq("id", body.id)
       .eq("nurse_id", user.id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      await logError("offers:PATCH", error.message);
+      return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+    }
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (e) {
+    await logError("offers:PATCH", String(e));
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
 
@@ -129,9 +137,13 @@ export async function DELETE(request: Request) {
       .eq("id", body.id)
       .eq("nurse_id", user.id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      await logError("offers:DELETE", error.message);
+      return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+    }
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (e) {
+    await logError("offers:DELETE", String(e));
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

@@ -821,6 +821,6 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     });
   } catch (e) {
     await logError("chat", String(e));
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

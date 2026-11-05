@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { logError } from "@/lib/logError";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -135,11 +136,15 @@ export async function PATCH(request: Request) {
       .in("id", allIds)
       .eq("nurse_id", nurseId); // enforce ownership
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      await logError("incidents", error.message);
+      return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+  } catch (e) {
+    await logError("incidents", String(e));
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
 

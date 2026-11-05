@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { logError } from "@/lib/logError";
 
 export async function GET(request: Request) {
   try {
@@ -41,6 +42,7 @@ export async function GET(request: Request) {
       slug: bot?.slug,
     });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    await logError("referrals", String(e));
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

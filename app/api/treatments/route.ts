@@ -418,7 +418,7 @@ export async function PATCH(request: Request) {
 
       if (error) {
         await logError("treatments", error.message);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
       }
       return NextResponse.json({ ok: true });
     }
@@ -440,7 +440,7 @@ export async function PATCH(request: Request) {
 
       if (error) {
         await logError("treatments", error.message);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
       }
       return NextResponse.json({ ok: true });
     }
@@ -466,7 +466,7 @@ export async function PATCH(request: Request) {
 
       if (error) {
         await logError("treatments", error.message);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
       }
       return NextResponse.json({ ok: true });
     }
@@ -478,7 +478,10 @@ export async function PATCH(request: Request) {
       .eq("id", id)
       .eq("nurse_id", user.id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      await logError("treatments", error.message);
+      return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {

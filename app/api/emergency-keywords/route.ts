@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { logError } from "@/lib/logError";
 
 export async function GET(request: Request) {
   try {
@@ -26,7 +27,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ keywords: keywords ?? [] });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    await logError("emergency-keywords:GET", String(e));
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
 
@@ -54,10 +56,14 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      await logError("emergency-keywords:POST", error.message);
+      return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+    }
     return NextResponse.json({ keyword: data });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    await logError("emergency-keywords:POST", String(e));
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
 
@@ -82,6 +88,7 @@ export async function DELETE(request: Request) {
     await supabase.from("emergency_keywords").delete().eq("id", id).eq("nurse_id", user.id);
     return NextResponse.json({ success: true });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    await logError("emergency-keywords:DELETE", String(e));
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
