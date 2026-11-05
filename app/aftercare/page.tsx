@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -249,6 +249,31 @@ export default function AftercarePage() {
     rebookChecked, rebookDate, rebookProcedureIds, rebookCustomProcedure,
     returnPlanChecked, returnPlanDate, returnPlanReason, returnPlanLeadDays,
   ]);
+
+  // ── Form ref for scroll-into-view when form opens ─────────────────────────
+  const formRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (addingTreatment) {
+      setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    }
+  }, [addingTreatment]);
+
+  // ── Auto-select reminder lead days when only one valid option remains ───────
+  useEffect(() => {
+    if (!returnPlanChecked || !returnPlanDate) return;
+    const OPTIONS = [14, 7, 3, 0];
+    const tomorrow = new Date();
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    tomorrow.setUTCHours(0, 0, 0, 0);
+    const valid = OPTIONS.filter(days => {
+      const d = new Date(returnPlanDate + "T00:00:00Z");
+      d.setUTCDate(d.getUTCDate() - days);
+      return d >= tomorrow;
+    });
+    if (valid.length > 0 && !valid.includes(returnPlanLeadDays)) {
+      setReturnPlanLeadDays(valid[0]);
+    }
+  }, [returnPlanChecked, returnPlanDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load data ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -661,7 +686,7 @@ export default function AftercarePage() {
           className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6"
           style={{
             paddingLeft: "max(1rem, env(safe-area-inset-left))",
-            paddingRight: "max(1rem, env(safe-area-inset-right))",
+            paddingRight: "max(3.25rem, env(safe-area-inset-right))",
           }}
         >
           <div className="flex items-center gap-2 min-w-0">
@@ -791,7 +816,7 @@ export default function AftercarePage() {
 
           {/* Log treatment form */}
           {addingTreatment && (
-            <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 shadow-sm">
+            <div ref={formRef} className="rounded-2xl border border-teal-200 bg-teal-50 p-5 shadow-sm">
               <h3 className="mb-4 text-base font-bold text-[#1a2744]">Log a treatment 💉</h3>
 
               {/* Draft banner */}
@@ -999,13 +1024,13 @@ export default function AftercarePage() {
                 </div>
 
                 {/* Date */}
-                <div>
+                <div className="min-w-0">
                   <label className="mb-1 block text-xs font-semibold text-slate-600">Treatment date</label>
                   <input
                     type="date"
                     value={newTreatment.treatment_date}
                     onChange={e => setNewTreatment(p => ({ ...p, treatment_date: e.target.value }))}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-[#0d9488]"
+                    className="w-full max-w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-[#0d9488]"
                   />
                 </div>
 
@@ -1341,6 +1366,21 @@ export default function AftercarePage() {
                 {treatmentError && (
                   <p className="mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{treatmentError}</p>
                 )}
+                {(() => {
+                  if (!newTreatment.intake_id && !newTreatment.is_walkin) {
+                    return <p className="text-sm font-semibold text-slate-500">Choose a client to continue.</p>;
+                  }
+                  if (newTreatment.procedure_ids.length === 0 && !customProcedure.trim()) {
+                    return <p className="text-sm font-semibold text-slate-500">Pick at least one procedure.</p>;
+                  }
+                  if (newTreatment.send_aftercare) {
+                    const unapproved = procedures.filter(p => newTreatment.procedure_ids.includes(p.id) && !p.approved_at);
+                    if (unapproved.length > 0) {
+                      return <p className="text-sm font-semibold text-amber-700">Add aftercare for {unapproved.map(p => p.name).join(", ")} above first.</p>;
+                    }
+                  }
+                  return null;
+                })()}
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
