@@ -322,7 +322,7 @@ export default function OffersPage() {
           </div>
           <Link
             href="/dashboard"
-            className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+            className="inline-flex min-h-[44px] shrink-0 items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
           >
             ← Dashboard
           </Link>

@@ -437,7 +437,7 @@ export default function NurseDashboardPage() {
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800 antialiased">
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
-          <Link href="/dashboard" className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
+          <Link href="/dashboard" className="flex min-h-[44px] min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
             <Image src="/Alona.png" alt="AdonisBlue" width={48} height={48} className="h-10 w-10 sm:h-12 sm:w-12" />
             <span className="truncate text-base font-semibold tracking-tight text-[#1a2744] sm:text-lg">AdonisBlue</span>
           </Link>
@@ -448,7 +448,7 @@ export default function NurseDashboardPage() {
                 const el = document.getElementById("assistant-panel");
                 el?.scrollIntoView({ behavior: "smooth" });
               }}
-              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-[#1a2744] transition hover:bg-slate-50"
+              className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-[#1a2744] transition hover:bg-slate-50"
               aria-label={alertCount > 0 ? `${alertCount} unhandled alert${alertCount !== 1 ? "s" : ""}` : "Go to assistant"}
             >
               🔔
@@ -460,7 +460,7 @@ export default function NurseDashboardPage() {
             </button>
             <Link
               href="/account"
-              className="hidden items-center gap-2 sm:flex min-w-0 max-w-[14rem]"
+              className="hidden min-h-[44px] items-center gap-2 sm:flex min-w-0 max-w-[14rem]"
               aria-label="My Account"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1a2744] text-xs font-bold text-white transition hover:bg-[#0d9488] select-none">
@@ -473,13 +473,13 @@ export default function NurseDashboardPage() {
             <button
               type="button"
               onClick={handleLogout}
-              className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50 sm:px-4 sm:text-sm"
+              className="inline-flex min-h-[44px] shrink-0 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50 sm:px-4 sm:text-sm"
             >
               Log out
             </button>
           </div>
         </div>
-        <Link href="/account" className="mx-auto block max-w-6xl truncate px-4 pb-2 text-xs font-medium text-slate-600 sm:hidden hover:text-teal-700">{nurseName}</Link>
+        <Link href="/account" className="mx-auto flex max-w-6xl min-h-[44px] items-center truncate px-4 text-xs font-medium text-slate-600 sm:hidden hover:text-teal-700">{nurseName}</Link>
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-28 lg:px-8 lg:py-10 lg:pb-28">
@@ -644,7 +644,7 @@ export default function NurseDashboardPage() {
                     localStorage.setItem("emailNoticesDismissed", "true");
                     setShowEmailNotice(false);
                   }}
-                  className="shrink-0 text-amber-400 hover:text-amber-600 text-xs"
+                  className="shrink-0 flex h-11 w-11 items-center justify-center text-amber-400 hover:text-amber-600"
                 >
                   ✕
                 </button>
@@ -711,7 +711,7 @@ export default function NurseDashboardPage() {
             <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 flex items-center gap-3">
               <span className="text-lg shrink-0">💉</span>
               <p className="text-sm text-teal-800 flex-1">After every appointment, log your treatment in Treatment Records so AdonisBlue can send aftercare emails and rebooking reminders automatically.</p>
-              <a href="/aftercare" className="shrink-0 text-sm font-semibold text-teal-700 hover:text-teal-900 whitespace-nowrap">Log a treatment →</a>
+              <a href="/aftercare" className="inline-flex min-h-[44px] shrink-0 items-center text-sm font-semibold text-teal-700 hover:text-teal-900 whitespace-nowrap">Log a treatment →</a>
             </div>
 
             {(() => {
@@ -860,7 +860,7 @@ export default function NurseDashboardPage() {
                     {plan === "trial" || plan === "free" ? (
                       <Link
                         href="/upgrade"
-                        className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                        className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-full bg-[#0d9488] px-4 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
                       >
                         Upgrade to Starter →
                       </Link>
@@ -869,7 +869,7 @@ export default function NurseDashboardPage() {
                         type="button"
                         disabled={portalBusy}
                         onClick={() => void handleManagePlan()}
-                        className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700 disabled:opacity-60"
+                        className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-full bg-[#0d9488] px-4 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700 disabled:opacity-60"
                       >
                         {portalBusy ? "Opening portal…" : "Manage plan →"}
                       </button>
@@ -878,7 +878,7 @@ export default function NurseDashboardPage() {
                       <button
                         type="button"
                         onClick={() => setShowAccountManagement((v) => !v)}
-                        className="mb-1.5 w-full text-center text-xs font-semibold text-slate-400 hover:text-slate-600"
+                        className="mb-1.5 inline-flex min-h-[44px] w-full items-center justify-center text-xs font-semibold text-slate-400 hover:text-slate-600"
                       >
                         {showAccountManagement ? "Hide account options ▲" : "Manage account ▾"}
                       </button>
@@ -889,7 +889,7 @@ export default function NurseDashboardPage() {
                           type="button"
                           disabled={freezeLoading}
                           onClick={() => void handleFreezeToggle()}
-                          className={`inline-flex w-full items-center justify-center rounded-full border-2 px-4 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                          className={`inline-flex min-h-[44px] w-full items-center justify-center rounded-full border-2 px-4 text-xs font-semibold transition disabled:opacity-50 ${
                             bot?.frozen
                               ? "border-teal-400 bg-teal-50 text-teal-700 hover:bg-teal-100"
                               : "border-slate-300 bg-slate-50 text-slate-500 hover:bg-slate-100"
@@ -966,7 +966,7 @@ export default function NurseDashboardPage() {
                         setBookingCopied(true);
                         setTimeout(() => setBookingCopied(false), 2000);
                       }}
-                      className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 transition hover:bg-teal-50 hover:text-teal-600"
+                      className="inline-flex min-h-[44px] shrink-0 items-center rounded-full bg-slate-100 px-2 text-xs font-semibold text-slate-500 transition hover:bg-teal-50 hover:text-teal-600"
                     >
                       {bookingCopied ? "Copied!" : "Copy"}
                     </button>
@@ -975,7 +975,7 @@ export default function NurseDashboardPage() {
                 <div className="flex flex-col gap-2">
                   <Link
                     href="/onboarding?step=1"
-                    className="inline-flex w-full items-center justify-center rounded-full bg-[#0d9488] px-4 py-2 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center rounded-full bg-[#0d9488] px-4 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
                   >
                     Edit assistant
                   </Link>
@@ -984,7 +984,7 @@ export default function NurseDashboardPage() {
                       href={`/chat/${botChatSlug}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-center text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                      className="inline-flex min-h-[44px] w-full items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-center text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
                     >
                       Preview →
                     </Link>
@@ -1226,7 +1226,7 @@ export default function NurseDashboardPage() {
                   setShowLaunchCelebration(false);
                   localStorage.setItem("ab-celebrated-" + botChatSlug, "true");
                 }}
-                className="mt-4 text-xs text-slate-400 underline underline-offset-2 transition hover:text-white"
+                className="mt-4 inline-flex min-h-[44px] items-center text-xs text-slate-400 underline underline-offset-2 transition hover:text-white"
               >
                 Close and go to dashboard
               </button>

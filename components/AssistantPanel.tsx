@@ -581,7 +581,7 @@ const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
                   <button
                     type="button"
                     onClick={() => router.push("/account#practice")}
-                    className="rounded-full bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#243552]"
+                    className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#1a2744] px-3 text-xs font-semibold text-white transition hover:bg-[#243552]"
                   >
                     Take me there →
                   </button>
@@ -591,7 +591,7 @@ const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
                       setRebookingDismissed(true);
                       try { localStorage.setItem("ab-rebooking-nudge-dismissed", new Date().toISOString()); } catch { /* ignore */ }
                     }}
-                    className="text-center text-xs text-slate-400 hover:text-slate-600 transition"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center text-xs text-slate-400 hover:text-slate-600 transition"
                   >
                     Dismiss
                   </button>
@@ -610,7 +610,7 @@ const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
                 <button
                   type="button"
                   onClick={() => router.push("/onboarding")}
-                  className="shrink-0 rounded-full bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700"
+                  className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-full bg-teal-600 px-3 text-xs font-semibold text-white transition hover:bg-teal-700"
                 >
                   Continue →
                 </button>
@@ -631,7 +631,7 @@ const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
                   localStorage.setItem("ab-feedback-last-asked", new Date().toISOString());
                 } catch { /* ignore */ }
               }}
-              className="w-full text-left text-xs text-slate-400 transition hover:text-teal-600"
+              className="inline-flex min-h-[44px] w-full items-center text-left text-xs text-slate-400 transition hover:text-teal-600"
             >
               💡 Share an idea or contact support
             </button>

@@ -690,7 +690,7 @@ export default function AftercarePage() {
           }}
         >
           <div className="flex items-center gap-2 min-w-0">
-            <Link href="/dashboard" className="shrink-0">
+            <Link href="/dashboard" className="flex h-12 w-12 shrink-0 items-center justify-center">
               <Image src="/Alona.png" alt="AdonisBlue" width={36} height={36} className="rounded-xl" />
             </Link>
             <div className="min-w-0">
@@ -709,7 +709,7 @@ export default function AftercarePage() {
       </header>
 
       <main
-        className="mx-auto max-w-5xl px-4 py-5 sm:px-6 sm:py-6"
+        className="mx-auto max-w-5xl px-4 py-5 pb-20 sm:px-6 sm:py-6 sm:pb-8"
         style={{
           paddingLeft: "max(1rem, env(safe-area-inset-left))",
           paddingRight: "max(1rem, env(safe-area-inset-right))",
@@ -1885,7 +1885,7 @@ export default function AftercarePage() {
                 if (!showArchived) await loadArchivedTreatments();
                 setShowArchived(v => !v);
               }}
-              className="text-xs font-semibold text-slate-400 underline-offset-2 transition hover:text-slate-600 hover:underline"
+              className="inline-flex min-h-[44px] items-center text-xs font-semibold text-slate-400 underline-offset-2 transition hover:text-slate-600 hover:underline"
             >
               {showArchived
                 ? "Hide archived"

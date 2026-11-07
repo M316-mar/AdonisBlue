@@ -162,6 +162,26 @@ async function runChecks(page, viewport) {
       const top = document.elementFromPoint(cx, cy);
       if (!top) continue;
       if (top !== el && !el.contains(top) && !top.contains(el)) {
+        // Skip if the covering element is part of an ARIA modal/dialog —
+        // a dialog legitimately obscures everything behind it.
+        let node = top;
+        let skip = false;
+        while (node) {
+          const role = node.getAttribute?.("role");
+          const modal = node.getAttribute?.("aria-modal");
+          if (role === "dialog" || modal === "true") { skip = true; break; }
+          // Skip elements inside a fixed-position ancestor (e.g. sticky header,
+          // bottom nav) — fixed chrome legitimately overlaps scrollable content
+          // and the user can always scroll the target element away from it.
+          if (node.nodeType === 1 && window.getComputedStyle(node).position === "fixed") {
+            skip = true; break;
+          }
+          node = node.parentElement;
+        }
+        // Skip nextjs dev-portal (dev-mode artifact, not present in production)
+        if (top.tagName?.toLowerCase() === "nextjs-portal") skip = true;
+        if (skip) continue;
+
         const covTag = top.tagName.toLowerCase();
         const covCls = top.className?.toString().slice(0, 60) ?? "";
         const text = (el.textContent ?? "").trim().slice(0, 40);

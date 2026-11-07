@@ -101,7 +101,7 @@ export function SideNavRail() {
     <>
       {/* ── Left rail — desktop (sm+) ── */}
       <nav className="hidden sm:flex w-20 shrink-0 flex-col items-center gap-1 border-r border-slate-200 bg-white py-4 fixed top-0 left-0 h-full z-40">
-        <Link href="/dashboard" className="mb-3 mt-1">
+        <Link href="/dashboard" className="mb-3 mt-1 flex h-12 w-12 items-center justify-center">
           <Image src="/Alona.png" alt="AdonisBlue" width={36} height={36} className="rounded-xl" />
         </Link>
         {NAV_ITEMS.map((item) => (
@@ -130,7 +130,7 @@ export function SideNavRail() {
       <Link
         href="/account"
         aria-label="My Account"
-        className="sm:hidden fixed top-3 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white shadow transition hover:bg-[#0d9488] select-none"
+        className="sm:hidden fixed top-3 right-4 z-[60] flex h-11 w-11 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white shadow transition hover:bg-[#0d9488] select-none"
       >
         {nurseInitial}
       </Link>

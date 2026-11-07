@@ -59,7 +59,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-const INPUT = "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0d9488] focus:bg-white transition";
+const INPUT = "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-slate-800 outline-none focus:border-[#0d9488] focus:bg-white transition";
 const TEXTAREA = `${INPUT} resize-none`;
 
 function AccountPageInner() {
@@ -345,7 +345,7 @@ function AccountPageInner() {
                   <button
                     type="button"
                     onClick={() => setShowEmailChange(v => !v)}
-                    className="shrink-0 rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                    className="inline-flex min-h-[44px] shrink-0 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
                   >
                     Change
                   </button>
@@ -365,7 +365,7 @@ function AccountPageInner() {
                       required
                       className={`${INPUT} flex-1`}
                     />
-                    <button type="submit" className="shrink-0 rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white hover:bg-teal-700">
+                    <button type="submit" className="inline-flex min-h-[44px] shrink-0 items-center rounded-full bg-[#0d9488] px-4 text-xs font-semibold text-white hover:bg-teal-700">
                       Send link
                     </button>
                   </form>
@@ -378,7 +378,7 @@ function AccountPageInner() {
                   <button
                     type="button"
                     onClick={handlePasswordReset}
-                    className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                    className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
                   >
                     Send password reset email
                   </button>
@@ -412,7 +412,7 @@ function AccountPageInner() {
                 <SaveButton saving={practiceSaving} saved={practiceSaved} />
               </div>
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                <a href="/booking-connect" className="font-semibold text-[#0d9488] hover:underline">Connect your booking software →</a>
+                <a href="/booking-connect" className="inline-flex min-h-[44px] items-center font-semibold text-[#0d9488] hover:underline">Connect your booking software →</a>
                 <span className="ml-2 text-slate-400">Vagaro, Jane, Square, Acuity, and more</span>
               </div>
             </form>
@@ -495,18 +495,18 @@ function AccountPageInner() {
                   type="button"
                   onClick={generateGreeting}
                   disabled={greetingGenerating}
-                  className="mt-1.5 text-xs font-semibold text-[#0d9488] hover:underline disabled:opacity-50"
+                  className="mt-1.5 inline-flex min-h-[44px] items-center text-xs font-semibold text-[#0d9488] hover:underline disabled:opacity-50"
                 >
                   {greetingGenerating ? "Generating…" : "✨ Generate one for me"}
                 </button>
               </Field>
               <Field label="Chat link">
                 <div className="flex items-center gap-2">
-                  <input value={chatUrl} readOnly className={`${INPUT} flex-1 text-slate-400 text-xs`} />
+                  <input value={chatUrl} readOnly className={`${INPUT} flex-1 text-slate-400`} />
                   <button
                     type="button"
                     onClick={() => { void navigator.clipboard.writeText(chatUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-                    className="shrink-0 rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                    className="inline-flex min-h-[44px] shrink-0 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
                   >
                     {copied ? "Copied!" : "Copy"}
                   </button>
@@ -537,12 +537,12 @@ function AccountPageInner() {
                   type="button"
                   disabled={portalBusy}
                   onClick={() => void handleManagePlan()}
-                  className="rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
+                  className="inline-flex min-h-[44px] items-center rounded-full bg-[#0d9488] px-5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
                 >
                   {portalBusy ? "Opening…" : "Manage billing →"}
                 </button>
               ) : (
-                <Link href="/upgrade" className="inline-flex rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700">
+                <Link href="/upgrade" className="inline-flex min-h-[44px] items-center rounded-full bg-[#0d9488] px-5 text-sm font-semibold text-white transition hover:bg-teal-700">
                   Upgrade to Starter →
                 </Link>
               )}
@@ -592,7 +592,7 @@ function AccountPageInner() {
                 <button
                   type="button"
                   onClick={() => setDeleteDialogOpen(true)}
-                  className="text-sm font-medium text-red-600 underline decoration-red-600/40 underline-offset-2 transition hover:text-red-700"
+                  className="inline-flex min-h-[44px] items-center text-sm font-medium text-red-600 underline decoration-red-600/40 underline-offset-2 transition hover:text-red-700"
                 >
                   Delete account
                 </button>

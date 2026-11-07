@@ -60,13 +60,13 @@ export default function AskPage() {
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-white/10 bg-[#0d1628]/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex min-h-[44px] items-center gap-2">
             <Image src="/Alona.png" alt="AdonisBlue" width={36} height={36} className="rounded-xl" />
             <span className="text-sm font-bold text-white">AdonisBlue</span>
           </Link>
           <Link
             href="/beta"
-            className="rounded-full bg-[#0d9488] px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:bg-teal-600"
+            className="inline-flex min-h-[44px] items-center rounded-full bg-[#0d9488] px-4 text-xs font-semibold text-white shadow-md transition hover:bg-teal-600"
           >
             Apply for beta →
           </Link>
@@ -126,7 +126,7 @@ export default function AskPage() {
             onKeyDown={handleKeyDown}
             placeholder="Ask anything about AdonisBlue…"
             disabled={loading}
-            className="flex-1 resize-none rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder-slate-400 outline-none transition focus:border-teal-400/60 focus:ring-2 focus:ring-teal-400/20 disabled:opacity-50"
+            className="flex-1 resize-none rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-base text-white placeholder-slate-400 outline-none transition focus:border-teal-400/60 focus:ring-2 focus:ring-teal-400/20 disabled:opacity-50"
             style={{ minHeight: "2.75rem", maxHeight: "8rem" }}
           />
           <button
@@ -141,7 +141,7 @@ export default function AskPage() {
             </svg>
           </button>
         </div>
-        <p className="mt-2 text-center text-xs text-slate-500">Beta spots open · <a href="mailto:hi@adonisblue.io" className="text-teal-400 hover:underline">hi@adonisblue.io</a></p>
+        <p className="mt-2 text-center text-xs text-slate-500">Beta spots open · <a href="mailto:hi@adonisblue.io" className="inline-flex min-h-[44px] items-center text-teal-400 hover:underline">hi@adonisblue.io</a></p>
       </div>
     </div>
   );

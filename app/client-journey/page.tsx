@@ -746,14 +746,14 @@ export default function ClientJourneyPage() {
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
-          <Link href="/dashboard">
+          <Link href="/dashboard" className="flex h-12 w-12 items-center justify-center">
             <Image src="/Alona.png" alt="AdonisBlue" width={36} height={36} className="rounded-xl" />
           </Link>
           <div className="min-w-0 flex-1">
             <h1 className="text-sm font-bold text-[#1a2744] sm:text-base truncate">📋 Send Emails &amp; Alerts</h1>
             <p className="hidden text-xs text-slate-500 sm:block">Manage every client touchpoint and safety alert</p>
           </div>
-          <Link href="/dashboard" className="shrink-0 text-sm font-semibold text-[#1a2744] hover:text-[#0d9488]">
+          <Link href="/dashboard" className="inline-flex min-h-[44px] shrink-0 items-center text-sm font-semibold text-[#1a2744] hover:text-[#0d9488]">
             ← Dashboard
           </Link>
         </div>
@@ -776,7 +776,7 @@ export default function ClientJourneyPage() {
               key={t.id}
               type="button"
               onClick={() => { setTab(t.id); setShowPreview(false); setProcedurePreviewOpen(false); }}
-              className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition whitespace-nowrap ${tab === t.id ? "bg-[#1a2744] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+              className={`inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-full px-4 text-xs font-semibold transition whitespace-nowrap ${tab === t.id ? "bg-[#1a2744] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
             >
               {t.emoji} {t.label}
             </button>
@@ -788,7 +788,7 @@ export default function ClientJourneyPage() {
               key={t.id}
               type="button"
               onClick={() => { setTab(t.id); setShowPreview(false); setProcedurePreviewOpen(false); }}
-              className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition whitespace-nowrap ${tab === t.id ? (t.id === "emergency" ? "bg-red-500 text-white" : "bg-[#1a2744] text-white") : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+              className={`inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-full px-4 text-xs font-semibold transition whitespace-nowrap ${tab === t.id ? (t.id === "emergency" ? "bg-red-500 text-white" : "bg-[#1a2744] text-white") : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
             >
               {t.emoji} {t.label}
             </button>
@@ -808,7 +808,7 @@ export default function ClientJourneyPage() {
                 <p className="mt-1 text-sm text-slate-500">Log a treatment to see client history here.</p>
                 <Link
                   href="/aftercare"
-                  className="mt-4 inline-flex items-center justify-center rounded-full bg-[#0d9488] px-5 py-2 text-sm font-semibold text-white transition hover:bg-teal-700"
+                  className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#0d9488] px-5 text-sm font-semibold text-white transition hover:bg-teal-700"
                 >
                   Log a treatment →
                 </Link>
