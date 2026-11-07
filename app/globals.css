@@ -59,3 +59,8 @@ body {
 .animate-fab-pulse {
   animation: fab-pulse 2s ease-in-out infinite;
 }
+
+/* Ensure scrolled-to elements clear the sticky header (~56 px) on mobile */
+button, a, input, select, textarea {
+  scroll-margin-top: 72px;
+}

@@ -709,11 +709,10 @@ export default function AftercarePage() {
       </header>
 
       <main
-        className="mx-auto max-w-5xl px-4 py-5 pb-20 sm:px-6 sm:py-6 sm:pb-8"
+        className="mx-auto max-w-5xl px-4 pt-5 pb-28 sm:px-6 sm:pt-6 sm:pb-8"
         style={{
           paddingLeft: "max(1rem, env(safe-area-inset-left))",
           paddingRight: "max(1rem, env(safe-area-inset-right))",
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
         }}
       >
         {/* Success banner */}

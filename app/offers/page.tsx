@@ -329,7 +329,7 @@ export default function OffersPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto max-w-3xl space-y-6 px-4 pt-6 pb-24 sm:px-6 sm:pt-8 sm:pb-8">
 
         {/* ── Tip card ─────────────────────────────────────────────────── */}
         <div className="rounded-2xl border border-teal-100 bg-teal-50 px-5 py-4">

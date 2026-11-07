@@ -282,7 +282,7 @@ export default function CheckinPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+      <main className="mx-auto max-w-2xl px-4 pt-8 pb-24 sm:px-6 sm:pb-8">
         {/* ── Week header ── */}
         <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
           <div>

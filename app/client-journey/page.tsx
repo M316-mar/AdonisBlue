@@ -796,7 +796,7 @@ export default function ClientJourneyPage() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-2xl space-y-4 px-4 py-4 pb-16">
+      <main className="mx-auto max-w-2xl space-y-4 px-4 pt-4 pb-24 sm:pb-8">
 
         {/* ── Clients Tab ───────────────────────────────────────────────── */}
         {tab === "charts" && (
