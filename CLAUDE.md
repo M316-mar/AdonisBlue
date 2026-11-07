@@ -24,6 +24,8 @@ These 8 rules are enforced by `scripts/security-check.mjs`, which runs as part o
 6. **Migration safety** — any new migration that runs `CREATE TABLE` must include `ENABLE ROW LEVEL SECURITY`. Any `GRANT ... TO anon` requires a `-- anon justified:` comment explaining why public read is necessary.
 7. **Bot field allowlist** — `/api/bot/[slug]` must only return fields in its `PUBLIC_BOT_FIELDS` constant. Private fields (`nurse_id`, `id`, `notification_email`, `alert_*`, `stripe_*`, etc.) must never be included.
 8. **Dependency audit** — `npm audit --omit=dev` must report zero high or critical vulnerabilities.
+9. **Never print credentials** — never echo, repeat, or log any password, key, or secret in chat, logs, reports, or commits, even if asked to "show" it. Show only the email address or the variable name.
+10. **TEST_NURSE_EMAIL must not be an admin email** — it must never match any address in `ADMIN_EMAILS`. `scripts/device-check.mjs` must refuse to run logged-in checks if it is, and exit with an error.
 
 ## What AdonisBlue must always deliver (in priority order)
 1. SAFETY — emergency alerts always reach the nurse. Never let any change risk this.

@@ -37,17 +37,26 @@ const BASE_URL = process.env.DEVICE_CHECK_BASE_URL ?? "http://localhost:3000";
 // ── Load credentials from .env.local ──────────────────────────────────────────
 let testEmail = "";
 let testPassword = "";
+let adminEmails = [];
 const envPath = join(ROOT, ".env.local");
 if (existsSync(envPath)) {
-  const env = readFileSync(envPath, "utf8");
-  for (const line of env.split("\n")) {
+  const envText = readFileSync(envPath, "utf8");
+  for (const line of envText.split("\n")) {
     const [k, ...rest] = line.split("=");
     const v = rest.join("=").trim();
     if (k?.trim() === "TEST_NURSE_EMAIL") testEmail = v;
     if (k?.trim() === "TEST_NURSE_PASSWORD") testPassword = v;
+    if (k?.trim() === "ADMIN_EMAILS") adminEmails = v.split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
   }
 }
 const hasCredentials = !!(testEmail && testPassword);
+
+// Rule 10: TEST_NURSE_EMAIL must not be an admin email.
+if (hasCredentials && adminEmails.includes(testEmail.toLowerCase())) {
+  process.stderr.write(`\nERROR: TEST_NURSE_EMAIL (${testEmail}) is listed in ADMIN_EMAILS.\n`);
+  process.stderr.write(`Logged-in device-check must not run as an admin. Use a non-admin test account.\n`);
+  process.exit(1);
+}
 
 // ── Viewports ──────────────────────────────────────────────────────────────────
 const VIEWPORTS = [
