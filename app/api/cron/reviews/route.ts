@@ -27,6 +27,7 @@ export async function GET(request: Request) {
 
   let sent = 0;
   let failed = 0;
+  let cronError: string | null = null;
 
   try {
     const now = new Date();
@@ -73,7 +74,8 @@ export async function GET(request: Request) {
       .not("email", "is", null);
 
     if (intakesError) {
-      console.error("[cron/reviews] query error:", intakesError.message);
+      cronError = intakesError.message;
+      await logError("cron:reviews", intakesError.message);
       return NextResponse.json({ error: String(intakesError.message) }, { status: 500 });
     }
 
@@ -144,16 +146,16 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, sent });
   } catch (e) {
-    console.error("[cron/reviews] unexpected error:", e);
+    cronError = String(e);
     await logError("cron:reviews", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   } finally {
-    // Step 2G: heartbeat on every post-auth exit path
     await supabase.from("message_log").insert({
       type: "cron:reviews",
       channel: "email",
-      status: "sent",
-      error: `sent ${sent}, failed ${failed}`,
+      status: cronError ? "error" : "ok",
+      error: cronError ? null : `sent ${sent}, failed ${failed}`,
+      error_message: cronError ?? null,
     }).then(() => {}, () => {});
   }
 }

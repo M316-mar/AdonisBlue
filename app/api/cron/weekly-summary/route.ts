@@ -56,82 +56,83 @@ export async function GET(request: Request) {
 
   const { weekStart, weekEnd, labelStart, labelEnd } = chicagoWeekBounds();
 
-  const { data: rows } = await supabase
-    .from("message_log")
-    .select("type, status, error")
-    .gte("created_at", weekStart)
-    .lte("created_at", weekEnd);
+  let cronError: string | null = null;
+  let chatReplies = 0, aftercareSent = 0, checkinsSent = 0;
+  let remindersSent = 0, reviewsSent = 0, emergencySent = 0;
 
-  const log = rows ?? [];
+  try {
+    const { data: rows } = await supabase
+      .from("message_log")
+      .select("type, status, error")
+      .gte("created_at", weekStart)
+      .lte("created_at", weekEnd);
 
-  // Count returning clients: treatments created this week that triggered a rebooked_at on a prior treatment
-  const { data: rebookedThisWeek } = await supabase
-    .from("treatments")
-    .select("id, intake_id")
-    .gte("created_at", weekStart)
-    .lte("created_at", weekEnd);
+    const log = rows ?? [];
 
-  // A returning client = new treatment this week where that intake_id had any prior treatment
-  let returningCount = 0;
-  if (rebookedThisWeek && rebookedThisWeek.length > 0) {
-    const newIntakeIds = [...new Set(rebookedThisWeek.map((t: { id: string; intake_id: string }) => t.intake_id).filter(Boolean))];
-    if (newIntakeIds.length > 0) {
-      // Count intakes that also have older treatments (created before weekStart)
-      const { data: priorTreatments } = await supabase
-        .from("treatments")
-        .select("intake_id")
-        .in("intake_id", newIntakeIds)
-        .lt("created_at", weekStart);
-      const returningIntakeIds = new Set((priorTreatments ?? []).map((t: { intake_id: string }) => t.intake_id));
-      returningCount = newIntakeIds.filter((id) => returningIntakeIds.has(id)).length;
+    // Count returning clients: treatments created this week where that intake had any prior treatment
+    const { data: rebookedThisWeek } = await supabase
+      .from("treatments")
+      .select("id, intake_id")
+      .gte("created_at", weekStart)
+      .lte("created_at", weekEnd);
+
+    let returningCount = 0;
+    if (rebookedThisWeek && rebookedThisWeek.length > 0) {
+      const newIntakeIds = [...new Set(rebookedThisWeek.map((t: { id: string; intake_id: string }) => t.intake_id).filter(Boolean))];
+      if (newIntakeIds.length > 0) {
+        const { data: priorTreatments } = await supabase
+          .from("treatments")
+          .select("intake_id")
+          .in("intake_id", newIntakeIds)
+          .lt("created_at", weekStart);
+        const returningIntakeIds = new Set((priorTreatments ?? []).map((t: { intake_id: string }) => t.intake_id));
+        returningCount = newIntakeIds.filter((id) => returningIntakeIds.has(id)).length;
+      }
     }
-  }
 
-  const count = (types: string[], status = "sent") =>
-    log.filter(r => types.includes(r.type) && r.status === status).length;
+    const count = (types: string[], status = "sent") =>
+      log.filter(r => types.includes(r.type) && r.status === status).length;
 
-  const chatReplies      = count(["chat"]);
-  const aftercareSent    = count(["aftercare"]);
-  const checkinsSent     = count(["wellness_checkin"]);
-  const remindersSent    = count(["reminder", "prep_reminder", "treatment_reminder"]);
-  const reviewsSent      = count(["review_request"]);
-  const emergencySent    = count(["emergency_alert"]);
-  const emergencyFailed  = count(["emergency_alert"], "failed");
+    chatReplies      = count(["chat"]);
+    aftercareSent    = count(["aftercare"]);
+    checkinsSent     = count(["wellness_checkin"]);
+    remindersSent    = count(["reminder", "prep_reminder", "treatment_reminder"]);
+    reviewsSent      = count(["review_request"]);
+    emergencySent    = count(["emergency_alert"]);
+    const emergencyFailed  = count(["emergency_alert"], "failed");
 
-  const totalFailed = log.filter(r => r.status === "failed" && r.type !== "emergency_alert").length;
+    const totalFailed = log.filter(r => r.status === "failed" && r.type !== "emergency_alert").length;
 
-  // Build lines — hide if 0 except emergency alerts
-  const lines: string[] = [];
-  if (chatReplies > 0)
-    lines.push(`💬 Answered ${chatReplies} client message${chatReplies !== 1 ? "s" : ""}`);
-  if (aftercareSent > 0 || checkinsSent > 0)
-    lines.push(`💙 Sent ${aftercareSent} aftercare email${aftercareSent !== 1 ? "s" : ""} and ${checkinsSent} check-in${checkinsSent !== 1 ? "s" : ""}`);
-  if (remindersSent > 0 || reviewsSent > 0)
-    lines.push(`🔔 Sent ${remindersSent} reminder${remindersSent !== 1 ? "s" : ""} and ${reviewsSent} review request${reviewsSent !== 1 ? "s" : ""}`);
-  if (returningCount > 0)
-    lines.push(`🔁 ${returningCount} client${returningCount !== 1 ? "s" : ""} booked again`);
+    const lines: string[] = [];
+    if (chatReplies > 0)
+      lines.push(`💬 Answered ${chatReplies} client message${chatReplies !== 1 ? "s" : ""}`);
+    if (aftercareSent > 0 || checkinsSent > 0)
+      lines.push(`💙 Sent ${aftercareSent} aftercare email${aftercareSent !== 1 ? "s" : ""} and ${checkinsSent} check-in${checkinsSent !== 1 ? "s" : ""}`);
+    if (remindersSent > 0 || reviewsSent > 0)
+      lines.push(`🔔 Sent ${remindersSent} reminder${remindersSent !== 1 ? "s" : ""} and ${reviewsSent} review request${reviewsSent !== 1 ? "s" : ""}`);
+    if (returningCount > 0)
+      lines.push(`🔁 ${returningCount} client${returningCount !== 1 ? "s" : ""} booked again`);
 
-  // Emergency alerts always shown
-  const emergencyLine = emergencySent === 0
-    ? `🚨 No emergency alerts`
-    : emergencyFailed > 0
-      ? `🚨 Sent ${emergencySent} emergency alert${emergencySent !== 1 ? "s" : ""} to nurses — ${emergencyFailed} couldn't be delivered`
-      : `🚨 Sent ${emergencySent} emergency alert${emergencySent !== 1 ? "s" : ""} to nurses — all delivered`;
-  lines.push(emergencyLine);
+    const emergencyLine = emergencySent === 0
+      ? `🚨 No emergency alerts`
+      : emergencyFailed > 0
+        ? `🚨 Sent ${emergencySent} emergency alert${emergencySent !== 1 ? "s" : ""} to nurses — ${emergencyFailed} couldn't be delivered`
+        : `🚨 Sent ${emergencySent} emergency alert${emergencySent !== 1 ? "s" : ""} to nurses — all delivered`;
+    lines.push(emergencyLine);
 
-  const allZero = chatReplies === 0 && aftercareSent === 0 && checkinsSent === 0
-    && remindersSent === 0 && reviewsSent === 0 && emergencySent === 0;
-  const closingLine = totalFailed > 0
-    ? `⚠️ ${totalFailed} email${totalFailed !== 1 ? "s" : ""} couldn't be sent.`
-    : allZero
-      ? "It was a quiet week — no client activity."
-      : "✅ Everything worked.";
+    const allZero = chatReplies === 0 && aftercareSent === 0 && checkinsSent === 0
+      && remindersSent === 0 && reviewsSent === 0 && emergencySent === 0;
+    const closingLine = totalFailed > 0
+      ? `⚠️ ${totalFailed} email${totalFailed !== 1 ? "s" : ""} couldn't be sent.`
+      : allZero
+        ? "It was a quiet week — no client activity."
+        : "✅ Everything worked.";
 
-  const linesHtml = lines
-    .map(l => `<p style="margin:0 0 10px;font-size:15px;color:#334155;">${l}</p>`)
-    .join("");
+    const linesHtml = lines
+      .map(l => `<p style="margin:0 0 10px;font-size:15px;color:#334155;">${l}</p>`)
+      .join("");
 
-  const html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
@@ -155,24 +156,25 @@ export async function GET(request: Request) {
   </table>
 </body></html>`;
 
-  try {
     await resend.emails.send({
       from: "AdonisBlue <hi@adonisblue.io>",
       to: "hi@adonisblue.io",
       subject: `📊 Your AdonisBlue week: ${labelStart} – ${labelEnd}`,
       html,
     });
+
+    return NextResponse.json({ ok: true, week: `${labelStart} – ${labelEnd}` });
   } catch (e) {
+    cronError = String(e);
     await logError("cron:weekly-summary", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
+  } finally {
+    await supabase.from("message_log").insert({
+      type: "cron:weekly-summary",
+      channel: "email",
+      status: cronError ? "error" : "ok",
+      error: cronError ? null : `chat=${chatReplies} aftercare=${aftercareSent} checkins=${checkinsSent} reminders=${remindersSent} reviews=${reviewsSent} emergency=${emergencySent}`,
+      error_message: cronError ?? null,
+    }).then(() => {}, () => {});
   }
-
-  await supabase.from("message_log").insert({
-    type: "cron:weekly-summary",
-    channel: "email",
-    status: "sent",
-    error: `chat=${chatReplies} aftercare=${aftercareSent} checkins=${checkinsSent} reminders=${remindersSent} reviews=${reviewsSent} emergency=${emergencySent}`,
-  }).then(() => {}, () => {});
-
-  return NextResponse.json({ ok: true, week: `${labelStart} – ${labelEnd}` });
 }

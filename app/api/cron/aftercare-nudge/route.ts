@@ -25,6 +25,7 @@ export async function GET(request: Request) {
 
   let sent = 0;
   let skipped = 0;
+  let cronError: string | null = null;
 
   try {
     const now = new Date();
@@ -50,7 +51,8 @@ export async function GET(request: Request) {
       .not("intake_id", "is", null);
 
     if (error) {
-      console.error("[aftercare-nudge] query error:", error.message);
+      cronError = error.message;
+      await logError("cron:aftercare-nudge", error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -184,16 +186,16 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ sent, skipped });
   } catch (e) {
-    console.error("[aftercare-nudge] unexpected error:", e);
+    cronError = String(e);
     await logError("cron:aftercare-nudge", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   } finally {
-    // Step 2G: heartbeat on every post-auth exit path
     await supabase.from("message_log").insert({
       type: "cron:aftercare-nudge",
       channel: "email",
-      status: "sent",
-      error: `sent ${sent}, skipped ${skipped}`,
+      status: cronError ? "error" : "ok",
+      error: cronError ? null : `sent ${sent}, skipped ${skipped}`,
+      error_message: cronError ?? null,
     }).then(() => {}, () => {});
   }
 }

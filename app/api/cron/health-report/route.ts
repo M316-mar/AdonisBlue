@@ -8,9 +8,8 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const JOB_NAMES: Record<string, string> = {
   "cron:prep-reminders":       "Prep guide emails",
-  "cron:reminders":            "Appointment reminder emails",
   "cron:reviews":              "Review request emails",
-  "cron:treatment-reminders":  "Treatment follow-up emails",
+  "cron:treatment-reminders":  "Appointment reminder emails",
   "cron:wellness-checkin":     "Wellness check-in emails",
   "cron:health-report":        "Daily health check",
   "cron:aftercare-nudge":      "Aftercare nudge",
@@ -65,8 +64,10 @@ export async function GET(request: Request) {
     errorsByArea[e.area] = (errorsByArea[e.area] ?? 0) + 1;
   }
 
-  // Check which jobs didn't run — only alert on jobs that have EVER run before
+  // Check which jobs didn't run, or ran but recorded an error.
+  // Only alert on jobs that have EVER run before — new jobs start silently.
   const missedJobs: string[] = [];
+  const errorJobs: Array<{ name: string; msg: string }> = [];
   for (const [cronType, friendlyName] of Object.entries(JOB_NAMES)) {
     if (cronType === "cron:health-report") continue; // skip self
 
@@ -84,13 +85,18 @@ export async function GET(request: Request) {
     const lookback = WEEKLY_JOB_TYPES.has(cronType) ? since8d : since26h;
     const { data: recent } = await supabase
       .from("message_log")
-      .select("created_at")
+      .select("created_at, status, error_message")
       .eq("type", cronType)
       .gte("created_at", lookback)
+      .order("created_at", { ascending: false })
       .limit(1)
       .single();
 
-    if (!recent) missedJobs.push(friendlyName);
+    if (!recent) {
+      missedJobs.push(friendlyName);
+    } else if (recent.status === "error") {
+      errorJobs.push({ name: friendlyName, msg: recent.error_message ?? "unknown error" });
+    }
   }
 
   // Overdue return reminders: non-archived, not-rebooked, email client, not opted out,
@@ -136,25 +142,24 @@ export async function GET(request: Request) {
   if (overdueAftercareErr) await logError("cron:health-report", `overdue-aftercare check: ${overdueAftercareErr.message}`);
   const overdueAftercareCount = overdueAftercareRows?.length ?? 0;
 
-  const hasProblems = failures.length > 0 || appErrors.length > 0 || missedJobs.length > 0 || overdueCount > 0 || overdueAftercareCount > 0;
+  const hasProblems = failures.length > 0 || appErrors.length > 0 || missedJobs.length > 0 || errorJobs.length > 0 || overdueCount > 0 || overdueAftercareCount > 0;
 
   // Log heartbeat before deciding whether to send
   await supabase.from("message_log").insert({
     type: "cron:health-report",
     channel: "email",
-    status: "sent",
-    error: `failures=${failures.length}, errors=${appErrors.length}, missed=${missedJobs.length}, overdue_reminders=${overdueCount}, overdue_aftercare=${overdueAftercareCount}`,
+    status: "ok",
+    error: `failures=${failures.length}, errors=${appErrors.length}, missed=${missedJobs.length}, error_jobs=${errorJobs.length}, overdue_reminders=${overdueCount}, overdue_aftercare=${overdueAftercareCount}`,
   }).then(() => {}, () => {});
 
   if (!hasProblems) {
     return NextResponse.json({ ok: true, sent: false, reason: "nothing to report" });
   }
 
-  // Build problem lines
+  // Build problem lines as plain text — escapeHtml is applied exactly once when rendering HTML below.
   const problemLines: string[] = [];
 
   if (failures.length > 0) {
-    // Group by type
     const byType: Record<string, number> = {};
     for (const f of failures) {
       byType[f.type] = (byType[f.type] ?? 0) + 1;
@@ -171,6 +176,12 @@ export async function GET(request: Request) {
     }
   }
 
+  if (errorJobs.length > 0) {
+    for (const { name, msg } of errorJobs) {
+      problemLines.push(`⚠️ ${name} failed: ${msg}`);
+    }
+  }
+
   if (overdueCount > 0) {
     problemLines.push(`⚠️ ${overdueCount} client${overdueCount !== 1 ? "s" : ""} should have received a come-back reminder but didn't.`);
   }
@@ -180,7 +191,7 @@ export async function GET(request: Request) {
   }
 
   if (appErrors.length > 0) {
-    // One line per area: area name + first error message from that area
+    // One line per area — built as plain text; escapeHtml runs at render time below
     const areaFirst: Record<string, string> = {};
     for (const e of appErrors) {
       if (!areaFirst[e.area]) areaFirst[e.area] = e.message ?? "";
@@ -188,11 +199,12 @@ export async function GET(request: Request) {
     for (const [area, msg] of Object.entries(areaFirst)) {
       const n = errorsByArea[area];
       const friendlyArea = area.replace(/[_-]/g, " ");
-      const detail = msg ? ` — ${escapeHtml(msg)}` : "";
-      problemLines.push(`⚠️ Something went wrong ${n} time${n !== 1 ? "s" : ""} in: ${escapeHtml(friendlyArea)}${detail}`);
+      const detail = msg ? ` — ${msg}` : "";
+      problemLines.push(`⚠️ Something went wrong ${n} time${n !== 1 ? "s" : ""} in: ${friendlyArea}${detail}`);
     }
   }
 
+  // Escape once here — problemLines contain raw/untrusted text so escapeHtml must run exactly once.
   const linesHtml = problemLines
     .map(l => `<p style="margin:0 0 10px;font-size:15px;color:#b45309;">${escapeHtml(l)}</p>`)
     .join("");

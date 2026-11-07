@@ -19,6 +19,7 @@ export async function GET(request: Request) {
   );
 
   let sent = 0;
+  let cronError: string | null = null;
 
   try {
     const today = new Date();
@@ -35,6 +36,7 @@ export async function GET(request: Request) {
       .not("procedure_id", "is", null);
 
     if (tErr) {
+      cronError = tErr.message;
       await logError("cron:return-reminder", tErr.message);
       return NextResponse.json({ error: tErr.message }, { status: 500 });
     }
@@ -131,16 +133,18 @@ export async function GET(request: Request) {
       }
     }
 
+    return NextResponse.json({ ok: true, sent });
+  } catch (e) {
+    cronError = String(e);
+    await logError("cron:return-reminder", String(e));
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } finally {
     await supabase.from("message_log").insert({
       type: "cron:return-reminder",
       channel: "email",
-      status: "sent",
-      error: `sent ${sent} nurse emails`,
+      status: cronError ? "error" : "ok",
+      error: cronError ? null : `sent ${sent} nurse emails`,
+      error_message: cronError ?? null,
     }).then(() => {}, () => {});
-
-    return NextResponse.json({ ok: true, sent });
-  } catch (e) {
-    await logError("cron:return-reminder", String(e));
-    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

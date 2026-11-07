@@ -36,6 +36,7 @@ export async function GET(request: Request) {
 
   let sentCount = 0;
   let failedCount = 0;
+  let cronError: string | null = null;
 
   try {
     const now = new Date();
@@ -68,7 +69,8 @@ export async function GET(request: Request) {
       .eq("archived", false);
 
     if (error) {
-      console.error("[prep-reminders] query error:", error.message);
+      cronError = error.message;
+      await logError("cron:prep-reminders", error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -181,16 +183,16 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ processed: sentCount + failedCount, sent: sentCount, failed: failedCount });
   } catch (e) {
-    console.error("[prep-reminders] unexpected error:", e);
+    cronError = String(e);
     await logError("cron:prep-reminders", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   } finally {
-    // Step 2G: heartbeat on every post-auth exit path
     await supabase.from("message_log").insert({
       type: "cron:prep-reminders",
       channel: "email",
-      status: "sent",
-      error: `sent ${sentCount}, failed ${failedCount}`,
+      status: cronError ? "error" : "ok",
+      error: cronError ? null : `sent ${sentCount}, failed ${failedCount}`,
+      error_message: cronError ?? null,
     }).then(() => {}, () => {});
   }
 }

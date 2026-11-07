@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/sendAndLog";
+import { logError } from "@/lib/logError";
 import { firstName } from "@/lib/firstName";
 import { getClientSender } from "@/lib/clientEmailSender";
 import { dueDate, inReminderWindow, DEFAULT_RETURN_DAYS, inPersonalReminderWindow, personalReminderSendDate, formatDueDate } from "@/lib/reminderDate";
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
 
   let sentCount = 0;
   let failedCount = 0;
+  let cronError: string | null = null;
 
   try {
     // Step 2B: fetch candidates without cross-table marketing_opt_out filter
@@ -50,7 +52,8 @@ export async function GET(request: Request) {
       .eq("archived", false);
 
     if (treatmentsError) {
-      console.error("[cron/treatment-reminders] query error:", treatmentsError.message);
+      cronError = treatmentsError.message;
+      await logError("cron:treatment-reminders", treatmentsError.message);
       return NextResponse.json({ error: String(treatmentsError.message) }, { status: 500 });
     }
 
@@ -209,15 +212,16 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ sent: sentCount });
   } catch (e) {
-    console.error("[cron/treatment-reminders] unexpected error:", e);
+    cronError = String(e);
+    await logError("cron:treatment-reminders", String(e));
     return NextResponse.json({ error: String(e) }, { status: 500 });
   } finally {
-    // Step 2G: heartbeat on every post-auth exit path
     await supabase.from("message_log").insert({
       type: "cron:treatment-reminders",
       channel: "email",
-      status: "sent",
-      error: `sent ${sentCount}, failed ${failedCount}`,
+      status: cronError ? "error" : "ok",
+      error: cronError ? null : `sent ${sentCount}, failed ${failedCount}`,
+      error_message: cronError ?? null,
     }).then(() => {}, () => {});
   }
 }
