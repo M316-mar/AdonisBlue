@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -45,5 +45,26 @@ jobs:
           ADMIN_EMAILS=dummy@example.com
           EOF
 
-      - name: Run checks (no service role key needed)
+      - name: Build and run unit + security checks
         run: npm run check:ci
+
+      # device-check needs a running server and a real Chromium browser.
+      # We start the production build (already built above), wait for it,
+      # then run the logged-out first-visit pass only (--ci flag).
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start production server
+        run: npm run start &
+
+      - name: Wait for server to be ready
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000 -o /dev/null && echo "Server ready after $i attempts" && exit 0
+            echo "Attempt $i — waiting 2s..."
+            sleep 2
+          done
+          echo "Server did not start in time" && exit 1
+
+      - name: Run device-check (CI — logged-out, first-visit)
+        run: node scripts/device-check.mjs --ci
