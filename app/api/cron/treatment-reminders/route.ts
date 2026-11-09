@@ -69,22 +69,43 @@ export async function GET(request: Request) {
       .in("id", intakeIds);
     const optOutMap = new Map((intakeOptOuts ?? []).map((i: any) => [i.id, i.marketing_opt_out]));
 
+    // Batch-fetch junction procedures for all treatment IDs
+    const allTreatmentIds = treatments.map((t) => t.id);
+    type JunctionRow = { treatment_id: string; procedure_id: string; procedure_name: string; sort_order: number; procedures: { name: string; reminder_days: number | null } | { name: string; reminder_days: number | null }[] | null };
+    const { data: junctionRowsTR } = await supabase
+      .from("treatment_procedures")
+      .select("treatment_id, procedure_id, procedure_name, sort_order, procedures(name, reminder_days)")
+      .in("treatment_id", allTreatmentIds)
+      .order("sort_order", { ascending: true });
+    const junctionByTreatmentTR = new Map<string, JunctionRow[]>();
+    for (const r of (junctionRowsTR ?? []) as unknown as JunctionRow[]) {
+      if (!junctionByTreatmentTR.has(r.treatment_id)) junctionByTreatmentTR.set(r.treatment_id, []);
+      junctionByTreatmentTR.get(r.treatment_id)!.push(r);
+    }
 
-    // Step 2B: keep only the most recent treatment per (intake_id, procedure_id)
+    // Step 2B: keep only the most recent treatment per (intake_id, procedure set)
     const mostRecentMap = new Map<string, typeof treatments[0]>();
     for (const t of treatments) {
-      const key = `${t.intake_id}:${t.procedure_id}`;
+      const jProcs = junctionByTreatmentTR.get(t.id) ?? [];
+      const keyProcPart = jProcs.length > 0
+        ? jProcs.map((p) => p.procedure_id).sort().join(",")
+        : (t.procedure_id ?? "");
+      const key = `${t.intake_id}:${keyProcPart}`;
       const existing = mostRecentMap.get(key);
       if (!existing || new Date(t.treatment_date) > new Date(existing.treatment_date)) {
         mostRecentMap.set(key, t);
       }
     }
 
-    // Mark all older (non-winner) treatments for the same procedure as reminder_sent=true
+    // Mark all older (non-winner) treatments for the same procedure set as reminder_sent=true
     // so they never drift into a date window and double-fire later
     const loserIds = treatments
       .filter(t => {
-        const winner = mostRecentMap.get(`${t.intake_id}:${t.procedure_id}`);
+        const jProcs = junctionByTreatmentTR.get(t.id) ?? [];
+        const keyProcPart = jProcs.length > 0
+          ? jProcs.map((p) => p.procedure_id).sort().join(",")
+          : (t.procedure_id ?? "");
+        const winner = mostRecentMap.get(`${t.intake_id}:${keyProcPart}`);
         return winner && t.id !== winner.id;
       })
       .map(t => t.id);
@@ -108,8 +129,14 @@ export async function GET(request: Request) {
         if (personalAlreadySent) continue;
         if (!inPersonalReminderWindow(treatment.planned_return_at!, treatment.reminder_lead_days!, todayUTC)) continue;
       } else {
-        // Default path
-        const reminderDays: number = (treatment.procedures as any)?.reminder_days ?? DEFAULT_RETURN_DAYS;
+        // Default path — use minimum reminder_days across all procedures
+        const jProcs = junctionByTreatmentTR.get(treatment.id) ?? [];
+        const reminderDaysArr = jProcs.length > 0
+          ? jProcs.map((p) => (p.procedures as any)?.reminder_days as number | null | undefined).filter((d): d is number => d != null)
+          : [];
+        const reminderDays: number = reminderDaysArr.length > 0
+          ? Math.min(...reminderDaysArr)
+          : ((treatment.procedures as any)?.reminder_days ?? DEFAULT_RETURN_DAYS);
         const due = dueDate(treatment.treatment_date, reminderDays);
         if (!inReminderWindow(due, todayUTC)) continue;
       }
@@ -120,7 +147,10 @@ export async function GET(request: Request) {
       if (!clientEmail) continue;
 
       const clientName = escapeHtml(firstName((intake as any)?.first_name, "Beautiful"));
-      const procedureName = escapeHtml((treatment.procedures as any)?.name || treatment.procedure_name || "your treatment");
+      const jProcsForName = junctionByTreatmentTR.get(treatment.id) ?? [];
+      const procedureName = jProcsForName.length > 0
+        ? escapeHtml(jProcsForName.map((p) => (p.procedures as any)?.name || p.procedure_name).join(" + "))
+        : escapeHtml((treatment.procedures as any)?.name || treatment.procedure_name || "your treatment");
 
       const { data: bot } = await supabase
         .from("bots")
@@ -165,7 +195,13 @@ export async function GET(request: Request) {
           intakeId: treatment.intake_id,
         });
       } else {
-        const reminderDays: number = (treatment.procedures as any)?.reminder_days ?? DEFAULT_RETURN_DAYS;
+        const jProcsForReminder = junctionByTreatmentTR.get(treatment.id) ?? [];
+        const reminderDaysArrFinal = jProcsForReminder.length > 0
+          ? jProcsForReminder.map((p) => (p.procedures as any)?.reminder_days as number | null | undefined).filter((d): d is number => d != null)
+          : [];
+        const reminderDays: number = reminderDaysArrFinal.length > 0
+          ? Math.min(...reminderDaysArrFinal)
+          : ((treatment.procedures as any)?.reminder_days ?? DEFAULT_RETURN_DAYS);
         emailSubject = `Time to refresh your ${procedureName}? ✨`;
         emailHtml = buildTreatmentReminderEmail({
           clientName,

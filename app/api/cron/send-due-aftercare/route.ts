@@ -52,6 +52,30 @@ export async function POST(request: Request) {
   let skipped = 0;
   let failed = 0;
 
+  // Batch-fetch junction procedure rows and their instructions
+  const treatmentIds = due.map((t) => t.id);
+  const { data: junctionRowsBatch } = await supabase
+    .from("treatment_procedures")
+    .select("treatment_id, procedure_id, procedure_name, sort_order")
+    .in("treatment_id", treatmentIds)
+    .order("sort_order", { ascending: true });
+  const neededProcIds = new Set<string>();
+  for (const r of junctionRowsBatch ?? []) neededProcIds.add(r.procedure_id);
+  for (const t of due) {
+    if (!(junctionRowsBatch ?? []).some((r) => r.treatment_id === t.id) && t.procedure_id) {
+      neededProcIds.add(t.procedure_id);
+    }
+  }
+  const { data: procsBatch } = neededProcIds.size > 0
+    ? await supabase.from("procedures").select("id, name, aftercare_instructions").in("id", [...neededProcIds])
+    : { data: [] as Array<{ id: string; name: string; aftercare_instructions: string }> };
+  const procsMap = new Map((procsBatch ?? []).map((p) => [p.id, p]));
+  const junctionByTreatment = new Map<string, Array<{ procedure_id: string; procedure_name: string }>>();
+  for (const r of junctionRowsBatch ?? []) {
+    if (!junctionByTreatment.has(r.treatment_id)) junctionByTreatment.set(r.treatment_id, []);
+    junctionByTreatment.get(r.treatment_id)!.push(r);
+  }
+
   for (const treatment of due) {
     // Atomic claim — only one worker can own a row at a time
     const claimAt = new Date().toISOString();
@@ -76,19 +100,15 @@ export async function POST(request: Request) {
     }
 
     // Fetch related data needed to build the email
-    const [intakeRes, botRes, procRes] = await Promise.all([
+    const [intakeRes, botRes] = await Promise.all([
       treatment.intake_id
         ? supabase.from("intakes").select("first_name, email").eq("id", treatment.intake_id).single()
         : Promise.resolve({ data: null, error: null }),
       supabase.from("bots").select("practice_name, nurse_name, alert_phone, phone_public, alert_email, alert_email_verified, notification_email").eq("nurse_id", treatment.nurse_id).single(),
-      treatment.procedure_id
-        ? supabase.from("procedures").select("name, aftercare_instructions").eq("id", treatment.procedure_id).single()
-        : Promise.resolve({ data: null, error: null }),
     ]);
 
     const intake = intakeRes.data;
     const bot = botRes.data;
-    const proc = procRes.data;
 
     if (!intake?.email) {
       // No email — clear claim so it doesn't block future runs, mark as not sendable
@@ -102,10 +122,56 @@ export async function POST(request: Request) {
     const nurseDisplayName = bot?.nurse_name || bot?.practice_name || "";
     const nursePhone = bot?.phone_public || bot?.alert_phone || "";
     const clientName = firstName(intake.first_name, "beautiful");
-    const procName = proc?.name || treatment.procedure_name || "your treatment";
-    const rawInstructions = (proc?.aftercare_instructions ?? "").trim()
-      || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";
-    const instructionsHtml = substitutePlaceholdersSafeHtml(rawInstructions, nurseDisplayName, nursePhone);
+
+    // Resolve all procedures for this treatment
+    const jProcs = junctionByTreatment.get(treatment.id) ?? [];
+    const allProcedures: Array<{ procedure_id: string; name: string; aftercare_instructions: string }> =
+      jProcs.length > 0
+        ? jProcs.map((jp) => ({
+            procedure_id: jp.procedure_id,
+            name: procsMap.get(jp.procedure_id)?.name || jp.procedure_name,
+            aftercare_instructions: procsMap.get(jp.procedure_id)?.aftercare_instructions ?? "",
+          }))
+        : treatment.procedure_id
+        ? [{
+            procedure_id: treatment.procedure_id,
+            name: procsMap.get(treatment.procedure_id)?.name || treatment.procedure_name || "your treatment",
+            aftercare_instructions: procsMap.get(treatment.procedure_id)?.aftercare_instructions ?? "",
+          }]
+        : treatment.procedure_name
+        ? [{ procedure_id: "", name: treatment.procedure_name, aftercare_instructions: "" }]
+        : [];
+
+    // Build one HTML section per procedure; skip empty instructions (log + to-do)
+    const sectionsHtml: string[] = [];
+    for (const ap of allProcedures) {
+      const rawInstr = (ap.aftercare_instructions ?? "").trim();
+      if (!rawInstr) {
+        await logError("cron:send-due-aftercare", `procedure "${ap.name}" has no aftercare for treatment ${treatment.id}`);
+        await supabase.from("message_log").insert({
+          type: "action_needed",
+          channel: "nurse",
+          nurse_id: treatment.nurse_id,
+          treatment_id: treatment.id,
+          intake_id: treatment.intake_id,
+          status: "pending",
+          error: `Aftercare for ${ap.name} is empty, so ${intake.first_name || "your client"} didn't get instructions for it.`,
+        });
+        continue;
+      }
+      const instrHtml = substitutePlaceholdersSafeHtml(rawInstr, nurseDisplayName, nursePhone);
+      sectionsHtml.push(`          <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
+            <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(ap.name)} Aftercare</h3>
+            <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${instrHtml}</p>
+          </div>`);
+    }
+
+    if (sectionsHtml.length === 0) {
+      // All procedures had empty aftercare — to-dos logged above; mark un-sendable
+      await supabase.from("treatments").update({ aftercare_claimed_at: null, aftercare_send_at: null }).eq("id", treatment.id);
+      skipped++;
+      continue;
+    }
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
@@ -120,10 +186,7 @@ export async function POST(request: Request) {
         <tr><td style="padding:36px 32px;">
           <h1 style="margin:0 0 8px;color:#1a2744;font-size:22px;font-weight:600;">You're glowing, ${escapeHtml(clientName)}! 🌸</h1>
           <p style="margin:0 0 8px;color:#475569;font-size:14px;">Thank you for your visit. Here are your aftercare instructions:</p>
-          <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
-            <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(procName)} Aftercare</h3>
-            <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${instructionsHtml}</p>
-          </div>
+          ${sectionsHtml.join("\n          ")}
           <div style="background:#1a2744;border-radius:14px;padding:20px;margin:20px 0;text-align:center;">
             <p style="margin:0 0 8px;color:#ffffff;font-size:15px;font-weight:600;">Have recovery questions? 💙</p>
             <p style="margin:0 0 12px;color:#94a3b8;font-size:13px;">Our 24/7 recovery chat is here for you.</p>

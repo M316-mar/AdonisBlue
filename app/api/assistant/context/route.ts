@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    const [hcRes, cvRes, unsentRes, scheduledRes, checkinRes, prepRes] = await Promise.all([
+    const [hcRes, cvRes, unsentRes, scheduledRes, checkinRes, prepRes, actionNeededRes] = await Promise.all([
       // 1. Unhandled alerts from healing_chats — no age filter
       //    Join to treatments → intakes to get the real first name when client_name is blank or "Client"
       db
@@ -95,6 +95,15 @@ export async function GET(request: Request) {
         .is("prep_guide_sent_at", null)
         .or(`and(treatment_date.gt.${today},treatment_date.lte.${in7Days}),and(next_appointment_at.gte.${now.toISOString()},next_appointment_at.lte.${new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()})`)
         .not("intake_id", "is", null),
+
+      // 7. Action-needed to-dos (empty aftercare warnings, etc.)
+      db
+        .from("message_log")
+        .select("id, error, treatment_id, intake_id, created_at")
+        .eq("nurse_id", user.id)
+        .eq("type", "action_needed")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
     ]);
 
     if (hcRes.error) await logError("assistant/context", hcRes.error.message);
@@ -103,6 +112,7 @@ export async function GET(request: Request) {
     if (scheduledRes.error) await logError("assistant/context", scheduledRes.error.message);
     if (checkinRes.error) await logError("assistant/context", checkinRes.error.message);
     if (prepRes.error) await logError("assistant/context", prepRes.error.message);
+    if (actionNeededRes.error) await logError("assistant/context", actionNeededRes.error.message);
 
     // ── Unhandled alerts ──────────────────────────────────────────────────────
     // Group healing_chats alerts by intake_id so a client with multiple treatments
@@ -226,12 +236,21 @@ export async function GET(request: Request) {
         };
       });
 
+    const actionNeeded = (actionNeededRes.data ?? []).map((r: any) => ({
+      id: r.id as string,
+      treatment_id: (r.treatment_id ?? null) as string | null,
+      intake_id: (r.intake_id ?? null) as string | null,
+      message: (r.error ?? "") as string,
+      created_at: r.created_at as string,
+    }));
+
     return NextResponse.json({
       unhandledAlerts,
       unsentAftercares,
       scheduledAftercares,
       checkinsOverdue,
       prepReminders,
+      actionNeeded,
     });
   } catch (e) {
     await logError("assistant/context", String(e));

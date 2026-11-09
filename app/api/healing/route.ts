@@ -78,6 +78,18 @@ export async function GET(request: Request) {
     const rawIntakePhone = (treatment.intakes as { phone?: string | null } | null)?.phone?.trim() ?? "";
     const phoneLast4 = rawIntakePhone ? rawIntakePhone.replace(/\D/g, "").slice(-4) || null : null;
 
+    // Fetch all procedures for this treatment (junction table)
+    const { data: junctionProcsGet } = await supabase
+      .from("treatment_procedures")
+      .select("procedure_id, procedure_name, sort_order")
+      .eq("treatment_id", treatmentId)
+      .order("sort_order", { ascending: true });
+    const allProcNamesGet: string[] = (junctionProcsGet ?? []).length > 0
+      ? (junctionProcsGet ?? []).map((r: { procedure_name: string }) => r.procedure_name)
+      : ((treatment.procedures as { name?: string } | null)?.name
+          ? [(treatment.procedures as { name: string }).name]
+          : (treatment.procedure_name ? [treatment.procedure_name] : []));
+
     // Only expose what the client needs — never leak nurse contact/alert details here
     return NextResponse.json({
       treatment: {
@@ -92,6 +104,7 @@ export async function GET(request: Request) {
         procedures: treatment.procedures
           ? { name: treatment.procedures.name }
           : null,
+        all_procedure_names: allProcNamesGet,
         bots: null,
       },
       nurse_first_name: nurseFirstName,
@@ -163,26 +176,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Treatment not found" }, { status: 404 });
     }
 
-    // Fetch bots separately — no FK constraint exists between treatments.nurse_id
-    // and bots, so PostgREST join syntax fails. A plain .eq() query always works.
-    const { data: botRow } = await supabase
-      .from("bots")
-      .select("practice_name, alert_email, notification_email, alert_phone, nurse_name")
-      .eq("nurse_id", treatment.nurse_id)
-      .single();
+    // Fetch bots and junction procedures in parallel
+    const [botRowRes, junctionPostRes] = await Promise.all([
+      supabase
+        .from("bots")
+        .select("practice_name, alert_email, notification_email, alert_phone, nurse_name")
+        .eq("nurse_id", treatment.nurse_id)
+        .single(),
+      supabase
+        .from("treatment_procedures")
+        .select("procedure_id, procedure_name, sort_order")
+        .eq("treatment_id", treatment_id)
+        .order("sort_order", { ascending: true }),
+    ]);
+
+    const botRow = botRowRes.data;
+    const junctionPostProcs = (junctionPostRes as any).data ?? [];
 
     const clientName = treatment.intakes?.first_name || "Client";
-    const procedureName =
-      (treatment.procedures as { name?: string } | null)?.name || "procedure";
     // Fallback chain: alert_email → notification_email
     const nurseEmail = (botRow as { alert_email?: string | null } | null)?.alert_email?.trim() || (botRow as { notification_email?: string | null } | null)?.notification_email || undefined;
     const alertPhone = (botRow as { alert_phone?: string } | null)?.alert_phone;
     const practiceName =
       (botRow as { practice_name?: string } | null)?.practice_name || "your practice";
-    const aftercareInstructions =
-      (
-        treatment.procedures as { aftercare_instructions?: string } | null
-      )?.aftercare_instructions || "";
+
+    // Resolve all procedures for this treatment
+    let allProcNamesPost: string[];
+    let allProcInstructionsPost: string[];
+    if (junctionPostProcs.length > 0) {
+      const procIdsPost = junctionPostProcs.map((p: any) => p.procedure_id);
+      const { data: procDataPost } = await supabase.from("procedures").select("id, name, aftercare_instructions").in("id", procIdsPost);
+      const procMapPost = new Map((procDataPost ?? []).map((p: any) => [p.id, p]));
+      allProcNamesPost = junctionPostProcs.map((jp: any) => (procMapPost.get(jp.procedure_id) as any)?.name || jp.procedure_name);
+      allProcInstructionsPost = junctionPostProcs.map((jp: any) => ((procMapPost.get(jp.procedure_id) as any)?.aftercare_instructions || "").trim());
+    } else {
+      allProcNamesPost = [(treatment.procedures as { name?: string } | null)?.name || treatment.procedure_name || "procedure"];
+      allProcInstructionsPost = [((treatment.procedures as { aftercare_instructions?: string } | null)?.aftercare_instructions || "").trim()];
+    }
+    const procedureName = allProcNamesPost.join(" + ") || "procedure";
+    const aftercareInstructions = allProcInstructionsPost.filter(Boolean).join("\n\n") || "";
 
     const clientPhone = clientPhoneInput || treatment.intakes?.phone || null;
     const clientEmail = treatment.intakes?.email?.trim() || null;

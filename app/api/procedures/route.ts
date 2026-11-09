@@ -160,9 +160,20 @@ export async function DELETE(request: Request) {
     );
 
     if (id) {
-      await supabase.from("procedures").delete().eq("id", id).eq("nurse_id", user.id);
+      const { error: delErr } = await supabase.from("procedures").delete().eq("id", id).eq("nurse_id", user.id);
+      if (delErr) {
+        if (delErr.code === "23503") {
+          return NextResponse.json({ error: "This procedure has been used in treatment records and can't be deleted." }, { status: 409 });
+        }
+        await logError("procedures:DELETE", delErr.message);
+        return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+      }
     } else {
-      await supabase.from("procedures").delete().eq("nurse_id", user.id);
+      const { error: delAllErr } = await supabase.from("procedures").delete().eq("nurse_id", user.id);
+      if (delAllErr) {
+        await logError("procedures:DELETE", delAllErr.message);
+        return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+      }
     }
     return NextResponse.json({ success: true });
   } catch (e) {

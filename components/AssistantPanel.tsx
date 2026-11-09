@@ -52,12 +52,21 @@ type PrepReminder = {
   procedure_name: string;
 };
 
+type ActionNeededItem = {
+  id: string;
+  treatment_id: string | null;
+  intake_id: string | null;
+  message: string;
+  created_at: string;
+};
+
 type Context = {
   unhandledAlerts: Alert[];
   unsentAftercares: UnsentAftercare[];
   scheduledAftercares: ScheduledAftercare[];
   checkinsOverdue: CheckinOverdue[];
   prepReminders: PrepReminder[];
+  actionNeeded: ActionNeededItem[];
 };
 
 type Props = {
@@ -265,12 +274,13 @@ export function AssistantPanel({
 
   const hasAlerts = visibleAlerts.length > 0;
   const hasUnsent = (ctx?.unsentAftercares.length ?? 0) > 0;
-const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
+  const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
   const hasReturn = unbookedReturn > 0;
   const hasPrep = (ctx?.prepReminders.length ?? 0) > 0;
+  const hasActionNeeded = (ctx?.actionNeeded?.length ?? 0) > 0;
   const needsSetup = !launched;
   const showRebookingNudge = launched && !bot?.rebooking_link && !rebookingDismissed;
-  const allDone = !loading && !hasAlerts && !hasUnsent && !hasCheckins && !hasReturn && !hasPrep && !needsSetup && !showRebookingNudge;
+  const allDone = !loading && !hasAlerts && !hasUnsent && !hasCheckins && !hasReturn && !hasPrep && !hasActionNeeded && !needsSetup && !showRebookingNudge;
 
   return (
     <section id="assistant-panel" className="rounded-2xl border border-[#1a2744]/20 bg-white shadow-lg overflow-hidden">
@@ -569,7 +579,18 @@ const hasCheckins = (ctx?.checkinsOverdue.length ?? 0) > 0;
               );
             })}
 
-            {/* 7. Rebooking link gentle nudge */}
+            {/* 7. Action-needed to-dos (empty aftercare warnings) */}
+            {(ctx?.actionNeeded ?? []).map((item) => (
+              <div key={item.id} className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3">
+                <span className="shrink-0 text-base mt-0.5">⚠️</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-amber-800">Action needed</p>
+                  <p className="text-xs text-amber-700 mt-0.5">{item.message}</p>
+                </div>
+              </div>
+            ))}
+
+            {/* 8. Rebooking link gentle nudge */}
             {showRebookingNudge && (
               <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-3">
                 <span className="shrink-0 text-base mt-0.5">📅</span>

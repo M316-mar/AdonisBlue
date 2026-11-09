@@ -54,19 +54,17 @@ export async function POST(
     }
 
     // Build and send immediately
-    const [intakeRes, botRes, procRes] = await Promise.all([
+    const [intakeRes, botRes, junctionRes] = await Promise.all([
       treatment.intake_id
         ? supabase.from("intakes").select("first_name, email").eq("id", treatment.intake_id).single()
         : Promise.resolve({ data: null }),
       supabase.from("bots").select("practice_name, nurse_name, alert_phone, phone_public").eq("nurse_id", user.id).single(),
-      treatment.procedure_id
-        ? supabase.from("procedures").select("name, aftercare_instructions").eq("id", treatment.procedure_id).single()
-        : Promise.resolve({ data: null }),
+      supabase.from("treatment_procedures").select("procedure_id, procedure_name, sort_order").eq("treatment_id", id).order("sort_order", { ascending: true }),
     ]);
 
     const intake = intakeRes.data;
     const bot = botRes.data;
-    const proc = procRes.data;
+    const jProcs = (junctionRes as any).data ?? [];
 
     if (!intake?.email) {
       return NextResponse.json({ error: "No client email on file" }, { status: 422 });
@@ -77,10 +75,51 @@ export async function POST(
     const nursePhone = bot?.phone_public || bot?.alert_phone || "";
     const clientName = firstName(intake.first_name, "beautiful");
 
-    const rawInstructions = (proc?.aftercare_instructions ?? "").trim()
-      || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";
-    const instructionsHtml = substitutePlaceholdersSafeHtml(rawInstructions, nurseDisplayName, nursePhone);
-    const procName = proc?.name || treatment.procedure_name || "your treatment";
+    // Resolve all procedures
+    let allProcedures: Array<{ procedure_id: string; name: string; aftercare_instructions: string }>;
+    if (jProcs.length > 0) {
+      const procIds = jProcs.map((p: any) => p.procedure_id);
+      const { data: procData } = await supabase.from("procedures").select("id, name, aftercare_instructions").in("id", procIds);
+      const procMap = new Map((procData ?? []).map((p: any) => [p.id, p]));
+      allProcedures = jProcs.map((jp: any) => ({
+        procedure_id: jp.procedure_id,
+        name: (procMap.get(jp.procedure_id) as any)?.name || jp.procedure_name,
+        aftercare_instructions: (procMap.get(jp.procedure_id) as any)?.aftercare_instructions ?? "",
+      }));
+    } else if (treatment.procedure_id) {
+      const { data: sp } = await supabase.from("procedures").select("name, aftercare_instructions").eq("id", treatment.procedure_id).single();
+      allProcedures = [{ procedure_id: treatment.procedure_id, name: sp?.name || treatment.procedure_name || "your treatment", aftercare_instructions: sp?.aftercare_instructions ?? "" }];
+    } else {
+      allProcedures = treatment.procedure_name ? [{ procedure_id: "", name: treatment.procedure_name, aftercare_instructions: "" }] : [];
+    }
+
+    // Build one HTML section per procedure; skip empty instructions (log + to-do)
+    const sectionsHtml: string[] = [];
+    for (const ap of allProcedures) {
+      const rawInstr = (ap.aftercare_instructions ?? "").trim();
+      if (!rawInstr) {
+        await logError("aftercare-now", `procedure "${ap.name}" has no aftercare for treatment ${id}`);
+        await supabase.from("message_log").insert({
+          type: "action_needed",
+          channel: "nurse",
+          nurse_id: user.id,
+          treatment_id: id,
+          intake_id: treatment.intake_id,
+          status: "pending",
+          error: `Aftercare for ${ap.name} is empty, so ${intake.first_name || "your client"} didn't get instructions for it.`,
+        });
+        continue;
+      }
+      const instrHtml = substitutePlaceholdersSafeHtml(rawInstr, nurseDisplayName, nursePhone);
+      sectionsHtml.push(`          <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
+            <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(ap.name)} Aftercare</h3>
+            <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${instrHtml}</p>
+          </div>`);
+    }
+
+    if (sectionsHtml.length === 0) {
+      return NextResponse.json({ error: "No aftercare instructions are set for this treatment's procedures. A to-do has been added to your assistant." }, { status: 422 });
+    }
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
@@ -95,10 +134,7 @@ export async function POST(
         <tr><td style="padding:36px 32px;">
           <h1 style="margin:0 0 8px;color:#1a2744;font-size:22px;font-weight:600;">You're glowing, ${escapeHtml(clientName)}! 🌸</h1>
           <p style="margin:0 0 8px;color:#475569;font-size:14px;">Thank you for your visit today. Here are your aftercare instructions:</p>
-          <div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
-            <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(procName)} Aftercare</h3>
-            <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${instructionsHtml}</p>
-          </div>
+          ${sectionsHtml.join("\n          ")}
           <div style="background:#1a2744;border-radius:14px;padding:20px;margin:20px 0;text-align:center;">
             <p style="margin:0 0 8px;color:#ffffff;font-size:15px;font-weight:600;">Have recovery questions? 💙</p>
             <a href="${SITE_URL}/healing/${id}" style="display:inline-block;background:#0d9488;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:50px;">💬 Open recovery chat</a>

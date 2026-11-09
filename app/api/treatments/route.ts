@@ -173,7 +173,11 @@ export async function POST(request: Request) {
         const { data: approvalCheck } = await supabase
           .from("procedures")
           .select("id, name, approved_at")
-          .in("id", earlyProcedureIds);
+          .in("id", earlyProcedureIds)
+          .eq("nurse_id", user.id);
+        if ((approvalCheck ?? []).length !== earlyProcedureIds.length) {
+          return NextResponse.json({ error: "One or more procedures not found or do not belong to your account" }, { status: 400 });
+        }
         const unapproved = (approvalCheck ?? []).filter((p) => !p.approved_at);
         if (unapproved.length > 0) {
           return NextResponse.json(
@@ -265,6 +269,34 @@ export async function POST(request: Request) {
       .single();
 
     if (error) return NextResponse.json({ error: "Failed to save treatment" }, { status: 500 });
+
+    // ── Insert junction rows for multi-procedure ───────────────────────────
+    const junctionProcIds: string[] = Array.isArray(body.procedure_ids)
+      ? body.procedure_ids.filter((id: unknown) => typeof id === "string" && UUID_REGEX.test(id))
+      : [];
+
+    if (junctionProcIds.length > 0) {
+      const { data: procRows } = await supabase
+        .from("procedures")
+        .select("id, name")
+        .in("id", junctionProcIds)
+        .eq("nurse_id", user.id);
+      const procNameMap = new Map((procRows ?? []).map((p) => [p.id, p.name]));
+      const junctionRows = junctionProcIds.map((pid, idx) => ({
+        treatment_id: treatment.id,
+        procedure_id: pid,
+        procedure_name: procNameMap.get(pid) || procedureName || "procedure",
+        sort_order: idx,
+      }));
+      const { error: junctionErr } = await supabase
+        .from("treatment_procedures")
+        .insert(junctionRows);
+      if (junctionErr) {
+        await supabase.from("treatments").delete().eq("id", treatment.id);
+        await logError("treatments", `junction insert failed: ${junctionErr.message}`);
+        return NextResponse.json({ error: "Failed to save treatment procedures. Please try again." }, { status: 500 });
+      }
+    }
 
     // ── Mark prior treatment as rebooked (returning client) ───────────────
     if (resolvedIntakeId && procedureId) {

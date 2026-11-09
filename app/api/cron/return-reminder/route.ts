@@ -41,10 +41,30 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: tErr.message }, { status: 500 });
     }
 
-    // Most recent treatment per (nurse_id, intake_id, procedure_id)
+    // Batch-fetch junction procedures for all treatment IDs
+    const allTreatmentIdsRR = (treatments ?? []).map((t) => t.id);
+    type JunctionRowRR = { treatment_id: string; procedure_id: string; procedure_name: string; sort_order: number; procedures: { name: string; reminder_days: number | null } | { name: string; reminder_days: number | null }[] | null };
+    const { data: junctionRowsRR } = allTreatmentIdsRR.length > 0
+      ? await supabase
+          .from("treatment_procedures")
+          .select("treatment_id, procedure_id, procedure_name, sort_order, procedures(name, reminder_days)")
+          .in("treatment_id", allTreatmentIdsRR)
+          .order("sort_order", { ascending: true })
+      : { data: [] as JunctionRowRR[] };
+    const junctionByTreatmentRR = new Map<string, JunctionRowRR[]>();
+    for (const r of (junctionRowsRR ?? []) as unknown as JunctionRowRR[]) {
+      if (!junctionByTreatmentRR.has(r.treatment_id)) junctionByTreatmentRR.set(r.treatment_id, []);
+      junctionByTreatmentRR.get(r.treatment_id)!.push(r);
+    }
+
+    // Most recent treatment per (nurse_id, intake_id, procedure set)
     const mostRecentMap = new Map<string, typeof treatments[0]>();
     for (const t of treatments ?? []) {
-      const key = `${t.nurse_id}:${t.intake_id}:${t.procedure_id}`;
+      const jProcs = junctionByTreatmentRR.get(t.id) ?? [];
+      const keyProcPart = jProcs.length > 0
+        ? jProcs.map((p) => p.procedure_id).sort().join(",")
+        : (t.procedure_id ?? "");
+      const key = `${t.nurse_id}:${t.intake_id}:${keyProcPart}`;
       const existing = mostRecentMap.get(key);
       if (!existing || new Date(t.treatment_date) > new Date(existing.treatment_date)) {
         mostRecentMap.set(key, t);
@@ -64,7 +84,13 @@ export async function GET(request: Request) {
         dueISO = (t as any).planned_return_at;
         reminderSendISO = personalReminderSendDate(dueISO, (t as any).reminder_lead_days).toISOString().slice(0, 10);
       } else {
-        const reminderDays = (t.procedures as any)?.reminder_days as number | null;
+        const jProcsRR = junctionByTreatmentRR.get(t.id) ?? [];
+        const reminderDaysArrRR = jProcsRR.length > 0
+          ? jProcsRR.map((p) => (p.procedures as any)?.reminder_days as number | null | undefined).filter((d): d is number => d != null)
+          : [];
+        const reminderDays = reminderDaysArrRR.length > 0
+          ? Math.min(...reminderDaysArrRR)
+          : ((t.procedures as any)?.reminder_days as number | null);
         if (!reminderDays) continue;
         const due = dueDate(t.treatment_date, reminderDays);
         if (due > thirtyDaysOut) continue;
@@ -79,7 +105,10 @@ export async function GET(request: Request) {
       if ((intake as any)?.marketing_opt_out) continue;
 
       const returnReason: string | null = (t as any).return_reason ?? null;
-      const procedureName: string = (t.procedures as any)?.name || t.procedure_name || "their treatment";
+      const jProcsRRName = junctionByTreatmentRR.get(t.id) ?? [];
+      const procedureName: string = jProcsRRName.length > 0
+        ? jProcsRRName.map((p) => (p.procedures as any)?.name || p.procedure_name).join(" + ")
+        : ((t.procedures as any)?.name || t.procedure_name || "their treatment");
       const displayProcedure = returnReason || procedureName;
 
       const nurseId = t.nurse_id;
