@@ -31,6 +31,7 @@
  */
 
 import { chromium } from "playwright";
+import { createClient } from "@supabase/supabase-js";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,6 +44,8 @@ const BASE_URL = process.env.DEVICE_CHECK_BASE_URL ?? "http://localhost:3000";
 let testEmail = "";
 let testPassword = "";
 let adminEmails = [];
+let supabaseUrl = "";
+let supabaseAnonKey = "";
 const envPath = join(ROOT, ".env.local");
 if (existsSync(envPath)) {
   const envText = readFileSync(envPath, "utf8");
@@ -52,7 +55,36 @@ if (existsSync(envPath)) {
     if (k?.trim() === "TEST_NURSE_EMAIL") testEmail = v;
     if (k?.trim() === "TEST_NURSE_PASSWORD") testPassword = v;
     if (k?.trim() === "ADMIN_EMAILS") adminEmails = v.split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (k?.trim() === "NEXT_PUBLIC_SUPABASE_URL") supabaseUrl = v;
+    if (k?.trim() === "NEXT_PUBLIC_SUPABASE_ANON_KEY") supabaseAnonKey = v;
   }
+}
+
+/** Fetch a treatment ID for the test nurse directly from the API (Node.js side, no browser).
+ *  Tries active treatments first, then archived. Returns null if none found. */
+async function fetchTestTreatmentId() {
+  if (!supabaseUrl || !supabaseAnonKey || !testEmail || !testPassword) return null;
+  try {
+    const sb = createClient(supabaseUrl, supabaseAnonKey);
+    const { data, error } = await sb.auth.signInWithPassword({ email: testEmail, password: testPassword });
+    if (error || !data?.session?.access_token) return null;
+    const token = data.session.access_token;
+    const headers = { Authorization: `Bearer ${token}` };
+    // Active first
+    const r1 = await fetch(`${BASE_URL}/api/treatments`, { headers });
+    if (r1.ok) {
+      const j1 = await r1.json();
+      const id = j1.treatments?.[0]?.id ?? null;
+      if (id) return id;
+    }
+    // Archived fallback
+    const r2 = await fetch(`${BASE_URL}/api/treatments?archived=true`, { headers });
+    if (r2.ok) {
+      const j2 = await r2.json();
+      return j2.treatments?.[0]?.id ?? null;
+    }
+  } catch { /* fall through */ }
+  return null;
 }
 const hasCredentials = !!(testEmail && testPassword);
 
@@ -125,6 +157,21 @@ async function runChecks(page, viewport) {
         const cls = el.className?.toString().slice(0, 60) ?? "";
         issues.push(`Element wider than viewport: <${tag} class="${cls}"> width=${Math.round(r.width)}`);
         break; // report first only to avoid spam
+      }
+    }
+
+    // 3½. Scrollable tab bar: first tab must be fully visible at load (scrollLeft === 0)
+    // Must run before rules 4 and 7 which call scrollIntoView and change scrollLeft.
+    {
+      const scrollables = Array.from(document.querySelectorAll("*")).filter(el => {
+        const st = window.getComputedStyle(el);
+        return (st.overflowX === "auto" || st.overflowX === "scroll") && el.scrollWidth > el.clientWidth + 2;
+      });
+      for (const bar of scrollables) {
+        if (bar.scrollLeft > 4) {
+          const cls = bar.className?.toString().slice(0, 60) ?? "";
+          issues.push(`Tab bar scrolled on load: <${bar.tagName.toLowerCase()} class="${cls}"> scrollLeft=${bar.scrollLeft} (first tab may be hidden)`);
+        }
       }
     }
 
@@ -347,45 +394,8 @@ let totalScreens = 0;
 
 const browser = await chromium.launch({ headless: true });
 
-// ── Fetch healing chat path (needs a valid treatment_id from the test nurse) ──
-// The healing page is client-facing (no nurse auth), so once we have a UUID it
-// can be tested as a logged-out screen.
-if (!CI_MODE && hasCredentials) {
-  const tempCtx = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    isMobile: true,
-  });
-  const tempPage = await tempCtx.newPage();
-  await tempPage.addInitScript(() => {
-    try { localStorage.setItem("adonisblue_cookie_consent", "true"); } catch {}
-  });
-  try {
-    await signIn(tempPage);
-    const treatmentId = await tempPage.evaluate(async () => {
-      const key = Object.keys(localStorage).find(k => k.includes("supabase") && k.includes("auth"));
-      if (!key) return null;
-      try {
-        const session = JSON.parse(localStorage.getItem(key) ?? "null");
-        const token = session?.access_token;
-        if (!token) return null;
-        const res = await fetch("/api/treatments?limit=1", { headers: { Authorization: `Bearer ${token}` } });
-        if (!res.ok) return null;
-        const j = await res.json();
-        return j.treatments?.[0]?.id ?? null;
-      } catch { return null; }
-    });
-    if (treatmentId) {
-      SCREENS.push({ path: `/healing/${treatmentId}`, label: "Healing Chat", loggedIn: false });
-      process.stdout.write(`  ✓ Healing chat: will test at /healing/${treatmentId}\n`);
-    } else {
-      process.stderr.write("  ⚠ Healing chat: no treatment found for test nurse, skipping\n");
-    }
-  } catch (e) {
-    process.stderr.write(`  ⚠ Healing chat path fetch failed: ${e.message}\n`);
-  }
-  await tempPage.close();
-  await tempCtx.close();
-}
+// Healing chat is tested AFTER the interaction test (which creates+archives a treatment).
+// See the healing chat section near the end of the script.
 
 try {
   for (const vp of VIEWPORTS) {
@@ -702,6 +712,53 @@ try {
 
     await logPage.close();
     await ctx390.close();
+  }
+
+  // ── Healing chat: test at all 6 viewports after interaction test has created a treatment ──
+  // The Log form interaction test above creates and archives a treatment. We fetch the
+  // archived treatment ID here (Node.js side, no page.evaluate) so /healing/[id] can be
+  // tested as a logged-out screen at all 6 viewports.
+  if (!CI_MODE && hasCredentials) {
+    process.stdout.write("\n── Healing chat screens ──\n");
+    const healingTreatmentId = await fetchTestTreatmentId();
+    if (healingTreatmentId) {
+      process.stdout.write(`  ✓ Healing chat: testing at /healing/${healingTreatmentId}\n`);
+      for (const vp of VIEWPORTS) {
+        const ctx = await browser.newContext({
+          viewport: { width: vp.width, height: vp.height },
+          userAgent: vp.width < 768
+            ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+            : undefined,
+          isMobile: vp.width < 768,
+        });
+        const pg = await ctx.newPage();
+        await pg.addInitScript(() => {
+          try { localStorage.setItem("adonisblue_cookie_consent", "true"); } catch {}
+        });
+        totalScreens++;
+        try {
+          await pg.goto(`${BASE_URL}/healing/${healingTreatmentId}`, { waitUntil: "networkidle", timeout: 20_000 });
+          await pg.waitForTimeout(500);
+          const issues = await runChecks(pg, vp);
+          const label = `${vp.label} [returning] — Healing Chat`;
+          if (issues.length > 0) {
+            process.stdout.write(`\n❌ ${label} (${BASE_URL}/healing/${healingTreatmentId})\n`);
+            for (const iss of issues) {
+              process.stdout.write(`   • ${iss}\n`);
+              totalIssues++;
+            }
+          } else {
+            process.stdout.write(`  ✓ ${label}\n`);
+          }
+        } catch (e) {
+          process.stdout.write(`  ⚠ ${vp.label} [returning] — Healing Chat: ${e.message}\n`);
+        }
+        await pg.close();
+        await ctx.close();
+      }
+    } else {
+      process.stderr.write("  ⚠ Healing chat: no treatment found (active or archived) — skipping\n");
+    }
   }
 } finally {
   await browser.close();

@@ -245,7 +245,7 @@ export default function HealingChatPage({
             value={clientPhone}
             onChange={(e) => setClientPhone(e.target.value)}
             placeholder="+1 (555) 000-0000"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-[#0d9488] mb-3 placeholder:text-slate-500"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-base text-white outline-none focus:border-[#0d9488] mb-3 placeholder:text-slate-500"
           />
           <button
             type="button"
