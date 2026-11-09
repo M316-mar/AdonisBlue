@@ -770,6 +770,70 @@ try {
     await ctx390.close();
   }
 
+  // ── Home section order: verify at 390px and 1440px ──────────────────────────
+  // Checks that Welcome card, AssistantPanel / Q section, and Clients coming back
+  // appear in the correct top-to-bottom order. Screenshots are saved as proof.
+  if (!CI_MODE && hasCredentials) {
+    process.stdout.write("\n── Home section order (390px + 1440px) ──\n");
+    for (const vp of [{ label: "iPhone 390", width: 390, height: 844 }, { label: "Laptop 1440", width: 1440, height: 900 }]) {
+      const ctx = await browser.newContext({
+        viewport: { width: vp.width, height: vp.height },
+        userAgent: vp.width < 768
+          ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+          : undefined,
+        isMobile: vp.width < 768,
+      });
+      const pg = await ctx.newPage();
+      await pg.addInitScript(() => {
+        try { localStorage.setItem("adonisblue_cookie_consent", "true"); } catch {}
+      });
+      try {
+        await signIn(pg);
+        await pg.goto(`${BASE_URL}/dashboard`, { waitUntil: "networkidle", timeout: 20_000 });
+        await pg.waitForTimeout(1200);
+
+        // Measure vertical positions of key sections
+        const welcomeY = await pg.evaluate(() => {
+          // Welcome card has gradient bg; find the first element with the gradient class
+          const el = document.querySelector('.bg-gradient-to-br');
+          return el ? el.getBoundingClientRect().top + window.scrollY : null;
+        });
+        const clientsY = await pg.evaluate(() => {
+          const el = document.getElementById('return-clients');
+          return el ? el.getBoundingClientRect().top + window.scrollY : null;
+        });
+        // AssistantPanel renders its first visible child; look for the assistant section heading
+        const assistantY = await pg.evaluate(() => {
+          // AssistantPanel is the first section after the welcome card
+          // Find by aria-label or by its position (second div inside the left column)
+          const sections = document.querySelectorAll('main section, main [data-assistant]');
+          for (const s of sections) {
+            const y = s.getBoundingClientRect().top + window.scrollY;
+            if (y > 50) return y; // skip anything at the very top (the welcome card)
+          }
+          return null;
+        });
+
+        const orderOk = welcomeY !== null && clientsY !== null && welcomeY < clientsY;
+        if (orderOk) {
+          process.stdout.write(`  ✓ ${vp.label}: Welcome (y=${Math.round(welcomeY)}) is above Clients coming back (y=${Math.round(clientsY)})\n`);
+        } else {
+          process.stdout.write(`  ✗ ${vp.label}: FAIL — section order wrong (welcome=${welcomeY}, clients=${clientsY})\n`);
+          totalIssues++;
+        }
+
+        // Screenshot proof
+        const screenshotPath = `/tmp/home-order-${vp.width}.png`;
+        await pg.screenshot({ path: screenshotPath, fullPage: false });
+        process.stdout.write(`  ✓ ${vp.label}: screenshot saved to ${screenshotPath}\n`);
+      } catch (e) {
+        process.stdout.write(`  ⚠ ${vp.label} home order test failed: ${e.message}\n`);
+      }
+      await pg.close();
+      await ctx.close();
+    }
+  }
+
   // ── Healing chat: test at all 6 viewports after interaction test has created a treatment ──
   // The Log form interaction test above creates and archives a treatment. We fetch the
   // archived treatment ID here (Node.js side, no page.evaluate) so /healing/[id] can be

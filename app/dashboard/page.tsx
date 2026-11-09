@@ -524,6 +524,29 @@ export default function NurseDashboardPage() {
               </div>
             </section>
 
+            {needsAlertVerify && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+                <p className="text-xs text-amber-800 flex-1">🔔 <strong>Verify your emergency alert email</strong> — we haven&apos;t confirmed where to send urgent client alerts yet. <Link href="/onboarding?step=5" className="underline font-semibold">Verify now →</Link></p>
+              </div>
+            )}
+
+            {showEmailNotice && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start justify-between gap-3">
+                <p className="text-xs text-amber-800">📬 <strong>Heads up:</strong> The first email from AdonisBlue may land in your client&apos;s spam folder. Ask them to mark it as &quot;Not Spam&quot; so future emails go straight to their inbox!</p>
+                <button
+                  type="button"
+                  aria-label="Dismiss notice"
+                  onClick={() => {
+                    localStorage.setItem("emailNoticesDismissed", "true");
+                    setShowEmailNotice(false);
+                  }}
+                  className="shrink-0 flex h-11 w-11 items-center justify-center text-amber-400 hover:text-amber-600"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             {sessionToken && (
               <AssistantPanel
                 nurseFirstName={nurseFirstName}
@@ -575,20 +598,20 @@ export default function NurseDashboardPage() {
                     ].join("\r\n");
                     const icsBlob = `data:text/calendar;charset=utf-8,${encodeURIComponent(icsContent)}`;
 
+                    const whatFor = c.has_personal_plan && c.return_reason ? c.return_reason : c.procedure_name;
+                    const reminderPart = isBooked
+                      ? " · booked ✅"
+                      : c.opted_out
+                      ? " · reminders off"
+                      : reminderAlreadySent
+                      ? ` · reminder sent ${reminderFmt}`
+                      : ` · reminder sends ${reminderFmt}`;
+
                     return (
                       <li key={c.treatment_id} className={`px-4 py-3 sm:px-6 flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between ${isBooked ? "bg-green-50" : ""}`}>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-[#1a2744]">
-                            {isBooked ? "🟢" : "🟡"} {c.client_name} · {c.has_personal_plan && c.return_reason ? c.return_reason : c.procedure_name} · can come back from {dueFmt}.
-                          </p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {isBooked
-                              ? "Booked. Reminders stopped."
-                              : c.opted_out
-                              ? "She turned off reminders."
-                              : reminderAlreadySent
-                              ? `Reminder sent on ${reminderFmt}.`
-                              : `Reminder sends on ${reminderFmt}.`}
+                          <p className="text-sm font-semibold text-[#1a2744] truncate">
+                            {c.client_name} · {whatFor} · can come back from {dueFmt}{reminderPart}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -628,28 +651,6 @@ export default function NurseDashboardPage() {
               )}
             </section>
 
-            {needsAlertVerify && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
-                <p className="text-xs text-amber-800 flex-1">🔔 <strong>Verify your emergency alert email</strong> — we haven&apos;t confirmed where to send urgent client alerts yet. <Link href="/onboarding?step=5" className="underline font-semibold">Verify now →</Link></p>
-              </div>
-            )}
-
-            {showEmailNotice && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start justify-between gap-3">
-                <p className="text-xs text-amber-800">📬 <strong>Heads up:</strong> The first email from AdonisBlue may land in your client&apos;s spam folder. Ask them to mark it as &quot;Not Spam&quot; so future emails go straight to their inbox!</p>
-                <button
-                  type="button"
-                  aria-label="Dismiss notice"
-                  onClick={() => {
-                    localStorage.setItem("emailNoticesDismissed", "true");
-                    setShowEmailNotice(false);
-                  }}
-                  className="shrink-0 flex h-11 w-11 items-center justify-center text-amber-400 hover:text-amber-600"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
             <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 flex items-center gap-3">
               <span className="text-lg shrink-0">💉</span>
               <p className="text-sm text-teal-800 flex-1">After every appointment, log your treatment in Treatment Records so AdonisBlue can send aftercare emails and rebooking reminders automatically.</p>
