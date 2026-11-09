@@ -23,6 +23,11 @@
  *      centre of the viewport (simulates a user scrolling to reach the element)
  *   5. Any visible <input>/<textarea> with computed font-size < 16px
  *   6. The primary submit button is disabled AND no sibling/nearby reason text is visible
+ *   7. Visible text element overlapped/covered by an unrelated element (text-on-text,
+ *      button-on-text, icon-on-text) — excludes ARIA modals, data-overlay-ok, data-decorative
+ *   8. Text content overflows its container without intentional ellipsis or scrollability
+ *      (scrollWidth > clientWidth on a text-bearing element)
+ *   9. Flex row with flex-wrap:nowrap where a child is pushed off-screen / outside the container
  */
 
 import { chromium } from "playwright";
@@ -60,9 +65,12 @@ if (hasCredentials && adminEmails.includes(testEmail.toLowerCase())) {
 
 // ── Viewports ──────────────────────────────────────────────────────────────────
 const VIEWPORTS = [
-  { label: "iPhone 390", width: 390, height: 844 },
-  { label: "iPad 820", width: 820, height: 1180 },
-  { label: "Laptop 1440", width: 1440, height: 900 },
+  { label: "iPhone mini 320", width: 320, height: 568 },
+  { label: "Android 360",     width: 360, height: 740 },
+  { label: "iPhone SE 375",   width: 375, height: 667 },
+  { label: "iPhone 390",      width: 390, height: 844 },
+  { label: "iPad 820",        width: 820, height: 1180 },
+  { label: "Laptop 1440",     width: 1440, height: 900 },
 ];
 
 // ── Visit states for logged-out screens ───────────────────────────────────────
@@ -219,6 +227,98 @@ async function runChecks(page, viewport) {
       }
     }
 
+    // 7. Visible text overlapped by an unrelated element (text-on-text, button-on-text, etc.)
+    const textBearers = Array.from(document.querySelectorAll("p, h1, h2, h3, h4, h5, h6, span, label, td, th, li"))
+      .filter(el => {
+        if (el.hasAttribute("data-decorative") || el.hasAttribute("data-overlay-ok")) return false;
+        const st = window.getComputedStyle(el);
+        if (st.display === "none" || st.visibility === "hidden" || st.opacity === "0") return false;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) return false;
+        const ownText = Array.from(el.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent ?? "").join("").trim();
+        return ownText.length >= 2;
+      }).slice(0, 60);
+
+    for (const el of textBearers) {
+      el.scrollIntoView({ block: "center", behavior: "instant" });
+      const r = el.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      if (cy < 0 || cy > window.innerHeight || cx < 0 || cx > window.innerWidth) continue;
+      const top = document.elementFromPoint(cx, cy);
+      if (!top || top === el || el.contains(top) || top.contains(el)) continue;
+      let skip = false;
+      let node = top;
+      while (node) {
+        const role = node.getAttribute?.("role");
+        const modal = node.getAttribute?.("aria-modal");
+        if (role === "dialog" || modal === "true") { skip = true; break; }
+        if (node.hasAttribute?.("data-overlay-ok") || node.hasAttribute?.("data-decorative")) { skip = true; break; }
+        node = node.parentElement;
+      }
+      if (top.tagName?.toLowerCase() === "nextjs-portal") skip = true;
+      if (skip) continue;
+      const ownText = Array.from(el.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent ?? "").join("").trim().slice(0, 30);
+      const covTag = top.tagName.toLowerCase();
+      const covCls = top.className?.toString().slice(0, 50) ?? "";
+      issues.push(`Text "${ownText}" overlapped by <${covTag} class="${covCls}">`);
+    }
+
+    // 8. Text content overflowing container without intentional truncation or scrollability
+    const textContainers = Array.from(document.querySelectorAll("p, h1, h2, h3, h4, h5, h6, span, td, th, label, li"))
+      .filter(el => {
+        const st = window.getComputedStyle(el);
+        if (st.display === "none" || st.visibility === "hidden") return false;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) return false;
+        return (el.textContent ?? "").trim().length >= 3;
+      }).slice(0, 100);
+
+    const reported8 = new Set();
+    for (const el of textContainers) {
+      if (el.scrollWidth <= el.clientWidth + 2) continue;
+      const st = window.getComputedStyle(el);
+      if (st.textOverflow === "ellipsis") continue;
+      if (st.overflowX === "auto" || st.overflowX === "scroll") continue;
+      const ownText = Array.from(el.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent ?? "").join("").trim();
+      if (!ownText) continue;
+      const key = `${el.tagName}:${ownText.slice(0, 30)}`;
+      if (reported8.has(key)) continue;
+      reported8.add(key);
+      issues.push(`Text cut off: <${el.tagName.toLowerCase()}> "${ownText.slice(0, 40)}" scrollWidth=${el.scrollWidth} > clientWidth=${el.clientWidth}`);
+    }
+
+    // 9. Flex row with nowrap where a child is pushed off-screen
+    const reported9 = new Set();
+    for (const el of Array.from(document.querySelectorAll("*"))) {
+      const st = window.getComputedStyle(el);
+      if (st.display !== "flex" && st.display !== "inline-flex") continue;
+      if (st.flexWrap !== "nowrap") continue;
+      const dir = st.flexDirection;
+      if (dir === "column" || dir === "column-reverse") continue;
+      // Skip scrollable containers — children legitimately extend beyond bounds
+      if (st.overflowX === "auto" || st.overflowX === "scroll") continue;
+      const r = el.getBoundingClientRect();
+      if (r.width === 0) continue;
+      for (const child of Array.from(el.children)) {
+        // Skip hidden children — getBoundingClientRect() returns {0,0,0,0} for display:none,
+        // which triggers false positives when the container is positioned away from origin.
+        const childSt = window.getComputedStyle(child);
+        if (childSt.display === "none" || childSt.visibility === "hidden") continue;
+        const cr = child.getBoundingClientRect();
+        if (cr.width === 0 && cr.height === 0) continue;
+        if (cr.right > r.right + 4 || cr.left < r.left - 4) {
+          const cls = el.className?.toString().slice(0, 50) ?? "";
+          const key = `${el.tagName}:${cls.slice(0, 30)}`;
+          if (reported9.has(key)) continue;
+          reported9.add(key);
+          const childText = (child.textContent ?? "").trim().slice(0, 30);
+          issues.push(`Flex row overflow: <${el.tagName.toLowerCase()} class="${cls}"> child "${childText}" outside container`);
+          break;
+        }
+      }
+    }
+
     return issues;
   }, viewport.width);
 }
@@ -246,6 +346,46 @@ let totalIssues = 0;
 let totalScreens = 0;
 
 const browser = await chromium.launch({ headless: true });
+
+// ── Fetch healing chat path (needs a valid treatment_id from the test nurse) ──
+// The healing page is client-facing (no nurse auth), so once we have a UUID it
+// can be tested as a logged-out screen.
+if (!CI_MODE && hasCredentials) {
+  const tempCtx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+  });
+  const tempPage = await tempCtx.newPage();
+  await tempPage.addInitScript(() => {
+    try { localStorage.setItem("adonisblue_cookie_consent", "true"); } catch {}
+  });
+  try {
+    await signIn(tempPage);
+    const treatmentId = await tempPage.evaluate(async () => {
+      const key = Object.keys(localStorage).find(k => k.includes("supabase") && k.includes("auth"));
+      if (!key) return null;
+      try {
+        const session = JSON.parse(localStorage.getItem(key) ?? "null");
+        const token = session?.access_token;
+        if (!token) return null;
+        const res = await fetch("/api/treatments?limit=1", { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return null;
+        const j = await res.json();
+        return j.treatments?.[0]?.id ?? null;
+      } catch { return null; }
+    });
+    if (treatmentId) {
+      SCREENS.push({ path: `/healing/${treatmentId}`, label: "Healing Chat", loggedIn: false });
+      process.stdout.write(`  ✓ Healing chat: will test at /healing/${treatmentId}\n`);
+    } else {
+      process.stderr.write("  ⚠ Healing chat: no treatment found for test nurse, skipping\n");
+    }
+  } catch (e) {
+    process.stderr.write(`  ⚠ Healing chat path fetch failed: ${e.message}\n`);
+  }
+  await tempPage.close();
+  await tempCtx.close();
+}
 
 try {
   for (const vp of VIEWPORTS) {
@@ -363,6 +503,80 @@ try {
       process.stderr.write(`  ⚠ Skipping logged-in screens at ${vp.label} — TEST_NURSE_EMAIL/TEST_NURSE_PASSWORD not set\n`);
     }
   }
+  // ── Interaction test: Log + "Plan her return" state at all mobile viewports ──
+  // Opens the form in the Plan-her-return expanded state and runs layout checks
+  // WITHOUT submitting — no DB write, no email risk.
+  if (!CI_MODE && hasCredentials) {
+    const mobileVps = VIEWPORTS.filter(v => v.width < 768);
+    for (const vp of mobileVps) {
+      process.stdout.write(`\n── Interaction state: Log+Plan (${vp.label}) ──\n`);
+      const ctx = await browser.newContext({
+        viewport: { width: vp.width, height: vp.height },
+        userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+        isMobile: true,
+      });
+      const pg = await ctx.newPage();
+      await pg.addInitScript(() => {
+        try { localStorage.setItem("adonisblue_cookie_consent", "true"); } catch {}
+      });
+      try {
+        await signIn(pg);
+        await pg.goto(`${BASE_URL}/aftercare`, { waitUntil: "networkidle", timeout: 20_000 });
+        await pg.waitForTimeout(800);
+
+        // Open the Log form
+        const logBtn = pg.locator("button", { hasText: /Log a treatment/i }).first();
+        await logBtn.waitFor({ state: "visible", timeout: 5_000 });
+        await logBtn.click();
+        await pg.waitForTimeout(400);
+
+        // Switch to Walk-in tab
+        const walkinTab = pg.locator("button", { hasText: /Walk.in/i }).first();
+        await walkinTab.waitFor({ state: "visible", timeout: 3_000 });
+        await walkinTab.click();
+        await pg.waitForTimeout(200);
+
+        // Fill name so the form is populated
+        await pg.fill('input[placeholder="Client name"]', "Device Check Test");
+
+        // Select a procedure
+        const procBtns = pg.locator("button").filter({ hasText: /botox|filler|micro|nose|skin|tear/i });
+        const procCount = await procBtns.count();
+        if (procCount > 0) {
+          await procBtns.first().waitFor({ state: "visible", timeout: 5_000 });
+          await procBtns.first().click();
+          await pg.waitForTimeout(300);
+        }
+
+        // Expand "Plan her return" section
+        const planBtn = pg.locator("button, label").filter({ hasText: /Plan her return/i }).first();
+        const planCount = await planBtn.count();
+        if (planCount > 0) {
+          await planBtn.waitFor({ state: "visible", timeout: 3_000 });
+          await planBtn.click();
+          await pg.waitForTimeout(400);
+        }
+
+        // Run layout checks in this open form state
+        const issues = await runChecks(pg, vp);
+        const label = `${vp.label} [returning] — Log (Plan her return open)`;
+        if (issues.length > 0) {
+          process.stdout.write(`\n❌ ${label}\n`);
+          for (const iss of issues) {
+            process.stdout.write(`   • ${iss}\n`);
+            totalIssues++;
+          }
+        } else {
+          process.stdout.write(`  ✓ ${label}\n`);
+        }
+      } catch (e) {
+        process.stdout.write(`  ⚠ Log+Plan interaction state failed at ${vp.label}: ${e.message}\n`);
+      }
+      await pg.close();
+      await ctx.close();
+    }
+  }
+
   // ── Interaction test: Log form at 390px (only with credentials, not in CI) ───
   if (!CI_MODE && hasCredentials) {
     process.stdout.write("\n── Interaction test: Log form (iPhone 390) ──\n");

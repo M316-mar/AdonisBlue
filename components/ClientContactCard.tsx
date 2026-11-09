@@ -28,7 +28,8 @@ export function ClientContactCard({ name, phone, email, badge }: ClientContactCa
             <button
               type="button"
               onClick={() => setPhoneVisible((v) => !v)}
-              className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+              aria-label={phoneVisible ? "Hide phone number" : "Show phone number"}
+              className="flex min-h-[44px] min-w-[44px] items-center gap-1 rounded-full border border-slate-200 bg-white px-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
             >
               📞{phoneVisible && <span className="ml-0.5 text-slate-700">{phone}</span>}
             </button>
@@ -37,7 +38,8 @@ export function ClientContactCard({ name, phone, email, badge }: ClientContactCa
             <button
               type="button"
               onClick={() => setEmailVisible((v) => !v)}
-              className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+              aria-label={emailVisible ? "Hide email address" : "Show email address"}
+              className="flex min-h-[44px] min-w-[44px] items-center gap-1 rounded-full border border-slate-200 bg-white px-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
             >
               ✉️{emailVisible && <span className="ml-0.5 text-slate-700">{email}</span>}
             </button>

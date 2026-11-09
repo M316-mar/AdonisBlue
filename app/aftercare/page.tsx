@@ -53,14 +53,6 @@ type Intake = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function StatBadge({ label, value, color }: { label: string; value: string | number; color: string }) {
-  return (
-    <div className={`flex-1 min-w-0 rounded-2xl border p-4 text-center ${color}`}>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="mt-0.5 text-xs font-semibold leading-tight">{label}</p>
-    </div>
-  );
-}
 
 function toLocalDateString(date: Date = new Date()): string {
   const year = date.getFullYear();
@@ -654,13 +646,6 @@ export default function AftercarePage() {
     }));
   }, [intakes]);
 
-  // ── Treatment stats ────────────────────────────────────────────────────────
-  const totalTreatments = treatments.length;
-  const viaBotCount = treatments.filter(t => t.came_via_bot).length;
-  const conversionPct = totalTreatments > 0
-    ? Math.round((viaBotCount / totalTreatments) * 100)
-    : 0;
-
   // ── Loading ────────────────────────────────────────────────────────────────
   if (!ready) {
     return (
@@ -724,25 +709,6 @@ export default function AftercarePage() {
 
         {/* ── Treatments ─────────────────────────────────────────────── */}
         <div className="space-y-4">
-          {/* Results summary */}
-          <div className="flex gap-3">
-            <StatBadge
-              label="Total treatments"
-              value={totalTreatments}
-              color="border-slate-200 bg-white text-[#1a2744]"
-            />
-            <StatBadge
-              label="Via AdonisBlue 🤖"
-              value={viaBotCount}
-              color="border-blue-200 bg-blue-50 text-blue-700"
-            />
-            <StatBadge
-              label="Conversion rate"
-              value={`${conversionPct}%`}
-              color="border-teal-200 bg-teal-50 text-teal-700"
-            />
-          </div>
-
           <div className="flex justify-end">
             <button
               type="button"
@@ -1303,7 +1269,7 @@ export default function AftercarePage() {
                                   key={opt.label}
                                   type="button"
                                   onClick={() => setReturnPlanDate(val)}
-                                  className={`min-h-[36px] rounded-full px-3 py-1 text-xs font-semibold transition ${returnPlanDate === val ? "bg-teal-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                                  className={`min-h-[44px] rounded-full px-3 py-2 text-sm font-semibold transition ${returnPlanDate === val ? "bg-teal-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
                                 >
                                   {opt.label}
                                 </button>
@@ -1313,7 +1279,7 @@ export default function AftercarePage() {
                               type="date"
                               value={returnPlanDate}
                               onChange={e => setReturnPlanDate(e.target.value)}
-                              className="min-h-[36px] rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs text-slate-800 outline-none focus:border-[#0d9488]"
+                              className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-800 outline-none focus:border-[#0d9488]"
                             />
                           </div>
                         </div>
@@ -1325,7 +1291,7 @@ export default function AftercarePage() {
                             onChange={e => setReturnPlanReason(e.target.value.slice(0, 120))}
                             placeholder="Adding more volume to your lips"
                             maxLength={120}
-                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#0d9488]"
+                            className="w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-800 outline-none focus:border-[#0d9488]"
                           />
                           <p className="mt-1 text-xs text-slate-400">This makes her reminder personal. It&apos;s what she&apos;ll read.</p>
                         </div>
@@ -1350,7 +1316,7 @@ export default function AftercarePage() {
                                 key={opt.days}
                                 type="button"
                                 onClick={() => setReturnPlanLeadDays(opt.days)}
-                                className={`min-h-[36px] rounded-full px-3 py-1 text-xs font-semibold transition ${returnPlanLeadDays === opt.days ? "bg-teal-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                                className={`min-h-[44px] rounded-full px-3 py-2 text-sm font-semibold transition ${returnPlanLeadDays === opt.days ? "bg-teal-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
                               >
                                 {opt.label}
                               </button>
@@ -1526,7 +1492,7 @@ export default function AftercarePage() {
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") toggle(); }}
-                    className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50 transition cursor-pointer"
+                    className="w-full flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-4 text-left hover:bg-slate-50 transition cursor-pointer"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="shrink-0 h-9 w-9 rounded-full bg-gradient-to-br from-teal-400 to-[#1a2744] flex items-center justify-center text-white text-sm font-bold">
@@ -1558,7 +1524,7 @@ export default function AftercarePage() {
                             setEditClientForm({ first_name: clientName, email: clientEmail, phone: rep.intakes?.phone ?? "" });
                             setEditClientError(null);
                           }}
-                          className="rounded-full p-1.5 text-slate-300 transition hover:bg-teal-50 hover:text-teal-500"
+                          className="flex h-11 w-11 items-center justify-center rounded-full text-slate-300 transition hover:bg-teal-50 hover:text-teal-500"
                           title="Edit client info"
                           aria-label="Edit client info"
                         >
@@ -1652,7 +1618,7 @@ export default function AftercarePage() {
                             <button
                               type="button"
                               onClick={() => setArchiveConfirmId(archiveConfirmId === treatment.id ? null : treatment.id)}
-                              className="shrink-0 rounded-full p-1.5 text-slate-300 transition hover:bg-red-50 hover:text-red-400"
+                              className="shrink-0 flex h-11 w-11 items-center justify-center rounded-full text-slate-300 transition hover:bg-red-50 hover:text-red-400"
                               title="Archive treatment"
                               aria-label="Archive treatment"
                             >
@@ -1668,7 +1634,7 @@ export default function AftercarePage() {
                                 type="button"
                                 disabled={aftercareSchedulingId === treatment.id}
                                 onClick={(e) => { e.stopPropagation(); void handleAftercareSchedule(treatment.id); }}
-                                className="rounded-full bg-teal-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                                className="min-h-[44px] rounded-full bg-teal-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
                               >
                                 {aftercareSchedulingId === treatment.id ? "Scheduling…" : "Send aftercare"}
                               </button>
@@ -1686,14 +1652,14 @@ export default function AftercarePage() {
                                     type="button"
                                     disabled={aftercareSendNowId === treatment.id}
                                     onClick={(e) => { e.stopPropagation(); void handleAftercareSendNow(treatment.id); }}
-                                    className="rounded-full bg-teal-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                                    className="min-h-[44px] rounded-full bg-teal-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
                                   >
                                     {aftercareSendNowId === treatment.id ? "Sending…" : "Send now"}
                                   </button>
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setCancelPopupId(treatment.id); }}
-                                    className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                                    className="min-h-[44px] rounded-full border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
                                   >
                                     Cancel
                                   </button>
