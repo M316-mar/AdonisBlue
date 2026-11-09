@@ -86,6 +86,44 @@ async function fetchTestTreatmentId() {
   } catch { /* fall through */ }
   return null;
 }
+/** Archive device-check test treatments via the API (not UI clicks).
+ *  If treatmentId is given, archives only that one.
+ *  Otherwise fetches all active treatments and archives any with notes containing "device-check test". */
+async function archiveDeviceCheckTreatments(treatmentId) {
+  if (!supabaseUrl || !supabaseAnonKey || !testEmail || !testPassword) return 0;
+  try {
+    const sb = createClient(supabaseUrl, supabaseAnonKey);
+    const { data, error } = await sb.auth.signInWithPassword({ email: testEmail, password: testPassword });
+    if (error || !data?.session?.access_token) return 0;
+    const token = data.session.access_token;
+    const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+    const ids = [];
+    if (treatmentId) {
+      ids.push(treatmentId);
+    } else {
+      const r = await fetch(`${BASE_URL}/api/treatments`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) {
+        const j = await r.json();
+        for (const t of j.treatments ?? []) {
+          if (typeof t.notes === "string" && t.notes.includes("device-check test")) ids.push(t.id);
+        }
+      }
+    }
+
+    let count = 0;
+    for (const id of ids) {
+      const r = await fetch(`${BASE_URL}/api/treatments`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ treatment_id: id, action: "archive" }),
+      });
+      if (r.ok) count++;
+    }
+    return count;
+  } catch { return 0; }
+}
+
 const hasCredentials = !!(testEmail && testPassword);
 
 // Rule 10: TEST_NURSE_EMAIL must not be an admin email.
@@ -605,24 +643,13 @@ try {
       await logPage.goto(`${BASE_URL}/aftercare`, { waitUntil: "networkidle", timeout: 20_000 });
       await logPage.waitForTimeout(800);
 
-      // Pre-cleanup: archive any leftover "Device Check Test" treatments from prior runs.
-      // Orphaned treatments make the page taller, pushing "Show archived" into the bottom nav zone.
+      // Pre-cleanup: archive any leftover device-check test treatments from prior runs (API, not UI).
       {
-        const orphans = logPage.locator('button[aria-label="Archive treatment"]');
-        const orphanCount = await orphans.count();
-        for (let i = 0; i < orphanCount; i++) {
-          try {
-            await orphans.first().click({ force: true });
-            await logPage.waitForTimeout(400);
-            const confirmBtn = logPage.locator("button", { hasText: /Yes, archive/i }).first();
-            if (await confirmBtn.count() > 0) {
-              await confirmBtn.click();
-              await logPage.waitForTimeout(400);
-            }
-          } catch { break; }
-        }
-        if (orphanCount > 0) {
-          process.stdout.write(`  ✓ Log form: pre-cleanup archived ${orphanCount} orphaned test treatment(s)\n`);
+        const preCount = await archiveDeviceCheckTreatments();
+        if (preCount > 0) {
+          process.stdout.write(`  ✓ Log form: pre-cleanup archived ${preCount} orphaned test treatment(s)\n`);
+          await logPage.reload({ waitUntil: "networkidle" });
+          await logPage.waitForTimeout(500);
         }
       }
 
@@ -645,7 +672,7 @@ try {
       // Add a note marking this row as a test so it's identifiable in the DB.
       const notesArea = logPage.locator('textarea[placeholder*="e.g."]').first();
       if (await notesArea.count() > 0) {
-        await notesArea.fill("device-check test — safe to archive");
+        await notesArea.fill("device-check test");
       }
 
       // Select first available procedure (Botox/Lip Filler/etc.)
@@ -654,16 +681,44 @@ try {
       await procBtns.first().click();
       await logPage.waitForTimeout(300);
 
-      // Do NOT enable "Plan her return" — that would create a pending return-plan reminder.
+      // Enable "Plan her return" — click the preset "6 mo" button so we don't depend on the native date picker.
+      const returnPlanCheckbox = logPage.locator('input[type="checkbox"]').filter({ hasText: /Plan her return/i }).first();
+      // The checkbox is inside a label — click the label text instead
+      const returnPlanLabel = logPage.locator("label", { hasText: /Plan her return/i }).first();
+      if (await returnPlanLabel.count() > 0) {
+        await returnPlanLabel.click();
+        await logPage.waitForTimeout(400);
+        // Click the "6 mo" preset button — this sets the date to ~180 days out without touching the native date input
+        const sixMoBtn = logPage.locator("button", { hasText: /6 mo/i }).first();
+        if (await sixMoBtn.count() > 0) {
+          await sixMoBtn.click();
+          await logPage.waitForTimeout(200);
+        }
+        // Fill in the return reason
+        const reasonInput = logPage.locator('input[placeholder*="Adding more volume"]').first();
+        if (await reasonInput.count() > 0) {
+          await reasonInput.fill("device-check test return reason");
+          await logPage.waitForTimeout(200);
+        }
+        process.stdout.write("  ✓ Log form: Plan her return enabled with 6-month date\n");
+      } else {
+        process.stdout.write("  ⚠ Log form: Plan her return checkbox not found\n");
+      }
 
-      // Click submit ("Log treatment" because send_aftercare=true but no email → button text depends on
-      // whether procedures are approved; regardless we just click the first enabled submit-like button).
+      // Click submit and capture the API response to verify the plan was saved.
       const submitBtn = logPage.locator("button").filter({ hasText: /Log.*send|Log treatment/i }).first();
       await submitBtn.waitFor({ state: "visible", timeout: 3_000 });
-      await submitBtn.click();
-      await logPage.waitForTimeout(2000);
+      let savedTreatment = null;
+      const [submitResp] = await Promise.all([
+        logPage.waitForResponse(r => r.url().includes("/api/treatments") && r.request().method() === "POST", { timeout: 10_000 }),
+        submitBtn.click(),
+      ]);
+      try { savedTreatment = (await submitResp.json())?.treatment ?? null; } catch { /* fall through */ }
+      await logPage.waitForTimeout(1000);
 
-      // Verify treatment appeared (flash message or new row in page)
+      const newTreatmentId = savedTreatment?.id ?? null;
+
+      // Verify treatment appeared
       const flashOrRow = await logPage.locator("text=/Treatment logged|Device Check Test/i").count();
       if (flashOrRow > 0) {
         process.stdout.write("  ✓ Log form: treatment saved successfully\n");
@@ -671,40 +726,41 @@ try {
         process.stdout.write("  ⚠ Log form: could not confirm treatment was saved (no flash or row found)\n");
       }
 
-      // ── Safety assertion: nothing should be scheduled to send ─────────────
-      // The API only sets aftercare_send_at when clientEmail is non-null.
-      // planned_return_at was not set (we did not click "Plan her return").
-      // Verify via the page state: check that the newly saved treatment shows
-      // no "Aftercare scheduled" badge, which would appear if aftercare_send_at were set.
+      // ── Verify Plan her return was actually stored ─────────────────────────
+      if (savedTreatment) {
+        const planOk = savedTreatment.planned_return_at && savedTreatment.reminder_lead_days != null && savedTreatment.return_reason;
+        if (planOk) {
+          process.stdout.write(`  ✓ Log form: plan fields saved — planned_return_at=${savedTreatment.planned_return_at}, reminder_lead_days=${savedTreatment.reminder_lead_days}, return_reason=${savedTreatment.return_reason}\n`);
+        } else {
+          process.stdout.write(`  ✗ Log form: FAIL — plan fields missing from saved treatment (planned_return_at=${savedTreatment.planned_return_at}, reminder_lead_days=${savedTreatment.reminder_lead_days}, return_reason=${savedTreatment.return_reason})\n`);
+          totalIssues++;
+        }
+      } else {
+        process.stdout.write("  ⚠ Log form: could not read API response to verify plan fields\n");
+      }
+
+      // ── Safety assertion: no aftercare scheduled (no email on walk-in) ─────
       const scheduledBadge = await logPage.locator("text=/Aftercare scheduled|Sending in/i").count();
       if (scheduledBadge > 0) {
-        process.stdout.write("  ✗ Log form: SAFETY FAIL — aftercare was scheduled unexpectedly (treatment has aftercare_send_at)\n");
+        process.stdout.write("  ✗ Log form: SAFETY FAIL — aftercare was scheduled unexpectedly\n");
         totalIssues++;
       } else {
         process.stdout.write("  ✓ Log form: confirmed no aftercare email scheduled (no email → no send)\n");
       }
 
-      // Archive cleanup: archive every treatment row (all should be the test treatment)
-      await logPage.waitForTimeout(500);
-      let archiveCount = 0;
-      const archiveBtns = logPage.locator('button[aria-label="Archive treatment"]');
-      const archiveBtnCount = await archiveBtns.count();
-      for (let i = 0; i < archiveBtnCount; i++) {
-        try {
-          await archiveBtns.first().click({ force: true });
-          await logPage.waitForTimeout(400);
-          const confirmBtn = logPage.locator("button", { hasText: /Yes, archive/i }).first();
-          if (await confirmBtn.count() > 0) {
-            await confirmBtn.click();
-            await logPage.waitForTimeout(400);
-            archiveCount++;
-          }
-        } catch { break; }
-      }
-      if (archiveCount > 0) {
-        process.stdout.write(`  ✓ Log form: ${archiveCount} test treatment(s) archived (cleanup done)\n`);
+      // ── Cleanup: archive only the test treatment we just created (API, not UI) ──
+      await logPage.waitForTimeout(300);
+      if (newTreatmentId) {
+        const archived = await archiveDeviceCheckTreatments(newTreatmentId);
+        if (archived > 0) {
+          process.stdout.write("  ✓ Log form: test treatment archived (cleanup done)\n");
+        } else {
+          process.stdout.write("  ⚠ Log form: archive of test treatment may have failed — check manually\n");
+        }
       } else {
-        process.stdout.write("  ⚠ Log form: no archive buttons found — test treatment may need manual cleanup\n");
+        // Fallback: sweep by notes
+        const swept = await archiveDeviceCheckTreatments();
+        process.stdout.write(`  ✓ Log form: cleanup sweep archived ${swept} test treatment(s)\n`);
       }
     } catch (e) {
       process.stdout.write(`  ⚠ Log form interaction test failed: ${e.message}\n`);

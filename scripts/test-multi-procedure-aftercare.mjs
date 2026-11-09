@@ -185,6 +185,61 @@ console.log("\n── junction rollback: insert failure → treatment deleted �
   label(okCase.status === 200, "junction success → 200 status");
 }
 
+// ── 7. Return plan: treatment with planned_return_at appears in return-clients ──
+console.log("\n── return plan: treatment with plan included in return-clients ──");
+{
+  function simulateReturnClientsFilter(treatments, today) {
+    const thirtyDaysOut = new Date(today);
+    thirtyDaysOut.setUTCDate(thirtyDaysOut.getUTCDate() + 30);
+    const result = [];
+    for (const t of treatments) {
+      const hasPersonalPlan = t.planned_return_at != null && t.reminder_lead_days != null;
+      if (!hasPersonalPlan) continue;
+      const dueStr = t.planned_return_at;
+      if (!t.rebooked_at && dueStr > thirtyDaysOut.toISOString().slice(0, 10)) continue;
+      result.push({ treatment_id: t.id, has_personal_plan: true, return_reason: t.return_reason });
+    }
+    return result;
+  }
+
+  const today = new Date("2026-11-09T00:00:00Z");
+  const thirtyOut = new Date(today);
+  thirtyOut.setUTCDate(today.getUTCDate() + 30);
+
+  // Treatment with plan due in 15 days → should appear
+  const t1 = {
+    id: "t-plan-1", intake_id: "i-1", treatment_date: "2026-11-09",
+    planned_return_at: "2026-11-24", reminder_lead_days: 7, return_reason: "touch up lips",
+    rebooked_at: null, procedure_id: "p-1",
+  };
+  // Treatment with plan due in 60 days (outside 30d window) → should NOT appear
+  const t2 = {
+    id: "t-plan-2", intake_id: "i-2", treatment_date: "2026-11-09",
+    planned_return_at: "2027-01-08", reminder_lead_days: 7, return_reason: "nose filler",
+    rebooked_at: null, procedure_id: "p-1",
+  };
+  // Treatment with plan due in 60 days but already rebooked → should appear (recently rebooked)
+  const t3 = {
+    id: "t-plan-3", intake_id: "i-3", treatment_date: "2026-11-09",
+    planned_return_at: "2027-01-08", reminder_lead_days: 7, return_reason: "follow up",
+    rebooked_at: "2026-11-08T00:00:00Z", procedure_id: "p-1",
+  };
+  // Treatment with NO plan → should not appear via this path
+  const t4 = {
+    id: "t-plan-4", intake_id: "i-4", treatment_date: "2026-11-09",
+    planned_return_at: null, reminder_lead_days: null, return_reason: null,
+    rebooked_at: null, procedure_id: "p-1",
+  };
+
+  const result = simulateReturnClientsFilter([t1, t2, t3, t4], today);
+  label(result.some(c => c.treatment_id === "t-plan-1"), "plan due in 15 days → included");
+  label(!result.some(c => c.treatment_id === "t-plan-2"), "plan due in 60 days (no rebook) → excluded");
+  label(result.some(c => c.treatment_id === "t-plan-3"), "plan far out but rebooked → included");
+  label(!result.some(c => c.treatment_id === "t-plan-4"), "no plan → excluded from personal-plan path");
+  label(result.find(c => c.treatment_id === "t-plan-1")?.return_reason === "touch up lips", "return_reason preserved in result");
+  label(result.find(c => c.treatment_id === "t-plan-1")?.has_personal_plan === true, "has_personal_plan=true for plan treatment");
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${pass + fail} tests: ${GREEN}${pass} passed${RESET}, ${fail > 0 ? `${RED}${BOLD}${fail} failed${RESET}` : `${fail} failed`}\n`);
 if (fail > 0) process.exit(1);

@@ -355,6 +355,12 @@ export default function AftercarePage() {
 
     const hasCustom = !!capturedCustomProcedure;
     if ((!capturedIntakeId && !capturedIsWalkin) || (newTreatment.procedure_ids.length === 0 && !hasCustom)) return;
+
+    if (capturedReturnPlanChecked && !capturedReturnPlanDate) {
+      setTreatmentError("Pick a return date before saving.");
+      return;
+    }
+
     setTreatmentSaving(true);
     setTreatmentError(null);
 
@@ -445,7 +451,7 @@ export default function AftercarePage() {
         walkin_phone: newTreatment.walkin_phone,
         send_aftercare: newTreatment.send_aftercare,
         came_via_bot: newTreatment.came_via_bot,
-        ...(capturedReturnPlanChecked && capturedReturnPlanDate ? {
+        ...(capturedReturnPlanChecked ? {
           planned_return_at: capturedReturnPlanDate,
           return_reason: capturedReturnPlanReason || null,
           reminder_lead_days: capturedReturnPlanLeadDays,

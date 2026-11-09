@@ -485,6 +485,45 @@ export default function NurseDashboardPage() {
       <main className="mx-auto max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-28 lg:px-8 lg:py-10 lg:pb-28">
         <div className="grid gap-6 md:grid-cols-12 md:gap-8 md:items-start">
           <div className="space-y-6 md:col-span-8">
+            <section className="relative overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 shadow-lg sm:px-6 sm:py-8">
+              <div
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_85%_0%,rgba(13,148,136,0.22),transparent),radial-gradient(ellipse_60%_50%_at_0%_100%,rgba(56,189,248,0.12),transparent)] opacity-90"
+                aria-hidden
+              />
+              <div className="relative">
+                <h1 className="text-balance text-xl font-semibold leading-snug text-white sm:text-2xl lg:text-[1.65rem]">
+                  {!bot
+                    ? <>Welcome, {nurseFirstName} 👋</>
+                    : bot.launched
+                    ? <>Welcome back, {nurseFirstName} ✨</>
+                    : <>Almost there, {nurseFirstName}! 🦋</>}
+                </h1>
+                <p className="mt-2 text-sm leading-relaxed text-slate-300 sm:text-base">
+                  {!bot
+                    ? "Let's get your AI front desk set up — it only takes 5 minutes."
+                    : launched
+                    ? "✅ You're all set! Your assistant is live and ready."
+                    : "Your setup isn't complete yet. Finish it to go live."}
+                </p>
+                {!bot && (
+                  <Link
+                    href="/onboarding"
+                    className="mt-4 inline-flex items-center rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
+                  >
+                    Start setup →
+                  </Link>
+                )}
+                {bot && !launched && (
+                  <Link
+                    href="/onboarding"
+                    className="mt-4 inline-flex items-center rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
+                  >
+                    Continue setup →
+                  </Link>
+                )}
+              </div>
+            </section>
+
             {sessionToken && (
               <AssistantPanel
                 nurseFirstName={nurseFirstName}
@@ -589,45 +628,6 @@ export default function NurseDashboardPage() {
               )}
             </section>
 
-            <section className="relative overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 shadow-lg sm:px-6 sm:py-8">
-              <div
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_85%_0%,rgba(13,148,136,0.22),transparent),radial-gradient(ellipse_60%_50%_at_0%_100%,rgba(56,189,248,0.12),transparent)] opacity-90"
-                aria-hidden
-              />
-              <div className="relative">
-                <h1 className="text-balance text-xl font-semibold leading-snug text-white sm:text-2xl lg:text-[1.65rem]">
-                  {!bot
-                    ? <>Welcome, {nurseFirstName} 👋</>
-                    : bot.launched
-                    ? <>Welcome back, {nurseFirstName} ✨</>
-                    : <>Almost there, {nurseFirstName}! 🦋</>}
-                </h1>
-                <p className="mt-2 text-sm leading-relaxed text-slate-300 sm:text-base">
-                  {!bot
-                    ? "Let's get your AI front desk set up — it only takes 5 minutes."
-                    : launched
-                    ? "✅ You're all set! Your assistant is live and ready."
-                    : "Your setup isn't complete yet. Finish it to go live."}
-                </p>
-                {!bot && (
-                  <Link
-                    href="/onboarding"
-                    className="mt-4 inline-flex items-center rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
-                  >
-                    Start setup →
-                  </Link>
-                )}
-                {bot && !launched && (
-                  <Link
-                    href="/onboarding"
-                    className="mt-4 inline-flex items-center rounded-full bg-[#0d9488] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
-                  >
-                    Continue setup →
-                  </Link>
-                )}
-              </div>
-            </section>
-
             {needsAlertVerify && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
                 <p className="text-xs text-amber-800 flex-1">🔔 <strong>Verify your emergency alert email</strong> — we haven&apos;t confirmed where to send urgent client alerts yet. <Link href="/onboarding?step=5" className="underline font-semibold">Verify now →</Link></p>
@@ -650,64 +650,6 @@ export default function NurseDashboardPage() {
                 </button>
               </div>
             )}
-            {returnClients.length > 0 && (
-              <section id="return-clients" className="rounded-2xl border border-slate-200 bg-white shadow-md overflow-hidden">
-                <div className="px-4 py-4 sm:px-6 border-b border-slate-100">
-                  <p className="text-sm font-semibold text-[#1a2744]">🔁 Coming back soon</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Clients due back in the next 30 days. Save them a spot in your calendar.</p>
-                </div>
-                <ul className="divide-y divide-slate-100">
-                  {returnClients.map((c) => {
-                    const isBooked = !!c.rebooked_at;
-                    const today = localDateString();
-                    const isPastDue = !isBooked && c.due_date < today;
-                    const reminderAlreadySent = c.reminder_send_date <= today;
-                    const dueFmt = formatTreatmentDate(c.due_date, { month: "short", day: "numeric" });
-                    const reminderFmt = formatTreatmentDate(c.reminder_send_date, { month: "short", day: "numeric" });
-                    return (
-                      <li key={c.treatment_id} className={`px-4 py-3 sm:px-6 flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between ${isBooked ? "bg-green-50" : ""}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-[#1a2744]">
-                            {isBooked ? "🟢" : "🟡"} {c.client_name} · {c.has_personal_plan && c.return_reason ? c.return_reason : c.procedure_name} · can come back from {dueFmt}.
-                          </p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {isBooked
-                              ? "Booked. Reminders stopped."
-                              : c.opted_out
-                              ? "She turned off reminders."
-                              : reminderAlreadySent
-                              ? `Reminder sent on ${reminderFmt}.`
-                              : `Reminder sends on ${reminderFmt}.`}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {isBooked ? (
-                            <button
-                              type="button"
-                              disabled={returnBookingBusy === c.treatment_id}
-                              onClick={() => void handleReturnBooking(c.treatment_id, "unbook")}
-                              className="text-xs text-slate-400 hover:text-slate-600 underline transition disabled:opacity-50"
-                            >
-                              {returnBookingBusy === c.treatment_id ? "…" : "Undo"}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={returnBookingBusy === c.treatment_id}
-                              onClick={() => void handleReturnBooking(c.treatment_id, "booked")}
-                              className="rounded-full bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
-                            >
-                              {returnBookingBusy === c.treatment_id ? "…" : "✅ She booked"}
-                            </button>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            )}
-
             <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 flex items-center gap-3">
               <span className="text-lg shrink-0">💉</span>
               <p className="text-sm text-teal-800 flex-1">After every appointment, log your treatment in Treatment Records so AdonisBlue can send aftercare emails and rebooking reminders automatically.</p>
