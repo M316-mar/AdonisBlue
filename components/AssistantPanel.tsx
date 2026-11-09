@@ -252,6 +252,17 @@ export function AssistantPanel({
     }
   };
 
+  const handleDismissActionNeeded = async (id: string) => {
+    const res = await fetch("/api/assistant/action-needed", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      setCtx(prev => prev ? { ...prev, actionNeeded: prev.actionNeeded.filter(x => x.id !== id) } : prev);
+    }
+  };
+
   const handleScheduledSendNow = async (a: ScheduledAftercare) => {
     setScheduledSendingNow(a.treatment_id);
     try {
@@ -587,6 +598,14 @@ export function AssistantPanel({
                   <p className="text-sm font-medium text-amber-800">Action needed</p>
                   <p className="text-xs text-amber-700 mt-0.5">{item.message}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => void handleDismissActionNeeded(item.id)}
+                  className="shrink-0 text-xs text-amber-500 hover:text-amber-700 transition min-h-[44px] px-2"
+                  aria-label="Dismiss"
+                >
+                  ✕
+                </button>
               </div>
             ))}
 

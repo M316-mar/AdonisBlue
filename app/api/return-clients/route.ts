@@ -30,13 +30,12 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Fetch non-archived, non-rebooked treatments with a procedure that has reminder_days
+    // Fetch non-archived treatments (include multi-procedure treatments where procedure_id may be null)
     const { data: treatments, error: tErr } = await supabase
       .from("treatments")
       .select("id, treatment_date, procedure_id, procedure_name, intake_id, rebooked_at, rebooked_source, planned_return_at, return_reason, reminder_lead_days, planned_reminder_sent_at, procedures(name, reminder_days), intakes(first_name, email, marketing_opt_out)")
       .eq("nurse_id", user.id)
-      .eq("archived", false)
-      .not("procedure_id", "is", null);
+      .eq("archived", false);
 
     if (tErr) {
       await logError("return-clients", tErr.message);
@@ -48,10 +47,31 @@ export async function GET(request: Request) {
     const thirtyDaysOut = new Date(today);
     thirtyDaysOut.setUTCDate(today.getUTCDate() + 30);
 
-    // Keep only the most recent treatment per (intake_id, procedure_id)
+    // Batch-fetch junction procedures for all treatment IDs
+    const allTreatmentIdsRC = (treatments ?? []).map((t) => t.id);
+    type JunctionRowRC = { treatment_id: string; procedure_id: string; procedure_name: string; sort_order: number; procedures: { name: string; reminder_days: number | null } | { name: string; reminder_days: number | null }[] | null };
+    const { data: junctionRowsRC } = allTreatmentIdsRC.length > 0
+      ? await supabase
+          .from("treatment_procedures")
+          .select("treatment_id, procedure_id, procedure_name, sort_order, procedures(name, reminder_days)")
+          .in("treatment_id", allTreatmentIdsRC)
+          .order("sort_order", { ascending: true })
+      : { data: [] as JunctionRowRC[] };
+    const junctionByTreatmentRC = new Map<string, JunctionRowRC[]>();
+    for (const r of (junctionRowsRC ?? []) as unknown as JunctionRowRC[]) {
+      if (!junctionByTreatmentRC.has(r.treatment_id)) junctionByTreatmentRC.set(r.treatment_id, []);
+      junctionByTreatmentRC.get(r.treatment_id)!.push(r);
+    }
+
+    // Keep only the most recent treatment per (intake_id, procedure set)
     const mostRecentMap = new Map<string, typeof treatments[0]>();
     for (const t of treatments ?? []) {
-      const key = `${t.intake_id}:${t.procedure_id}`;
+      const jProcs = junctionByTreatmentRC.get(t.id) ?? [];
+      const keyProcPart = jProcs.length > 0
+        ? jProcs.map((p) => p.procedure_id).sort().join(",")
+        : (t.procedure_id ?? "");
+      if (!keyProcPart) continue; // skip treatments with no procedures at all
+      const key = `${t.intake_id}:${keyProcPart}`;
       const existing = mostRecentMap.get(key);
       if (!existing || new Date(t.treatment_date) > new Date(existing.treatment_date)) {
         mostRecentMap.set(key, t);
@@ -87,7 +107,13 @@ export async function GET(request: Request) {
         dueStr = plannedAt;
         sendOnStr = personalReminderSendDate(plannedAt, leadDays).toISOString().slice(0, 10);
       } else {
-        const reminderDays = (t.procedures as any)?.reminder_days as number | null;
+        const jProcsRC = junctionByTreatmentRC.get(t.id) ?? [];
+        const reminderDaysArrRC = jProcsRC.length > 0
+          ? jProcsRC.map((p) => (p.procedures as any)?.reminder_days as number | null | undefined).filter((d): d is number => d != null)
+          : [];
+        const reminderDays: number | null = reminderDaysArrRC.length > 0
+          ? Math.min(...reminderDaysArrRC)
+          : ((t.procedures as any)?.reminder_days as number | null);
         if (!reminderDays) continue;
         const due = dueDate(t.treatment_date, reminderDays);
         if (isNaN(due.getTime())) {
@@ -116,7 +142,12 @@ export async function GET(request: Request) {
         treatment_id: t.id,
         intake_id: t.intake_id,
         client_name: clientName,
-        procedure_name: (t.procedures as any)?.name || t.procedure_name || "treatment",
+        procedure_name: (() => {
+          const jProcsRCName = junctionByTreatmentRC.get(t.id) ?? [];
+          return jProcsRCName.length > 0
+            ? jProcsRCName.map((p) => (p.procedures as any)?.name || p.procedure_name).join(" + ")
+            : ((t.procedures as any)?.name || t.procedure_name || "treatment");
+        })(),
         due_date: dueStr,
         reminder_send_date: sendOnStr,
         rebooked_at: t.rebooked_at ?? null,

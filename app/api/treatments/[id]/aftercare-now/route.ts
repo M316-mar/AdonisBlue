@@ -99,7 +99,7 @@ export async function POST(
       const rawInstr = (ap.aftercare_instructions ?? "").trim();
       if (!rawInstr) {
         await logError("aftercare-now", `procedure "${ap.name}" has no aftercare for treatment ${id}`);
-        await supabase.from("message_log").insert({
+        const { error: todoErr } = await supabase.from("message_log").insert({
           type: "action_needed",
           channel: "nurse",
           nurse_id: user.id,
@@ -108,6 +108,7 @@ export async function POST(
           status: "pending",
           error: `Aftercare for ${ap.name} is empty, so ${intake.first_name || "your client"} didn't get instructions for it.`,
         });
+        if (todoErr) await logError("aftercare-now", `action_needed insert failed: ${todoErr.message}`);
         continue;
       }
       const instrHtml = substitutePlaceholdersSafeHtml(rawInstr, nurseDisplayName, nursePhone);
