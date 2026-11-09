@@ -30,7 +30,7 @@
  *   9. Flex row with flex-wrap:nowrap where a child is pushed off-screen / outside the container
  */
 
-import { chromium } from "playwright";
+import { chromium, webkit, firefox } from "playwright";
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -133,7 +133,32 @@ if (hasCredentials && adminEmails.includes(testEmail.toLowerCase())) {
   process.exit(1);
 }
 
-// ── Viewports ──────────────────────────────────────────────────────────────────
+// ── User-agent strings ────────────────────────────────────────────────────────
+const IPHONE_UA  = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+const IPAD_UA    = "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+const ANDROID_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+
+// ── Viewport × engine specs ───────────────────────────────────────────────────
+// Each spec is tested in its own browser engine so engine-specific bugs surface.
+//   WebKit  — iPhone & iPad profiles (all phone/tablet widths) + desktop Safari
+//   Chromium — Android/Pixel profile (phone widths) + desktop Chrome
+//   Firefox  — desktop only
+const VIEWPORT_SPECS = [
+  // ── WebKit (Safari engine) ─────────────────────────────────────────────────
+  { engine: "webkit",   label: "iPhone mini 320 (Safari)", width: 320,  height: 568,  isMobile: true,  hasTouch: true,  ua: IPHONE_UA  },
+  { engine: "webkit",   label: "iPhone SE 375 (Safari)",   width: 375,  height: 667,  isMobile: true,  hasTouch: true,  ua: IPHONE_UA  },
+  { engine: "webkit",   label: "iPhone 390 (Safari)",      width: 390,  height: 844,  isMobile: true,  hasTouch: true,  ua: IPHONE_UA  },
+  { engine: "webkit",   label: "iPad 820 (Safari)",        width: 820,  height: 1180, isMobile: false, hasTouch: true,  ua: IPAD_UA    },
+  { engine: "webkit",   label: "Laptop 1440 (Safari)",     width: 1440, height: 900,  isMobile: false, hasTouch: false, ua: null       },
+  // ── Chromium (Chrome / Android) ────────────────────────────────────────────
+  { engine: "chromium", label: "Android 360 (Chrome)",     width: 360,  height: 740,  isMobile: true,  hasTouch: true,  ua: ANDROID_UA },
+  { engine: "chromium", label: "Android 390 (Chrome)",     width: 390,  height: 844,  isMobile: true,  hasTouch: true,  ua: ANDROID_UA },
+  { engine: "chromium", label: "Laptop 1440 (Chrome)",     width: 1440, height: 900,  isMobile: false, hasTouch: false, ua: null       },
+  // ── Firefox ────────────────────────────────────────────────────────────────
+  { engine: "firefox",  label: "Laptop 1440 (Firefox)",    width: 1440, height: 900,  isMobile: false, hasTouch: false, ua: null       },
+];
+
+// Keep a flat VIEWPORTS alias used by the healing chat section (all unique widths, Chromium).
 const VIEWPORTS = [
   { label: "iPhone mini 320", width: 320, height: 568 },
   { label: "Android 360",     width: 360, height: 740 },
@@ -430,21 +455,27 @@ async function signIn(page) {
 let totalIssues = 0;
 let totalScreens = 0;
 
-const browser = await chromium.launch({ headless: true });
+// ── Launch all three browser engines ──────────────────────────────────────────
+const BROWSERS = {
+  chromium: await chromium.launch({ headless: true }),
+  webkit:   await webkit.launch({ headless: true }),
+  firefox:  await firefox.launch({ headless: true }),
+};
 
 // Healing chat is tested AFTER the interaction test (which creates+archives a treatment).
 // See the healing chat section near the end of the script.
 
 try {
-  for (const vp of VIEWPORTS) {
+  for (const spec of VIEWPORT_SPECS) {
+    const browserInst = BROWSERS[spec.engine];
+
     // ── Logged-out screens: run in each visit state ──────────────────────────
     for (const visitState of LOGGED_OUT_STATES) {
-      const context = await browser.newContext({
-        viewport: { width: vp.width, height: vp.height },
-        userAgent: vp.width < 768
-          ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-          : undefined,
-        isMobile: vp.width < 768,
+      const context = await browserInst.newContext({
+        viewport: { width: spec.width, height: spec.height },
+        userAgent: spec.ua ?? undefined,
+        isMobile: spec.isMobile,
+        hasTouch: spec.hasTouch,
       });
 
       for (const screen of SCREENS) {
@@ -464,8 +495,8 @@ try {
           // Brief pause for client-side rendering (cookie banner useEffect) to settle
           await page.waitForTimeout(500);
 
-          const issues = await runChecks(page, vp);
-          const label = `${vp.label} [${visitState.label}] — ${screen.label}`;
+          const issues = await runChecks(page, spec);
+          const label = `${spec.label} [${visitState.label}] — ${screen.label}`;
           if (issues.length > 0) {
             process.stdout.write(`\n❌ ${label} (${BASE_URL}${screen.path})\n`);
             for (const iss of issues) {
@@ -476,7 +507,7 @@ try {
             process.stdout.write(`  ✓ ${label}\n`);
           }
         } catch (e) {
-          process.stdout.write(`  ⚠ ${vp.label} [${visitState.label}] — ${screen.label}: ${e.message}\n`);
+          process.stdout.write(`  ⚠ ${spec.label} [${visitState.label}] — ${screen.label}: ${e.message}\n`);
         }
         await page.close();
       }
@@ -486,12 +517,11 @@ try {
 
     // ── Logged-in screens: returning state only, skip in CI or without creds ──
     if (!CI_MODE && hasCredentials) {
-      const context = await browser.newContext({
-        viewport: { width: vp.width, height: vp.height },
-        userAgent: vp.width < 768
-          ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-          : undefined,
-        isMobile: vp.width < 768,
+      const context = await browserInst.newContext({
+        viewport: { width: spec.width, height: spec.height },
+        userAgent: spec.ua ?? undefined,
+        isMobile: spec.isMobile,
+        hasTouch: spec.hasTouch,
       });
 
       // Set cookie consent for the signed-in context
@@ -505,7 +535,7 @@ try {
         await signIn(setupPage);
         isSignedIn = true;
       } catch (e) {
-        process.stderr.write(`  ⚠ Sign-in failed at ${vp.label}: ${e.message}\n`);
+        process.stderr.write(`  ⚠ Sign-in failed at ${spec.label}: ${e.message}\n`);
       }
       await setupPage.close();
 
@@ -528,8 +558,8 @@ try {
             }
             await page.waitForTimeout(500);
 
-            const issues = await runChecks(page, vp);
-            const label = `${vp.label} [returning] — ${screen.label}`;
+            const issues = await runChecks(page, spec);
+            const label = `${spec.label} [returning] — ${screen.label}`;
             if (issues.length > 0) {
               process.stdout.write(`\n❌ ${label} (${BASE_URL}${screen.path})\n`);
               for (const iss of issues) {
@@ -540,7 +570,7 @@ try {
               process.stdout.write(`  ✓ ${label}\n`);
             }
           } catch (e) {
-            process.stdout.write(`  ⚠ ${vp.label} [returning] — ${screen.label}: ${e.message}\n`);
+            process.stdout.write(`  ⚠ ${spec.label} [returning] — ${screen.label}: ${e.message}\n`);
           }
           await page.close();
         }
@@ -548,20 +578,21 @@ try {
 
       await context.close();
     } else if (!CI_MODE && !hasCredentials) {
-      process.stderr.write(`  ⚠ Skipping logged-in screens at ${vp.label} — TEST_NURSE_EMAIL/TEST_NURSE_PASSWORD not set\n`);
+      process.stderr.write(`  ⚠ Skipping logged-in screens at ${spec.label} — TEST_NURSE_EMAIL/TEST_NURSE_PASSWORD not set\n`);
     }
   }
   // ── Interaction test: Log + "Plan her return" state at all mobile viewports ──
   // Opens the form in the Plan-her-return expanded state and runs layout checks
   // WITHOUT submitting — no DB write, no email risk.
   if (!CI_MODE && hasCredentials) {
-    const mobileVps = VIEWPORTS.filter(v => v.width < 768);
-    for (const vp of mobileVps) {
-      process.stdout.write(`\n── Interaction state: Log+Plan (${vp.label}) ──\n`);
-      const ctx = await browser.newContext({
-        viewport: { width: vp.width, height: vp.height },
-        userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-        isMobile: true,
+    const mobileSpecs = VIEWPORT_SPECS.filter(s => s.isMobile);
+    for (const spec of mobileSpecs) {
+      process.stdout.write(`\n── Interaction state: Log+Plan (${spec.label}) ──\n`);
+      const ctx = await BROWSERS[spec.engine].newContext({
+        viewport: { width: spec.width, height: spec.height },
+        userAgent: spec.ua ?? undefined,
+        isMobile: spec.isMobile,
+        hasTouch: spec.hasTouch,
       });
       const pg = await ctx.newPage();
       await pg.addInitScript(() => {
@@ -606,8 +637,8 @@ try {
         }
 
         // Run layout checks in this open form state
-        const issues = await runChecks(pg, vp);
-        const label = `${vp.label} [returning] — Log (Plan her return open)`;
+        const issues = await runChecks(pg, spec);
+        const label = `${spec.label} [returning] — Log (Plan her return open)`;
         if (issues.length > 0) {
           process.stdout.write(`\n❌ ${label}\n`);
           for (const iss of issues) {
@@ -618,20 +649,26 @@ try {
           process.stdout.write(`  ✓ ${label}\n`);
         }
       } catch (e) {
-        process.stdout.write(`  ⚠ Log+Plan interaction state failed at ${vp.label}: ${e.message}\n`);
+        process.stdout.write(`  ⚠ Log+Plan interaction state failed at ${spec.label}: ${e.message}\n`);
       }
       await pg.close();
       await ctx.close();
     }
   }
 
-  // ── Interaction test: Log form at 390px (only with credentials, not in CI) ───
+  // ── Interaction test: Log form — WebKit iPhone 390 AND Chromium Android 360 ──
+  // Run on both engines to catch platform-specific issues (e.g. iOS date-picker).
+  const LOG_FORM_SPECS = VIEWPORT_SPECS.filter(
+    s => (s.engine === "webkit" && s.width === 390) || (s.engine === "chromium" && s.width === 360)
+  );
   if (!CI_MODE && hasCredentials) {
-    process.stdout.write("\n── Interaction test: Log form (iPhone 390) ──\n");
-    const ctx390 = await browser.newContext({
-      viewport: { width: 390, height: 844 },
-      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-      isMobile: true,
+    for (const logSpec of LOG_FORM_SPECS) {
+    process.stdout.write(`\n── Interaction test: Log form (${logSpec.label}) ──\n`);
+    const ctx390 = await BROWSERS[logSpec.engine].newContext({
+      viewport: { width: logSpec.width, height: logSpec.height },
+      userAgent: logSpec.ua ?? undefined,
+      isMobile: logSpec.isMobile,
+      hasTouch: logSpec.hasTouch,
     });
     const logPage = await ctx390.newPage();
     await logPage.addInitScript(() => {
@@ -768,6 +805,7 @@ try {
 
     await logPage.close();
     await ctx390.close();
+    } // end LOG_FORM_SPECS loop
   }
 
   // ── Home section order: verify at 390px and 1440px ──────────────────────────
@@ -775,13 +813,15 @@ try {
   // appear in the correct top-to-bottom order. Screenshots are saved as proof.
   if (!CI_MODE && hasCredentials) {
     process.stdout.write("\n── Home section order (390px + 1440px) ──\n");
-    for (const vp of [{ label: "iPhone 390", width: 390, height: 844 }, { label: "Laptop 1440", width: 1440, height: 900 }]) {
-      const ctx = await browser.newContext({
+    const ORDER_SPECS = VIEWPORT_SPECS.filter(
+      s => (s.engine === "webkit" && s.width === 390) || (s.engine === "chromium" && s.width === 1440)
+    );
+    for (const vp of ORDER_SPECS) {
+      const ctx = await BROWSERS[vp.engine].newContext({
         viewport: { width: vp.width, height: vp.height },
-        userAgent: vp.width < 768
-          ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-          : undefined,
-        isMobile: vp.width < 768,
+        userAgent: vp.ua ?? undefined,
+        isMobile: vp.isMobile,
+        hasTouch: vp.hasTouch,
       });
       const pg = await ctx.newPage();
       await pg.addInitScript(() => {
@@ -844,12 +884,11 @@ try {
     if (healingTreatmentId) {
       process.stdout.write(`  ✓ Healing chat: testing at /healing/${healingTreatmentId}\n`);
       for (const vp of VIEWPORTS) {
-        const ctx = await browser.newContext({
+        const ctx = await BROWSERS.chromium.newContext({
           viewport: { width: vp.width, height: vp.height },
-          userAgent: vp.width < 768
-            ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-            : undefined,
+          userAgent: vp.width < 768 ? IPHONE_UA : undefined,
           isMobile: vp.width < 768,
+          hasTouch: vp.width < 768,
         });
         const pg = await ctx.newPage();
         await pg.addInitScript(() => {
@@ -881,7 +920,7 @@ try {
     }
   }
 } finally {
-  await browser.close();
+  await Promise.all(Object.values(BROWSERS).map(b => b.close()));
 }
 
 if (!CI_MODE && !hasCredentials) {
