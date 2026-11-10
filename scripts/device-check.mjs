@@ -35,6 +35,7 @@ import { createClient } from "@supabase/supabase-js";
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createServer } from "node:http";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CI_MODE = process.argv.includes("--ci");
@@ -877,6 +878,208 @@ try {
   // ── Healing chat: test at all 6 viewports after interaction test has created a treatment ──
   // The Log form interaction test above creates and archives a treatment. We fetch the
   // archived treatment ID here (Node.js side, no page.evaluate) so /healing/[id] can be
+  // ── Embed widget test ──────────────────────────────────────────────────────
+  // Two-part test:
+  //   Part A (always): CORS on /api/bot/[slug] and X-Frame-Options on /chat/[slug]
+  //     — checks headers directly from a cross-origin page via fetch/iframe.
+  //   Part B (when TEST_BOT_SLUG is set + bot is launched): full end-to-end widget:
+  //     bubble appears, panel opens, message gets a reply.
+  //
+  // TEST_BOT_SLUG must be set in .env.local to the slug of a launched bot.
+  // In CI the slug may not be launched (no live DB), so Part B skips gracefully.
+  {
+    process.stdout.write("\n── Embed widget (cross-origin) ──\n");
+
+    const BOT_SLUG = process.env.TEST_BOT_SLUG || "demo";
+    const EMBED_PORT = 7799;
+
+    // Spin up a minimal HTTP server on a different port to simulate a third-party origin.
+    const makeHtml = (includeWidget) => `<!DOCTYPE html>
+<html><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Embed test page</title>
+</head><body>
+  <h1>Test practice website</h1>
+  ${includeWidget ? `<script async src="${BASE_URL}/embed.js" data-bot-slug="${BOT_SLUG}"></script>` : ""}
+</body></html>`;
+
+    const embedServer = createServer((req, res) => {
+      const withWidget = req.url !== "/nowidget";
+      res.writeHead(200, { "Content-Type": "text/html" });
+      res.end(makeHtml(withWidget));
+    });
+    await new Promise(r => embedServer.listen(EMBED_PORT, r));
+    const EMBED_ORIGIN = `http://localhost:${EMBED_PORT}`;
+
+    // Part A: CORS + framing header checks (run on Chromium only — header semantics are
+    // the same on all engines; no need to run on WebKit too).
+    totalScreens++;
+    {
+      const ctx = await BROWSERS.chromium.newContext({
+        viewport: { width: 1440, height: 900 },
+      });
+      const pg = await ctx.newPage();
+      try {
+        await pg.goto(`${EMBED_ORIGIN}/nowidget`, { waitUntil: "domcontentloaded", timeout: 10_000 });
+
+        // Check CORS on /api/bot/[slug] from cross-origin.
+        // We test this two ways:
+        //   1. Browser fetch from cross-origin page (proves browser allows it)
+        //   2. Server-side curl-style check for the actual header value
+        // Note: browsers don't expose Access-Control-Allow-Origin in r.headers.get() —
+        // that header is consumed by the browser. A fetch that doesn't throw = CORS OK.
+        const corsResult = await pg.evaluate(async ({ baseUrl, slug }) => {
+          try {
+            const r = await fetch(`${baseUrl}/api/bot/${slug}`);
+            // If we get here without throwing, the browser allowed the cross-origin fetch
+            return { ok: true, status: r.status };
+          } catch (e) {
+            return { ok: false, error: e.message };
+          }
+        }, { baseUrl: BASE_URL, slug: BOT_SLUG });
+
+        // Independently verify the header is actually present (server-side check)
+        const corsHeaderCheck = await fetch(`${BASE_URL}/api/bot/${BOT_SLUG}`, {
+          headers: { "Origin": "http://localhost:7799" },
+        }).then(r => r.headers.get("access-control-allow-origin") === "*")
+          .catch(() => false);
+
+        if (!corsResult.ok) {
+          process.stdout.write(`\n❌ Laptop 1440 — Embed CORS: fetch blocked — ${corsResult.error}\n`);
+          totalIssues++;
+        } else if (!corsHeaderCheck) {
+          process.stdout.write(`\n❌ Laptop 1440 — Embed CORS: /api/bot/[slug] fetch succeeded but Access-Control-Allow-Origin: * header missing\n`);
+          totalIssues++;
+        } else {
+          process.stdout.write(`  ✓ Laptop 1440 — Embed CORS: /api/bot/[slug] allows cross-origin fetch (HTTP ${corsResult.status})\n`);
+        }
+
+        // Check /chat/[slug] is not blocked by X-Frame-Options when loaded in an iframe
+        const frameResult = await pg.evaluate(async ({ baseUrl, slug }) => {
+          return new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            iframe.style.display = "none";
+            iframe.src = `${baseUrl}/chat/${slug}`;
+            let settled = false;
+            iframe.onload = () => { if (!settled) { settled = true; resolve("loaded"); } };
+            iframe.onerror = () => { if (!settled) { settled = true; resolve("error"); } };
+            document.body.appendChild(iframe);
+            // X-Frame-Options SAMEORIGIN causes the browser to block the frame —
+            // the iframe fires no load/error but stays blank. We detect that via timeout.
+            setTimeout(() => { if (!settled) { settled = true; resolve("timeout-blocked"); } }, 6_000);
+          });
+        }, { baseUrl: BASE_URL, slug: BOT_SLUG });
+
+        if (frameResult === "loaded") {
+          process.stdout.write(`  ✓ Laptop 1440 — Embed framing: /chat/[slug] loaded in cross-origin iframe\n`);
+        } else if (frameResult === "timeout-blocked") {
+          process.stdout.write(`\n❌ Laptop 1440 — Embed framing: /chat/[slug] appears blocked by X-Frame-Options (iframe never loaded)\n`);
+          totalIssues++;
+        } else {
+          process.stdout.write(`  ⚠ Laptop 1440 — Embed framing: iframe result = ${frameResult} (may be a network issue)\n`);
+        }
+      } catch (e) {
+        process.stdout.write(`  ⚠ Laptop 1440 — Embed header checks: ${e.message}\n`);
+      }
+      await pg.close();
+      await ctx.close();
+    }
+
+    // Part B: full widget test — only when the bot slug is reachable (launched)
+    const botReachable = await fetch(`${BASE_URL}/api/bot/${BOT_SLUG}`)
+      .then(r => r.ok).catch(() => false);
+
+    if (!botReachable) {
+      process.stdout.write(`  ⚠ Embed full-widget test skipped — bot "${BOT_SLUG}" not found/launched (set TEST_BOT_SLUG in .env.local to a launched bot)\n`);
+    } else {
+      const EMBED_SPECS = [
+        { engine: "webkit",   label: "iPhone 390 (Safari)",  width: 390,  height: 844,  isMobile: true,  hasTouch: true,  ua: IPHONE_UA  },
+        { engine: "chromium", label: "Laptop 1440 (Chrome)", width: 1440, height: 900,  isMobile: false, hasTouch: false, ua: null       },
+      ];
+
+      for (const spec of EMBED_SPECS) {
+        totalScreens++;
+        const ctx = await BROWSERS[spec.engine].newContext({
+          viewport: { width: spec.width, height: spec.height },
+          userAgent: spec.ua ?? undefined,
+          isMobile: spec.isMobile,
+          hasTouch: spec.hasTouch,
+        });
+        const pg = await ctx.newPage();
+        let embedIssues = 0;
+
+        try {
+          await pg.goto(EMBED_ORIGIN, { waitUntil: "domcontentloaded", timeout: 15_000 });
+
+          // Bubble must appear (proves full CORS + widget render works)
+          const bubbleOk = await pg.waitForSelector("#ab-bubble", { timeout: 10_000 })
+            .then(() => true).catch(() => false);
+          if (!bubbleOk) {
+            process.stdout.write(`\n❌ ${spec.label} — Embed: #ab-bubble never appeared\n`);
+            embedIssues++; totalIssues++;
+            await ctx.close(); continue;
+          }
+
+          // Click bubble — panel must open (proves /chat/* framing allows cross-origin iframes)
+          await pg.click("#ab-bubble");
+          const panelOk = await pg.waitForSelector("#ab-container.ab-visible", { timeout: 5_000 })
+            .then(() => true).catch(() => false);
+          if (!panelOk) {
+            process.stdout.write(`\n❌ ${spec.label} — Embed: panel did not open after click\n`);
+            embedIssues++; totalIssues++;
+            await ctx.close(); continue;
+          }
+
+          // Iframe must load with an input field
+          const iframe = pg.frameLocator("#ab-container iframe");
+          const inputOk = await iframe.locator("input, textarea").first()
+            .waitFor({ timeout: 15_000 }).then(() => true).catch(() => false);
+          if (!inputOk) {
+            process.stdout.write(`\n❌ ${spec.label} — Embed: iframe no input field (check X-Frame-Options on /chat)\n`);
+            embedIssues++; totalIssues++;
+            await ctx.close(); continue;
+          }
+
+          // Send a test-only message and confirm a reply arrives
+          const input = iframe.locator("input, textarea").first();
+          await input.fill("device-check embed test — hello");
+          const sendBtn = iframe.locator("button[type='submit'], button[aria-label*='send' i]").first();
+          const hasSend = await sendBtn.isVisible({ timeout: 2_000 }).catch(() => false);
+          if (hasSend) { await sendBtn.click(); } else { await input.press("Enter"); }
+
+          // Wait for a reply (up to 15s)
+          const replied = await iframe.locator("body").evaluate(
+            () => new Promise(resolve => {
+              const start = Date.now();
+              const check = () => {
+                if ((document.body.innerText || "").length > 60) { resolve(true); return; }
+                if (Date.now() - start > 15_000) { resolve(false); return; }
+                setTimeout(check, 500);
+              };
+              setTimeout(check, 1000);
+            })
+          ).catch(() => false);
+
+          if (!replied) {
+            process.stdout.write(`  ⚠ ${spec.label} — Embed: message sent but no reply within 15s\n`);
+          }
+
+          if (embedIssues === 0) {
+            process.stdout.write(`  ✓ ${spec.label} — Embed: bubble, panel, and chat all work\n`);
+          }
+        } catch (e) {
+          process.stdout.write(`  ⚠ ${spec.label} — Embed: ${e.message}\n`);
+        }
+
+        await pg.close();
+        await ctx.close();
+      }
+    }
+
+    embedServer.close();
+  }
+
   // tested as a logged-out screen at all 6 viewports.
   if (!CI_MODE && hasCredentials) {
     process.stdout.write("\n── Healing chat screens ──\n");

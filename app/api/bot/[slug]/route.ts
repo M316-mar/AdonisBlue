@@ -11,6 +11,16 @@ const PUBLIC_BOT_FIELDS =
   "services, logo_image, logo_data_url, logo_url, brand_name_image, bot_name_font, " +
   "bubble_attention_message, photos, frozen, nurse_name";
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string }> }
@@ -42,8 +52,8 @@ export async function GET(
   }
 
   if (error || !data) {
-    return NextResponse.json({ error: "Bot not found" }, { status: 404 });
+    return NextResponse.json({ error: "Bot not found" }, { status: 404, headers: CORS_HEADERS });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json(data, { headers: CORS_HEADERS });
 }
