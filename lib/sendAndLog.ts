@@ -96,6 +96,20 @@ export async function sendEmail(opts: EmailOpts): Promise<SendResult> {
 export async function sendSms(opts: SmsOpts): Promise<SendResult> {
   const { type, nurse_id, intake_id, treatment_id, to, body, supabase } = opts;
 
+  if (process.env.SMS_ALERTS_ENABLED !== "true") {
+    await supabase.from("message_log").insert({
+      type,
+      channel: "sms",
+      nurse_id: nurse_id ?? null,
+      intake_id: intake_id ?? null,
+      treatment_id: treatment_id ?? null,
+      to_address: to ?? null,
+      status: "skipped",
+      error: "SMS_ALERTS_ENABLED is not set",
+    });
+    return { ok: false, error: "SMS disabled" };
+  }
+
   if (!to) {
     await supabase.from("message_log").insert({
       type,

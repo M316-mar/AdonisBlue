@@ -1935,8 +1935,8 @@ export default function ClientJourneyPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-[#1a2744] mb-1">Alert phone number</label>
-                <p className="text-xs text-slate-500 mb-2">For faster response — we&apos;ll text you when an emergency is detected.</p>
+                <label className="block text-sm font-bold text-[#1a2744] mb-1">Your phone (so clients can call you)</label>
+                <p className="text-xs text-slate-500 mb-2">Clients can call you on this number in an emergency.</p>
                 <input
                   type="tel"
                   value={alertPhone}

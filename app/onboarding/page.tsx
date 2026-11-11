@@ -75,7 +75,7 @@ function Confetti() {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 8; // steps 1–7 are content, step 8 is the success screen
+const TOTAL_STEPS = 9; // steps 1–8 are content, step 9 is the success screen
 
 const PROCEDURES = [
   "Lip Filler",
@@ -713,7 +713,7 @@ function StepWelcome({
             value={draft.phonePublic}
             onChange={(e) => onChange({ phonePublic: e.target.value })}
           />
-          <p className="text-xs text-slate-400">This is your public number — different from your private emergency alert phone.</p>
+          <p className="text-xs text-slate-400">Clients see this number if they need to call you directly.</p>
         </div>
       </div>
     </div>
@@ -1463,7 +1463,7 @@ function StepAlertContact({
 
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-semibold text-[#1a2744]">
-          Alert phone number <span className="text-red-500">*</span>
+          Your phone (so clients can call you) <span className="text-slate-400 font-normal text-xs">(optional)</span>
         </label>
         <input
           type="tel"
@@ -1472,7 +1472,7 @@ function StepAlertContact({
           value={draft.alertPhone}
           onChange={(e) => onChange({ alertPhone: e.target.value })}
         />
-        <p className="text-xs text-slate-400">We&rsquo;ll use this for future SMS alerts when phone notifications are available.</p>
+        <p className="text-xs text-slate-400">Clients see this number when they need to reach you directly in an emergency.</p>
       </div>
 
       <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 flex flex-col gap-4">
@@ -1569,6 +1569,83 @@ function StepVerify({
       >
         {resending ? "Sending…" : "Resend email →"}
       </button>
+    </div>
+  );
+}
+
+// ─── Step 7: notifications prompt ────────────────────────────────────────────
+
+function StepNotifications({ alertEmail, token }: { alertEmail: string; token: string }) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  async function handleTestAlert() {
+    setSending(true);
+    setSendError(null);
+    try {
+      const res = await fetch("/api/send-test-alert", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setSent(true);
+      } else {
+        const body = (await res.json()) as { error?: string };
+        setSendError(body.error ?? "Could not send. Try again.");
+      }
+    } catch {
+      setSendError("Could not send. Check your connection and try again.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
+          Never miss an alert 🔔
+        </h1>
+        <p className="mt-2 text-sm text-slate-500 sm:text-base">
+          Emergency alerts go straight to <strong>{alertEmail}</strong>. For the fastest response, turn on notifications for emails from AdonisBlue.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5 flex flex-col gap-4">
+        <p className="text-sm font-semibold text-[#1a2744]">How to make sure you never miss one:</p>
+        <ol className="flex flex-col gap-2 text-sm text-slate-600 list-decimal list-inside">
+          <li>Open the email we just sent you from <strong>hi@adonisblue.io</strong></li>
+          <li>Add <strong>hi@adonisblue.io</strong> to your contacts or VIP list</li>
+          <li>On iPhone: tap the sender, then &ldquo;Add to VIP&rdquo;</li>
+          <li>On Android / Gmail: tap the three dots → &ldquo;Add to contacts&rdquo;</li>
+        </ol>
+      </div>
+
+      {!sent ? (
+        <button
+          type="button"
+          onClick={() => void handleTestAlert()}
+          disabled={sending}
+          style={{ touchAction: "manipulation" }}
+          className="self-start min-h-[44px] rounded-full border-2 border-[#0d9488] bg-white px-6 py-2 text-sm font-semibold text-[#0d9488] transition hover:bg-teal-50 disabled:opacity-50"
+        >
+          {sending ? "Sending…" : "Send me a test alert →"}
+        </button>
+      ) : (
+        <div className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-800">
+          <p className="font-semibold">Test alert sent ✅</p>
+          <p className="mt-0.5 text-xs text-teal-600">Check your inbox at {alertEmail}.</p>
+        </div>
+      )}
+
+      {sendError && (
+        <p className="text-sm text-red-600">{sendError}</p>
+      )}
+
+      <p className="text-xs text-slate-400">
+        You can skip this step — you can always send a test from My Account later.
+      </p>
     </div>
   );
 }
@@ -1839,10 +1916,10 @@ function OnboardingInner() {
       return draft.approvedProcedures.length >= 1;
     }
     if (draft.step === 5) {
-      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.alertEmail.trim());
-      return emailOk && draft.alertPhone.trim().length >= 7;
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.alertEmail.trim());
     }
     if (draft.step === 6) return draft.alertEmailVerified;
+    if (draft.step === 7) return true; // notifications prompt — always skippable
     return true;
   }, [draft]);
 
@@ -2052,13 +2129,19 @@ function OnboardingInner() {
       return;
     }
 
-    // ── Step 6: verified — advance to step 7 ──────────────────────────────
+    // ── Step 6: verified — advance to step 7 (notifications) ─────────────
     if (draft.step === 6) {
       setDraft({ step: 7 });
       return;
     }
 
-    // ── Step 7 (last content step): launch ────────────────────────────────
+    // ── Step 7: notifications prompt — advance to step 8 (customize) ──────
+    if (draft.step === 7) {
+      setDraft({ step: 8 });
+      return;
+    }
+
+    // ── Step 8 (last content step): launch ────────────────────────────────
     setSaving(true);
     try {
       const effectiveBotName = draft.botName.trim() || `${draft.practiceName.trim()} Assistant`;
@@ -2167,12 +2250,12 @@ function OnboardingInner() {
     );
   }
 
-  // 7 content steps → progress shows 0% at step 1, 100% at step 7
-  const CONTENT_STEPS = TOTAL_STEPS - 1; // 7
+  // 8 content steps → progress shows 0% at step 1, 100% at step 8
+  const CONTENT_STEPS = TOTAL_STEPS - 1; // 8
   const pct = Math.min(100, Math.round(((draft.step - 1) / CONTENT_STEPS) * 100));
-  const isLastContentStep = draft.step === CONTENT_STEPS; // step 7
-  const isDone = draft.step === TOTAL_STEPS; // step 8
-  const showPreview = draft.step === 7; // Customize step
+  const isLastContentStep = draft.step === CONTENT_STEPS; // step 8
+  const isDone = draft.step === TOTAL_STEPS; // step 9
+  const showPreview = draft.step === 8; // Customize step
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
@@ -2250,6 +2333,11 @@ function OnboardingInner() {
               alertEmailVerified={draft.alertEmailVerified}
               onResend={() => void handleResend()}
               resending={resending}
+            />
+          ) : draft.step === 7 ? (
+            <StepNotifications
+              alertEmail={draft.alertEmail}
+              token={tokenRef.current ?? ""}
             />
           ) : null}
 

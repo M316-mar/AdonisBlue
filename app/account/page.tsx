@@ -421,7 +421,7 @@ function AccountPageInner() {
           {/* ── 3. Emergency alerts ─────────────────────────────────────── */}
           <Section id="alerts" title="🚨 Emergency alerts">
             <p className="mb-4 text-sm text-slate-500">
-              When a client types an emergency keyword, you get an email and SMS here — not to your login email.
+              When a client types an emergency keyword, you get an email here right away — not to your login email.
             </p>
 
             {/* Alert email */}
@@ -463,7 +463,7 @@ function AccountPageInner() {
 
             {/* Alert phone */}
             <form onSubmit={saveAlertPhone} className="space-y-3">
-              <Field label="Alert phone (SMS)" hint="For SMS alerts when a client is in distress. Optional.">
+              <Field label="Your phone (so clients can call you)" hint="Clients see this number when they need to reach you in an emergency. Optional.">
                 <input
                   value={alertPhone}
                   onChange={e => setAlertPhone(e.target.value)}
