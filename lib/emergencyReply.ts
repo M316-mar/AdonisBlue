@@ -4,16 +4,18 @@ import { formatPhone } from "@/lib/formatPhone";
  * Build the server-controlled emergency reply for both healing and front-desk chats.
  *
  * 🔴 "911"   → direct to emergency services immediately
- * 🟠 "nurse" → call the nurse now; ER if unreachable
+ * 🟠 "nurse" → call/contact the nurse now; ER if unreachable
  *
  * "I've alerted [Nurse]" is appended only when alertSent = true.
- * Phone is formatted "(214) 717-7944"; missing phone omits the call-nurse sentence.
+ * Phone is formatted "(214) 717-7944". When no phone, alertEmail is shown instead.
+ * If neither is available, falls back to "go to the ER now".
  */
 export function buildEmergencyReply(
   level: "911" | "nurse",
   nurseFirstName: string | null,
   alertPhone: string | null | undefined,
-  alertSent: boolean
+  alertSent: boolean,
+  alertEmail?: string | null
 ): string {
   const nurseName = nurseFirstName ?? null;
   const alertedLine = alertSent && nurseName ? ` I've alerted ${nurseName}.` : "";
@@ -22,12 +24,14 @@ export function buildEmergencyReply(
     return `Please call 911 right now.${alertedLine}`;
   }
 
-  // 🟠 nurse level
+  // 🟠 nurse level — phone preferred, email fallback
   if (alertPhone?.trim() && nurseName) {
     const formatted = formatPhone(alertPhone.trim());
     return `This needs attention right away. Please call ${nurseName} now at ${formatted}. If you can't reach her within 15 minutes, or it gets worse, go to the nearest emergency room.${alertedLine}`;
   }
-  // No phone saved
+  if (alertEmail?.trim() && nurseName) {
+    return `This needs attention right away. Please email ${nurseName} at ${alertEmail.trim()} and go to the nearest emergency room if it gets worse.${alertedLine}`;
+  }
   return `This needs attention right away. Please go to the nearest emergency room now.${alertedLine}`;
 }
 

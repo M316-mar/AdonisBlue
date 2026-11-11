@@ -223,6 +223,7 @@ export async function POST(request: Request) {
 
     // Fetch nurse phone synchronously when flagged — needed for server reply
     let nurseAlertPhone: string | null = null;
+    let nurseAlertEmail: string | null = null;
     if (isFlagged && serverNurseId) {
       try {
         const phoneDb = createClient(
@@ -231,12 +232,14 @@ export async function POST(request: Request) {
         );
         const { data: phoneRow } = await phoneDb
           .from("bots")
-          .select("alert_phone")
+          .select("alert_phone, alert_email, notification_email")
           .eq("nurse_id", serverNurseId)
           .single();
         nurseAlertPhone = (phoneRow as { alert_phone?: string | null } | null)?.alert_phone?.trim() || null;
+        nurseAlertEmail = (phoneRow as { alert_email?: string | null } | null)?.alert_email?.trim() ||
+          (phoneRow as { notification_email?: string | null } | null)?.notification_email?.trim() || null;
       } catch {
-        // Non-fatal — reply omits phone
+        // Non-fatal — reply omits contact info
       }
     }
 
@@ -818,9 +821,9 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client describes trouble breathing, 
     // AI-only path: also nurse level, alertSent=false (fires after response).
     let finalReply = reply;
     if (isFlagged && emergencyLevel) {
-      finalReply = buildEmergencyReply(emergencyLevel, nurseFirst || null, nurseAlertPhone, shouldAlertKeyword);
+      finalReply = buildEmergencyReply(emergencyLevel, nurseFirst || null, nurseAlertPhone, shouldAlertKeyword, nurseAlertEmail);
     } else if (aiAlertToken && !isFlagged) {
-      finalReply = buildEmergencyReply("nurse", nurseFirst || null, nurseAlertPhone, false);
+      finalReply = buildEmergencyReply("nurse", nurseFirst || null, nurseAlertPhone, false, nurseAlertEmail);
     }
 
     return NextResponse.json({

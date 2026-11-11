@@ -667,9 +667,9 @@ SAFETY RULE — MEDICAL EMERGENCIES: If the client mentions ANY of the following
     // AI-only path (aiAlertToken): also use server reply at "nurse" level.
     let finalMessage = aiMessage;
     if (isFlagged && emergencyLevel) {
-      finalMessage = buildEmergencyReply(emergencyLevel, nurseFirstName, alertPhone, alertSent);
+      finalMessage = buildEmergencyReply(emergencyLevel, nurseFirstName, alertPhone, alertSent, nurseEmail);
     } else if (aiAlertToken && !isFlagged) {
-      finalMessage = buildEmergencyReply("nurse", nurseFirstName, alertPhone, false);
+      finalMessage = buildEmergencyReply("nurse", nurseFirstName, alertPhone, false, nurseEmail);
     }
 
     return NextResponse.json({ message: finalMessage, flagged: isFlagged || aiAlertToken });
