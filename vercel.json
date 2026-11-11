@@ -31,10 +31,6 @@
     {
       "path": "/api/cron/return-reminder",
       "schedule": "0 14 * * 1"
-    },
-    {
-      "path": "/api/cron/alert-resend",
-      "schedule": "*/15 * * * *"
     }
   ]
 }

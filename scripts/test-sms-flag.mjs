@@ -143,17 +143,16 @@ function fail(name, detail) {
   }
 }
 
-// ── Test 8: vercel.json includes alert-resend cron at */15 schedule ──────────
+// ── Test 8: alert-resend route exists (triggered by pg_cron, not vercel.json) ─
 {
-  const { readFileSync } = await import("node:fs");
-  const vercel = JSON.parse(
-    readFileSync(new URL("../vercel.json", import.meta.url), "utf8")
+  const { existsSync } = await import("node:fs");
+  const routeExists = existsSync(
+    new URL("../app/api/cron/alert-resend/route.ts", import.meta.url)
   );
-  const cronEntry = vercel.crons?.find((c) => c.path === "/api/cron/alert-resend");
-  if (cronEntry && cronEntry.schedule === "*/15 * * * *") {
-    pass("vercel.json has alert-resend cron at */15 * * * *");
+  if (routeExists) {
+    pass("alert-resend route file exists (triggered by pg_cron)");
   } else {
-    fail("vercel.json has alert-resend cron", JSON.stringify(cronEntry));
+    fail("alert-resend route file exists", "file not found");
   }
 }
 
