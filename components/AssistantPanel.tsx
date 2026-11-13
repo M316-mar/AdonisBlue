@@ -447,7 +447,7 @@ export function AssistantPanel({
                         type="button"
                         disabled={isSending}
                         onClick={() => void handleSendAftercare(a)}
-                        className="shrink-0 rounded-full bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#243552] disabled:opacity-50"
+                        className="shrink-0 min-h-[44px] rounded-full bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#243552] disabled:opacity-50"
                       >
                         {isSending ? "Sending…" : "Send →"}
                       </button>
@@ -582,7 +582,7 @@ export function AssistantPanel({
                     type="button"
                     disabled={sending}
                     onClick={() => void handleSendPrep(p)}
-                    className="shrink-0 rounded-full bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                    className="shrink-0 min-h-[44px] rounded-full bg-teal-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
                   >
                     {sending ? "Sending…" : "Send →"}
                   </button>

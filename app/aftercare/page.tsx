@@ -540,7 +540,7 @@ export default function AftercarePage() {
       }
     }
     setTreatmentSaving(false);
-  }, [newTreatment, customProcedure, customProcedureAftercare, customProcedureReminderDays, rebookChecked, rebookDate, rebookProcedureIds, rebookCustomProcedure, procedures, token, intakes]);
+  }, [newTreatment, customProcedure, customProcedureAftercare, customProcedureReminderDays, rebookChecked, rebookDate, rebookProcedureIds, rebookCustomProcedure, returnPlanChecked, returnPlanDate, returnPlanReason, returnPlanLeadDays, procedures, token, intakes]);
 
   // ── Scheduled aftercare: Send now / Cancel ────────────────────────────────
 
@@ -1739,7 +1739,7 @@ export default function AftercarePage() {
                                     setEditReturnPlanReason(treatment.return_reason ?? "");
                                     setEditReturnPlanLeadDays(treatment.reminder_lead_days ?? 7);
                                   }}
-                                  className="rounded-full border border-teal-200 bg-white px-3 py-1 text-xs font-semibold text-teal-700 hover:bg-teal-100 transition"
+                                  className="min-h-[44px] rounded-full border border-teal-200 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-100 transition"
                                 >
                                   Edit plan
                                 </button>
@@ -1762,7 +1762,7 @@ export default function AftercarePage() {
                                     } catch { /* fall through */ }
                                     setReturnPlanSavingId(null);
                                   }}
-                                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition disabled:opacity-50"
+                                  className="min-h-[44px] rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition disabled:opacity-50"
                                 >
                                   {returnPlanSavingId === treatment.id ? "…" : "Remove plan"}
                                 </button>

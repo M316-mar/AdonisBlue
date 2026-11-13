@@ -669,7 +669,7 @@ function StepWelcome({
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-[#1a2744]">State</label>
           <select
-            className={`${field} text-base`}
+            className={`${field} text-base h-[48px]`}
             value={draft.state}
             onChange={(e) => onChange({ state: e.target.value })}
           >

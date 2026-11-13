@@ -464,10 +464,15 @@ let totalIssues = 0;
 let totalScreens = 0;
 
 // ── Launch all three browser engines ──────────────────────────────────────────
+// Firefox headless can fail on macOS with newer sandbox restrictions — skip gracefully.
+let firefoxBrowser = null;
+try { firefoxBrowser = await firefox.launch({ headless: true }); }
+catch (e) { process.stdout.write(`⚠ Firefox unavailable (skipping Firefox tests): ${e.message.split("\n")[0]}\n`); }
+
 const BROWSERS = {
   chromium: await chromium.launch({ headless: true }),
   webkit:   await webkit.launch({ headless: true }),
-  firefox:  await firefox.launch({ headless: true }),
+  firefox:  firefoxBrowser,
 };
 
 // Healing chat is tested AFTER the interaction test (which creates+archives a treatment).
@@ -476,6 +481,7 @@ const BROWSERS = {
 try {
   for (const spec of VIEWPORT_SPECS) {
     const browserInst = BROWSERS[spec.engine];
+    if (!browserInst) { process.stdout.write(`⚠ Skipping ${spec.label} — ${spec.engine} unavailable\n`); totalScreens++; continue; }
 
     // ── Logged-out screens: run in each visit state ──────────────────────────
     for (const visitState of LOGGED_OUT_STATES) {
@@ -595,6 +601,7 @@ try {
   if (!CI_MODE && hasCredentials) {
     const mobileSpecs = VIEWPORT_SPECS.filter(s => s.isMobile);
     for (const spec of mobileSpecs) {
+      if (!BROWSERS[spec.engine]) { process.stdout.write(`\n── Interaction state: Log+Plan (${spec.label}) — skipped (${spec.engine} unavailable) ──\n`); continue; }
       process.stdout.write(`\n── Interaction state: Log+Plan (${spec.label}) ──\n`);
       const ctx = await BROWSERS[spec.engine].newContext({
         viewport: { width: spec.width, height: spec.height },
@@ -825,6 +832,7 @@ try {
       s => (s.engine === "webkit" && s.width === 390) || (s.engine === "chromium" && s.width === 1440)
     );
     for (const vp of ORDER_SPECS) {
+      if (!BROWSERS[vp.engine]) { process.stdout.write(`  ⚠ Skipping ${vp.label} — ${vp.engine} unavailable\n`); continue; }
       const ctx = await BROWSERS[vp.engine].newContext({
         viewport: { width: vp.width, height: vp.height },
         userAgent: vp.ua ?? undefined,
@@ -1015,6 +1023,7 @@ try {
 
       for (const spec of EMBED_SPECS) {
         totalScreens++;
+        if (!BROWSERS[spec.engine]) { process.stdout.write(`  ⚠ Skipping embed ${spec.label} — ${spec.engine} unavailable\n`); continue; }
         const ctx = await BROWSERS[spec.engine].newContext({
           viewport: { width: spec.width, height: spec.height },
           userAgent: spec.ua ?? undefined,
@@ -1135,7 +1144,7 @@ try {
     }
   }
 } finally {
-  await Promise.all(Object.values(BROWSERS).map(b => b.close()));
+  await Promise.all(Object.values(BROWSERS).filter(Boolean).map(b => b.close()));
 }
 
 if (!CI_MODE && !hasCredentials) {
