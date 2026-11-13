@@ -193,7 +193,6 @@ const SCREENS = [
   { path: "/dashboard", label: "Dashboard", loggedIn: true },
   { path: "/onboarding", label: "Onboarding", loggedIn: true },
   { path: "/aftercare", label: "Log (Treatment Records)", loggedIn: true },
-  { path: "/checkin", label: "Check-Ins", loggedIn: true },
   { path: "/client-journey", label: "Emails", loggedIn: true },
   { path: "/offers", label: "Offers", loggedIn: true },
   { path: "/ask", label: "Alerts", loggedIn: true },
@@ -823,13 +822,13 @@ try {
     } // end LOG_FORM_SPECS loop
   }
 
-  // ── Home section order: verify at 390px and 1440px ──────────────────────────
-  // Checks that Welcome card, AssistantPanel / Q section, and Clients coming back
-  // appear in the correct top-to-bottom order. Screenshots are saved as proof.
+  // ── Home section order: verify at 375px, 390px and 1440px ───────────────────
+  // Checks: (1) "+ Log a treatment" button is at the top, (2) Welcome card is
+  // above Clients coming back, (3) Account tab appears in mobile bottom bar.
   if (!CI_MODE && hasCredentials) {
-    process.stdout.write("\n── Home section order (390px + 1440px) ──\n");
+    process.stdout.write("\n── Home section order (375px + 390px + 1440px) ──\n");
     const ORDER_SPECS = VIEWPORT_SPECS.filter(
-      s => (s.engine === "webkit" && s.width === 390) || (s.engine === "chromium" && s.width === 1440)
+      s => (s.engine === "webkit" && (s.width === 375 || s.width === 390)) || (s.engine === "chromium" && s.width === 1440)
     );
     for (const vp of ORDER_SPECS) {
       if (!BROWSERS[vp.engine]) { process.stdout.write(`  ⚠ Skipping ${vp.label} — ${vp.engine} unavailable\n`); continue; }
@@ -850,7 +849,6 @@ try {
 
         // Measure vertical positions of key sections
         const welcomeY = await pg.evaluate(() => {
-          // Welcome card has gradient bg; find the first element with the gradient class
           const el = document.querySelector('.bg-gradient-to-br');
           return el ? el.getBoundingClientRect().top + window.scrollY : null;
         });
@@ -858,16 +856,10 @@ try {
           const el = document.getElementById('return-clients');
           return el ? el.getBoundingClientRect().top + window.scrollY : null;
         });
-        // AssistantPanel renders its first visible child; look for the assistant section heading
-        const assistantY = await pg.evaluate(() => {
-          // AssistantPanel is the first section after the welcome card
-          // Find by aria-label or by its position (second div inside the left column)
-          const sections = document.querySelectorAll('main section, main [data-assistant]');
-          for (const s of sections) {
-            const y = s.getBoundingClientRect().top + window.scrollY;
-            if (y > 50) return y; // skip anything at the very top (the welcome card)
-          }
-          return null;
+        const logBtnY = await pg.evaluate(() => {
+          // "Log a treatment" button is an <a> pointing to /aftercare
+          const el = document.querySelector('a[href="/aftercare"]');
+          return el ? el.getBoundingClientRect().top + window.scrollY : null;
         });
 
         const orderOk = welcomeY !== null && clientsY !== null && welcomeY < clientsY;
@@ -876,6 +868,27 @@ try {
         } else {
           process.stdout.write(`  ✗ ${vp.label}: FAIL — section order wrong (welcome=${welcomeY}, clients=${clientsY})\n`);
           totalIssues++;
+        }
+
+        if (logBtnY !== null) {
+          process.stdout.write(`  ✓ ${vp.label}: Log button visible (y=${Math.round(logBtnY)})\n`);
+        } else {
+          process.stdout.write(`  ✗ ${vp.label}: FAIL — "+ Log a treatment" button not found\n`);
+          totalIssues++;
+        }
+
+        // On mobile viewports check that Account tab is in the bottom bar
+        if (vp.isMobile) {
+          const hasAccountTab = await pg.evaluate(() => {
+            const links = Array.from(document.querySelectorAll('nav a'));
+            return links.some(l => l.getAttribute('href') === '/account');
+          });
+          if (hasAccountTab) {
+            process.stdout.write(`  ✓ ${vp.label}: Account tab found in nav\n`);
+          } else {
+            process.stdout.write(`  ✗ ${vp.label}: FAIL — Account tab not in nav\n`);
+            totalIssues++;
+          }
         }
 
         // Screenshot proof

@@ -68,11 +68,6 @@ export default function NurseDashboardPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [nurseName, setNurseName] = useState("there");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [cancelBusy, setCancelBusy] = useState(false);
-  const [cancelDone, setCancelDone] = useState(false);
-  const [portalBusy, setPortalBusy] = useState(false);
   const [embedOpen, setEmbedOpen] = useState(false);
   const [bot, setBot] = useState<BotRow | null>(null);
   const [intakes, setIntakes] = useState<IntakeRow[]>([]);
@@ -83,12 +78,10 @@ export default function NurseDashboardPage() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [bookingCopied, setBookingCopied] = useState(false);
   const [showLaunchCelebration, setShowLaunchCelebration] = useState(false);
-  const [freezeLoading, setFreezeLoading] = useState(false);
   const [showEmailNotice, setShowEmailNotice] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
   const [hasOffer, setHasOffer] = useState(false);
-  const [showAccountManagement, setShowAccountManagement] = useState(false);
   const [noShowDialog, setNoShowDialog] = useState<{ id: string; name: string } | null>(null);
 
   type ReviewSummary = {
@@ -116,6 +109,19 @@ export default function NurseDashboardPage() {
   };
   const [returnClients, setReturnClients] = useState<ReturnClient[]>([]);
   const [returnBookingBusy, setReturnBookingBusy] = useState<string | null>(null);
+
+  type CheckinReminder = {
+    id: string;
+    client_name: string;
+    phone: string | null;
+    procedure_name: string;
+    due_date: string;
+    status: "pending" | "done" | "no_answer_snoozed";
+    script: string;
+  };
+  const [checkinReminders, setCheckinReminders] = useState<CheckinReminder[]>([]);
+  const [checkinTotal, setCheckinTotal] = useState(0);
+  const [checkinDone, setCheckinDone] = useState(0);
 
   useEffect(() => {
     setShowEmailNotice(!localStorage.getItem("emailNoticesDismissed"));
@@ -215,6 +221,17 @@ export default function NurseDashboardPage() {
             const returnJson = await returnRes.json() as { clients?: ReturnClient[] };
             setReturnClients(returnJson.clients ?? []);
           }
+
+          // Fetch check-in reminders
+          const checkinRes = await fetch("/api/checkin-reminders", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!cancelled && checkinRes.ok) {
+            const checkinJson = await checkinRes.json() as { reminders?: CheckinReminder[]; total?: number; done?: number };
+            setCheckinReminders(checkinJson.reminders ?? []);
+            setCheckinTotal(checkinJson.total ?? 0);
+            setCheckinDone(checkinJson.done ?? 0);
+          }
         }
       }
 
@@ -268,104 +285,25 @@ export default function NurseDashboardPage() {
     }
   }, []);
 
+  const handleCheckinDone = useCallback(async (id: string) => {
+    const { data } = await supabase.auth.getSession();
+    const tok = data.session?.access_token;
+    if (!tok) return;
+    const res = await fetch("/api/checkin-reminders", {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action: "complete" }),
+    });
+    if (!res.ok) return;
+    setCheckinReminders((prev) => prev.map((r) => r.id === id ? { ...r, status: "done" } : r));
+    setCheckinDone((d) => d + 1);
+  }, []);
+
   const handleLogout = useCallback(async () => {
     await signOutCompletely();
     router.push("/auth");
   }, [router]);
 
-  const handleManagePlan = useCallback(async () => {
-    setPortalBusy(true);
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) {
-        setPortalBusy(false);
-        return;
-      }
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      try {
-        const res = await fetch("/api/billing-portal", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        const j = await res.json() as { url?: string; error?: string };
-        if (res.ok && j.url) {
-          window.location.href = j.url;
-        } else {
-          alert(j.error ?? "Could not open billing portal. Please try again.");
-        }
-      } catch (err) {
-        clearTimeout(timeoutId);
-        if (err instanceof Error && err.name === "AbortError") {
-          alert("This is taking longer than expected. Please check your connection and try again.");
-        } else {
-          alert("Something went wrong opening the billing portal. Please try again.");
-        }
-      }
-    } finally {
-      setPortalBusy(false);
-    }
-  }, []);
-
-  const handleCancelMembership = useCallback(async () => {
-    // Route to the Stripe Billing Portal — it handles cancel-at-period-end correctly
-    // and shows the nurse exactly when access ends. No direct cancel API needed.
-    setCancelBusy(true);
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) return;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      try {
-        const res = await fetch("/api/billing-portal", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        const j = await res.json() as { url?: string; error?: string };
-        if (res.ok && j.url) {
-          window.location.href = j.url;
-        } else if (res.status === 404) {
-          alert("We couldn't find a billing account for your subscription. Please email hi@adonisblue.io and we'll cancel it for you right away.");
-        } else {
-          alert(j.error ?? "Could not open billing portal. Please try again.");
-        }
-      } catch (err) {
-        clearTimeout(timeoutId);
-        if (err instanceof Error && err.name === "AbortError") {
-          alert("This is taking longer than expected. Please check your connection and try again.");
-        } else {
-          alert("Something went wrong opening the billing portal. Please try again.");
-        }
-      }
-    } finally {
-      setCancelBusy(false);
-    }
-  }, []);
-
-  const handleConfirmDeleteDialog = useCallback(async () => {
-    setDeleteBusy(true);
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (token) {
-        await fetch("/api/delete-account", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      }
-      await signOutCompletely();
-      localStorage.clear();
-      router.push("/");
-    } finally {
-      setDeleteBusy(false);
-    }
-  }, [router]);
 
   const handleSendSurvey = useCallback(async (intake: IntakeRow) => {
     setSurveyLoading(intake.id);
@@ -381,27 +319,6 @@ export default function NurseDashboardPage() {
     setSurveyLoading(null);
   }, []);
 
-
-  const handleFreezeToggle = useCallback(async () => {
-    if (!bot) return;
-    const nextFrozen = !bot.frozen;
-    if (nextFrozen && !window.confirm("Freeze your account? Your assistant will be paused and clients will see an 'unavailable' message until you unfreeze.")) return;
-    setFreezeLoading(true);
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (token) {
-        await fetch("/api/my-plan", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ frozen: nextFrozen }),
-        });
-        setBot(prev => prev ? { ...prev, frozen: nextFrozen } : prev);
-      }
-    } finally {
-      setFreezeLoading(false);
-    }
-  }, [bot]);
 
   const handleDeleteIntake = useCallback(async (id: string) => {
     const { data } = await supabase.auth.getSession();
@@ -524,6 +441,19 @@ export default function NurseDashboardPage() {
               </div>
             </section>
 
+            {/* ── Log a treatment — always at top ── */}
+            <div className="flex flex-col gap-2">
+              <Link
+                href="/aftercare"
+                className="inline-flex min-h-[44px] w-full items-center justify-center rounded-full bg-[#0d9488] px-5 text-sm font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
+              >
+                + Log a treatment
+              </Link>
+              {aftercareSent === 0 && (
+                <p className="text-xs text-slate-500 text-center leading-relaxed">After every appointment, log your treatment — AdonisBlue sends aftercare emails and rebooking reminders automatically.</p>
+              )}
+            </div>
+
             {needsAlertVerify && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
                 <p className="text-xs text-amber-800 flex-1">🔔 <strong>Verify your emergency alert email</strong> — we haven&apos;t confirmed where to send urgent client alerts yet. <Link href="/onboarding?step=5" className="underline font-semibold">Verify now →</Link></p>
@@ -555,6 +485,58 @@ export default function NurseDashboardPage() {
                 returnClients={returnClients}
                 onAlertCountChange={setAlertCount}
               />
+            )}
+
+            {/* ── Clients to call today ── */}
+            {checkinTotal > 0 && (
+              <section className="rounded-2xl border border-slate-200 bg-white shadow-md overflow-hidden">
+                <div className="px-4 py-4 sm:px-6 border-b border-slate-100 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-[#1a2744]">📞 Clients to call today</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{checkinDone} of {checkinTotal} done this week</p>
+                  </div>
+                </div>
+                <ul className="divide-y divide-slate-100">
+                  {checkinReminders.filter((r) => r.due_date === localDateString() && r.status !== "done").map((r) => {
+                    const firstName = r.client_name.split(" ")[0];
+                    return (
+                      <li key={r.id} className="px-4 py-4 sm:px-6 flex flex-col gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-[#1a2744]">{r.client_name}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{r.procedure_name}</p>
+                        </div>
+                        <blockquote className="rounded-xl bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700 border-l-4 border-teal-300">
+                          {r.script}
+                        </blockquote>
+                        <div className="flex gap-2">
+                          {r.phone ? (
+                            <a
+                              href={`tel:${r.phone}`}
+                              className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#0d9488] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700"
+                            >
+                              📞 Call {firstName}
+                            </a>
+                          ) : (
+                            <span className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-4 text-sm text-slate-400">
+                              No phone on file
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => void handleCheckinDone(r.id)}
+                            className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-teal-200 bg-teal-50 px-4 text-sm font-semibold text-teal-700 transition hover:bg-teal-100"
+                          >
+                            Done ✓
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                  {checkinReminders.filter((r) => r.due_date === localDateString() && r.status !== "done").length === 0 && (
+                    <li className="px-4 py-4 sm:px-6 text-sm text-slate-400">All done for today! 🌿</li>
+                  )}
+                </ul>
+              </section>
             )}
 
             {/* ── Clients coming back — always visible, below Assistant ── */}
@@ -650,12 +632,6 @@ export default function NurseDashboardPage() {
                 </ul>
               )}
             </section>
-
-            <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 flex items-center gap-3">
-              <span className="text-lg shrink-0">💉</span>
-              <p className="text-sm text-teal-800 flex-1">After every appointment, log your treatment in Treatment Records so AdonisBlue can send aftercare emails and rebooking reminders automatically.</p>
-              <a href="/aftercare" className="inline-flex min-h-[44px] shrink-0 items-center text-sm font-semibold text-teal-700 hover:text-teal-900 whitespace-nowrap">Log a treatment →</a>
-            </div>
 
             {(() => {
               const pendingIntakes = intakes.filter((i) => !i.aftercare_sent_at || !i.survey_sent);
@@ -767,117 +743,6 @@ export default function NurseDashboardPage() {
               </>
             ) : null}
 
-            {/* ── My Plan ── */}
-            <div className="max-w-2xl space-y-4">
-              {/* ── My Plan ── */}
-              {(() => {
-                const plan = (bot?.plan ?? "trial").toLowerCase();
-                const trialEndsAt = bot?.trial_ends_at
-                  ? new Date(bot.trial_ends_at)
-                  : null;
-                const daysLeft = trialEndsAt
-                  ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-                  : null;
-                const expired = plan === "trial" && trialEndsAt !== null && trialEndsAt.getTime() < Date.now();
-                const planLabel = plan === "starter" || plan === "pro" ? "💳 Starter" : "🆓 Trial";
-                const planColor = plan === "starter" || plan === "pro"
-                  ? "text-teal-600 bg-teal-50 border-teal-200"
-                  : expired
-                  ? "text-red-600 bg-red-50 border-red-200"
-                  : "text-amber-600 bg-amber-50 border-amber-200";
-                return (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
-                    <h3 className="text-sm font-semibold text-[#1a2744]">My Plan</h3>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-bold ${planColor}`}>{planLabel}</span>
-                      {expired && <span className="text-xs font-semibold text-red-500">Trial expired</span>}
-                    </div>
-                    {plan === "trial" && !expired && daysLeft !== null && (
-                      <p className="mt-1.5 text-xs text-slate-500">
-                        <span className="font-semibold text-amber-600">{daysLeft} day{daysLeft !== 1 ? "s" : ""}</span> left in your free trial
-                      </p>
-                    )}
-                    {expired && (
-                      <p className="mt-1.5 text-xs text-red-500">Your trial has ended. Upgrade to keep your bot running.</p>
-                    )}
-                    {plan === "trial" || plan === "free" ? (
-                      <Link
-                        href="/upgrade"
-                        className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-full bg-[#0d9488] px-4 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700"
-                      >
-                        Upgrade to Starter →
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={portalBusy}
-                        onClick={() => void handleManagePlan()}
-                        className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-full bg-[#0d9488] px-4 text-center text-xs font-semibold text-white shadow-md shadow-teal-900/15 transition hover:bg-teal-700 disabled:opacity-60"
-                      >
-                        {portalBusy ? "Opening portal…" : "Manage plan →"}
-                      </button>
-                    )}
-                    <div className="mt-2 border-t border-slate-100 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowAccountManagement((v) => !v)}
-                        className="mb-1.5 inline-flex min-h-[44px] w-full items-center justify-center text-xs font-semibold text-slate-400 hover:text-slate-600"
-                      >
-                        {showAccountManagement ? "Hide account options ▲" : "Manage account ▾"}
-                      </button>
-                    </div>
-                    {showAccountManagement && (
-                      <div className="space-y-1.5">
-                        <button
-                          type="button"
-                          disabled={freezeLoading}
-                          onClick={() => void handleFreezeToggle()}
-                          className={`inline-flex min-h-[44px] w-full items-center justify-center rounded-full border-2 px-4 text-xs font-semibold transition disabled:opacity-50 ${
-                            bot?.frozen
-                              ? "border-teal-400 bg-teal-50 text-teal-700 hover:bg-teal-100"
-                              : "border-slate-300 bg-slate-50 text-slate-500 hover:bg-slate-100"
-                          }`}
-                        >
-                          {freezeLoading ? "Saving…" : bot?.frozen ? "❄️ Unfreeze my account" : "❄️ Freeze my account"}
-                        </button>
-                        <p className={`text-xs px-1 font-semibold ${bot?.frozen ? "text-amber-600" : "text-slate-400"}`}>
-                          {bot?.frozen
-                            ? "Your assistant is paused. Clients cannot chat until you unfreeze."
-                            : "Temporarily pauses your assistant — clients will see an 'unavailable' message instead of the chat."}
-                        </p>
-                        {(plan === "starter" || plan === "pro") && (
-                          cancelDone ? (
-                            <p className="text-center text-xs font-semibold text-teal-700 rounded-full border-2 border-teal-300 bg-teal-50 px-4 py-1.5">
-                              ✓ Membership canceled — you keep access until the end of your billing period.
-                            </p>
-                          ) : (
-                            <div className="border-t border-slate-100 pt-1.5">
-                              <button
-                                type="button"
-                                onClick={() => void handleCancelMembership()}
-                                disabled={cancelBusy}
-                                className="inline-flex w-full items-center justify-center rounded-full border-2 border-red-200 bg-red-50 px-4 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-100 disabled:opacity-50"
-                              >
-                                {cancelBusy ? "Canceling…" : "Cancel membership"}
-                              </button>
-                            </div>
-                          )
-                        )}
-                        <div className="border-t border-slate-100 pt-1.5 text-center">
-                          <button
-                            type="button"
-                            onClick={() => setDeleteDialogOpen(true)}
-                            className="text-xs font-medium text-red-600 underline decoration-red-600/40 underline-offset-2 transition hover:text-red-700"
-                          >
-                            Delete account
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
 
           </div>
 
@@ -1029,43 +894,6 @@ export default function NurseDashboardPage() {
               >
                 Got it! Let&apos;s go 🦋
               </button>
-            </div>
-          </div>
-        ) : null}
-
-        {deleteDialogOpen ? (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="delete-account-title">
-            <button
-              type="button"
-              className="absolute inset-0 bg-black/40"
-              aria-label="Close dialog"
-              onClick={() => !deleteBusy && setDeleteDialogOpen(false)}
-            />
-            <div className="relative z-[101] w-full max-w-sm rounded-xl border border-slate-200 bg-white p-4 shadow-xl sm:p-5">
-              <h2 id="delete-account-title" className="sr-only">
-                Delete account
-              </h2>
-              <p className="text-sm leading-relaxed text-slate-700">
-                Are you sure? Deleting your account removes everything permanently — your bot, settings, and photos. This cannot be undone.
-              </p>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
-                <button
-                  type="button"
-                  disabled={deleteBusy}
-                  onClick={() => setDeleteDialogOpen(false)}
-                  className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={deleteBusy}
-                  onClick={handleConfirmDeleteDialog}
-                  className="rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {deleteBusy ? "Signing out…" : "Confirm"}
-                </button>
-              </div>
             </div>
           </div>
         ) : null}

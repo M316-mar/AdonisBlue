@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -10,10 +10,9 @@ import { supabase } from "@/lib/supabase";
 const NAV_ITEMS = [
   { href: "/dashboard",       icon: "🏠", label: "Home" },
   { href: "/aftercare",       icon: "🩹", label: "Log" },
-  { href: "/checkin",         icon: "📞", label: "Check-Ins" },
   { href: "/client-journey",  icon: "✉️", label: "Emails" },
   { href: "/offers",          icon: "🎁", label: "Offers" },
-  { href: "/account",         icon: "⚙️", label: "Account", desktopOnly: true },
+  { href: "/account",         icon: "⚙️", label: "Account" },
 ] as const;
 
 function NavItem({ href, icon, label, active }: { href: string; icon: string; label: string; active: boolean }) {
@@ -38,22 +37,7 @@ function NavItem({ href, icon, label, active }: { href: string; icon: string; la
 
 export function SideNavRail() {
   const pathname = usePathname();
-  const router = useRouter();
-  const [alertCount, setAlertCount] = useState(0);
   const [nurseInitial, setNurseInitial] = useState("·");
-
-  const fetchAlertCount = async () => {
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) return;
-      const notifRes = await fetch("/api/notifications", { headers: { Authorization: `Bearer ${token}` } });
-      if (notifRes.ok) {
-        const json = await notifRes.json() as { count?: number };
-        setAlertCount(json.count ?? 0);
-      }
-    } catch { /* ignore */ }
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -62,14 +46,7 @@ export function SideNavRail() {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
         if (!token || cancelled) return;
-        const [notifRes, accountRes] = await Promise.all([
-          fetch("/api/notifications", { headers: { Authorization: `Bearer ${token}` } }),
-          fetch("/api/account", { headers: { Authorization: `Bearer ${token}` } }),
-        ]);
-        if (!cancelled && notifRes.ok) {
-          const json = await notifRes.json() as { count?: number };
-          setAlertCount(json.count ?? 0);
-        }
+        const accountRes = await fetch("/api/account", { headers: { Authorization: `Bearer ${token}` } });
         if (!cancelled && accountRes.ok) {
           const a = await accountRes.json() as { nurse_name?: string };
           const name = a.nurse_name?.trim() ?? "";
@@ -79,20 +56,6 @@ export function SideNavRail() {
     })();
     return () => { cancelled = true; };
   }, []);
-
-  useEffect(() => {
-    window.addEventListener("alert-handled", fetchAlertCount);
-    return () => window.removeEventListener("alert-handled", fetchAlertCount);
-  }, []);
-
-  const handleBellClick = () => {
-    if (pathname === "/dashboard") {
-      const el = document.getElementById("assistant-panel");
-      el?.scrollIntoView({ behavior: "smooth" });
-    } else {
-      router.push("/dashboard#assistant");
-    }
-  };
 
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
@@ -107,23 +70,6 @@ export function SideNavRail() {
         {NAV_ITEMS.map((item) => (
           <NavItem key={item.href} {...item} active={isActive(item.href)} />
         ))}
-        {/* Bell — alerts */}
-        <button
-          type="button"
-          onClick={handleBellClick}
-          aria-label={alertCount > 0 ? `${alertCount} unhandled alert${alertCount !== 1 ? "s" : ""}` : "No alerts"}
-          className="relative mt-1 flex flex-col items-center gap-1 py-2 px-1"
-        >
-          <span className="relative flex h-10 w-10 items-center justify-center rounded-full bg-teal-50 text-lg text-slate-600 transition hover:bg-teal-100">
-            🔔
-            {alertCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white">
-                {alertCount}
-              </span>
-            )}
-          </span>
-          <span className="text-[10px] font-semibold leading-tight text-slate-400">Alerts</span>
-        </button>
       </nav>
 
       {/* ── Mobile account avatar — top-right ── */}
@@ -137,7 +83,7 @@ export function SideNavRail() {
 
       {/* ── Bottom bar — mobile (< sm) — no desktopOnly items ── */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white flex items-center justify-around px-1 pb-[env(safe-area-inset-bottom)]">
-        {NAV_ITEMS.filter(item => !("desktopOnly" in item && item.desktopOnly)).map((item) => (
+        {NAV_ITEMS.map((item) => (
           <NavItem key={item.href} {...item} active={isActive(item.href)} />
         ))}
       </nav>
