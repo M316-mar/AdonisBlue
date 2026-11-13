@@ -530,7 +530,7 @@ export function AssistantPanel({
                 <button
                   type="button"
                   onClick={() => router.push(`/checkin?client=${c.intake_id}`)}
-                  className="shrink-0 rounded-full bg-[#1a2744] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#243552]"
+                  className="shrink-0 min-h-[44px] rounded-full bg-[#1a2744] px-3 text-xs font-semibold text-white transition hover:bg-[#243552]"
                 >
                   Open →
                 </button>
@@ -553,7 +553,7 @@ export function AssistantPanel({
                     const el = document.getElementById("return-clients");
                     el?.scrollIntoView({ behavior: "smooth" });
                   }}
-                  className="shrink-0 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                  className="shrink-0 min-h-[44px] rounded-full border border-slate-200 px-3 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
                 >
                   See all →
                 </button>

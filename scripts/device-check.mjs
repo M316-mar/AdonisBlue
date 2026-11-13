@@ -36,6 +36,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "node:http";
+import { spawnSync } from "node:child_process";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CI_MODE = process.argv.includes("--ci");
@@ -461,6 +462,38 @@ async function signIn(page) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 let totalIssues = 0;
 let totalScreens = 0;
+
+// ── Ensure realistic test data for logged-in screens ──────────────────────────
+// Logged-in checks test real layout with real data (long names, return plans, etc.).
+// If the test account has fewer than 10 treatments, seed it now so layout bugs
+// caused by empty-state rendering (e.g. missing grid constraints) are always caught.
+if (!CI_MODE && hasCredentials) {
+  try {
+    const sb = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: authData } = await sb.auth.signInWithPassword({ email: testEmail, password: testPassword });
+    if (authData?.session?.access_token) {
+      const r = await fetch(`${BASE_URL}/api/treatments`, {
+        headers: { Authorization: `Bearer ${authData.session.access_token}` },
+      });
+      if (r.ok) {
+        const j = await r.json();
+        const count = (j.treatments ?? []).length;
+        if (count < 10) {
+          process.stdout.write(`\n⚙ Test account has ${count} treatment(s) — seeding realistic data...\n`);
+          const seedPath = join(ROOT, "scripts/seed-test-data.mjs");
+          const result = spawnSync(process.execPath, [seedPath], { stdio: "inherit", timeout: 60_000 });
+          if (result.status !== 0) {
+            process.stderr.write(`⚠ Seed failed (exit ${result.status}) — logged-in checks may show empty-state layout\n`);
+          }
+        } else {
+          process.stdout.write(`\n⚙ Test account has ${count} treatments — skipping seed\n`);
+        }
+      }
+    }
+  } catch (e) {
+    process.stderr.write(`⚠ Seed check failed: ${e.message} — continuing without seed\n`);
+  }
+}
 
 // ── Launch all three browser engines ──────────────────────────────────────────
 // Firefox headless can fail on macOS with newer sandbox restrictions — skip gracefully.

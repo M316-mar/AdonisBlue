@@ -82,6 +82,7 @@ export default function NurseDashboardPage() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
   const [hasOffer, setHasOffer] = useState(false);
+  const [treatmentCount, setTreatmentCount] = useState<number | null>(null);
   const [noShowDialog, setNoShowDialog] = useState<{ id: string; name: string } | null>(null);
 
   type ReviewSummary = {
@@ -175,6 +176,15 @@ export default function NurseDashboardPage() {
           if (!cancelled && intakesRes.ok) {
             const intakesJson = await intakesRes.json();
             setIntakes(intakesJson.intakes ?? []);
+          }
+
+          // Fetch treatment count (for "Log a treatment" explanation visibility)
+          const treatRes = await fetch("/api/treatments", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!cancelled && treatRes.ok) {
+            const treatJson = await treatRes.json() as { treatments?: unknown[] };
+            setTreatmentCount((treatJson.treatments ?? []).length);
           }
 
           // Fetch offers count
@@ -400,7 +410,7 @@ export default function NurseDashboardPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-28 lg:px-8 lg:py-10 lg:pb-28">
-        <div className="grid gap-6 md:grid-cols-12 md:gap-8 md:items-start">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-12 md:gap-8 md:items-start">
           <div className="space-y-6 md:col-span-8">
             <section className="relative overflow-hidden rounded-2xl border border-teal-900/20 bg-gradient-to-br from-[#1a2744] to-[#0d3d38] px-4 py-6 shadow-lg sm:px-6 sm:py-8">
               <div
@@ -449,7 +459,7 @@ export default function NurseDashboardPage() {
               >
                 + Log a treatment
               </Link>
-              {aftercareSent === 0 && (
+              {treatmentCount === 0 && (
                 <p className="text-xs text-slate-500 text-center leading-relaxed">After every appointment, log your treatment — AdonisBlue sends aftercare emails and rebooking reminders automatically.</p>
               )}
             </div>
@@ -601,7 +611,7 @@ export default function NurseDashboardPage() {
                             <a
                               href={icsBlob}
                               download={`hold-slot-${c.client_name.replace(/\s+/g, "-").toLowerCase()}.ics`}
-                              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                              className="inline-flex min-h-[44px] items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
                             >
                               📅 Hold a spot
                             </a>
@@ -620,7 +630,7 @@ export default function NurseDashboardPage() {
                               type="button"
                               disabled={returnBookingBusy === c.treatment_id}
                               onClick={() => void handleReturnBooking(c.treatment_id, "booked")}
-                              className="rounded-full bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                              className="inline-flex min-h-[44px] items-center rounded-full bg-teal-600 px-3 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
                             >
                               {returnBookingBusy === c.treatment_id ? "…" : "✅ She booked"}
                             </button>

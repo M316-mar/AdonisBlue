@@ -3,8 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 
 
 const NAV_ITEMS = [
@@ -37,25 +35,6 @@ function NavItem({ href, icon, label, active }: { href: string; icon: string; la
 
 export function SideNavRail() {
   const pathname = usePathname();
-  const [nurseInitial, setNurseInitial] = useState("·");
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const token = data.session?.access_token;
-        if (!token || cancelled) return;
-        const accountRes = await fetch("/api/account", { headers: { Authorization: `Bearer ${token}` } });
-        if (!cancelled && accountRes.ok) {
-          const a = await accountRes.json() as { nurse_name?: string };
-          const name = a.nurse_name?.trim() ?? "";
-          if (name) setNurseInitial(name[0].toUpperCase());
-        }
-      } catch { /* ignore */ }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
@@ -71,15 +50,6 @@ export function SideNavRail() {
           <NavItem key={item.href} {...item} active={isActive(item.href)} />
         ))}
       </nav>
-
-      {/* ── Mobile account avatar — top-right ── */}
-      <Link
-        href="/account"
-        aria-label="My Account"
-        className="sm:hidden fixed top-3 right-4 z-[60] flex h-11 w-11 items-center justify-center rounded-full bg-[#1a2744] text-sm font-bold text-white shadow transition hover:bg-[#0d9488] select-none"
-      >
-        {nurseInitial}
-      </Link>
 
       {/* ── Bottom bar — mobile (< sm) — no desktopOnly items ── */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white flex items-center justify-around px-1 pb-[env(safe-area-inset-bottom)]">
