@@ -119,17 +119,22 @@ export function buildAftercareEmail(opts: AftercareEmailOptions): string {
             <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${p.contentHtml}</p>
           </div>`;
   } else {
-    // Multiple procedures: compact cards with preview + "See more" link
+    // Multiple procedures: compact cards with 2-sentence preview + in-email expand.
+    // <details>/<summary> gives a native toggle in Apple Mail / iPhone Mail.
+    // Gmail strips <details> but keeps its inner content — so the full aftercare
+    // text is ALWAYS present in the HTML and never hidden from Gmail readers.
     const cards = procedures.map((p) => {
-      const tabUrl = `${siteUrl}/healing/${treatmentId}?tab=${p.tabParam}`;
-      // Strip HTML tags for the preview (contentHtml may contain substituted HTML)
+      // Strip HTML tags for the plain-text preview
       const plainText = p.contentHtml.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
       const preview = escapeHtml(previewSentences(plainText, 2));
       return `
           <div style="background:#f8fafc;border-radius:14px;padding:16px 20px;margin:12px 0;border:1px solid #e2e8f0;">
             <h3 style="margin:0 0 6px;color:#0d9488;font-size:14px;font-weight:600;">&#128203; ${escapeHtml(p.name)}</h3>
-            <p style="margin:0 0 12px;color:#475569;font-size:13px;line-height:1.65;">${preview}</p>
-            <a href="${tabUrl}" style="display:inline-block;background:#1a2744;color:#ffffff;font-size:12px;font-weight:600;text-decoration:none;padding:8px 18px;border-radius:50px;">See full aftercare →</a>
+            <p style="margin:0 0 10px;color:#475569;font-size:13px;line-height:1.65;">${preview}</p>
+            <details style="margin:0;">
+              <summary style="display:inline-block;min-height:44px;line-height:44px;background:#1a2744;color:#ffffff;font-size:12px;font-weight:600;text-decoration:none;padding:0 18px;border-radius:50px;cursor:pointer;list-style:none;">See full aftercare ↓</summary>
+              <div style="margin-top:12px;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${p.contentHtml}</div>
+            </details>
           </div>`;
     });
     contentHtml = cards.join("");

@@ -79,6 +79,7 @@ console.log("\nbuildAftercareEmail — 1 procedure");
   assert(html.includes("Avoid pressure"), "full content in body (not a card)");
   // Should NOT be a compact card layout for single procedure
   assert(!html.includes("See full aftercare"), "no card layout for single procedure");
+  assert(!html.includes("<details"), "no <details> element for single procedure");
   assert(html.includes("If anything feels wrong, contact Ana right away"), "emergency line present");
   assert(html.includes("at 555-1234"), "phone in emergency line");
   assert(html.includes("call 911"), "911 in emergency line");
@@ -129,18 +130,13 @@ console.log("\nbuildAftercareEmail — 2 procedures");
 
   assert(html.includes("Lip Filler"), "first procedure name in card");
   assert(html.includes("Botox"), "second procedure name in card");
-  assert(html.includes("See full aftercare"), "card layout has 'See full aftercare' link");
-  // Verify tab links include ?tab= parameter
-  assert(
-    html.includes(`/healing/${TREATMENT_ID}?tab=Lip%20Filler`),
-    "first card links to ?tab=Lip%20Filler"
-  );
-  assert(
-    html.includes(`/healing/${TREATMENT_ID}?tab=Botox`),
-    "second card links to ?tab=Botox"
-  );
-  // Preview — should show partial content, not full
-  assert(!html.includes("Skip exercise today"), "full content not visible in card preview");
+  assert(html.includes("See full aftercare"), "card layout has 'See full aftercare ↓' summary");
+  assert(html.includes("<details"), "card layout uses <details> for in-email expand");
+  // Full text must be present in the HTML for Gmail (which strips <details> but keeps content)
+  assert(html.includes("Skip exercise today"), "full content present in HTML (Gmail degradation)");
+  assert(html.includes("Sleep elevated for 24 hours"), "full content of first procedure present");
+  // Preview text visible above the <details>
+  assert(html.includes("Avoid pressure"), "preview text present above expand");
   // Chat button at top
   const chatTopIdx = html.indexOf("Questions? Chat with us anytime");
   const firstCardIdx = html.indexOf("Lip Filler");
