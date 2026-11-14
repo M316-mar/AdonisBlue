@@ -78,17 +78,46 @@ export async function GET(request: Request) {
     const rawIntakePhone = (treatment.intakes as { phone?: string | null } | null)?.phone?.trim() ?? "";
     const phoneLast4 = rawIntakePhone ? rawIntakePhone.replace(/\D/g, "").slice(-4) || null : null;
 
-    // Fetch all procedures for this treatment (junction table)
+    // Fetch all procedures for this treatment (junction table) + their aftercare
     const { data: junctionProcsGet } = await supabase
       .from("treatment_procedures")
       .select("procedure_id, procedure_name, sort_order")
       .eq("treatment_id", treatmentId)
       .order("sort_order", { ascending: true });
-    const allProcNamesGet: string[] = (junctionProcsGet ?? []).length > 0
-      ? (junctionProcsGet ?? []).map((r: { procedure_name: string }) => r.procedure_name)
-      : ((treatment.procedures as { name?: string } | null)?.name
-          ? [(treatment.procedures as { name: string }).name]
-          : (treatment.procedure_name ? [treatment.procedure_name] : []));
+
+    // Build the list of procedure ids to fetch aftercare for
+    const junctionRows = junctionProcsGet ?? [];
+    const procIdsForAftercare = junctionRows.length > 0
+      ? junctionRows.map((r: { procedure_id: string }) => r.procedure_id)
+      : (treatment.procedure_id ? [treatment.procedure_id] : []);
+
+    const { data: procsForAftercare } = procIdsForAftercare.length > 0
+      ? await supabase.from("procedures").select("id, name, aftercare_instructions, approved_at").in("id", procIdsForAftercare)
+      : { data: [] as Array<{ id: string; name: string; aftercare_instructions: string | null; approved_at: string | null }> };
+    const procsAftercarMap = new Map((procsForAftercare ?? []).map((p: { id: string; name: string; aftercare_instructions: string | null; approved_at: string | null }) => [p.id, p]));
+
+    // Build all_procedures: approved aftercare only (same data the email contained)
+    const allProceduresData: Array<{ name: string; aftercare_instructions: string }> =
+      junctionRows.length > 0
+        ? junctionRows.map((r: { procedure_id: string; procedure_name: string }) => {
+            const p = procsAftercarMap.get(r.procedure_id);
+            return {
+              name: p?.name || r.procedure_name,
+              aftercare_instructions: (p?.approved_at && p?.aftercare_instructions) ? p.aftercare_instructions : "",
+            };
+          })
+        : (treatment.procedure_id && procsAftercarMap.has(treatment.procedure_id)
+            ? [{
+                name: procsAftercarMap.get(treatment.procedure_id)!.name,
+                aftercare_instructions: procsAftercarMap.get(treatment.procedure_id)!.approved_at
+                  ? (procsAftercarMap.get(treatment.procedure_id)!.aftercare_instructions || "")
+                  : "",
+              }]
+            : (treatment.procedure_name
+                ? [{ name: treatment.procedure_name, aftercare_instructions: "" }]
+                : []));
+
+    const allProcNamesGet: string[] = allProceduresData.map((p) => p.name);
 
     // Only expose what the client needs — never leak nurse contact/alert details here
     return NextResponse.json({
@@ -105,6 +134,7 @@ export async function GET(request: Request) {
           ? { name: treatment.procedures.name }
           : null,
         all_procedure_names: allProcNamesGet,
+        all_procedures: allProceduresData,
         bots: null,
       },
       nurse_first_name: nurseFirstName,

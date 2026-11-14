@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { renderWithTelLinks } from "@/lib/renderWithTelLinks";
 type Message = { role: "user" | "assistant"; content: string; id: string };
+
+type ProcedureData = { name: string; aftercare_instructions: string };
 
 type Treatment = {
   id: string;
   procedure_name: string;
   intakes: { first_name: string; phone_last4?: string | null } | null;
   procedures: { name: string } | null;
+  all_procedure_names?: string[];
+  all_procedures?: ProcedureData[];
   bots: null;
 };
 
@@ -20,11 +25,12 @@ const QUICK_QUESTIONS = [
   "I have bruising",
 ];
 
-export default function HealingChatPage({
+function HealingChatInner({
   params,
 }: {
   params: Promise<{ treatment_id: string }>;
 }) {
+  const searchParams = useSearchParams();
   const [treatmentId, setTreatmentId] = useState("");
   const [treatment, setTreatment] = useState<Treatment | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -37,6 +43,8 @@ export default function HealingChatPage({
   const [phoneLast4, setPhoneLast4] = useState<string | null>(null);
   const [changingPhone, setChangingPhone] = useState(false);
   const [nurseFirstName, setNurseFirstName] = useState<string | null>(null);
+  const [selectedTab, setSelectedTab] = useState<string>(() => searchParams.get("tab") ?? "");
+  const tabsRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -58,6 +66,13 @@ export default function HealingChatPage({
       const data = await res.json();
       setTreatment(data.treatment);
       if (data.nurse_first_name) setNurseFirstName(data.nurse_first_name);
+      const procs: ProcedureData[] | undefined = data.treatment?.all_procedures;
+      if (procs && procs.length > 0) {
+        const tabParam = searchParams.get("tab");
+        const decoded = tabParam ? decodeURIComponent(tabParam) : "";
+        const matched = procs.find((p) => p.name === decoded);
+        setSelectedTab(matched ? matched.name : procs[0].name);
+      }
       const last4: string | null = data.treatment?.intakes?.phone_last4 ?? null;
       if (last4) setPhoneLast4(last4);
       const rawName = data.treatment?.intakes?.first_name;
@@ -330,6 +345,50 @@ export default function HealingChatPage({
         </p>
       </div>
 
+      {/* Aftercare tabs — shown when procedure data is available */}
+      {treatment?.all_procedures && treatment.all_procedures.length > 0 && (
+        <div className="shrink-0 bg-[#1a2744] border-b border-white/10">
+          {treatment.all_procedures.length > 1 && (
+            <div
+              ref={tabsRef}
+              className="flex overflow-x-auto gap-0 px-3 pt-2"
+              style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
+            >
+              {treatment.all_procedures.map((p) => (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() => setSelectedTab(p.name)}
+                  style={{ touchAction: "manipulation", minHeight: "44px" }}
+                  className={`shrink-0 px-4 py-2 text-xs font-semibold border-b-2 transition whitespace-nowrap ${
+                    selectedTab === p.name
+                      ? "border-teal-400 text-teal-300"
+                      : "border-transparent text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
+          {treatment.all_procedures.map(
+            (p) =>
+              selectedTab === p.name && (
+                <div key={p.name} className="px-4 py-4 max-h-56 overflow-y-auto">
+                  {treatment.all_procedures!.length === 1 && (
+                    <p className="text-xs font-semibold text-teal-300 mb-2">
+                      📋 {p.name} Aftercare
+                    </p>
+                  )}
+                  <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+                    {p.aftercare_instructions}
+                  </div>
+                </div>
+              )
+          )}
+        </div>
+      )}
+
       {/* Messages */}
       <div
         ref={listRef}
@@ -463,5 +522,23 @@ export default function HealingChatPage({
         </div>
       </div>
     </div>
+  );
+}
+
+export default function HealingChatPage({
+  params,
+}: {
+  params: Promise<{ treatment_id: string }>;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center bg-[#0d1628]">
+          <p className="text-sm text-slate-400">Loading your recovery chat…</p>
+        </div>
+      }
+    >
+      <HealingChatInner params={params} />
+    </Suspense>
   );
 }

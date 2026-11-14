@@ -3,76 +3,11 @@ import { NextResponse } from "next/server";
 import { logError } from "@/lib/logError";
 import { firstName } from "@/lib/firstName";
 import { substitutePlaceholdersSafeHtml } from "@/lib/substitutePlaceholders";
+import { buildAftercareEmail, escapeHtml } from "@/lib/buildAftercareEmail";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-// Shared HTML builder — used by both the real send and the preview endpoint
-function buildAftercareHtml({
-  clientName,
-  escapedPracticeName,
-  treatmentId,
-  procedureName,
-  instructions,
-  personalNote,
-}: {
-  clientName: string;
-  escapedPracticeName: string;
-  treatmentId: string;
-  procedureName: string;
-  instructions: string;
-  personalNote: string;
-}): string {
-  let combinedHtml = `
-<div style="background:#f0fdf4;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #0d9488;">
-  <h3 style="margin:0 0 10px;color:#0d9488;font-size:15px;font-weight:600;">📋 ${escapeHtml(procedureName)} Aftercare</h3>
-  <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${instructions}</p>
-</div>`;
-  if (personalNote) {
-    combinedHtml += `
-<div style="background:#fff7ed;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #f97316;">
-  <h3 style="margin:0 0 10px;color:#c2410c;font-size:15px;font-weight:600;">💬 A note just for you</h3>
-  <p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(personalNote)}</p>
-</div>`;
-  }
-  return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0;">
-        <tr><td style="background:#1a2744;padding:28px 32px;text-align:center;">
-          <img src="${SITE_URL}/Alona.png" alt="AdonisBlue" width="44" height="44" style="border-radius:10px;display:block;margin:0 auto 10px;" />
-          <span style="color:#fff;font-size:18px;font-weight:600;">${escapedPracticeName}</span>
-        </td></tr>
-        <tr><td style="padding:36px 32px;">
-          <h1 style="margin:0 0 8px;color:#1a2744;font-size:22px;font-weight:600;">You're glowing, ${clientName}! 🌸</h1>
-          <p style="margin:0 0 8px;color:#475569;font-size:14px;">Thank you for your visit. Here are your aftercare instructions:</p>
-          ${combinedHtml}
-          <div style="background:#1a2744;border-radius:14px;padding:20px;margin:20px 0;text-align:center;">
-            <p style="margin:0 0 8px;color:#ffffff;font-size:15px;font-weight:600;">Have recovery questions? 💙</p>
-            <p style="margin:0 0 12px;color:#94a3b8;font-size:13px;">Our 24/7 recovery chat is here for you.</p>
-            <a href="${SITE_URL}/healing/${treatmentId}" style="display:inline-block;background:#0d9488;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:50px;">💬 Open recovery chat</a>
-          </div>
-        </td></tr>
-        <tr><td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;text-align:center;">
-          <p style="margin:0;color:#94a3b8;font-size:12px;">Sent with care by ${escapedPracticeName} via AdonisBlue</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
-}
 
 // GET /api/send-aftercare?procedure_id=X&intake_id=Y&personal_note=Z
 // Returns { html } — the exact email that would be sent, without sending.
@@ -116,14 +51,22 @@ export async function GET(request: Request) {
     const previewNurseName = bot?.nurse_name || bot?.practice_name || "";
     const previewNursePhone = bot?.phone_public || bot?.alert_phone || "";
     const rawPreviewInstructions = (procedure.aftercare_instructions ?? "").trim() || "Take it easy, stay hydrated, and avoid strenuous activity for 24 hours.";
+    const instrHtml = substitutePlaceholdersSafeHtml(rawPreviewInstructions, previewNurseName, previewNursePhone);
+    const nurseFirst = previewNurseName.split(/\s+/)[0] || previewNurseName || "your nurse";
 
-    const html = buildAftercareHtml({
-      clientName: escapeHtml(firstName(intake.first_name, "Beautiful")),
+    let contentWithNote = instrHtml;
+    if (personalNote) {
+      contentWithNote += `\n<div style="background:#fff7ed;border-radius:14px;padding:20px;margin:16px 0;border-left:4px solid #f97316;"><h3 style="margin:0 0 10px;color:#c2410c;font-size:15px;font-weight:600;">&#128172; A note just for you</h3><p style="margin:0;color:#1a2744;font-size:14px;line-height:1.75;white-space:pre-wrap;">${escapeHtml(personalNote)}</p></div>`;
+    }
+
+    const html = buildAftercareEmail({
+      clientFirstName: firstName(intake.first_name, ""),
       escapedPracticeName: escapeHtml(bot?.practice_name || "your provider"),
       treatmentId: "preview",
-      procedureName: procedure.name,
-      instructions: substitutePlaceholdersSafeHtml(rawPreviewInstructions, previewNurseName, previewNursePhone),
-      personalNote,
+      procedures: [{ name: procedure.name, contentHtml: contentWithNote, tabParam: encodeURIComponent(procedure.name) }],
+      nurseFirstName: nurseFirst,
+      nursePhone: previewNursePhone,
+      siteUrl: SITE_URL,
     });
 
     return NextResponse.json({ html });
