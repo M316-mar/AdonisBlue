@@ -131,7 +131,7 @@ export default function Home() {
               <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col items-center gap-1.5 sm:items-start">
                   <a href="/beta" className="inline-flex min-h-[52px] w-full items-center justify-center rounded-full bg-[#0d9488] px-8 py-3 text-base font-semibold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600">
-                    🤝 Free beta (5 spots)
+                    🤝 Free beta
                   </a>
                   <p className="text-xs text-slate-500 text-center sm:text-left">We&apos;ll help you set it up, in exchange for your honest feedback.</p>
                 </div>
@@ -164,7 +164,7 @@ export default function Home() {
                 <span className="text-slate-400">→</span>
                 <div className="flex items-center gap-2">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">3</span>
-                  Your AI front desk goes live
+                  Your care assistant goes live
                 </div>
               </div>
               <div className="mt-8">
@@ -356,7 +356,7 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-xs font-semibold uppercase tracking-widest text-[#0d9488]">Daily operations</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">How AdonisBlue runs your front desk</h2>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1a2744] sm:text-4xl">How AdonisBlue takes care of your clients</h2>
               <p className="mt-4 text-base leading-relaxed text-slate-500">A clean workflow that keeps response times fast and handoffs clear.</p>
             </div>
             <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -476,13 +476,13 @@ export default function Home() {
             <ul className="mt-10 space-y-3 max-w-xl mx-auto">
               {[
                 "Answers your clients' questions 24/7",
-                "Aftercare emailed after every visit",
+                "Aftercare emailed after every visit you log",
                 "24-hour check-in plus a healing chat",
-                "Emergency alerts straight to you, day or night",
+                "Emergency alerts sent straight to your email, right away",
                 "Reminders when clients are due back",
                 "Your “clients coming back” list",
                 "Review requests",
-                "Offers",
+                "Your assistant shares your offers with clients",
               ].map(item => (
                 <li key={item} className="flex items-start gap-3 text-base text-slate-700">
                   <span className="mt-0.5 text-[#0d9488] font-bold">✓</span>
@@ -503,7 +503,7 @@ export default function Home() {
             </div>
             <div className="mt-10 grid gap-6 sm:grid-cols-2">
               <div className="flex flex-col rounded-2xl border-2 border-[#0d9488] bg-white p-7">
-                <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">🤝 Free beta · 5 spots</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">🤝 Free beta</p>
                 <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Apply for a beta spot</h3>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">We&apos;ll help you set it up, in exchange for your honest feedback.</p>
                 <a href="/beta" className="mt-7 inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#0d9488] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-teal-200 transition hover:bg-teal-700">
@@ -537,7 +537,7 @@ export default function Home() {
                 <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Full access, free for 14 days</h3>
                 <p className="mt-2 text-sm text-slate-500">Every feature unlocked. No credit card needed. No commitment.</p>
                 <ul className="mt-6 flex-1 space-y-2.5">
-                  {["Everything in Starter — fully unlocked","Unlimited client conversations","Custom assistant name","Aftercare + reminder emails","Embed chat on your website","Cancel before day 14 — pay nothing"].map(l => (
+                  {["Everything in Starter — fully unlocked","Unlimited client conversations","Custom assistant name","Aftercare + reminder emails","Embed chat on your website","No card, no charge. You decide at day 14."].map(l => (
                     <li key={l} className="flex gap-2 text-sm text-slate-600"><span className="text-[#0d9488]">✓</span>{l}</li>
                   ))}
                 </ul>
@@ -550,9 +550,9 @@ export default function Home() {
                 <div className="absolute right-4 top-4 rounded-full bg-[#0d9488] px-3 py-1 text-xs font-bold text-white">Everything included</div>
                 <p className="text-xs font-bold uppercase tracking-widest text-[#0d9488]">$200 / month</p>
                 <h3 className="mt-3 text-xl font-bold text-[#1a2744]">Starter</h3>
-                <p className="mt-2 text-sm text-slate-500">Your complete AI front desk. One extra booking a month pays for this.</p>
+                <p className="mt-2 text-sm text-slate-500">Your complete care assistant. One extra booking a month pays for this.</p>
                 <ul className="mt-6 flex-1 space-y-2.5">
-                  {["Unlimited client conversations","Answers your clients' questions 24/7","Aftercare emailed after every visit","24-hour check-in plus a healing chat","Emergency alerts straight to you, day or night","Reminders when clients are due back","Your “clients coming back” list","Review requests","Offers","Booking link built into bot","Embed chat on your website"].map(l => (
+                  {["Unlimited client conversations","Answers your clients' questions 24/7","Aftercare emailed after every visit you log","24-hour check-in plus a healing chat","Emergency alerts sent straight to your email, right away","Reminders when clients are due back","Your “clients coming back” list","Review requests","Your assistant shares your offers with clients","Your booking link, built into your assistant","Embed chat on your website"].map(l => (
                     <li key={l} className="flex gap-2 text-sm text-slate-600"><span className="text-[#0d9488]">✓</span>{l}</li>
                   ))}
                 </ul>
@@ -565,7 +565,7 @@ export default function Home() {
             <div className="mt-10 flex flex-col items-center gap-6 sm:flex-row sm:justify-center sm:gap-10">
               {[
                 { icon:"🛡️", title:"Cancel anytime", sub:"No contracts." },
-                { icon:"💰", title:"A front desk costs $2,000/mo", sub:"AdonisBlue starts at $200. One booking pays for it." },
+                { icon:"💙", title:"One returning client a month covers it.", sub:"" },
                 { icon:"⚡", title:"Set up in 5 minutes", sub:"No tech skills. No credit card to start." },
               ].map(item => (
                 <div key={item.title} className="flex items-center gap-3">
@@ -654,7 +654,7 @@ export default function Home() {
           </div>
           <div className="relative mx-auto max-w-3xl text-center">
             <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Give it a try. See if it keeps your flow. If it fits, you&apos;ll know.</h2>
-            <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-slate-300">Start your 14-day free trial and have your AI front desk running today.</p>
+            <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-slate-300">Start your 14-day free trial and have your care assistant running today.</p>
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
               <a href="/beta" className="inline-flex min-h-[52px] w-full min-w-[200px] items-center justify-center rounded-full bg-[#0d9488] px-8 py-3.5 text-base font-bold text-white shadow-xl shadow-teal-900/30 transition hover:bg-teal-600 sm:w-auto">
                 🤝 Apply for a beta spot

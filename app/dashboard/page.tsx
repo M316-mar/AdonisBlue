@@ -427,7 +427,7 @@ export default function NurseDashboardPage() {
                 </h1>
                 <p className="mt-2 text-sm leading-relaxed text-slate-300 sm:text-base">
                   {!bot
-                    ? "Let's get your AI front desk set up — it only takes 5 minutes."
+                    ? "Let's get your care assistant set up — it only takes 5 minutes."
                     : launched
                     ? "✅ You're all set! Your assistant is live and ready."
                     : "Your setup isn't complete yet. Finish it to go live."}
@@ -962,7 +962,7 @@ export default function NurseDashboardPage() {
               <div className="mb-4 text-6xl">🎉</div>
               <h2 className="text-2xl font-bold text-white sm:text-3xl">Your bot is live!</h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-200">
-                Congratulations! Your AI front desk is ready to answer clients 24/7. Share it everywhere!
+                Congratulations! Your care assistant is ready to answer clients 24/7. Share it everywhere!
               </p>
 
               <div className="mt-6 space-y-3">

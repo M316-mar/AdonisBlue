@@ -625,7 +625,7 @@ function StepWelcome({
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
-          Let&apos;s set up your AI front desk 🦋
+          Let&apos;s set up your care assistant 🦋
         </h1>
         <p className="mt-2 text-sm text-slate-500 sm:text-base">
           Takes less than 5 minutes. We&apos;ll guide you through everything.
@@ -1209,7 +1209,7 @@ function StepLive({
       <div className="text-6xl animate-bounce">🎉</div>
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[#1a2744] sm:text-3xl">
-          Your AI front desk is ready!
+          Your care assistant is ready!
         </h1>
         <p className="mt-2 text-sm text-slate-500 sm:text-base">
           Welcome to AdonisBlue! Your bot is live right now.

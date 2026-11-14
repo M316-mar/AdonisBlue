@@ -17,10 +17,10 @@ const PLANS = [
     annualPrice: 2000,
     features: [
       "Unlimited client conversations",
-      "24/7 AI front desk chatbot",
+      "24/7 care assistant",
       "Aftercare + healing chat + emergency alerts",
       "Automated rebooking reminders",
-      "Booking link built into bot",
+      "Your booking link, built into your assistant",
       "Embed chat on your website",
     ],
     badge: "Everything included",
