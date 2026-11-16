@@ -973,6 +973,18 @@ try {
     await new Promise(r => embedServer.listen(EMBED_PORT, r));
     const EMBED_ORIGIN = `http://localhost:${EMBED_PORT}`;
 
+    // Part A: CORS + framing header checks — requires a running server at BASE_URL.
+    // Skip gracefully if the server isn't up (e.g. during pre-push without a running dev server).
+    // CI always starts the server before running device-check.
+    const serverReachable = await fetch(`${BASE_URL}/`, { signal: AbortSignal.timeout(3000) })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!serverReachable) {
+      process.stdout.write(`  ⚠ Embed CORS: server not running at ${BASE_URL} — skipping (start dev server to test locally)\n`);
+      await new Promise(r => embedServer.close(r));
+    } else {
+
     // Part A: CORS + framing header checks (run on Chromium only — header semantics are
     // the same on all engines; no need to run on WebKit too).
     totalScreens++;
@@ -1145,6 +1157,7 @@ try {
     }
 
     embedServer.close();
+    } // end else (server reachable)
   }
 
   // tested as a logged-out screen at all 6 viewports.
