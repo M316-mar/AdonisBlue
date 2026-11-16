@@ -52,7 +52,7 @@ jobs:
       # We start the production build (already built above), wait for it,
       # then run the logged-out first-visit pass only (--ci flag).
       - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit firefox
 
       - name: Start production server
         run: npm run start &
