@@ -130,13 +130,16 @@ console.log("\nbuildAftercareEmail — 2 procedures");
 
   assert(html.includes("Lip Filler"), "first procedure name in card");
   assert(html.includes("Botox"), "second procedure name in card");
-  assert(html.includes("See full aftercare"), "card layout has 'See full aftercare ↓' summary");
-  assert(html.includes("<details"), "card layout uses <details> for in-email expand");
-  // Full text must be present in the HTML for Gmail (which strips <details> but keeps content)
-  assert(html.includes("Skip exercise today"), "full content present in HTML (Gmail degradation)");
-  assert(html.includes("Sleep elevated for 24 hours"), "full content of first procedure present");
-  // Preview text visible above the <details>
-  assert(html.includes("Avoid pressure"), "preview text present above expand");
+  assert(html.includes("See full aftercare"), "card layout has 'See full aftercare →' link");
+  assert(!html.includes("<details"), "no <details> element — Option B uses a link, not in-email expand");
+  // Full text must NOT be in the email body (client taps the link to see it on the healing page)
+  assert(!html.includes("Skip exercise today"), "full content NOT in email (linked to healing page)");
+  assert(!html.includes("Sleep elevated for 24 hours"), "full content of first procedure NOT in email");
+  // Preview text visible in the card
+  assert(html.includes("Avoid pressure"), "preview text present in card");
+  // Each card links to the right healing page tab
+  assert(html.includes(`/healing/${TREATMENT_ID}?tab=Lip%20Filler`), "first card links to Lip Filler tab");
+  assert(html.includes(`/healing/${TREATMENT_ID}?tab=Botox`), "second card links to Botox tab");
   // Chat button at top
   const chatTopIdx = html.indexOf("Questions? Chat with us anytime");
   const firstCardIdx = html.indexOf("Lip Filler");
