@@ -107,36 +107,128 @@ async function deleteDeviceCheckTestData(treatmentId) {
   try {
     // Resolve the test nurse's user ID
     const anonClient = createClient(supabaseUrl, supabaseAnonKey);
-    const { data: authData } = await anonClient.auth.signInWithPassword({ email: testEmail, password: testPassword });
-    if (!authData?.user?.id) return 0;
+    const { data: authData, error: authErr } = await anonClient.auth.signInWithPassword({ email: testEmail, password: testPassword });
+    if (!authData?.user?.id) {
+      process.stderr.write(`  ⚠ deleteDeviceCheckTestData: could not resolve test nurse ID (${authErr?.message ?? "sign-in failed"}) — refusing to delete\n`);
+      return 0;
+    }
     const nurseId = authData.user.id;
 
     const sb = createClient(supabaseUrl, supabaseServiceRoleKey);
     let count = 0;
 
     if (treatmentId) {
-      // Delete specific treatment (cascades to treatment_procedures and checkin_reminders)
+      // Delete specific treatment — requires BOTH nurse_id AND the notes marker.
+      // If the row doesn't have both, nothing is deleted (safe no-op).
       const { error } = await sb.from("treatments").delete()
-        .eq("id", treatmentId).eq("nurse_id", nurseId);
+        .eq("id", treatmentId)
+        .eq("nurse_id", nurseId)
+        .like("notes", "%device-check test%");
       if (!error) count++;
     } else {
-      // Delete all device-check test treatments for this nurse
+      // Delete all device-check test treatments for this nurse — select by both conditions,
+      // then delete with both conditions on each row (defense-in-depth).
       const { data: rows, error: selectErr } = await sb.from("treatments").select("id")
         .eq("nurse_id", nurseId).like("notes", "%device-check test%");
       if (!selectErr && rows) {
         for (const row of rows) {
-          const { error: delErr } = await sb.from("treatments").delete().eq("id", row.id);
+          const { error: delErr } = await sb.from("treatments").delete()
+            .eq("id", row.id)
+            .eq("nurse_id", nurseId)
+            .like("notes", "%device-check test%");
           if (!delErr) count++;
         }
       }
     }
 
-    // Delete device-check test intakes after treatments (treatments.intake_id is SET NULL on delete)
+    // Delete device-check test intakes after treatments (treatments.intake_id is SET NULL on delete).
+    // Requires BOTH nurse_id AND the first_name marker.
     await sb.from("intakes").delete()
       .eq("nurse_id", nurseId).eq("first_name", "Device Check Test");
 
     return count;
   } catch { return 0; }
+}
+
+/** Self-test: proves deleteDeviceCheckTestData only touches rows that belong to the
+ *  test nurse AND carry the device-check marker.  A matching row belonging to a
+ *  different nurse must survive the cleanup unchanged.
+ *
+ *  Inserts two treatments + two intakes:
+ *    A — test nurse's id  + marker  → must be deleted
+ *    B — fake nurse's id  + marker  → must NOT be deleted
+ *  Then runs deleteDeviceCheckTestData() and checks the outcome.
+ *  Cleans up the surviving fake-nurse rows before returning. */
+async function testDeleteIsolation() {
+  if (!supabaseUrl || !supabaseServiceRoleKey || !supabaseAnonKey || !testEmail || !testPassword) return null;
+
+  const anonClient = createClient(supabaseUrl, supabaseAnonKey);
+  const { data: authData } = await anonClient.auth.signInWithPassword({ email: testEmail, password: testPassword });
+  if (!authData?.user?.id) return { pass: false, reason: "Could not resolve test nurse ID" };
+  const nurseId = authData.user.id;
+
+  const sb = createClient(supabaseUrl, supabaseServiceRoleKey);
+  const fakeNurseId = "00000000-0000-0000-0000-000000000099"; // non-existent nurse
+  const today = new Date().toISOString().slice(0, 10);
+
+  let rowAId = null, rowBId = null, intakeAId = null, intakeBId = null;
+  try {
+    // Insert treatments
+    const { data: rowA, error: errA } = await sb.from("treatments")
+      .insert({ nurse_id: nurseId,     treatment_date: today, notes: "device-check test", procedure_name: "device-check-isolation-test" })
+      .select("id").single();
+    const { data: rowB, error: errB } = await sb.from("treatments")
+      .insert({ nurse_id: fakeNurseId, treatment_date: today, notes: "device-check test", procedure_name: "device-check-isolation-test" })
+      .select("id").single();
+    if (errA || errB) {
+      if (rowA?.id) await sb.from("treatments").delete().eq("id", rowA.id);
+      if (rowB?.id) await sb.from("treatments").delete().eq("id", rowB.id);
+      return { pass: false, reason: `Insert failed: ${errA?.message ?? errB?.message}` };
+    }
+    rowAId = rowA.id; rowBId = rowB.id;
+
+    // Insert intakes
+    const { data: intakeA } = await sb.from("intakes")
+      .insert({ nurse_id: nurseId,     first_name: "Device Check Test" }).select("id").single();
+    const { data: intakeB } = await sb.from("intakes")
+      .insert({ nurse_id: fakeNurseId, first_name: "Device Check Test" }).select("id").single();
+    intakeAId = intakeA?.id ?? null;
+    intakeBId = intakeB?.id ?? null;
+
+    // Run the cleanup (sweep — no specific treatmentId)
+    await deleteDeviceCheckTestData();
+
+    // Verify Row A (test nurse) was deleted
+    const { data: checkA } = await sb.from("treatments").select("id").eq("id", rowAId);
+    const aGone = !checkA || checkA.length === 0;
+
+    // Verify Row B (fake nurse) was NOT deleted
+    const { data: checkB } = await sb.from("treatments").select("id").eq("id", rowBId);
+    const bSurvived = !!(checkB && checkB.length > 0);
+
+    // Verify intakes
+    let intakeAGone = true, intakeBSurvived = true;
+    if (intakeAId) {
+      const { data: cA } = await sb.from("intakes").select("id").eq("id", intakeAId);
+      intakeAGone = !cA || cA.length === 0;
+    }
+    if (intakeBId) {
+      const { data: cB } = await sb.from("intakes").select("id").eq("id", intakeBId);
+      intakeBSurvived = !!(cB && cB.length > 0);
+    }
+
+    const reasons = [];
+    if (!aGone)        reasons.push("test-nurse treatment was NOT deleted");
+    if (!bSurvived)    reasons.push("other-nurse treatment WAS deleted (must not happen)");
+    if (!intakeAGone)  reasons.push("test-nurse intake was NOT deleted");
+    if (!intakeBSurvived) reasons.push("other-nurse intake WAS deleted (must not happen)");
+
+    return { pass: reasons.length === 0, reason: reasons.join("; ") };
+  } finally {
+    // Always clean up the fake-nurse rows the cleanup function intentionally left behind
+    if (rowBId)    await sb.from("treatments").delete().eq("id", rowBId);
+    if (intakeBId) await sb.from("intakes").delete().eq("id", intakeBId);
+  }
 }
 
 const hasCredentials = !!(testEmail && testPassword);
@@ -146,6 +238,22 @@ if (hasCredentials && adminEmails.includes(testEmail.toLowerCase())) {
   process.stderr.write(`\nERROR: TEST_NURSE_EMAIL (${testEmail}) is listed in ADMIN_EMAILS.\n`);
   process.stderr.write(`Logged-in device-check must not run as an admin. Use a non-admin test account.\n`);
   process.exit(1);
+}
+
+// ── Cleanup isolation self-test ────────────────────────────────────────────────
+// Proves deleteDeviceCheckTestData only deletes rows that belong to the test nurse
+// AND carry the device-check marker.  Rows belonging to other nurses must survive.
+if (!CI_MODE && hasCredentials && supabaseServiceRoleKey) {
+  process.stdout.write("\n── Cleanup isolation test ──\n");
+  const result = await testDeleteIsolation();
+  if (result === null) {
+    process.stdout.write("  ⚠ Cleanup isolation test skipped (missing credentials or service-role key)\n");
+  } else if (result.pass) {
+    process.stdout.write("  ✓ deleteDeviceCheckTestData: test-nurse rows deleted; other-nurse rows untouched\n");
+  } else {
+    process.stderr.write(`\n❌ Cleanup isolation test FAILED: ${result.reason}\n`);
+    process.exit(1);
+  }
 }
 
 // ── User-agent strings ────────────────────────────────────────────────────────
