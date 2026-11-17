@@ -56,7 +56,7 @@ export async function GET(request: Request) {
       //    not yet sent/scheduled, and nurse hasn't explicitly canceled it
       db
         .from("treatments")
-        .select("id, treatment_date, procedure_name, procedure_id, intake_id, intakes(first_name)")
+        .select("id, treatment_date, procedure_name, procedure_id, intake_id, intakes(first_name, email)")
         .eq("nurse_id", user.id)
         .eq("archived", false)
         .eq("send_aftercare", true)
@@ -74,6 +74,7 @@ export async function GET(request: Request) {
         .eq("archived", false)
         .not("aftercare_send_at", "is", null)
         .is("aftercare_sent_at", null)
+        .is("aftercare_canceled_at", null)
         .not("intake_id", "is", null),
 
       // 5. Check-ins due or overdue (due_date <= today, not done) — missed ones stay until done
@@ -191,6 +192,7 @@ export async function GET(request: Request) {
         intake_id: t.intake_id as string,
         procedure_id: (t.procedure_id ?? null) as string | null,
         client_name: (intake?.first_name ?? "Client") as string,
+        client_email: (intake?.email ?? null) as string | null,
         procedure_name: (t.procedure_name ?? "treatment") as string,
         treatment_date: t.treatment_date as string,
       };

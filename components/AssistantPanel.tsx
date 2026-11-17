@@ -25,6 +25,7 @@ type UnsentAftercare = {
   intake_id: string;
   procedure_id: string | null;
   client_name: string;
+  client_email: string | null;
   procedure_name: string;
   treatment_date: string;
 };
@@ -133,9 +134,15 @@ export function AssistantPanel({
   // Aftercare send
   const [aftercareSending, setAftercareSending] = useState<string | null>(null);
   const [aftercareAlreadySent, setAftercareAlreadySent] = useState<Record<string, { sent_at?: string; scheduled_at?: string }>>({});
+  const [aftercareError, setAftercareError] = useState<Record<string, string>>({});
   // Scheduled aftercare actions
   const [scheduledSendingNow, setScheduledSendingNow] = useState<string | null>(null);
+  const [scheduledError, setScheduledError] = useState<Record<string, string>>({});
   const [cancelPopupItem, setCancelPopupItem] = useState<ScheduledAftercare | null>(null);
+  // Prep error
+  const [prepError, setPrepError] = useState<Record<string, string>>({});
+  // Mark-handled error
+  const [markHandledError, setMarkHandledError] = useState<Record<string, string>>({});
   // Rebooking link setup nudge
   const [rebookingDismissed, setRebookingDismissed] = useState(() => {
     try {
@@ -210,8 +217,13 @@ export function AssistantPanel({
       });
       if (res.ok) {
         setHandledAlerts((prev) => new Set([...prev, alert.id]));
+        setMarkHandledError(prev => { const n = { ...prev }; delete n[alert.id]; return n; });
         setExpandedAlert(null);
         window.dispatchEvent(new Event("alert-handled"));
+      } else {
+        let msg = "Couldn't save — please try again";
+        try { const j = await res.json(); if (j.error) msg = j.error; } catch {}
+        setMarkHandledError(prev => ({ ...prev, [alert.id]: msg }));
       }
     } finally {
       setHandlingAlert(null);
@@ -220,6 +232,7 @@ export function AssistantPanel({
 
   const handleSendAftercare = async (a: UnsentAftercare) => {
     setAftercareSending(a.treatment_id);
+    setAftercareError(prev => { const n = { ...prev }; delete n[a.treatment_id]; return n; });
     try {
       const res = await fetch("/api/send-aftercare", {
         method: "POST",
@@ -230,8 +243,10 @@ export function AssistantPanel({
       if (res.status === 409 && (j.already_sent || j.already_scheduled)) {
         setAftercareAlreadySent(prev => ({ ...prev, [a.treatment_id]: { sent_at: j.sent_at, scheduled_at: j.scheduled_at } }));
       } else if (j.success) {
-        // Remove from local list immediately
         setCtx(prev => prev ? { ...prev, unsentAftercares: prev.unsentAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
+      } else {
+        const msg = j.error ?? "Failed to send — please try again";
+        setAftercareError(prev => ({ ...prev, [a.treatment_id]: msg }));
       }
     } finally {
       setAftercareSending(null);
@@ -240,13 +255,20 @@ export function AssistantPanel({
 
   const handleSendPrep = async (p: PrepReminder) => {
     setSendingPrep(p.intake_id);
+    setPrepError(prev => { const n = { ...prev }; delete n[p.intake_id]; return n; });
     try {
       const res = await fetch("/api/send-prep-guide", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ intake_id: p.intake_id }),
       });
-      if (res.ok) setSentPrep((prev) => new Set([...prev, p.intake_id]));
+      if (res.ok) {
+        setSentPrep((prev) => new Set([...prev, p.intake_id]));
+      } else {
+        let msg = "Failed to send — please try again";
+        try { const j = await res.json(); if (j?.error) msg = j.error; } catch {}
+        setPrepError(prev => ({ ...prev, [p.intake_id]: msg }));
+      }
     } finally {
       setSendingPrep(null);
     }
@@ -265,6 +287,7 @@ export function AssistantPanel({
 
   const handleScheduledSendNow = async (a: ScheduledAftercare) => {
     setScheduledSendingNow(a.treatment_id);
+    setScheduledError(prev => { const n = { ...prev }; delete n[a.treatment_id]; return n; });
     try {
       const res = await fetch(`/api/treatments/${a.treatment_id}/aftercare-now`, {
         method: "POST",
@@ -273,6 +296,8 @@ export function AssistantPanel({
       const j = await res.json() as { ok?: boolean; error?: string };
       if (j.ok) {
         setCtx(prev => prev ? { ...prev, scheduledAftercares: prev.scheduledAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
+      } else {
+        setScheduledError(prev => ({ ...prev, [a.treatment_id]: j.error ?? "Failed to send — please try again" }));
       }
     } finally {
       setScheduledSendingNow(null);
@@ -417,6 +442,9 @@ export function AssistantPanel({
                       placeholder="Add a note (optional)…"
                       className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-[#1a2744] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400"
                     />
+                    {markHandledError[alert.id] && (
+                      <p className="text-xs text-red-600">{markHandledError[alert.id]}</p>
+                    )}
                     <button
                       type="button"
                       disabled={handlingAlert === alert.id}
@@ -434,6 +462,8 @@ export function AssistantPanel({
             {(ctx?.unsentAftercares ?? []).map((a) => {
               const alreadyInfo = aftercareAlreadySent[a.treatment_id];
               const isSending = aftercareSending === a.treatment_id;
+              const sendErr = aftercareError[a.treatment_id];
+              const hasEmail = !!a.client_email;
               return (
                 <div key={a.treatment_id} className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-3">
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -442,7 +472,7 @@ export function AssistantPanel({
                       <p className="truncate text-sm font-medium text-[#1a2744]">Send aftercare to {a.client_name}</p>
                       <p className="truncate text-xs text-slate-500">{a.procedure_name} · {fmtDate(a.treatment_date)}</p>
                     </div>
-                    {!alreadyInfo && (
+                    {!alreadyInfo && hasEmail && (
                       <button
                         type="button"
                         disabled={isSending}
@@ -452,7 +482,22 @@ export function AssistantPanel({
                         {isSending ? "Sending…" : "Send →"}
                       </button>
                     )}
+                    {!alreadyInfo && !hasEmail && (
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/client-journey?aftercare=${a.intake_id}`)}
+                        className="shrink-0 min-h-[44px] rounded-full border border-amber-400 bg-white px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-50"
+                      >
+                        Add email
+                      </button>
+                    )}
                   </div>
+                  {!alreadyInfo && !hasEmail && (
+                    <p className="mt-1.5 text-xs text-amber-700">No email on file — add one to send aftercare.</p>
+                  )}
+                  {sendErr && (
+                    <p className="mt-1.5 text-xs text-red-600">{sendErr}</p>
+                  )}
                   {alreadyInfo && (
                     <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-teal-50 border border-teal-200 px-3 py-2">
                       <p className="text-xs font-semibold text-teal-800">
@@ -500,6 +545,9 @@ export function AssistantPanel({
                     </button>
                   </div>
                 </div>
+                {scheduledError[a.treatment_id] && (
+                  <p className="mt-1.5 text-xs text-red-600">{scheduledError[a.treatment_id]}</p>
+                )}
                 {cancelPopupItem?.treatment_id === a.treatment_id && (
                   <CancelAftercarePopup
                     treatmentId={a.treatment_id}
@@ -572,20 +620,25 @@ export function AssistantPanel({
                 );
               }
               return (
-                <div key={p.treatment_id} className="flex items-center gap-3 rounded-xl border border-teal-100 bg-teal-50 px-3 py-3">
-                  <span className="shrink-0 text-base">📋</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#1a2744]">Send prep guide to {p.client_name}</p>
-                    <p className="text-xs text-slate-500">{p.procedure_name} · {fmtDate(p.treatment_date)}</p>
+                <div key={p.treatment_id} className="rounded-xl border border-teal-100 bg-teal-50 px-3 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="shrink-0 text-base">📋</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#1a2744]">Send prep guide to {p.client_name}</p>
+                      <p className="text-xs text-slate-500">{p.procedure_name} · {fmtDate(p.treatment_date)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={sending}
+                      onClick={() => void handleSendPrep(p)}
+                      className="shrink-0 min-h-[44px] rounded-full bg-teal-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                    >
+                      {sending ? "Sending…" : "Send →"}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    disabled={sending}
-                    onClick={() => void handleSendPrep(p)}
-                    className="shrink-0 min-h-[44px] rounded-full bg-teal-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
-                  >
-                    {sending ? "Sending…" : "Send →"}
-                  </button>
+                  {prepError[p.intake_id] && (
+                    <p className="mt-1.5 text-xs text-red-600">{prepError[p.intake_id]}</p>
+                  )}
                 </div>
               );
             })}

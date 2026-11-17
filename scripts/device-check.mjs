@@ -49,6 +49,7 @@ let testBotSlug = "";
 let adminEmails = [];
 let supabaseUrl = "";
 let supabaseAnonKey = "";
+let supabaseServiceRoleKey = "";
 const envPath = join(ROOT, ".env.local");
 if (existsSync(envPath)) {
   const envText = readFileSync(envPath, "utf8");
@@ -61,6 +62,7 @@ if (existsSync(envPath)) {
     if (k?.trim() === "ADMIN_EMAILS") adminEmails = v.split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
     if (k?.trim() === "NEXT_PUBLIC_SUPABASE_URL") supabaseUrl = v;
     if (k?.trim() === "NEXT_PUBLIC_SUPABASE_ANON_KEY") supabaseAnonKey = v;
+    if (k?.trim() === "SUPABASE_SERVICE_ROLE_KEY") supabaseServiceRoleKey = v;
   }
 }
 
@@ -90,40 +92,49 @@ async function fetchTestTreatmentId() {
   } catch { /* fall through */ }
   return null;
 }
-/** Archive device-check test treatments via the API (not UI clicks).
- *  If treatmentId is given, archives only that one.
- *  Otherwise fetches all active treatments and archives any with notes containing "device-check test". */
-async function archiveDeviceCheckTreatments(treatmentId) {
+/** Delete device-check test rows using the service-role key (bypasses RLS).
+ *  Deleting a treatment cascades to treatment_procedures and checkin_reminders.
+ *  Intakes named "Device Check Test" are deleted after treatments.
+ *  If treatmentId is given, deletes only that treatment (plus any matching intakes).
+ *  Otherwise deletes all treatments with notes containing "device-check test" and
+ *  all intakes named "Device Check Test" for the test nurse. */
+async function deleteDeviceCheckTestData(treatmentId) {
   if (!supabaseUrl || !supabaseAnonKey || !testEmail || !testPassword) return 0;
+  if (!supabaseServiceRoleKey) {
+    process.stderr.write("  ⚠ SUPABASE_SERVICE_ROLE_KEY not in .env.local — test data not deleted (clean up manually)\n");
+    return 0;
+  }
   try {
-    const sb = createClient(supabaseUrl, supabaseAnonKey);
-    const { data, error } = await sb.auth.signInWithPassword({ email: testEmail, password: testPassword });
-    if (error || !data?.session?.access_token) return 0;
-    const token = data.session.access_token;
-    const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+    // Resolve the test nurse's user ID
+    const anonClient = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: authData } = await anonClient.auth.signInWithPassword({ email: testEmail, password: testPassword });
+    if (!authData?.user?.id) return 0;
+    const nurseId = authData.user.id;
 
-    const ids = [];
+    const sb = createClient(supabaseUrl, supabaseServiceRoleKey);
+    let count = 0;
+
     if (treatmentId) {
-      ids.push(treatmentId);
+      // Delete specific treatment (cascades to treatment_procedures and checkin_reminders)
+      const { error } = await sb.from("treatments").delete()
+        .eq("id", treatmentId).eq("nurse_id", nurseId);
+      if (!error) count++;
     } else {
-      const r = await fetch(`${BASE_URL}/api/treatments`, { headers: { Authorization: `Bearer ${token}` } });
-      if (r.ok) {
-        const j = await r.json();
-        for (const t of j.treatments ?? []) {
-          if (typeof t.notes === "string" && t.notes.includes("device-check test")) ids.push(t.id);
+      // Delete all device-check test treatments for this nurse
+      const { data: rows, error: selectErr } = await sb.from("treatments").select("id")
+        .eq("nurse_id", nurseId).like("notes", "%device-check test%");
+      if (!selectErr && rows) {
+        for (const row of rows) {
+          const { error: delErr } = await sb.from("treatments").delete().eq("id", row.id);
+          if (!delErr) count++;
         }
       }
     }
 
-    let count = 0;
-    for (const id of ids) {
-      const r = await fetch(`${BASE_URL}/api/treatments`, {
-        method: "PATCH",
-        headers,
-        body: JSON.stringify({ treatment_id: id, action: "archive" }),
-      });
-      if (r.ok) count++;
-    }
+    // Delete device-check test intakes after treatments (treatments.intake_id is SET NULL on delete)
+    await sb.from("intakes").delete()
+      .eq("nurse_id", nurseId).eq("first_name", "Device Check Test");
+
     return count;
   } catch { return 0; }
 }
@@ -727,11 +738,11 @@ try {
       await logPage.goto(`${BASE_URL}/aftercare`, { waitUntil: "networkidle", timeout: 20_000 });
       await logPage.waitForTimeout(800);
 
-      // Pre-cleanup: archive any leftover device-check test treatments from prior runs (API, not UI).
+      // Pre-cleanup: delete any leftover device-check test data from prior runs.
       {
-        const preCount = await archiveDeviceCheckTreatments();
+        const preCount = await deleteDeviceCheckTestData();
         if (preCount > 0) {
-          process.stdout.write(`  ✓ Log form: pre-cleanup archived ${preCount} orphaned test treatment(s)\n`);
+          process.stdout.write(`  ✓ Log form: pre-cleanup deleted ${preCount} orphaned test treatment(s)\n`);
           await logPage.reload({ waitUntil: "networkidle" });
           await logPage.waitForTimeout(500);
         }
@@ -832,19 +843,19 @@ try {
         process.stdout.write("  ✓ Log form: confirmed no aftercare email scheduled (no email → no send)\n");
       }
 
-      // ── Cleanup: archive only the test treatment we just created (API, not UI) ──
+      // ── Cleanup: delete the test treatment we just created (cascades to procedures and reminders) ──
       await logPage.waitForTimeout(300);
       if (newTreatmentId) {
-        const archived = await archiveDeviceCheckTreatments(newTreatmentId);
-        if (archived > 0) {
-          process.stdout.write("  ✓ Log form: test treatment archived (cleanup done)\n");
+        const deleted = await deleteDeviceCheckTestData(newTreatmentId);
+        if (deleted > 0) {
+          process.stdout.write("  ✓ Log form: test treatment deleted (cleanup done)\n");
         } else {
-          process.stdout.write("  ⚠ Log form: archive of test treatment may have failed — check manually\n");
+          process.stdout.write("  ⚠ Log form: delete of test treatment may have failed — check manually\n");
         }
       } else {
         // Fallback: sweep by notes
-        const swept = await archiveDeviceCheckTreatments();
-        process.stdout.write(`  ✓ Log form: cleanup sweep archived ${swept} test treatment(s)\n`);
+        const swept = await deleteDeviceCheckTestData();
+        process.stdout.write(`  ✓ Log form: cleanup sweep deleted ${swept} test treatment(s)\n`);
       }
     } catch (e) {
       process.stdout.write(`  ⚠ Log form interaction test failed: ${e.message}\n`);
