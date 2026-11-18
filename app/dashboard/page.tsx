@@ -376,7 +376,7 @@ export default function NurseDashboardPage() {
                 el?.scrollIntoView({ behavior: "smooth" });
               }}
               className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-[#1a2744] transition hover:bg-slate-50"
-              aria-label={alertCount > 0 ? `${alertCount} unhandled alert${alertCount !== 1 ? "s" : ""}` : "Go to assistant"}
+              aria-label={alertCount > 0 ? `${alertCount} unhandled alert${alertCount !== 1 ? "s" : ""}` : "Go to to-do list"}
             >
               🔔
               {alertCount > 0 && (
@@ -621,7 +621,7 @@ export default function NurseDashboardPage() {
                               type="button"
                               disabled={returnBookingBusy === c.treatment_id}
                               onClick={() => void handleReturnBooking(c.treatment_id, "unbook")}
-                              className="text-xs text-slate-400 hover:text-slate-600 underline transition disabled:opacity-50"
+                              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs text-slate-400 hover:text-slate-600 underline transition disabled:opacity-50"
                             >
                               {returnBookingBusy === c.treatment_id ? "…" : "Undo"}
                             </button>
