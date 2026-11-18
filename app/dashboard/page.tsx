@@ -706,7 +706,7 @@ export default function NurseDashboardPage() {
                                   type="button"
                                   aria-label="More options"
                                   onClick={() => setReturnMoreOpen(isMoreOpen ? null : c.treatment_id)}
-                                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition text-base"
+                                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition text-base font-bold"
                                 >
                                   ⋯
                                 </button>
