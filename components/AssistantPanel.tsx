@@ -43,6 +43,9 @@ type CheckinOverdue = {
   intake_id: string;
   client_name: string;
   due_date: string;
+  phone: string | null;
+  email: string | null;
+  script: string | null;
 };
 
 type PrepReminder = {
@@ -143,6 +146,12 @@ export function AssistantPanel({
   const [prepError, setPrepError] = useState<Record<string, string>>({});
   // Mark-handled error
   const [markHandledError, setMarkHandledError] = useState<Record<string, string>>({});
+  // Check-in actions
+  const [checkinNoteOpen, setCheckinNoteOpen] = useState<Set<string>>(new Set());
+  const [checkinNoteText, setCheckinNoteText] = useState<Record<string, string>>({});
+  const [checkinSkipConfirm, setCheckinSkipConfirm] = useState<Set<string>>(new Set());
+  const [checkinDoing, setCheckinDoing] = useState<string | null>(null);
+  const [checkinError, setCheckinError] = useState<Record<string, string>>({});
   // Rebooking link setup nudge
   const [rebookingDismissed, setRebookingDismissed] = useState(() => {
     try {
@@ -253,6 +262,51 @@ export function AssistantPanel({
     }
   };
 
+  const handleCheckinDone = async (c: CheckinOverdue) => {
+    if (checkinDoing) return;
+    setCheckinDoing(c.id);
+    setCheckinError(prev => { const n = { ...prev }; delete n[c.id]; return n; });
+    try {
+      const res = await fetch("/api/checkin-reminders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: c.id, action: "complete", note: checkinNoteText[c.id] ?? "" }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setCheckinError(prev => ({ ...prev, [c.id]: j.error ?? "Could not save check-in. Please try again." }));
+        return;
+      }
+      setCtx(prev => prev ? { ...prev, checkinsOverdue: prev.checkinsOverdue.filter(x => x.id !== c.id) } : prev);
+      setCheckinNoteOpen(prev => { const n = new Set(prev); n.delete(c.id); return n; });
+      setCheckinNoteText(prev => { const n = { ...prev }; delete n[c.id]; return n; });
+    } finally {
+      setCheckinDoing(null);
+    }
+  };
+
+  const handleCheckinSkip = async (c: CheckinOverdue) => {
+    if (checkinDoing) return;
+    setCheckinDoing(c.id);
+    setCheckinError(prev => { const n = { ...prev }; delete n[c.id]; return n; });
+    try {
+      const res = await fetch("/api/checkin-reminders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: c.id, action: "skip" }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setCheckinError(prev => ({ ...prev, [c.id]: j.error ?? "Could not skip check-in. Please try again." }));
+        return;
+      }
+      setCtx(prev => prev ? { ...prev, checkinsOverdue: prev.checkinsOverdue.filter(x => x.id !== c.id) } : prev);
+      setCheckinSkipConfirm(prev => { const n = new Set(prev); n.delete(c.id); return n; });
+    } finally {
+      setCheckinDoing(null);
+    }
+  };
+
   const handleSendPrep = async (p: PrepReminder) => {
     setSendingPrep(p.intake_id);
     setPrepError(prev => { const n = { ...prev }; delete n[p.intake_id]; return n; });
@@ -322,7 +376,7 @@ export function AssistantPanel({
     <section id="assistant-panel" className="rounded-2xl border border-[#1a2744]/20 bg-white shadow-lg overflow-hidden">
       <div className="flex items-center gap-2 bg-[#1a2744] px-4 py-3 sm:px-5">
         <span className="text-lg">🦋</span>
-        <span className="text-sm font-semibold text-white">Your Assistant</span>
+        <span className="text-sm font-semibold text-white">Your to-do list</span>
         {visibleAlerts.length > 0 && (
           <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
             {visibleAlerts.length}
@@ -568,22 +622,158 @@ export function AssistantPanel({
             ))}
 
             {/* 4. Check-ins overdue / due today */}
-            {(ctx?.checkinsOverdue ?? []).map((c) => (
-              <div key={c.id} className="flex items-center gap-3 rounded-xl border border-orange-100 bg-orange-50 px-3 py-3">
-                <span className="shrink-0 text-base">📞</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#1a2744]">Check in with {c.client_name}</p>
-                  <p className="text-xs text-slate-500">Due {fmtDate(c.due_date)}</p>
+            {(ctx?.checkinsOverdue ?? []).map((c) => {
+              const noteOpen = checkinNoteOpen.has(c.id);
+              const skipConfirm = checkinSkipConfirm.has(c.id);
+              const doing = checkinDoing === c.id;
+              const err = checkinError[c.id];
+              const hasContact = !!(c.phone || c.email);
+              return (
+                <div key={c.id} className="rounded-xl border border-orange-100 bg-orange-50 px-3 py-3 space-y-2">
+                  {/* Header */}
+                  <div className="flex items-start gap-2">
+                    <span className="shrink-0 text-base pt-0.5">📞</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#1a2744] truncate">Check in with {c.client_name}</p>
+                      <p className="text-xs text-slate-500">Due {fmtDate(c.due_date)}</p>
+                    </div>
+                  </div>
+
+                  {/* Contact links — stacked so long emails never overflow */}
+                  {hasContact ? (
+                    <div className="flex flex-col gap-1.5 text-xs">
+                      {c.phone && (
+                        <a
+                          href={`tel:${c.phone}`}
+                          className="flex min-h-[44px] w-full items-center gap-2 rounded-xl border border-orange-200 bg-white px-3 font-medium text-[#1a2744] hover:bg-orange-50"
+                        >
+                          <span className="shrink-0">📱</span>
+                          <span className="truncate">{c.phone}</span>
+                        </a>
+                      )}
+                      {c.email && (
+                        <a
+                          href={`mailto:${c.email}`}
+                          className="flex min-h-[44px] w-full items-center gap-2 rounded-xl border border-orange-200 bg-white px-3 font-medium text-[#1a2744] hover:bg-orange-50"
+                        >
+                          <span className="shrink-0">✉️</span>
+                          <span className="truncate">{c.email}</span>
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                      <span>No phone or email on file</span>
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/client-journey?aftercare=${c.intake_id}`)}
+                        className="min-h-[44px] rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-[#1a2744] transition hover:bg-orange-100"
+                      >
+                        Add contact
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Script */}
+                  {c.script && (
+                    <p className="break-words text-xs text-slate-600 italic border-l-2 border-orange-200 pl-2">
+                      {c.script}
+                    </p>
+                  )}
+
+                  {/* Error */}
+                  {err && <p className="break-words text-xs text-red-600">{err}</p>}
+
+                  {/* Note box (shown when Done was tapped) */}
+                  {noteOpen && (
+                    <div className="space-y-1.5">
+                      <textarea
+                        rows={2}
+                        placeholder="Add a note (optional)"
+                        value={checkinNoteText[c.id] ?? ""}
+                        onChange={e => setCheckinNoteText(prev => ({ ...prev, [c.id]: e.target.value }))}
+                        className="w-full rounded-lg border border-orange-200 bg-white px-2 py-1.5 text-base text-[#1a2744] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={doing}
+                          onClick={() => handleCheckinDone(c)}
+                          className="flex-1 min-h-[44px] rounded-full bg-[#1a2744] px-3 text-xs font-semibold text-white transition hover:bg-[#243552] disabled:opacity-50"
+                        >
+                          {doing ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={doing}
+                          onClick={() => {
+                            setCheckinNoteOpen(prev => { const n = new Set(prev); n.delete(c.id); return n; });
+                            setCheckinNoteText(prev => { const n = { ...prev }; delete n[c.id]; return n; });
+                          }}
+                          className="min-h-[44px] rounded-full border border-slate-200 px-3 text-xs font-semibold text-[#1a2744] transition hover:bg-orange-100 disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Skip confirm */}
+                  {skipConfirm && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-slate-600">Skip this check-in?</p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={doing}
+                          onClick={() => handleCheckinSkip(c)}
+                          className="flex-1 min-h-[44px] rounded-full bg-orange-500 px-3 text-xs font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
+                        >
+                          {doing ? "Skipping…" : "Yes, skip"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={doing}
+                          onClick={() => setCheckinSkipConfirm(prev => { const n = new Set(prev); n.delete(c.id); return n; })}
+                          className="min-h-[44px] rounded-full border border-slate-200 px-3 text-xs font-semibold text-[#1a2744] transition hover:bg-orange-100 disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action buttons — each full-width on narrow screens, row on wider */}
+                  {!noteOpen && !skipConfirm && (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      <button
+                        type="button"
+                        disabled={doing}
+                        onClick={() => setCheckinNoteOpen(prev => new Set(prev).add(c.id))}
+                        className="w-full min-h-[44px] rounded-full bg-[#1a2744] px-3 text-xs font-semibold text-white transition hover:bg-[#243552] disabled:opacity-50 sm:w-auto sm:flex-1"
+                      >
+                        ✅ Done
+                      </button>
+                      <button
+                        type="button"
+                        disabled={doing}
+                        onClick={() => setCheckinSkipConfirm(prev => new Set(prev).add(c.id))}
+                        className="w-full min-h-[44px] rounded-full border border-slate-200 px-3 text-xs font-semibold text-[#1a2744] transition hover:bg-orange-100 disabled:opacity-50 sm:w-auto"
+                      >
+                        Skip
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/client-journey?aftercare=${c.intake_id}`)}
+                        className="w-full min-h-[44px] rounded-full border border-slate-200 px-3 text-xs font-semibold text-[#1a2744] transition hover:bg-orange-100 sm:w-auto"
+                      >
+                        Open client
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => router.push(`/checkin?client=${c.intake_id}`)}
-                  className="shrink-0 min-h-[44px] rounded-full bg-[#1a2744] px-3 text-xs font-semibold text-white transition hover:bg-[#243552]"
-                >
-                  Open →
-                </button>
-              </div>
-            ))}
+              );
+            })}
 
             {/* 5. Clients due back soon */}
             {hasReturn && (
@@ -697,7 +887,7 @@ export function AssistantPanel({
               <div className="flex items-center gap-3 rounded-xl border border-teal-200 bg-teal-50 px-3 py-3">
                 <span className="shrink-0 text-base">⚙️</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#1a2744]">Finish setting up your assistant</p>
+                  <p className="text-sm font-medium text-[#1a2744]">Finish setting up your care assistant</p>
                   <p className="text-xs text-slate-500">Go live to start capturing clients automatically</p>
                 </div>
                 <button

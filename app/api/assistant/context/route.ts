@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    const [hcRes, cvRes, unsentRes, scheduledRes, checkinRes, prepRes, actionNeededRes] = await Promise.all([
+    const [hcRes, cvRes, unsentRes, scheduledRes, checkinRes, prepRes, actionNeededRes, botsRes] = await Promise.all([
       // 1. Unhandled alerts from healing_chats — no age filter
       //    Join to treatments → intakes to get the real first name when client_name is blank or "Client"
       db
@@ -77,13 +77,15 @@ export async function GET(request: Request) {
         .is("aftercare_canceled_at", null)
         .not("intake_id", "is", null),
 
-      // 5. Check-ins due or overdue (due_date <= today, not done) — missed ones stay until done
+      // 5. Check-ins due or overdue (due_date <= today, not done/skipped) — missed ones stay until done
       db
         .from("checkin_reminders")
-        .select("id, due_date, intake_id, intakes(id, first_name)")
+        .select("id, due_date, intake_id, treatment_id, intakes(first_name, phone, email), treatments(procedure_id, procedures(checkin_script))")
         .eq("nurse_id", user.id)
         .lte("due_date", today)
-        .neq("status", "done"),
+        .neq("status", "done")
+        .neq("status", "skipped")
+        .not("intake_id", "is", null),
 
       // 6. Prep reminders: strictly FUTURE appointments within 7 days (guide not yet sent).
       //    Use gt (not gte) — treatments happening today are excluded, too late to prep.
@@ -105,6 +107,9 @@ export async function GET(request: Request) {
         .eq("type", "action_needed")
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
+
+      // 8. Practice name for script substitution
+      db.from("bots").select("practice_name").eq("nurse_id", user.id).maybeSingle(),
     ]);
 
     if (hcRes.error) await logError("assistant/context", hcRes.error.message);
@@ -114,6 +119,9 @@ export async function GET(request: Request) {
     if (checkinRes.error) await logError("assistant/context", checkinRes.error.message);
     if (prepRes.error) await logError("assistant/context", prepRes.error.message);
     if (actionNeededRes.error) await logError("assistant/context", actionNeededRes.error.message);
+    if (botsRes.error) await logError("assistant/context", botsRes.error.message);
+
+    const practiceName = (botsRes.data as any)?.practice_name ?? "your provider";
 
     // ── Unhandled alerts ──────────────────────────────────────────────────────
     // Group healing_chats alerts by intake_id so a client with multiple treatments
@@ -213,11 +221,27 @@ export async function GET(request: Request) {
     // ── Check-ins overdue/due ─────────────────────────────────────────────────
     const checkinsOverdue = (checkinRes.data ?? []).map((r: any) => {
       const intake = Array.isArray(r.intakes) ? r.intakes[0] : r.intakes;
+      const treatment = Array.isArray(r.treatments) ? r.treatments[0] : r.treatments;
+      const procedure = treatment?.procedures
+        ? (Array.isArray(treatment.procedures) ? treatment.procedures[0] : treatment.procedures)
+        : null;
+
+      const clientName = (intake?.first_name ?? "Client") as string;
+      const rawScript = (procedure?.checkin_script ?? null) as string | null;
+      const script = rawScript
+        ? rawScript
+            .replace(/\{client\}/g, clientName)
+            .replace(/\{practice\}/g, practiceName)
+        : null;
+
       return {
         id: r.id as string,
-        intake_id: (intake?.id ?? r.intake_id) as string,
-        client_name: (intake?.first_name ?? "Client") as string,
+        intake_id: r.intake_id as string,
+        client_name: clientName,
         due_date: r.due_date as string,
+        phone: (intake?.phone ?? null) as string | null,
+        email: (intake?.email ?? null) as string | null,
+        script,
       };
     });
 

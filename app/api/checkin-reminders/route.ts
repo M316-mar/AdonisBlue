@@ -172,7 +172,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
     const action = body.action as string;
-    if (!["complete", "no_answer", "note"].includes(action)) {
+    if (!["complete", "skip", "no_answer", "note"].includes(action)) {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
@@ -198,6 +198,8 @@ export async function PATCH(request: Request) {
       if (typeof body.note === "string" && body.note.trim()) {
         patch.note = body.note.trim().slice(0, 2000);
       }
+    } else if (action === "skip") {
+      patch.status = "skipped";
     } else if (action === "no_answer") {
       patch.due_date = addDays(existing.due_date, 3);
     } else if (action === "note") {
