@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { parseTreatmentDate } from "@/lib/formatTreatmentDate";
 import CancelAftercarePopup from "@/components/CancelAftercarePopup";
@@ -146,6 +146,8 @@ export function AssistantPanel({
   const [prepError, setPrepError] = useState<Record<string, string>>({});
   // Mark-handled error
   const [markHandledError, setMarkHandledError] = useState<Record<string, string>>({});
+  // To-do list collapse
+  const [todoExpanded, setTodoExpanded] = useState(false);
   // Check-in actions
   const [checkinNoteOpen, setCheckinNoteOpen] = useState<Set<string>>(new Set());
   const [checkinNoteText, setCheckinNoteText] = useState<Record<string, string>>({});
@@ -512,123 +514,129 @@ export function AssistantPanel({
               </div>
             ))}
 
-            {/* 2. Aftercare to send (last 3 days, intended) */}
-            {(ctx?.unsentAftercares ?? []).map((a) => {
-              const alreadyInfo = aftercareAlreadySent[a.treatment_id];
-              const isSending = aftercareSending === a.treatment_id;
-              const sendErr = aftercareError[a.treatment_id];
-              const hasEmail = !!a.client_email;
-              return (
-                <div key={a.treatment_id} className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-3">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="shrink-0 text-base">💌</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-medium text-[#1a2744]">Send aftercare to {a.client_name}</p>
-                      <p className="truncate text-xs text-slate-500">{a.procedure_name} · {fmtDate(a.treatment_date)}</p>
+            {/* 2–8. Non-alert to-do items — first 3 shown, rest collapsible */}
+            {(() => {
+              const todos: React.ReactNode[] = [];
+
+              // 2. Aftercare to send
+              for (const a of (ctx?.unsentAftercares ?? [])) {
+                const alreadyInfo = aftercareAlreadySent[a.treatment_id];
+                const isSending = aftercareSending === a.treatment_id;
+                const sendErr = aftercareError[a.treatment_id];
+                const hasEmail = !!a.client_email;
+                todos.push(
+                  <div key={`unsent-${a.treatment_id}`} className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-3">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="shrink-0 text-base">💌</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-medium text-[#1a2744]">Send aftercare to {a.client_name}</p>
+                        <p className="truncate text-xs text-slate-500">{a.procedure_name} · {fmtDate(a.treatment_date)}</p>
+                      </div>
+                      {!alreadyInfo && hasEmail && (
+                        <button
+                          type="button"
+                          disabled={isSending}
+                          onClick={() => void handleSendAftercare(a)}
+                          className="shrink-0 min-h-[44px] rounded-full bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#243552] disabled:opacity-50"
+                        >
+                          {isSending ? "Sending…" : "Send →"}
+                        </button>
+                      )}
+                      {!alreadyInfo && !hasEmail && (
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/client-journey?aftercare=${a.intake_id}`)}
+                          className="shrink-0 min-h-[44px] rounded-full border border-amber-400 bg-white px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-50"
+                        >
+                          Add email
+                        </button>
+                      )}
                     </div>
-                    {!alreadyInfo && hasEmail && (
-                      <button
-                        type="button"
-                        disabled={isSending}
-                        onClick={() => void handleSendAftercare(a)}
-                        className="shrink-0 min-h-[44px] rounded-full bg-[#1a2744] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#243552] disabled:opacity-50"
-                      >
-                        {isSending ? "Sending…" : "Send →"}
-                      </button>
-                    )}
                     {!alreadyInfo && !hasEmail && (
-                      <button
-                        type="button"
-                        onClick={() => router.push(`/client-journey?aftercare=${a.intake_id}`)}
-                        className="shrink-0 min-h-[44px] rounded-full border border-amber-400 bg-white px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-50"
-                      >
-                        Add email
-                      </button>
+                      <p className="mt-1.5 text-xs text-amber-700">No email on file — add one to send aftercare.</p>
+                    )}
+                    {sendErr && (
+                      <p className="mt-1.5 text-xs text-red-600">{sendErr}</p>
+                    )}
+                    {alreadyInfo && (
+                      <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-teal-50 border border-teal-200 px-3 py-2">
+                        <p className="text-xs font-semibold text-teal-800">
+                          {alreadyInfo.sent_at
+                            ? `✅ Already sent on ${fmtDate(alreadyInfo.sent_at)}`
+                            : `⏳ Scheduled for ${fmtDate(alreadyInfo.scheduled_at ?? "")}`}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/client-journey?aftercare=${a.intake_id}&treatment_id=${a.treatment_id}&treatment_date=${a.treatment_date}${a.procedure_id ? `&procedure_id=${a.procedure_id}` : ""}`)}
+                          className="shrink-0 text-xs font-semibold text-teal-700 underline"
+                        >
+                          Send again
+                        </button>
+                      </div>
                     )}
                   </div>
-                  {!alreadyInfo && !hasEmail && (
-                    <p className="mt-1.5 text-xs text-amber-700">No email on file — add one to send aftercare.</p>
-                  )}
-                  {sendErr && (
-                    <p className="mt-1.5 text-xs text-red-600">{sendErr}</p>
-                  )}
-                  {alreadyInfo && (
-                    <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-teal-50 border border-teal-200 px-3 py-2">
-                      <p className="text-xs font-semibold text-teal-800">
-                        {alreadyInfo.sent_at
-                          ? `✅ Already sent on ${fmtDate(alreadyInfo.sent_at)}`
-                          : `⏳ Scheduled for ${fmtDate(alreadyInfo.scheduled_at ?? "")}`}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => router.push(`/client-journey?aftercare=${a.intake_id}&treatment_id=${a.treatment_id}&treatment_date=${a.treatment_date}${a.procedure_id ? `&procedure_id=${a.procedure_id}` : ""}`)}
-                        className="shrink-0 text-xs font-semibold text-teal-700 underline"
-                      >
-                        Send again
-                      </button>
+                );
+              }
+
+              // 3. Scheduled aftercares
+              for (const a of (ctx?.scheduledAftercares ?? [])) {
+                todos.push(
+                  <div key={`sched-${a.treatment_id}`} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="shrink-0 text-base">⏳</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-medium text-[#1a2744]">Aftercare to {a.client_name}</p>
+                        <p className="truncate text-xs text-slate-500">{a.procedure_name} · {fmtScheduledTime(a.aftercare_send_at)}</p>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          disabled={scheduledSendingNow === a.treatment_id}
+                          onClick={() => void handleScheduledSendNow(a)}
+                          className="min-h-[44px] rounded-full bg-[#1a2744] px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-[#243552] disabled:opacity-50"
+                        >
+                          {scheduledSendingNow === a.treatment_id ? "Sending…" : "Send now"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCancelPopupItem(a)}
+                          className="min-h-[44px] rounded-full border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* 3. Scheduled aftercares */}
-            {(ctx?.scheduledAftercares ?? []).map((a) => (
-              <div key={a.treatment_id} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="shrink-0 text-base">⏳</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium text-[#1a2744]">Aftercare to {a.client_name}</p>
-                    <p className="truncate text-xs text-slate-500">{a.procedure_name} · {fmtScheduledTime(a.aftercare_send_at)}</p>
+                    {scheduledError[a.treatment_id] && (
+                      <p className="mt-1.5 text-xs text-red-600">{scheduledError[a.treatment_id]}</p>
+                    )}
+                    {cancelPopupItem?.treatment_id === a.treatment_id && (
+                      <CancelAftercarePopup
+                        treatmentId={a.treatment_id}
+                        token={token}
+                        onCanceled={() => {
+                          setCtx(prev => prev ? { ...prev, scheduledAftercares: prev.scheduledAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
+                          setCancelPopupItem(null);
+                        }}
+                        onChangeIt={() => {
+                          setCtx(prev => prev ? { ...prev, scheduledAftercares: prev.scheduledAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
+                          setCancelPopupItem(null);
+                          router.push(`/client-journey?aftercare=${a.intake_id}&treatment_id=${a.treatment_id}`);
+                        }}
+                        onDismiss={() => setCancelPopupItem(null)}
+                      />
+                    )}
                   </div>
-                  <div className="flex gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      disabled={scheduledSendingNow === a.treatment_id}
-                      onClick={() => void handleScheduledSendNow(a)}
-                      className="min-h-[44px] rounded-full bg-[#1a2744] px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-[#243552] disabled:opacity-50"
-                    >
-                      {scheduledSendingNow === a.treatment_id ? "Sending…" : "Send now"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCancelPopupItem(a)}
-                      className="min-h-[44px] rounded-full border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-                {scheduledError[a.treatment_id] && (
-                  <p className="mt-1.5 text-xs text-red-600">{scheduledError[a.treatment_id]}</p>
-                )}
-                {cancelPopupItem?.treatment_id === a.treatment_id && (
-                  <CancelAftercarePopup
-                    treatmentId={a.treatment_id}
-                    token={token}
-                    onCanceled={() => {
-                      setCtx(prev => prev ? { ...prev, scheduledAftercares: prev.scheduledAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
-                      setCancelPopupItem(null);
-                    }}
-                    onChangeIt={() => {
-                      setCtx(prev => prev ? { ...prev, scheduledAftercares: prev.scheduledAftercares.filter(x => x.treatment_id !== a.treatment_id) } : prev);
-                      setCancelPopupItem(null);
-                      router.push(`/client-journey?aftercare=${a.intake_id}&treatment_id=${a.treatment_id}`);
-                    }}
-                    onDismiss={() => setCancelPopupItem(null)}
-                  />
-                )}
-              </div>
-            ))}
+                );
+              }
 
-            {/* 4. Check-ins overdue / due today */}
-            {(ctx?.checkinsOverdue ?? []).map((c) => {
-              const noteOpen = checkinNoteOpen.has(c.id);
-              const skipConfirm = checkinSkipConfirm.has(c.id);
-              const doing = checkinDoing === c.id;
-              const err = checkinError[c.id];
-              const hasContact = !!(c.phone || c.email);
-              return (
+              // 4. Check-ins overdue / due today
+              for (const c of (ctx?.checkinsOverdue ?? [])) {
+                const noteOpen = checkinNoteOpen.has(c.id);
+                const skipConfirm = checkinSkipConfirm.has(c.id);
+                const doing = checkinDoing === c.id;
+                const err = checkinError[c.id];
+                const hasContact = !!(c.phone || c.email);
+                todos.push(
                 <div key={c.id} className="rounded-xl border border-orange-100 bg-orange-50 px-3 py-3 space-y-2">
                   {/* Header */}
                   <div className="flex items-start gap-2">
@@ -772,133 +780,165 @@ export function AssistantPanel({
                     </div>
                   )}
                 </div>
-              );
-            })}
-
-            {/* 5. Clients due back soon */}
-            {hasReturn && (
-              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3">
-                <span className="shrink-0 text-base">🔁</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#1a2744]">
-                    {unbookedReturn} client{unbookedReturn !== 1 ? "s" : ""} due back soon
-                  </p>
-                  <p className="text-xs text-slate-500">Save them a slot before it fills up</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const el = document.getElementById("return-clients");
-                    el?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="shrink-0 min-h-[44px] rounded-full border border-slate-200 px-3 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
-                >
-                  See all →
-                </button>
-              </div>
-            )}
-
-            {/* 6. Prep reminders */}
-            {(ctx?.prepReminders ?? []).map((p) => {
-              const sent = sentPrep.has(p.intake_id);
-              const sending = sendingPrep === p.intake_id;
-              if (sent) {
-                return (
-                  <div key={p.treatment_id} className="rounded-xl border border-green-100 bg-green-50 px-3 py-3">
-                    <p className="text-sm text-green-700">✅ Prep guide sent to {p.client_name}</p>
-                  </div>
                 );
               }
-              return (
-                <div key={p.treatment_id} className="rounded-xl border border-teal-100 bg-teal-50 px-3 py-3">
-                  <div className="flex items-center gap-3">
-                    <span className="shrink-0 text-base">📋</span>
+
+              // 5. Clients due back soon
+              if (hasReturn) {
+                todos.push(
+                  <div key="return" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3">
+                    <span className="shrink-0 text-base">🔁</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#1a2744]">Send prep guide to {p.client_name}</p>
-                      <p className="text-xs text-slate-500">{p.procedure_name} · {fmtDate(p.treatment_date)}</p>
+                      <p className="text-sm font-medium text-[#1a2744]">
+                        {unbookedReturn} client{unbookedReturn !== 1 ? "s" : ""} due back soon
+                      </p>
+                      <p className="text-xs text-slate-500">Save them a slot before it fills up</p>
                     </div>
                     <button
                       type="button"
-                      disabled={sending}
-                      onClick={() => void handleSendPrep(p)}
-                      className="shrink-0 min-h-[44px] rounded-full bg-teal-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                      onClick={() => {
+                        const el = document.getElementById("return-clients");
+                        el?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className="shrink-0 min-h-[44px] rounded-full border border-slate-200 px-3 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
                     >
-                      {sending ? "Sending…" : "Send →"}
+                      See all →
                     </button>
                   </div>
-                  {prepError[p.intake_id] && (
-                    <p className="mt-1.5 text-xs text-red-600">{prepError[p.intake_id]}</p>
+                );
+              }
+
+              // 6. Prep reminders
+              for (const p of (ctx?.prepReminders ?? [])) {
+                const sent = sentPrep.has(p.intake_id);
+                const sending = sendingPrep === p.intake_id;
+                if (sent) {
+                  todos.push(
+                    <div key={`prep-${p.treatment_id}`} className="rounded-xl border border-green-100 bg-green-50 px-3 py-3">
+                      <p className="text-sm text-green-700">✅ Prep guide sent to {p.client_name}</p>
+                    </div>
+                  );
+                } else {
+                  todos.push(
+                    <div key={`prep-${p.treatment_id}`} className="rounded-xl border border-teal-100 bg-teal-50 px-3 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="shrink-0 text-base">📋</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-[#1a2744]">Send prep guide to {p.client_name}</p>
+                          <p className="text-xs text-slate-500">{p.procedure_name} · {fmtDate(p.treatment_date)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={sending}
+                          onClick={() => void handleSendPrep(p)}
+                          className="shrink-0 min-h-[44px] rounded-full bg-teal-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                        >
+                          {sending ? "Sending…" : "Send →"}
+                        </button>
+                      </div>
+                      {prepError[p.intake_id] && (
+                        <p className="mt-1.5 text-xs text-red-600">{prepError[p.intake_id]}</p>
+                      )}
+                    </div>
+                  );
+                }
+              }
+
+              // 7. Action-needed to-dos
+              for (const item of (ctx?.actionNeeded ?? [])) {
+                todos.push(
+                  <div key={`action-${item.id}`} className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3">
+                    <span className="shrink-0 text-base mt-0.5">⚠️</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-amber-800">Action needed</p>
+                      <p className="text-xs text-amber-700 mt-0.5">{item.message}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleDismissActionNeeded(item.id)}
+                      className="shrink-0 text-xs text-amber-500 hover:text-amber-700 transition min-h-[44px] px-2"
+                      aria-label="Dismiss"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              }
+
+              // 8. Rebooking link nudge
+              if (showRebookingNudge) {
+                todos.push(
+                  <div key="rebooking" className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-3">
+                    <span className="shrink-0 text-base mt-0.5">📅</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#1a2744]">Set up a spot for returning clients</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Add a booking link just for clients coming back and we&apos;ll include it in every return reminder.</p>
+                    </div>
+                    <div className="flex shrink-0 flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() => router.push("/account#practice")}
+                        className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#1a2744] px-3 text-xs font-semibold text-white transition hover:bg-[#243552]"
+                      >
+                        Take me there →
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRebookingDismissed(true);
+                          try { localStorage.setItem("ab-rebooking-nudge-dismissed", new Date().toISOString()); } catch { /* ignore */ }
+                        }}
+                        className="inline-flex min-h-[44px] w-full items-center justify-center text-xs text-slate-400 hover:text-slate-600 transition"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              // 9. Setup — if not launched
+              if (needsSetup) {
+                todos.push(
+                  <div key="setup" className="flex items-center gap-3 rounded-xl border border-teal-200 bg-teal-50 px-3 py-3">
+                    <span className="shrink-0 text-base">⚙️</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#1a2744]">Finish setting up your care assistant</p>
+                      <p className="text-xs text-slate-500">Go live to start capturing clients automatically</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/onboarding")}
+                      className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-full bg-teal-600 px-3 text-xs font-semibold text-white transition hover:bg-teal-700"
+                    >
+                      Continue →
+                    </button>
+                  </div>
+                );
+              }
+
+              // Render: show first 3, collapse the rest
+              const LIMIT = 3;
+              const visible = todoExpanded ? todos : todos.slice(0, LIMIT);
+              const hiddenCount = todos.length - LIMIT;
+
+              return (
+                <>
+                  {visible}
+                  {todos.length > LIMIT && (
+                    <button
+                      type="button"
+                      onClick={() => setTodoExpanded(e => !e)}
+                      className="flex w-full min-h-[44px] items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-[#1a2744] transition hover:bg-slate-50"
+                    >
+                      {todoExpanded
+                        ? "Show less ↑"
+                        : `See all (${hiddenCount + LIMIT}) ↓`}
+                    </button>
                   )}
-                </div>
+                </>
               );
-            })}
-
-            {/* 7. Action-needed to-dos (empty aftercare warnings) */}
-            {(ctx?.actionNeeded ?? []).map((item) => (
-              <div key={item.id} className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3">
-                <span className="shrink-0 text-base mt-0.5">⚠️</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-amber-800">Action needed</p>
-                  <p className="text-xs text-amber-700 mt-0.5">{item.message}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void handleDismissActionNeeded(item.id)}
-                  className="shrink-0 text-xs text-amber-500 hover:text-amber-700 transition min-h-[44px] px-2"
-                  aria-label="Dismiss"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-
-            {/* 8. Rebooking link gentle nudge */}
-            {showRebookingNudge && (
-              <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-3">
-                <span className="shrink-0 text-base mt-0.5">📅</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#1a2744]">Set up a spot for returning clients</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Add a booking link just for clients coming back and we&apos;ll include it in every return reminder.</p>
-                </div>
-                <div className="flex shrink-0 flex-col gap-1">
-                  <button
-                    type="button"
-                    onClick={() => router.push("/account#practice")}
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#1a2744] px-3 text-xs font-semibold text-white transition hover:bg-[#243552]"
-                  >
-                    Take me there →
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRebookingDismissed(true);
-                      try { localStorage.setItem("ab-rebooking-nudge-dismissed", new Date().toISOString()); } catch { /* ignore */ }
-                    }}
-                    className="inline-flex min-h-[44px] w-full items-center justify-center text-xs text-slate-400 hover:text-slate-600 transition"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 8. Setup — if not launched */}
-            {needsSetup && (
-              <div className="flex items-center gap-3 rounded-xl border border-teal-200 bg-teal-50 px-3 py-3">
-                <span className="shrink-0 text-base">⚙️</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#1a2744]">Finish setting up your care assistant</p>
-                  <p className="text-xs text-slate-500">Go live to start capturing clients automatically</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => router.push("/onboarding")}
-                  className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-full bg-teal-600 px-3 text-xs font-semibold text-white transition hover:bg-teal-700"
-                >
-                  Continue →
-                </button>
-              </div>
-            )}
+            })()}
 
           </div>
         )}
