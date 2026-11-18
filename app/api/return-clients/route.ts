@@ -35,7 +35,8 @@ export async function GET(request: Request) {
       .from("treatments")
       .select("id, treatment_date, procedure_id, procedure_name, intake_id, rebooked_at, rebooked_source, planned_return_at, return_reason, reminder_lead_days, planned_reminder_sent_at, procedures(name, reminder_days), intakes(first_name, email, marketing_opt_out)")
       .eq("nurse_id", user.id)
-      .eq("archived", false);
+      .eq("archived", false)
+      .is("return_dismissed_at", null);
 
     if (tErr) {
       await logError("return-clients", tErr.message);
@@ -179,14 +180,18 @@ export async function PATCH(request: Request) {
     const user = await getUser(token);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const body = await request.json() as { treatment_id?: string; action?: string };
-    const { treatment_id, action } = body;
+    const body = await request.json() as { treatment_id?: string; action?: string; planned_date?: string };
+    const { treatment_id, action, planned_date } = body;
 
     if (!treatment_id || !UUID_REGEX.test(treatment_id)) {
       return NextResponse.json({ error: "Invalid treatment_id" }, { status: 400 });
     }
-    if (action !== "booked" && action !== "unbook") {
+    const VALID_ACTIONS = ["booked", "unbook", "dismiss", "undismiss", "change_date"];
+    if (!action || !VALID_ACTIONS.includes(action)) {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    }
+    if (action === "change_date" && (!planned_date || !/^\d{4}-\d{2}-\d{2}$/.test(planned_date))) {
+      return NextResponse.json({ error: "Invalid planned_date" }, { status: 400 });
     }
 
     const supabase = createClient(
@@ -197,7 +202,7 @@ export async function PATCH(request: Request) {
     // Verify ownership before updating
     const { data: existing, error: fetchErr } = await supabase
       .from("treatments")
-      .select("id, nurse_id")
+      .select("id, nurse_id, reminder_lead_days")
       .eq("id", treatment_id)
       .eq("nurse_id", user.id)
       .single();
@@ -206,9 +211,21 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const update = action === "booked"
-      ? { rebooked_at: new Date().toISOString(), rebooked_source: "nurse" }
-      : { rebooked_at: null, rebooked_source: null };
+    const now = new Date().toISOString();
+    let update: Record<string, unknown>;
+    if (action === "booked") {
+      update = { rebooked_at: now, rebooked_source: "nurse" };
+    } else if (action === "unbook") {
+      update = { rebooked_at: null, rebooked_source: null };
+    } else if (action === "dismiss") {
+      update = { return_dismissed_at: now };
+    } else if (action === "undismiss") {
+      update = { return_dismissed_at: null };
+    } else {
+      // change_date — keep existing reminder_lead_days, or default to 7
+      const leadDays = (existing as any).reminder_lead_days ?? 7;
+      update = { planned_return_at: planned_date, reminder_lead_days: leadDays, planned_reminder_sent_at: null };
+    }
 
     const { error: updateErr } = await supabase
       .from("treatments")

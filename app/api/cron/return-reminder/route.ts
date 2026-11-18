@@ -33,6 +33,7 @@ export async function GET(request: Request) {
       .select("id, treatment_date, procedure_id, procedure_name, nurse_id, intake_id, planned_return_at, return_reason, reminder_lead_days, procedures(name, reminder_days), intakes(first_name, marketing_opt_out)")
       .eq("archived", false)
       .is("rebooked_at", null)
+      .is("return_dismissed_at", null)
       .not("procedure_id", "is", null);
 
     if (tErr) {

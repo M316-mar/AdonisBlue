@@ -110,6 +110,12 @@ export default function NurseDashboardPage() {
   };
   const [returnClients, setReturnClients] = useState<ReturnClient[]>([]);
   const [returnBookingBusy, setReturnBookingBusy] = useState<string | null>(null);
+  const [returnExpanded, setReturnExpanded] = useState(false);
+  const [returnMoreOpen, setReturnMoreOpen] = useState<string | null>(null);
+  const [returnDismissed, setReturnDismissed] = useState<string | null>(null);
+  const [returnChangingDate, setReturnChangingDate] = useState<string | null>(null);
+  const [returnChangeDateValue, setReturnChangeDateValue] = useState<Record<string, string>>({});
+  const [returnError, setReturnError] = useState<Record<string, string>>({});
 
   type CheckinReminder = {
     id: string;
@@ -294,6 +300,75 @@ export default function NurseDashboardPage() {
       setReturnBookingBusy(null);
     }
   }, []);
+
+  const handleReturnDismiss = useCallback(async (treatmentId: string) => {
+    setReturnMoreOpen(null);
+    // Optimistic: remove from list immediately, show Undo flash
+    setReturnDismissed(treatmentId);
+    setReturnClients((prev) => prev.filter((c) => c.treatment_id !== treatmentId));
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return;
+    const res = await fetch("/api/return-clients", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ treatment_id: treatmentId, action: "dismiss" }),
+    });
+    if (!res.ok) {
+      setReturnError((prev) => ({ ...prev, [treatmentId]: "Could not remove. Try again." }));
+    }
+  }, []);
+
+  const handleReturnUndismiss = useCallback(async (treatmentId: string) => {
+    setReturnDismissed(null);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return;
+    const res = await fetch("/api/return-clients", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ treatment_id: treatmentId, action: "undismiss" }),
+    });
+    if (res.ok) {
+      // Re-fetch to restore the row
+      const listRes = await fetch("/api/return-clients", { headers: { Authorization: `Bearer ${token}` } });
+      if (listRes.ok) {
+        const json = await listRes.json() as { clients?: ReturnClient[] };
+        setReturnClients(json.clients ?? []);
+      }
+    } else {
+      setReturnError((prev) => ({ ...prev, [treatmentId]: "Could not undo. Try again." }));
+    }
+  }, []);
+
+  const handleReturnChangeDate = useCallback(async (treatmentId: string) => {
+    const planned_date = returnChangeDateValue[treatmentId];
+    if (!planned_date) return;
+    setReturnBookingBusy(treatmentId);
+    setReturnMoreOpen(null);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) { setReturnBookingBusy(null); return; }
+    const res = await fetch("/api/return-clients", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ treatment_id: treatmentId, action: "change_date", planned_date }),
+    });
+    setReturnBookingBusy(null);
+    if (res.ok) {
+      setReturnChangingDate(null);
+      setReturnChangeDateValue((prev) => { const n = { ...prev }; delete n[treatmentId]; return n; });
+      // Refresh list so the new date appears
+      const listRes = await fetch("/api/return-clients", { headers: { Authorization: `Bearer ${token}` } });
+      if (listRes.ok) {
+        const json = await listRes.json() as { clients?: ReturnClient[] };
+        setReturnClients(json.clients ?? []);
+      }
+    } else {
+      const err = await res.json().catch(() => ({})) as { error?: string };
+      setReturnError((prev) => ({ ...prev, [treatmentId]: err.error ?? "Could not change date. Try again." }));
+    }
+  }, [returnChangeDateValue]);
 
   const handleCheckinDone = useCallback(async (id: string) => {
     const { data } = await supabase.auth.getSession();
@@ -555,91 +630,195 @@ export default function NurseDashboardPage() {
                 <p className="text-sm font-semibold text-[#1a2744]">💙 Clients coming back</p>
                 <p className="text-xs text-slate-400 mt-0.5">Clients due back in the next 30 days. Save them a spot in your calendar.</p>
               </div>
-              {returnClients.length === 0 ? (
+              {returnClients.length === 0 && !returnDismissed ? (
                 <div className="px-4 py-5 sm:px-6">
-                  <p className="text-sm text-slate-400">No clients due back in the next 30 days. They&apos;ll show up here automatically after you log treatments.</p>
+                  {returnDismissed ? (
+                    <div className="flex items-center gap-3 text-sm text-slate-500">
+                      <span>Removed</span>
+                      <button type="button" onClick={() => void handleReturnUndismiss(returnDismissed)} className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs text-teal-600 hover:text-teal-800 underline transition">Undo</button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-400">No clients due back in the next 30 days. They&apos;ll show up here automatically after you log treatments.</p>
+                  )}
                 </div>
               ) : (
-                <ul className="divide-y divide-slate-100">
-                  {returnClients.map((c) => {
-                    const isBooked = !!c.rebooked_at;
-                    const today = localDateString();
-                    const isPastDue = !isBooked && c.due_date < today;
-                    const reminderAlreadySent = c.reminder_send_date <= today;
-                    const dueFmt = formatTreatmentDate(c.due_date, { month: "short", day: "numeric" });
-                    const reminderFmt = formatTreatmentDate(c.reminder_send_date, { month: "short", day: "numeric" });
+                <>
+                  {returnDismissed && returnClients.length === 0 && (
+                    <div className="px-4 py-3 sm:px-6 flex items-center gap-3 border-b border-slate-100 text-sm text-slate-500">
+                      <span>Removed</span>
+                      <button type="button" onClick={() => void handleReturnUndismiss(returnDismissed)} className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs text-teal-600 hover:text-teal-800 underline transition">Undo</button>
+                    </div>
+                  )}
+                  <ul className="divide-y divide-slate-100">
+                    {(returnExpanded ? returnClients : returnClients.slice(0, 5)).map((c) => {
+                      const isBooked = !!c.rebooked_at;
+                      const today = localDateString();
+                      const reminderAlreadySent = c.reminder_send_date <= today;
+                      const dueFmt = formatTreatmentDate(c.due_date, { month: "short", day: "numeric" });
+                      const reminderFmt = formatTreatmentDate(c.reminder_send_date, { month: "short", day: "numeric" });
 
-                    // Build .ics content for "Hold a spot" calendar reminder
-                    const icsDate = c.due_date.replace(/-/g, "");
-                    const icsContent = [
-                      "BEGIN:VCALENDAR",
-                      "VERSION:2.0",
-                      "PRODID:-//AdonisBlue//EN",
-                      "BEGIN:VEVENT",
-                      `DTSTART;VALUE=DATE:${icsDate}`,
-                      `DTEND;VALUE=DATE:${icsDate}`,
-                      `SUMMARY:Keep a slot open for ${c.client_name} — ${c.procedure_name}\\, due ${dueFmt}`,
-                      `DESCRIPTION:${c.client_name} is due back for ${c.procedure_name} around ${dueFmt}. Hold a slot open for them.`,
-                      "BEGIN:VALARM",
-                      "TRIGGER:-P7D",
-                      "ACTION:DISPLAY",
-                      `DESCRIPTION:${c.client_name} is due back for ${c.procedure_name} in 7 days — save them a slot!`,
-                      "END:VALARM",
-                      "END:VEVENT",
-                      "END:VCALENDAR",
-                    ].join("\r\n");
-                    const icsBlob = `data:text/calendar;charset=utf-8,${encodeURIComponent(icsContent)}`;
+                      // Build .ics content for "Hold a spot" calendar reminder
+                      const icsDate = c.due_date.replace(/-/g, "");
+                      const icsContent = [
+                        "BEGIN:VCALENDAR",
+                        "VERSION:2.0",
+                        "PRODID:-//AdonisBlue//EN",
+                        "BEGIN:VEVENT",
+                        `DTSTART;VALUE=DATE:${icsDate}`,
+                        `DTEND;VALUE=DATE:${icsDate}`,
+                        `SUMMARY:Keep a slot open for ${c.client_name} — ${c.procedure_name}\\, due ${dueFmt}`,
+                        `DESCRIPTION:${c.client_name} is due back for ${c.procedure_name} around ${dueFmt}. Hold a slot open for them.`,
+                        "BEGIN:VALARM",
+                        "TRIGGER:-P7D",
+                        "ACTION:DISPLAY",
+                        `DESCRIPTION:${c.client_name} is due back for ${c.procedure_name} in 7 days — save them a slot!`,
+                        "END:VALARM",
+                        "END:VEVENT",
+                        "END:VCALENDAR",
+                      ].join("\r\n");
+                      const icsBlob = `data:text/calendar;charset=utf-8,${encodeURIComponent(icsContent)}`;
 
-                    const whatFor = c.has_personal_plan && c.return_reason ? c.return_reason : c.procedure_name;
-                    const reminderPart = isBooked
-                      ? " · booked ✅"
-                      : c.opted_out
-                      ? " · reminders off"
-                      : reminderAlreadySent
-                      ? ` · reminder sent ${reminderFmt}`
-                      : ` · reminder sends ${reminderFmt}`;
+                      const whatFor = c.has_personal_plan && c.return_reason ? c.return_reason : c.procedure_name;
+                      const reminderPart = isBooked
+                        ? " · booked ✅"
+                        : c.opted_out
+                        ? " · reminders off"
+                        : reminderAlreadySent
+                        ? ` · reminder sent ${reminderFmt}`
+                        : ` · reminder sends ${reminderFmt}`;
 
-                    return (
-                      <li key={c.treatment_id} className={`px-4 py-3 sm:px-6 flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between ${isBooked ? "bg-green-50" : ""}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-[#1a2744] truncate">
-                            {c.client_name} · {whatFor} · can come back from {dueFmt}{reminderPart}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {!isBooked && (
-                            <a
-                              href={icsBlob}
-                              download={`hold-slot-${c.client_name.replace(/\s+/g, "-").toLowerCase()}.ics`}
-                              className="inline-flex min-h-[44px] items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
-                            >
-                              📅 Hold a spot
-                            </a>
+                      const isMoreOpen = returnMoreOpen === c.treatment_id;
+                      const isChangingDate = returnChangingDate === c.treatment_id;
+                      const isDismissedRow = returnDismissed === c.treatment_id;
+
+                      return (
+                        <li key={c.treatment_id} className={`px-4 py-3 sm:px-6 flex flex-col gap-1.5 ${isBooked ? "bg-green-50" : ""}`}>
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-[#1a2744] truncate">
+                                {c.client_name} · {whatFor} · can come back from {dueFmt}{reminderPart}
+                              </p>
+                            </div>
+                            {/* ⋯ more options (not shown for booked rows) */}
+                            {!isBooked && (
+                              <div className="relative shrink-0">
+                                <button
+                                  type="button"
+                                  aria-label="More options"
+                                  onClick={() => setReturnMoreOpen(isMoreOpen ? null : c.treatment_id)}
+                                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition text-base"
+                                >
+                                  ⋯
+                                </button>
+                                {isMoreOpen && (
+                                  <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+                                    <button
+                                      type="button"
+                                      onClick={() => { setReturnMoreOpen(null); setReturnChangingDate(c.treatment_id); setReturnChangeDateValue((prev) => ({ ...prev, [c.treatment_id]: c.due_date })); }}
+                                      className="flex w-full min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+                                    >
+                                      Change date
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleReturnDismiss(c.treatment_id)}
+                                      className="flex w-full min-h-[44px] items-center px-4 text-sm text-red-600 hover:bg-red-50 transition"
+                                    >
+                                      Remove from list
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {isDismissedRow && (
+                            <div className="flex items-center gap-3 text-sm text-slate-500">
+                              <span>Removed</span>
+                              <button type="button" onClick={() => void handleReturnUndismiss(c.treatment_id)} className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs text-teal-600 hover:text-teal-800 underline transition">Undo</button>
+                            </div>
                           )}
-                          {isBooked ? (
-                            <button
-                              type="button"
-                              disabled={returnBookingBusy === c.treatment_id}
-                              onClick={() => void handleReturnBooking(c.treatment_id, "unbook")}
-                              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs text-slate-400 hover:text-slate-600 underline transition disabled:opacity-50"
-                            >
-                              {returnBookingBusy === c.treatment_id ? "…" : "Undo"}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={returnBookingBusy === c.treatment_id}
-                              onClick={() => void handleReturnBooking(c.treatment_id, "booked")}
-                              className="inline-flex min-h-[44px] items-center rounded-full bg-teal-600 px-3 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
-                            >
-                              {returnBookingBusy === c.treatment_id ? "…" : "✅ She booked"}
-                            </button>
+                          {isChangingDate && (
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                              <input
+                                type="date"
+                                value={returnChangeDateValue[c.treatment_id] ?? c.due_date}
+                                onChange={(e) => setReturnChangeDateValue((prev) => ({ ...prev, [c.treatment_id]: e.target.value }))}
+                                className="rounded-lg border border-slate-200 px-3 py-2 text-base text-[#1a2744] w-full sm:w-auto"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  disabled={returnBookingBusy === c.treatment_id}
+                                  onClick={() => void handleReturnChangeDate(c.treatment_id)}
+                                  className="inline-flex min-h-[44px] items-center rounded-full bg-teal-600 px-4 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                                >
+                                  {returnBookingBusy === c.treatment_id ? "…" : "Save"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setReturnChangingDate(null); setReturnChangeDateValue((prev) => { const n = { ...prev }; delete n[c.treatment_id]; return n; }); }}
+                                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs text-slate-400 hover:text-slate-600 transition"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
                           )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                          {returnError[c.treatment_id] && (
+                            <p className="text-xs text-red-600">{returnError[c.treatment_id]}</p>
+                          )}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {!isBooked && (
+                              <a
+                                href={icsBlob}
+                                download={`hold-slot-${c.client_name.replace(/\s+/g, "-").toLowerCase()}.ics`}
+                                className="inline-flex min-h-[44px] items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                              >
+                                📅 Hold a spot
+                              </a>
+                            )}
+                            {isBooked ? (
+                              <button
+                                type="button"
+                                disabled={returnBookingBusy === c.treatment_id}
+                                onClick={() => void handleReturnBooking(c.treatment_id, "unbook")}
+                                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs text-slate-400 hover:text-slate-600 underline transition disabled:opacity-50"
+                              >
+                                {returnBookingBusy === c.treatment_id ? "…" : "Undo"}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={returnBookingBusy === c.treatment_id}
+                                onClick={() => void handleReturnBooking(c.treatment_id, "booked")}
+                                className="inline-flex min-h-[44px] items-center rounded-full bg-teal-600 px-3 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+                              >
+                                {returnBookingBusy === c.treatment_id ? "…" : "✅ She booked"}
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {returnClients.length > 5 && (
+                    <div className="px-4 py-2 sm:px-6 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setReturnExpanded((e) => !e)}
+                        className="flex w-full min-h-[44px] items-center justify-center gap-1 text-xs font-semibold text-[#1a2744] hover:bg-slate-50 rounded-xl transition"
+                      >
+                        {returnExpanded ? "Show less ↑" : `See all (${returnClients.length}) ↓`}
+                      </button>
+                    </div>
+                  )}
+                  {returnDismissed && returnClients.length > 0 && (
+                    <div className="px-4 py-3 sm:px-6 flex items-center gap-3 border-t border-slate-100 text-sm text-slate-500">
+                      <span>Removed</span>
+                      <button type="button" onClick={() => void handleReturnUndismiss(returnDismissed)} className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs text-teal-600 hover:text-teal-800 underline transition">Undo</button>
+                    </div>
+                  )}
+                </>
               )}
             </section>
 

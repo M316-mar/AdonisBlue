@@ -49,7 +49,8 @@ export async function GET(request: Request) {
       `)
       .eq("reminder_sent", false)
       .is("rebooked_at", null)
-      .eq("archived", false);
+      .eq("archived", false)
+      .is("return_dismissed_at", null);
 
     if (treatmentsError) {
       cronError = treatmentsError.message;
