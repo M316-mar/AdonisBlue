@@ -440,10 +440,11 @@ export async function PATCH(request: Request) {
           planned_return_at: rawAt,
           return_reason: cleanedReason,
           reminder_lead_days: rawLead,
-          // Reset sent flags so the updated plan fires
+          // Reset sent flags so the updated plan fires; clear any prior dismissal
           planned_reminder_sent_at: null,
           reminder_sent: false,
           reminder_sent_at: null,
+          return_dismissed_at: null,
         })
         .eq("id", id)
         .eq("nurse_id", user.id);

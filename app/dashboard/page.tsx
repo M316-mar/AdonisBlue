@@ -109,7 +109,10 @@ export default function NurseDashboardPage() {
     has_personal_plan: boolean;
     personal_reminder_sent: boolean;
   };
+  type DismissedClient = { treatment_id: string; client_name: string; procedure_name: string };
   const [returnClients, setReturnClients] = useState<ReturnClient[]>([]);
+  const [dismissedClients, setDismissedClients] = useState<DismissedClient[]>([]);
+  const [showDismissed, setShowDismissed] = useState(false);
   const [returnBookingBusy, setReturnBookingBusy] = useState<string | null>(null);
   const [returnExpanded, setReturnExpanded] = useState(false);
   const [returnMoreOpen, setReturnMoreOpen] = useState<string | null>(null);
@@ -236,8 +239,9 @@ export default function NurseDashboardPage() {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!cancelled && returnRes.ok) {
-            const returnJson = await returnRes.json() as { clients?: ReturnClient[] };
+            const returnJson = await returnRes.json() as { clients?: ReturnClient[]; dismissed_clients?: DismissedClient[] };
             setReturnClients(returnJson.clients ?? []);
+            setDismissedClients(returnJson.dismissed_clients ?? []);
           }
 
           // Fetch check-in reminders
@@ -343,6 +347,27 @@ export default function NurseDashboardPage() {
     }
   }, []);
 
+  const handlePutBack = useCallback(async (treatmentId: string) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return;
+    const res = await fetch("/api/return-clients", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ treatment_id: treatmentId, action: "undismiss" }),
+    });
+    if (res.ok) {
+      setDismissedClients((prev) => prev.filter((c) => c.treatment_id !== treatmentId));
+      // Refresh active list so the restored row appears
+      const listRes = await fetch("/api/return-clients", { headers: { Authorization: `Bearer ${token}` } });
+      if (listRes.ok) {
+        const json = await listRes.json() as { clients?: ReturnClient[]; dismissed_clients?: DismissedClient[] };
+        setReturnClients(json.clients ?? []);
+        setDismissedClients(json.dismissed_clients ?? []);
+      }
+    }
+  }, []);
+
   const handleReturnChangeDate = useCallback(async (treatmentId: string) => {
     const planned_date = returnChangeDateValue[treatmentId];
     if (!planned_date) return;
@@ -360,11 +385,12 @@ export default function NurseDashboardPage() {
     if (res.ok) {
       setReturnChangingDate(null);
       setReturnChangeDateValue((prev) => { const n = { ...prev }; delete n[treatmentId]; return n; });
-      // Refresh list so the new date appears
+      // Refresh list so the new date appears; also refresh dismissed (row may have moved back)
       const listRes = await fetch("/api/return-clients", { headers: { Authorization: `Bearer ${token}` } });
       if (listRes.ok) {
-        const json = await listRes.json() as { clients?: ReturnClient[] };
+        const json = await listRes.json() as { clients?: ReturnClient[]; dismissed_clients?: DismissedClient[] };
         setReturnClients(json.clients ?? []);
+        setDismissedClients(json.dismissed_clients ?? []);
       }
     } else {
       const err = await res.json().catch(() => ({})) as { error?: string };
@@ -633,14 +659,36 @@ export default function NurseDashboardPage() {
                 <p className="text-xs text-slate-400 mt-0.5">Clients due back in the next 30 days. Save them a spot in your calendar.</p>
               </div>
               {returnClients.length === 0 && !returnDismissed ? (
-                <div className="px-4 py-5 sm:px-6">
-                  {returnDismissed ? (
-                    <div className="flex items-center gap-3 text-sm text-slate-500">
-                      <span>Removed</span>
-                      <button type="button" onClick={() => void handleReturnUndismiss(returnDismissed)} className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs text-teal-600 hover:text-teal-800 underline transition">Undo</button>
-                    </div>
-                  ) : (
+                <div>
+                  <div className="px-4 py-5 sm:px-6">
                     <p className="text-sm text-slate-400">No clients due back in the next 30 days. They&apos;ll show up here automatically after you log treatments.</p>
+                  </div>
+                  {dismissedClients.length > 0 && (
+                    <div className="border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setShowDismissed((s) => !s)}
+                        className="flex w-full min-h-[44px] items-center px-4 sm:px-6 text-xs text-slate-400 hover:text-slate-600 transition gap-1"
+                      >
+                        {showDismissed ? "▲ Hide removed" : `Removed (${dismissedClients.length})`}
+                      </button>
+                      {showDismissed && (
+                        <ul className="divide-y divide-slate-100 border-t border-slate-100">
+                          {dismissedClients.map((c) => (
+                            <li key={c.treatment_id} className="flex items-center justify-between gap-2 px-4 py-2 sm:px-6">
+                              <span className="text-sm text-slate-500 truncate">{c.client_name} · {c.procedure_name}</span>
+                              <button
+                                type="button"
+                                onClick={() => void handlePutBack(c.treatment_id)}
+                                className="shrink-0 inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs text-teal-600 hover:text-teal-800 underline transition"
+                              >
+                                Put back
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   )}
                 </div>
               ) : (
@@ -848,6 +896,33 @@ export default function NurseDashboardPage() {
                     <div className="px-4 py-3 sm:px-6 flex items-center gap-3 border-t border-slate-100 text-sm text-slate-500">
                       <span>Removed</span>
                       <button type="button" onClick={() => void handleReturnUndismiss(returnDismissed)} className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs text-teal-600 hover:text-teal-800 underline transition">Undo</button>
+                    </div>
+                  )}
+                  {dismissedClients.length > 0 && (
+                    <div className="border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setShowDismissed((s) => !s)}
+                        className="flex w-full min-h-[44px] items-center px-4 sm:px-6 text-xs text-slate-400 hover:text-slate-600 transition gap-1"
+                      >
+                        {showDismissed ? "▲ Hide removed" : `Removed (${dismissedClients.length})`}
+                      </button>
+                      {showDismissed && (
+                        <ul className="divide-y divide-slate-100 border-t border-slate-100">
+                          {dismissedClients.map((c) => (
+                            <li key={c.treatment_id} className="flex items-center justify-between gap-2 px-4 py-2 sm:px-6">
+                              <span className="text-sm text-slate-500 truncate">{c.client_name} · {c.procedure_name}</span>
+                              <button
+                                type="button"
+                                onClick={() => void handlePutBack(c.treatment_id)}
+                                className="shrink-0 inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs text-teal-600 hover:text-teal-800 underline transition"
+                              >
+                                Put back
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   )}
                 </>

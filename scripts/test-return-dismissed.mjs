@@ -248,6 +248,133 @@ async function runTests() {
     }
   }
 
+  // ── Test 6: dismissed_clients in GET lists the removed row ───────────────
+  {
+    // Dismiss first
+    await fetch(`${BASE_URL}/api/return-clients`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ treatment_id: treatmentId, action: "dismiss" }),
+    });
+    const listRes = await fetch(`${BASE_URL}/api/return-clients`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await listRes.json();
+    const inDismissed = (json.dismissed_clients ?? []).some((c) => c.treatment_id === treatmentId);
+    const notInActive = !(json.clients ?? []).some((c) => c.treatment_id === treatmentId);
+    if (inDismissed && notInActive) {
+      pass("GET dismissed_clients: removed treatment appears in dismissed_clients, not in clients");
+    } else {
+      fail(`GET dismissed_clients: inDismissed=${inDismissed}, notInActive=${notInActive}`);
+    }
+  }
+
+  // ── Test 7: Put back via undismiss removes from dismissed_clients ─────────
+  {
+    await fetch(`${BASE_URL}/api/return-clients`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ treatment_id: treatmentId, action: "undismiss" }),
+    });
+    const listRes = await fetch(`${BASE_URL}/api/return-clients`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await listRes.json();
+    const stillDismissed = (json.dismissed_clients ?? []).some((c) => c.treatment_id === treatmentId);
+    const backInActive = (json.clients ?? []).some((c) => c.treatment_id === treatmentId);
+    if (!stillDismissed && backInActive) {
+      pass("Put back: treatment removed from dismissed_clients and restored to clients");
+    } else {
+      fail(`Put back: stillDismissed=${stillDismissed}, backInActive=${backInActive}`);
+    }
+    // Verify reminder_sent is still false (client can still get their reminder)
+    const { data: row } = await sb
+      .from("treatments")
+      .select("reminder_sent, return_dismissed_at")
+      .eq("id", treatmentId)
+      .single();
+    if (!row?.return_dismissed_at && !row?.reminder_sent) {
+      pass("Put back: return_dismissed_at cleared, reminder_sent still false (reminder can still fire)");
+    } else {
+      fail(`Put back: return_dismissed_at=${row?.return_dismissed_at}, reminder_sent=${row?.reminder_sent}`);
+    }
+  }
+
+  // ── Test 8: set_return_plan clears return_dismissed_at ────────────────────
+  {
+    // Dismiss first
+    await sb.from("treatments").update({ return_dismissed_at: new Date().toISOString() }).eq("id", treatmentId);
+    // Set a return plan — should clear dismissal
+    const futureDate = new Date();
+    futureDate.setUTCDate(futureDate.getUTCDate() + 30);
+    const futureDateStr = futureDate.toISOString().slice(0, 10);
+    const res = await fetch(`${BASE_URL}/api/treatments`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        id: treatmentId,
+        action: "set_return_plan",
+        planned_return_at: futureDateStr,
+        reminder_lead_days: 7,
+        return_reason: "Touch-up",
+      }),
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      fail(`set_return_plan: expected 200, got ${res.status}: ${errBody}`);
+    } else {
+      const { data: row } = await sb
+        .from("treatments")
+        .select("return_dismissed_at, planned_return_at")
+        .eq("id", treatmentId)
+        .single();
+      if (!row?.return_dismissed_at && row?.planned_return_at === futureDateStr) {
+        pass("set_return_plan: clears return_dismissed_at and sets planned_return_at");
+      } else {
+        fail(`set_return_plan: return_dismissed_at=${row?.return_dismissed_at}, planned_return_at=${row?.planned_return_at}`);
+      }
+      // Also verify she shows up in active list again
+      const listRes = await fetch(`${BASE_URL}/api/return-clients`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await listRes.json();
+      const backInActive = (json.clients ?? []).some((c) => c.treatment_id === treatmentId);
+      if (backInActive) {
+        pass("set_return_plan: client restored to active return list");
+      } else {
+        fail("set_return_plan: client did not reappear in active return list");
+      }
+    }
+  }
+
+  // ── Test 9: change_date clears return_dismissed_at ────────────────────────
+  {
+    // Dismiss first
+    await sb.from("treatments").update({ return_dismissed_at: new Date().toISOString() }).eq("id", treatmentId);
+    const newDate2 = new Date();
+    newDate2.setUTCDate(newDate2.getUTCDate() + 25);
+    const newDate2Str = newDate2.toISOString().slice(0, 10);
+    const res = await fetch(`${BASE_URL}/api/return-clients`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ treatment_id: treatmentId, action: "change_date", planned_date: newDate2Str }),
+    });
+    if (!res.ok) {
+      fail(`change_date clears dismissal: expected 200, got ${res.status}`);
+    } else {
+      const { data: row } = await sb
+        .from("treatments")
+        .select("return_dismissed_at")
+        .eq("id", treatmentId)
+        .single();
+      if (!row?.return_dismissed_at) {
+        pass("change_date: clears return_dismissed_at");
+      } else {
+        fail(`change_date: return_dismissed_at still set: ${row?.return_dismissed_at}`);
+      }
+    }
+  }
+
   // ── Cleanup ────────────────────────────────────────────────────────────────
   await sb.from("treatments").delete().eq("id", treatmentId);
 

@@ -43,6 +43,32 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
     }
 
+    // Fetch dismissed treatments (for the "Removed (N)" panel)
+    const { data: dismissedRaw } = await supabase
+      .from("treatments")
+      .select("id, procedure_id, procedure_name, intake_id, procedures(name), intakes(first_name), treatment_procedures(procedure_name, sort_order, procedures(name))")
+      .eq("nurse_id", user.id)
+      .eq("archived", false)
+      .not("return_dismissed_at", "is", null)
+      .order("return_dismissed_at", { ascending: false });
+
+    type DismissedClient = { treatment_id: string; client_name: string; procedure_name: string };
+    const dismissed_clients: DismissedClient[] = (dismissedRaw ?? []).map((t) => {
+      const intake = Array.isArray(t.intakes) ? t.intakes[0] : t.intakes;
+      const jProcs = Array.isArray((t as any).treatment_procedures)
+        ? ([...(t as any).treatment_procedures] as Array<{ sort_order: number; procedure_name: string; procedures: { name: string } | null }>)
+            .sort((a, b) => a.sort_order - b.sort_order)
+        : [];
+      const procName = jProcs.length > 0
+        ? jProcs.map((p) => p.procedures?.name || p.procedure_name).join(" + ")
+        : ((t.procedures as any)?.name || t.procedure_name || "treatment");
+      return {
+        treatment_id: t.id,
+        client_name: (intake as any)?.first_name || "Client",
+        procedure_name: procName,
+      };
+    });
+
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     const thirtyDaysOut = new Date(today);
@@ -166,7 +192,7 @@ export async function GET(request: Request) {
       return a.due_date.localeCompare(b.due_date);
     });
 
-    return NextResponse.json({ clients });
+    return NextResponse.json({ clients, dismissed_clients });
   } catch (e) {
     await logError("return-clients", String(e));
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
@@ -222,9 +248,9 @@ export async function PATCH(request: Request) {
     } else if (action === "undismiss") {
       update = { return_dismissed_at: null };
     } else {
-      // change_date — keep existing reminder_lead_days, or default to 7
+      // change_date — keep existing reminder_lead_days, or default to 7; always clear dismissal
       const leadDays = (existing as any).reminder_lead_days ?? 7;
-      update = { planned_return_at: planned_date, reminder_lead_days: leadDays, planned_reminder_sent_at: null };
+      update = { planned_return_at: planned_date, reminder_lead_days: leadDays, planned_reminder_sent_at: null, return_dismissed_at: null };
     }
 
     const { error: updateErr } = await supabase
