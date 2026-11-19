@@ -1,6 +1,7 @@
 "use client";
 
 import { signOutCompletely, supabase } from "@/lib/supabase";
+import { googleCalendarUrl, outlookWebUrl, yahooCalendarUrl, icsDataUri } from "@/lib/calendarLinks";
 import { formatTreatmentDate } from "@/lib/formatTreatmentDate";
 import { localDateString } from "@/lib/localDate";
 import Image from "next/image";
@@ -116,6 +117,7 @@ export default function NurseDashboardPage() {
   const [returnChangingDate, setReturnChangingDate] = useState<string | null>(null);
   const [returnChangeDateValue, setReturnChangeDateValue] = useState<Record<string, string>>({});
   const [returnError, setReturnError] = useState<Record<string, string>>({});
+  const [returnCalOpen, setReturnCalOpen] = useState<string | null>(null);
 
   type CheckinReminder = {
     id: string;
@@ -657,28 +659,17 @@ export default function NurseDashboardPage() {
                       const dueFmt = formatTreatmentDate(c.due_date, { month: "short", day: "numeric" });
                       const reminderFmt = formatTreatmentDate(c.reminder_send_date, { month: "short", day: "numeric" });
 
-                      // Build .ics content for "Hold a spot" calendar reminder
-                      const icsDate = c.due_date.replace(/-/g, "");
-                      const icsContent = [
-                        "BEGIN:VCALENDAR",
-                        "VERSION:2.0",
-                        "PRODID:-//AdonisBlue//EN",
-                        "BEGIN:VEVENT",
-                        `DTSTART;VALUE=DATE:${icsDate}`,
-                        `DTEND;VALUE=DATE:${icsDate}`,
-                        `SUMMARY:Keep a slot open for ${c.client_name} — ${c.procedure_name}\\, due ${dueFmt}`,
-                        `DESCRIPTION:${c.client_name} is due back for ${c.procedure_name} around ${dueFmt}. Hold a slot open for them.`,
-                        "BEGIN:VALARM",
-                        "TRIGGER:-P7D",
-                        "ACTION:DISPLAY",
-                        `DESCRIPTION:${c.client_name} is due back for ${c.procedure_name} in 7 days — save them a slot!`,
-                        "END:VALARM",
-                        "END:VEVENT",
-                        "END:VCALENDAR",
-                      ].join("\r\n");
-                      const icsBlob = `data:text/calendar;charset=utf-8,${encodeURIComponent(icsContent)}`;
-
                       const whatFor = c.has_personal_plan && c.return_reason ? c.return_reason : c.procedure_name;
+
+                      // Build calendar event for "Hold a spot"
+                      const calEvent = {
+                        date: c.due_date,
+                        title: `Hold a spot: ${c.client_name}`,
+                        description: `${whatFor} · ${bot?.practice_name ?? "your practice"}`,
+                        alarm: `${c.client_name} is due back for ${whatFor} in 7 days — save them a slot!`,
+                      };
+                      const icsBlob = icsDataUri(calEvent);
+                      const isCalOpen = returnCalOpen === c.treatment_id;
                       const reminderPart = isBooked
                         ? " · booked ✅"
                         : c.opted_out
@@ -769,13 +760,54 @@ export default function NurseDashboardPage() {
                           )}
                           <div className="flex items-center gap-2 flex-wrap">
                             {!isBooked && (
-                              <a
-                                href={icsBlob}
-                                download={`hold-slot-${c.client_name.replace(/\s+/g, "-").toLowerCase()}.ics`}
-                                className="inline-flex min-h-[44px] items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
-                              >
-                                📅 Hold a spot
-                              </a>
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() => setReturnCalOpen(isCalOpen ? null : c.treatment_id)}
+                                  className="inline-flex min-h-[44px] items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                                >
+                                  📅 Hold a spot
+                                </button>
+                                {isCalOpen && (
+                                  <div className="absolute left-0 top-full z-10 mt-1 w-44 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+                                    <a
+                                      href={googleCalendarUrl(calEvent)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() => setReturnCalOpen(null)}
+                                      className="flex min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+                                    >
+                                      Google Calendar
+                                    </a>
+                                    <a
+                                      href={icsBlob}
+                                      download={`hold-slot-${c.client_name.replace(/\s+/g, "-").toLowerCase()}.ics`}
+                                      onClick={() => setReturnCalOpen(null)}
+                                      className="flex min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+                                    >
+                                      Apple Calendar
+                                    </a>
+                                    <a
+                                      href={outlookWebUrl(calEvent)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() => setReturnCalOpen(null)}
+                                      className="flex min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+                                    >
+                                      Outlook
+                                    </a>
+                                    <a
+                                      href={yahooCalendarUrl(calEvent)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() => setReturnCalOpen(null)}
+                                      className="flex min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+                                    >
+                                      Yahoo
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
                             )}
                             {isBooked ? (
                               <button

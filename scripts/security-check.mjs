@@ -83,6 +83,9 @@ const PUBLIC_ROUTES = {
   "notify-new-signup":      "Supabase auth hook — called by Supabase mailer, not the browser",
   "send-confirmation":      "Supabase auth hook — custom email hook called by Supabase, not browser",
 
+  // Client calendar .ics download (treatment_id gated — no PII returned, rate-limited)
+  "calendar-event/[treatment_id]": "public .ics download — treatment_id gated, rate-limited, no PII",
+
   // Admin-gated (requireAdmin checked inside)
   "admin/delete-nurse":     "requireAdmin checked inside route",
   "admin/feedback":         "requireAdmin checked inside route",

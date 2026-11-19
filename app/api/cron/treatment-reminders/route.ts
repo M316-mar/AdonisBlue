@@ -155,7 +155,7 @@ export async function GET(request: Request) {
 
       const { data: bot } = await supabase
         .from("bots")
-        .select("practice_name, booking_link, rebooking_link, slug, logo_url, alert_email, alert_email_verified, notification_email")
+        .select("practice_name, nurse_name, booking_link, rebooking_link, slug, logo_url, alert_email, alert_email_verified, notification_email")
         .eq("nurse_id", treatment.nurse_id)
         .single();
 
@@ -174,6 +174,7 @@ export async function GET(request: Request) {
       }
 
       const practiceName = escapeHtml(bot.practice_name || "your provider");
+      const nurseFirstName = escapeHtml(((bot as any).nurse_name as string | null || bot.practice_name || "your provider").split(" ")[0]!);
       const bookingLink = returnBookingLink((bot as any).rebooking_link, bot.booking_link);
 
       let emailHtml: string;
@@ -194,6 +195,8 @@ export async function GET(request: Request) {
           plannedReturnAt: treatment.planned_return_at!,
           slug: bot.slug ?? null,
           intakeId: treatment.intake_id,
+          treatmentId: treatment.id,
+          nurseFirstName,
         });
       } else {
         const jProcsForReminder = junctionByTreatmentTR.get(treatment.id) ?? [];
@@ -214,6 +217,8 @@ export async function GET(request: Request) {
           reminderDays,
           slug: bot.slug ?? null,
           intakeId: treatment.intake_id,
+          treatmentId: treatment.id,
+          nurseFirstName,
         });
       }
 

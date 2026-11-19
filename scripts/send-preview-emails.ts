@@ -78,7 +78,7 @@ async function main() {
     from: "AdonisBlue <hi@adonisblue.io>",
     to: PREVIEW_TO,
     subject: `[TEST] Time to refresh your ${procedureName}? ✨ (for ${clientName})`,
-    html: buildTreatmentReminderEmail({ clientName, practiceName, logoUrl, bookingLink, procedureName, treatmentDate: treatment.treatment_date, reminderDays, slug, intakeId }),
+    html: buildTreatmentReminderEmail({ clientName, practiceName, logoUrl, bookingLink, procedureName, treatmentDate: treatment.treatment_date, reminderDays, slug, intakeId, treatmentId: treatment.id || "preview", nurseFirstName: practiceName.split(" ")[0] || practiceName }),
   });
   console.log("  →", resA.error ? `ERROR: ${JSON.stringify(resA.error)}` : `sent ${resA.data?.id}`);
 

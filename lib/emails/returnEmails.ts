@@ -4,6 +4,7 @@
  */
 
 import { dueDate, formatDueDate } from "@/lib/reminderDate";
+import { googleCalendarUrl, outlookWebUrl, yahooCalendarUrl } from "@/lib/calendarLinks";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://adonisblue.io";
 
@@ -36,6 +37,38 @@ export function buildEmailHeader({
 </tr>`;
 }
 
+// ── Calendar links block (injected into client emails) ───────────────────────
+
+function buildCalendarBlock({
+  date,
+  title,
+  description,
+  icsUrl,
+}: {
+  date: string;
+  title: string;
+  description: string;
+  icsUrl: string;
+}): string {
+  const event = { date, title, description };
+  const google  = googleCalendarUrl(event);
+  const outlook = outlookWebUrl(event);
+  const yahoo   = yahooCalendarUrl(event);
+
+  const link = (href: string, label: string) =>
+    `<a href="${href}" style="display:inline-block;margin:4px 6px 4px 0;padding:8px 16px;background:#f1f5f9;border-radius:50px;color:#1a2744;font-size:13px;font-weight:500;text-decoration:none;">${label}</a>`;
+
+  return `<div style="margin:20px 0;padding:16px 20px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;">
+  <p style="margin:0 0 10px;color:#475569;font-size:13px;font-weight:600;">📅 Add to my calendar</p>
+  <div style="line-height:2;">
+    ${link(google,  "Google")}
+    ${link(outlook, "Outlook")}
+    ${link(yahoo,   "Yahoo")}
+    ${link(icsUrl,  "Apple Calendar")}
+  </div>
+</div>`;
+}
+
 // ── 1. Client treatment-reminder email (treatment-reminders cron) ─────────────
 
 export function buildTreatmentReminderEmail({
@@ -48,6 +81,8 @@ export function buildTreatmentReminderEmail({
   reminderDays,
   slug,
   intakeId,
+  treatmentId,
+  nurseFirstName,
 }: {
   clientName: string;
   practiceName: string;
@@ -58,6 +93,8 @@ export function buildTreatmentReminderEmail({
   reminderDays: number;
   slug: string | null;
   intakeId: string;
+  treatmentId: string;
+  nurseFirstName: string;
 }) {
   const due = dueDate(treatmentDate, reminderDays);
   const dueDateStr = formatDueDate(due);
@@ -82,6 +119,12 @@ export function buildTreatmentReminderEmail({
           <h1 style="margin:0 0 8px;color:#1a2744;font-size:22px;font-weight:600;">Hey ${clientName} 💙</h1>
           <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.7;">Your <strong>${procedureName}</strong> is due for a refresh around <strong>${dueDateStr}</strong>. Book now to get a time that works for you.</p>
           ${bookingSection}
+          ${buildCalendarBlock({
+            date: due.toISOString().slice(0, 10),
+            title: `Book my visit with ${nurseFirstName}`,
+            description: `${procedureName}${bookingLink ? `\nBook at: ${bookingLink}` : ""}`,
+            icsUrl: `${SITE_URL}/api/calendar-event/${treatmentId}`,
+          })}
         </td></tr>
         ${slug ? `<tr>
           <td style="background:#f0fdfa;padding:24px 32px;border-top:1px solid #e2e8f0;text-align:center;">
@@ -111,6 +154,8 @@ export function buildPersonalReturnEmail({
   plannedReturnAt,
   slug,
   intakeId,
+  treatmentId,
+  nurseFirstName,
 }: {
   clientName: string;
   practiceName: string;
@@ -120,6 +165,8 @@ export function buildPersonalReturnEmail({
   plannedReturnAt: string;
   slug: string | null;
   intakeId: string;
+  treatmentId: string;
+  nurseFirstName: string;
 }) {
   const returnDateStr = formatDueDate(new Date(plannedReturnAt + "T00:00:00Z"));
 
@@ -147,6 +194,12 @@ export function buildPersonalReturnEmail({
           <h1 style="margin:0 0 8px;color:#1a2744;font-size:22px;font-weight:600;">Hi ${clientName} 💙</h1>
           <p style="margin:0 0 16px;color:#475569;font-size:15px;line-height:1.7;">${bodyText}</p>
           ${bookingSection}
+          ${buildCalendarBlock({
+            date: plannedReturnAt,
+            title: `Book my visit with ${nurseFirstName}`,
+            description: `${returnReason || "Your upcoming visit"}${bookingLink ? `\nBook at: ${bookingLink}` : ""}`,
+            icsUrl: `${SITE_URL}/api/calendar-event/${treatmentId}`,
+          })}
         </td></tr>
         ${slug ? `<tr>
           <td style="background:#f0fdfa;padding:24px 32px;border-top:1px solid #e2e8f0;text-align:center;">
