@@ -1,7 +1,7 @@
 "use client";
 
 import { signOutCompletely, supabase } from "@/lib/supabase";
-import { googleCalendarUrl, outlookWebUrl, yahooCalendarUrl, icsDataUri } from "@/lib/calendarLinks";
+import { googleCalendarUrl, outlookWebUrl, yahooCalendarUrl } from "@/lib/calendarLinks";
 import { formatTreatmentDate } from "@/lib/formatTreatmentDate";
 import { localDateString } from "@/lib/localDate";
 import Image from "next/image";
@@ -716,7 +716,6 @@ export default function NurseDashboardPage() {
                         description: `${whatFor} · ${bot?.practice_name ?? "your practice"}`,
                         alarm: `${c.client_name} is due back for ${whatFor} in 7 days — save them a slot!`,
                       };
-                      const icsBlob = icsDataUri(calEvent);
                       const isCalOpen = returnCalOpen === c.treatment_id;
                       const reminderPart = isBooked
                         ? " · booked ✅"
@@ -828,8 +827,7 @@ export default function NurseDashboardPage() {
                                       Google Calendar
                                     </a>
                                     <a
-                                      href={icsBlob}
-                                      download={`hold-slot-${c.client_name.replace(/\s+/g, "-").toLowerCase()}.ics`}
+                                      href={`/api/calendar-event/${c.treatment_id}`}
                                       onClick={() => setReturnCalOpen(null)}
                                       className="flex min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
                                     >

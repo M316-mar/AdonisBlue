@@ -32,7 +32,6 @@ export async function GET(
         id,
         treatment_date,
         nurse_id,
-        intake_id,
         procedure_id,
         procedure_name,
         planned_return_at,
@@ -52,6 +51,31 @@ export async function GET(
       return new NextResponse("Not found", { status: 404 });
     }
 
+    // For multi-procedure treatments procedure_id is null — look up via junction table
+    let resolvedReminderDays: number | null =
+      (treatment.procedures as any)?.reminder_days ?? null;
+    let resolvedProcedureName: string =
+      (treatment.procedures as any)?.name ||
+      treatment.procedure_name ||
+      "your treatment";
+
+    if (!resolvedReminderDays || treatment.procedure_id == null) {
+      const { data: jRows } = await sb
+        .from("treatment_procedures")
+        .select("procedure_name, sort_order, procedures(name, reminder_days)")
+        .eq("treatment_id", treatment_id)
+        .order("sort_order", { ascending: true });
+      if (jRows && jRows.length > 0) {
+        const days = (jRows as any[])
+          .map((r) => (r.procedures as any)?.reminder_days as number | null)
+          .filter((d): d is number => d != null);
+        if (days.length > 0) resolvedReminderDays = Math.min(...days);
+        resolvedProcedureName = (jRows as any[])
+          .map((r) => (r.procedures as any)?.name || r.procedure_name)
+          .join(" + ");
+      }
+    }
+
     // Resolve due date
     let eventDate: string;
     const hasPersonalPlan =
@@ -61,12 +85,10 @@ export async function GET(
     if (hasPersonalPlan) {
       eventDate = (treatment as any).planned_return_at as string;
     } else {
-      const reminderDays: number | null =
-        (treatment.procedures as any)?.reminder_days ?? null;
-      if (!reminderDays) {
+      if (!resolvedReminderDays) {
         return new NextResponse("Not found", { status: 404 });
       }
-      eventDate = dueDate(treatment.treatment_date, reminderDays)
+      eventDate = dueDate(treatment.treatment_date, resolvedReminderDays)
         .toISOString()
         .slice(0, 10);
     }
@@ -79,10 +101,6 @@ export async function GET(
     const nurseFirstName: string =
       ((bot?.nurse_name as string | null) || practiceName).split(" ")[0]!;
 
-    const procedureName: string =
-      (treatment.procedures as any)?.name ||
-      treatment.procedure_name ||
-      "your treatment";
     const returnReason: string | null =
       (treatment as any).return_reason ?? null;
 
@@ -90,7 +108,7 @@ export async function GET(
       bot?.rebooking_link || bot?.booking_link || null;
 
     const eventTitle = `Book my visit with ${nurseFirstName}`;
-    const descParts = [returnReason || procedureName];
+    const descParts = [returnReason || resolvedProcedureName];
     if (bookingLink) descParts.push(`Book at: ${bookingLink}`);
 
     const ics = buildIcs({
@@ -99,11 +117,12 @@ export async function GET(
       description: descParts.join("\n"),
     });
 
+    // Content-Disposition: inline so iOS opens Calendar.app directly instead of downloading
     return new NextResponse(ics, {
       status: 200,
       headers: {
         "Content-Type": "text/calendar; charset=utf-8",
-        "Content-Disposition": `attachment; filename="book-visit.ics"`,
+        "Content-Disposition": `inline; filename="appointment.ics"`,
         "Cache-Control": "no-store",
       },
     });

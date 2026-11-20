@@ -71,6 +71,8 @@ export function yahooCalendarUrl(event: CalendarEvent): string {
 
 export function buildIcs(event: CalendarEvent): string {
   const d = icsDate(event.date);
+  // DTSTAMP: required by RFC 5545; iOS Calendar rejects events without it
+  const now = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -78,6 +80,7 @@ export function buildIcs(event: CalendarEvent): string {
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
+    `DTSTAMP:${now}`,
     `DTSTART;VALUE=DATE:${d}`,
     `DTEND;VALUE=DATE:${icsDate(nextDayStr(event.date))}`,
     `SUMMARY:${icsEscape(event.title)}`,

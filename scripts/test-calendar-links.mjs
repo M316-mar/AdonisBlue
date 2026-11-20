@@ -92,6 +92,7 @@ function yahooCalendarUrl(event) {
 }
 function buildIcs(event) {
   const d = icsDate(event.date);
+  const now = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -99,6 +100,7 @@ function buildIcs(event) {
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
+    `DTSTAMP:${now}`,
     `DTSTART;VALUE=DATE:${d}`,
     `DTEND;VALUE=DATE:${icsDate(nextDayStr(event.date))}`,
     `SUMMARY:${icsEscape(event.title)}`,
@@ -176,6 +178,9 @@ test(".ics: SUMMARY present", () => {
 });
 test(".ics: uses CRLF line endings", () => {
   assert.ok(buildIcs(EVENT).includes("\r\n"));
+});
+test(".ics: DTSTAMP present (required by RFC 5545 / iOS Calendar)", () => {
+  assert.ok(buildIcs(EVENT).includes("DTSTAMP:"), "DTSTAMP line missing from .ics");
 });
 
 // Nurse event must NOT contain phone or email
@@ -257,6 +262,19 @@ async function runIntegration() {
       pass(".ics route: Content-Type is text/calendar");
     } else {
       fail(`.ics route: Content-Type is "${ct}", expected text/calendar`);
+    }
+    // Check Content-Disposition: inline (iOS Safari opens Calendar.app; attachment triggers download)
+    const cd = realRes.headers.get("content-disposition") ?? "";
+    if (cd.startsWith("inline")) {
+      pass(".ics route: Content-Disposition is inline");
+    } else {
+      fail(`.ics route: Content-Disposition is "${cd}", expected inline`);
+    }
+    // Check DTSTAMP present (iOS Calendar rejects events without it)
+    if (body.includes("DTSTAMP:")) {
+      pass(".ics route: DTSTAMP present in response body");
+    } else {
+      fail(".ics route: DTSTAMP missing from response body");
     }
     // Check no PII: only allowed @ is in the UID (@adonisblue.io)
     const atParts = body.split("@");
