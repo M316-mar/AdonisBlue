@@ -121,6 +121,10 @@ export default function NurseDashboardPage() {
   const [returnChangeDateValue, setReturnChangeDateValue] = useState<Record<string, string>>({});
   const [returnError, setReturnError] = useState<Record<string, string>>({});
   const [returnCalOpen, setReturnCalOpen] = useState<string | null>(null);
+  // Desktop dropdown anchor (fixed position, escapes overflow:hidden clipping)
+  const [returnCalPos, setReturnCalPos] = useState<{ x: number; y: number; flipped: boolean; tid: string } | null>(null);
+  // ⋯ menu fixed position anchor
+  const [returnMorePos, setReturnMorePos] = useState<{ x: number; y: number; flipped: boolean; tid: string } | null>(null);
 
   type CheckinReminder = {
     id: string;
@@ -743,29 +747,19 @@ export default function NurseDashboardPage() {
                                 <button
                                   type="button"
                                   aria-label="More options"
-                                  onClick={() => setReturnMoreOpen(isMoreOpen ? null : c.treatment_id)}
+                                  onClick={(e) => {
+                                    if (isMoreOpen) { setReturnMoreOpen(null); setReturnMorePos(null); return; }
+                                    setReturnMoreOpen(c.treatment_id);
+                                    if (window.innerWidth >= 640) {
+                                      const r = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                                      const spaceBelow = window.innerHeight - r.bottom;
+                                      setReturnMorePos({ x: r.right - 176, y: spaceBelow < 110 ? r.top - 110 : r.bottom + 4, flipped: spaceBelow < 110, tid: c.treatment_id });
+                                    }
+                                  }}
                                   className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition text-base font-bold"
                                 >
                                   ⋯
                                 </button>
-                                {isMoreOpen && (
-                                  <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
-                                    <button
-                                      type="button"
-                                      onClick={() => { setReturnMoreOpen(null); setReturnChangingDate(c.treatment_id); setReturnChangeDateValue((prev) => ({ ...prev, [c.treatment_id]: c.due_date })); }}
-                                      className="flex w-full min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
-                                    >
-                                      Change date
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => void handleReturnDismiss(c.treatment_id)}
-                                      className="flex w-full min-h-[44px] items-center px-4 text-sm text-red-600 hover:bg-red-50 transition"
-                                    >
-                                      Remove from list
-                                    </button>
-                                  </div>
-                                )}
                               </div>
                             )}
                           </div>
@@ -807,53 +801,22 @@ export default function NurseDashboardPage() {
                           )}
                           <div className="flex items-center gap-2 flex-wrap">
                             {!isBooked && (
-                              <div className="relative">
-                                <button
-                                  type="button"
-                                  onClick={() => setReturnCalOpen(isCalOpen ? null : c.treatment_id)}
-                                  className="inline-flex min-h-[44px] items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
-                                >
-                                  📅 Hold a spot
-                                </button>
-                                {isCalOpen && (
-                                  <div className="absolute left-0 top-full z-10 mt-1 w-44 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
-                                    <a
-                                      href={googleCalendarUrl(calEvent)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={() => setReturnCalOpen(null)}
-                                      className="flex min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
-                                    >
-                                      Google Calendar
-                                    </a>
-                                    <a
-                                      href={`/api/calendar-event/${c.treatment_id}`}
-                                      onClick={() => setReturnCalOpen(null)}
-                                      className="flex min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
-                                    >
-                                      Apple Calendar
-                                    </a>
-                                    <a
-                                      href={outlookWebUrl(calEvent)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={() => setReturnCalOpen(null)}
-                                      className="flex min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
-                                    >
-                                      Outlook
-                                    </a>
-                                    <a
-                                      href={yahooCalendarUrl(calEvent)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={() => setReturnCalOpen(null)}
-                                      className="flex min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
-                                    >
-                                      Yahoo
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
+                              <button
+                                type="button"
+                                data-cal-tid={c.treatment_id}
+                                onClick={(e) => {
+                                  if (isCalOpen) { setReturnCalOpen(null); setReturnCalPos(null); return; }
+                                  setReturnCalOpen(c.treatment_id);
+                                  if (window.innerWidth >= 640) {
+                                    const r = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                                    const spaceBelow = window.innerHeight - r.bottom;
+                                    setReturnCalPos({ x: r.left, y: spaceBelow < 190 ? r.top - 190 : r.bottom + 4, flipped: spaceBelow < 190, tid: c.treatment_id });
+                                  }
+                                }}
+                                className="inline-flex min-h-[44px] items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                              >
+                                📅 Hold a spot
+                              </button>
                             )}
                             {isBooked ? (
                               <button
@@ -1300,6 +1263,197 @@ export default function NurseDashboardPage() {
         </div>
       ) : null}
 
+      {/* ── Calendar bottom sheet (mobile <640px) ────────────────────────────── */}
+      {/* returnCalPos null means mobile — button didn't set a position (< 640px) */}
+      {returnCalOpen && !returnCalPos && (() => {
+        const c = returnClients.find(x => x.treatment_id === returnCalOpen);
+        if (!c) return null;
+        const whatFor2 = c.has_personal_plan && c.return_reason ? c.return_reason : c.procedure_name;
+        const calEvent2 = {
+          date: c.due_date,
+          title: `Hold a spot: ${c.client_name}`,
+          description: `${whatFor2} · ${bot?.practice_name ?? "your practice"}`,
+          alarm: `${c.client_name} is due back for ${whatFor2} in 7 days — save them a slot!`,
+        };
+        const tid = c.treatment_id;
+        const closeSheet = () => { setReturnCalOpen(null); };
+        return (
+          <>
+            <div className="fixed inset-0 z-40 bg-black/40" onClick={closeSheet} aria-hidden="true" />
+            <div
+              className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-white shadow-2xl"
+              style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
+              role="dialog"
+              aria-label="Hold a spot"
+            >
+              <div className="px-4 py-3 border-b border-slate-100 text-center text-sm font-semibold text-[#1a2744]">Hold a spot</div>
+              <a
+                href={googleCalendarUrl(calEvent2)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={closeSheet}
+                className="flex min-h-[52px] items-center px-6 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+              >
+                Google Calendar
+              </a>
+              {/* Apple Calendar parked — re-enable after fixing production 500 */}
+              <a
+                href={outlookWebUrl(calEvent2)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={closeSheet}
+                className="flex min-h-[52px] items-center px-6 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+              >
+                Outlook
+              </a>
+              <a
+                href={yahooCalendarUrl(calEvent2)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={closeSheet}
+                className="flex min-h-[52px] items-center px-6 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+              >
+                Yahoo
+              </a>
+              <button
+                type="button"
+                onClick={closeSheet}
+                className="flex w-full min-h-[52px] items-center justify-center px-6 text-sm font-semibold text-slate-500 border-t border-slate-100 hover:bg-slate-50 transition mt-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* ── Calendar fixed dropdown (desktop ≥640px) ─────────────────────────── */}
+      {returnCalPos && (() => {
+        const c = returnClients.find(x => x.treatment_id === returnCalPos.tid);
+        if (!c) return null;
+        const whatFor2 = c.has_personal_plan && c.return_reason ? c.return_reason : c.procedure_name;
+        const calEvent2 = {
+          date: c.due_date,
+          title: `Hold a spot: ${c.client_name}`,
+          description: `${whatFor2} · ${bot?.practice_name ?? "your practice"}`,
+          alarm: `${c.client_name} is due back for ${whatFor2} in 7 days — save them a slot!`,
+        };
+        const tid = c.treatment_id;
+        const closeMenu = () => { setReturnCalOpen(null); setReturnCalPos(null); };
+        return (
+          <>
+            <div className="fixed inset-0 z-40" onClick={closeMenu} aria-hidden="true" />
+            <div
+              className="fixed z-50 w-44 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden"
+              style={{ left: returnCalPos.x, top: returnCalPos.y }}
+            >
+              <a
+                href={googleCalendarUrl(calEvent2)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={closeMenu}
+                className="flex min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+              >
+                Google Calendar
+              </a>
+              {/* Apple Calendar parked — re-enable after fixing production 500 */}
+              <a
+                href={outlookWebUrl(calEvent2)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={closeMenu}
+                className="flex min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+              >
+                Outlook
+              </a>
+              <a
+                href={yahooCalendarUrl(calEvent2)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={closeMenu}
+                className="flex min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+              >
+                Yahoo
+              </a>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* ── ⋯ menu bottom sheet (mobile <640px) ─────────────────────────────── */}
+      {/* returnMorePos null means mobile — button didn't set a position (< 640px) */}
+      {returnMoreOpen && !returnMorePos && (() => {
+        const c = returnClients.find(x => x.treatment_id === returnMoreOpen);
+        if (!c) return null;
+        const tid = c.treatment_id;
+        const closeSheet = () => { setReturnMoreOpen(null); setReturnMorePos(null); };
+        return (
+          <>
+            <div className="fixed inset-0 z-40 bg-black/40" onClick={closeSheet} aria-hidden="true" />
+            <div
+              className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-white shadow-2xl"
+              style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
+              role="dialog"
+              aria-label="More options"
+            >
+              <div className="px-4 py-3 border-b border-slate-100 text-center text-sm font-semibold text-[#1a2744]">Options</div>
+              <button
+                type="button"
+                onClick={() => { closeSheet(); setReturnChangingDate(tid); setReturnChangeDateValue((prev) => ({ ...prev, [tid]: c.due_date })); }}
+                className="flex w-full min-h-[52px] items-center px-6 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+              >
+                Change date
+              </button>
+              <button
+                type="button"
+                onClick={() => { closeSheet(); void handleReturnDismiss(tid); }}
+                className="flex w-full min-h-[52px] items-center px-6 text-sm text-red-600 hover:bg-red-50 transition"
+              >
+                Remove from list
+              </button>
+              <button
+                type="button"
+                onClick={closeSheet}
+                className="flex w-full min-h-[52px] items-center justify-center px-6 text-sm font-semibold text-slate-500 border-t border-slate-100 hover:bg-slate-50 transition mt-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* ── ⋯ menu fixed dropdown (desktop ≥640px) ──────────────────────────── */}
+      {returnMorePos && (() => {
+        const c = returnClients.find(x => x.treatment_id === returnMorePos.tid);
+        if (!c) return null;
+        const tid = c.treatment_id;
+        const closeMenu = () => { setReturnMoreOpen(null); setReturnMorePos(null); };
+        return (
+          <>
+            <div className="fixed inset-0 z-40" onClick={closeMenu} aria-hidden="true" />
+            <div
+              className="fixed z-50 w-44 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden"
+              style={{ left: returnMorePos.x, top: returnMorePos.y }}
+            >
+              <button
+                type="button"
+                onClick={() => { closeMenu(); setReturnChangingDate(tid); setReturnChangeDateValue((prev) => ({ ...prev, [tid]: c.due_date })); }}
+                className="flex w-full min-h-[44px] items-center px-4 text-sm text-[#1a2744] hover:bg-slate-50 transition"
+              >
+                Change date
+              </button>
+              <button
+                type="button"
+                onClick={() => { closeMenu(); void handleReturnDismiss(tid); }}
+                className="flex w-full min-h-[44px] items-center px-4 text-sm text-red-600 hover:bg-red-50 transition"
+              >
+                Remove from list
+              </button>
+            </div>
+          </>
+        );
+      })()}
 
     </div>
       </div>

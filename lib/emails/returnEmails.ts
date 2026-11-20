@@ -43,12 +43,10 @@ function buildCalendarBlock({
   date,
   title,
   description,
-  icsUrl,
 }: {
   date: string;
   title: string;
   description: string;
-  icsUrl: string;
 }): string {
   const event = { date, title, description };
   const google  = googleCalendarUrl(event);
@@ -58,13 +56,13 @@ function buildCalendarBlock({
   const link = (href: string, label: string) =>
     `<a href="${href}" style="display:inline-block;margin:4px 6px 4px 0;padding:8px 16px;background:#f1f5f9;border-radius:50px;color:#1a2744;font-size:13px;font-weight:500;text-decoration:none;">${label}</a>`;
 
+  // Apple Calendar parked — re-enable after fixing production 500.
   return `<div style="margin:20px 0;padding:16px 20px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;">
   <p style="margin:0 0 10px;color:#475569;font-size:13px;font-weight:600;">📅 Add to my calendar</p>
   <div style="line-height:2;">
     ${link(google,  "Google")}
     ${link(outlook, "Outlook")}
     ${link(yahoo,   "Yahoo")}
-    ${link(icsUrl,  "Apple Calendar")}
   </div>
 </div>`;
 }
@@ -123,7 +121,6 @@ export function buildTreatmentReminderEmail({
             date: due.toISOString().slice(0, 10),
             title: `Book my visit with ${nurseFirstName}`,
             description: `${procedureName}${bookingLink ? `\nBook at: ${bookingLink}` : ""}`,
-            icsUrl: `${SITE_URL}/api/calendar-event/${treatmentId}`,
           })}
         </td></tr>
         ${slug ? `<tr>
@@ -198,7 +195,6 @@ export function buildPersonalReturnEmail({
             date: plannedReturnAt,
             title: `Book my visit with ${nurseFirstName}`,
             description: `${returnReason || "Your upcoming visit"}${bookingLink ? `\nBook at: ${bookingLink}` : ""}`,
-            icsUrl: `${SITE_URL}/api/calendar-event/${treatmentId}`,
           })}
         </td></tr>
         ${slug ? `<tr>

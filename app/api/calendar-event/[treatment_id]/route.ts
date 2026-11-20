@@ -1,9 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
+// Apple Calendar parked — re-enable after fixing production 500.
 import { NextResponse } from "next/server";
 import { logError } from "@/lib/logError";
 import { buildIcs } from "@/lib/calendarLinks";
 import { checkRateLimit, serviceClient, getClientIp } from "@/lib/rateLimit";
-import { dueDate, formatDueDate, personalReminderSendDate } from "@/lib/reminderDate";
+import { dueDate } from "@/lib/reminderDate";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -17,15 +17,15 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
-  // Rate-limit: 10 downloads per IP per 10 minutes
-  const ip = getClientIp(request);
-  const sb = serviceClient();
-  const allowed = await checkRateLimit(sb, `ics:${ip}`, 10);
-  if (!allowed) {
-    return new NextResponse("Too many requests", { status: 429 });
-  }
-
   try {
+    // Rate-limit: 10 downloads per IP per 10 minutes
+    const ip = getClientIp(request);
+    const sb = serviceClient();
+    const allowed = await checkRateLimit(sb, `ics:${ip}`, 10);
+    if (!allowed) {
+      return new NextResponse("Too many requests", { status: 429 });
+    }
+
     const { data: treatment, error } = await sb
       .from("treatments")
       .select(`
@@ -37,8 +37,7 @@ export async function GET(
         planned_return_at,
         reminder_lead_days,
         return_reason,
-        procedures(name, reminder_days),
-        bots!treatments_nurse_id_fkey(practice_name, nurse_name, booking_link, rebooking_link)
+        procedures(name, reminder_days)
       `)
       .eq("id", treatment_id)
       .maybeSingle();
@@ -51,6 +50,13 @@ export async function GET(
       return new NextResponse("Not found", { status: 404 });
     }
 
+    // Separate query for bot data (no inline join — relationship not in schema cache)
+    const { data: bot } = await sb
+      .from("bots")
+      .select("practice_name, nurse_name, booking_link, rebooking_link")
+      .eq("nurse_id", treatment.nurse_id)
+      .maybeSingle();
+
     // For multi-procedure treatments procedure_id is null — look up via junction table
     let resolvedReminderDays: number | null =
       (treatment.procedures as any)?.reminder_days ?? null;
@@ -60,11 +66,15 @@ export async function GET(
       "your treatment";
 
     if (!resolvedReminderDays || treatment.procedure_id == null) {
-      const { data: jRows } = await sb
+      const { data: jRows, error: jError } = await sb
         .from("treatment_procedures")
         .select("procedure_name, sort_order, procedures(name, reminder_days)")
         .eq("treatment_id", treatment_id)
         .order("sort_order", { ascending: true });
+      if (jError) {
+        await logError("calendar-event junction", jError.message);
+        return new NextResponse("Server error", { status: 500 });
+      }
       if (jRows && jRows.length > 0) {
         const days = (jRows as any[])
           .map((r) => (r.procedures as any)?.reminder_days as number | null)
@@ -88,14 +98,13 @@ export async function GET(
       if (!resolvedReminderDays) {
         return new NextResponse("Not found", { status: 404 });
       }
-      eventDate = dueDate(treatment.treatment_date, resolvedReminderDays)
-        .toISOString()
-        .slice(0, 10);
+      const due = dueDate(treatment.treatment_date, resolvedReminderDays);
+      if (isNaN(due.getTime())) {
+        await logError("calendar-event", `Invalid treatment_date: ${treatment.treatment_date}`);
+        return new NextResponse("Server error", { status: 500 });
+      }
+      eventDate = due.toISOString().slice(0, 10);
     }
-
-    const bot = Array.isArray((treatment as any).bots)
-      ? (treatment as any).bots[0]
-      : (treatment as any).bots;
 
     const practiceName: string = bot?.practice_name || "your provider";
     const nurseFirstName: string =

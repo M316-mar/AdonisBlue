@@ -304,6 +304,65 @@ async function runIntegration() {
   } else {
     fail(`.ics route: invalid id returned ${badRes.status}, expected 404`);
   }
+
+  // Multi-procedure treatment (2+ procedures via junction table) → 200
+  const { data: multiTreatment } = await sb
+    .from("treatment_procedures")
+    .select("treatment_id")
+    .limit(100);
+  // group by treatment_id, find one with 2+ rows
+  const multiId = multiTreatment
+    ? Object.entries(
+        multiTreatment.reduce((acc, r) => {
+          acc[r.treatment_id] = (acc[r.treatment_id] || 0) + 1;
+          return acc;
+        }, {}),
+      ).find(([, count]) => count >= 2)?.[0]
+    : null;
+  if (!multiId) {
+    pass(".ics route multi-procedure: skipped (no treatment with 2+ procedures)");
+  } else {
+    const multiRes = await fetch(`${BASE_URL}/api/calendar-event/${multiId}`);
+    if (multiRes.status === 200) {
+      const body = await multiRes.text();
+      const ct = multiRes.headers.get("content-type") ?? "";
+      const cd = multiRes.headers.get("content-disposition") ?? "";
+      if (body.startsWith("BEGIN:VCALENDAR") && ct.includes("text/calendar") && cd.startsWith("inline")) {
+        pass(".ics route multi-procedure: returns 200, text/calendar, inline");
+      } else {
+        fail(`.ics route multi-procedure: 200 but headers/body wrong (ct=${ct}, cd=${cd})`);
+      }
+    } else {
+      fail(`.ics route multi-procedure: got ${multiRes.status}, expected 200`);
+    }
+  }
+
+  // Personal return plan treatment (planned_return_at + reminder_lead_days) → 200
+  const { data: personalTreatment } = await sb
+    .from("treatments")
+    .select("id")
+    .not("planned_return_at", "is", null)
+    .not("reminder_lead_days", "is", null)
+    .eq("archived", false)
+    .limit(1)
+    .maybeSingle();
+  if (!personalTreatment) {
+    pass(".ics route personal return plan: skipped (no treatment with personal plan)");
+  } else {
+    const personalRes = await fetch(`${BASE_URL}/api/calendar-event/${personalTreatment.id}`);
+    if (personalRes.status === 200) {
+      const body = await personalRes.text();
+      const ct = personalRes.headers.get("content-type") ?? "";
+      const cd = personalRes.headers.get("content-disposition") ?? "";
+      if (body.startsWith("BEGIN:VCALENDAR") && ct.includes("text/calendar") && cd.startsWith("inline")) {
+        pass(".ics route personal return plan: returns 200, text/calendar, inline");
+      } else {
+        fail(`.ics route personal return plan: 200 but headers/body wrong (ct=${ct}, cd=${cd})`);
+      }
+    } else {
+      fail(`.ics route personal return plan: got ${personalRes.status}, expected 200`);
+    }
+  }
 }
 
 await runIntegration();

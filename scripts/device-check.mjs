@@ -1279,6 +1279,193 @@ try {
     } // end else (server reachable)
   }
 
+  // ── Hold a spot / ⋯ menu: overflow visibility + Apple Calendar navigation ────
+  // For each viewport: open the last row's "Hold a spot" (bottom sheet on mobile,
+  // fixed dropdown on desktop), assert all 4 options are within the viewport,
+  // tap Apple and assert /api/calendar-event/{id} returns 200 text/calendar.
+  // Then open the ⋯ menu on the last row and check both options are in-viewport.
+  if (!CI_MODE && hasCredentials) {
+    process.stdout.write("\n── Hold a spot / ⋯ menu overflow & Apple Calendar ──\n");
+
+    // Fetch the test nurse's bot slug (to suppress launch-celebration in tests)
+    // and all active return-client treatment_ids (use the last one = bottom row).
+    let returnClientIds = [];
+    let testBotCelebratedKey = null; // "ab-celebrated-{slug}"
+    try {
+      if (supabaseUrl && supabaseAnonKey) {
+        const sb2 = createClient(supabaseUrl, supabaseAnonKey);
+        const { data: authData2 } = await sb2.auth.signInWithPassword({ email: testEmail, password: testPassword });
+        if (authData2?.session?.access_token) {
+          const token2 = authData2.session.access_token;
+          // Fetch bot slug so we can pre-mark the celebration as seen
+          const botRes = await fetch(`${BASE_URL}/api/mybot`, { headers: { Authorization: `Bearer ${token2}` } });
+          if (botRes.ok) {
+            const botJson = await botRes.json();
+            const slug = (botJson?.bot ?? botJson)?.slug;
+            if (slug) testBotCelebratedKey = `ab-celebrated-${slug}`;
+          }
+          const rcRes = await fetch(`${BASE_URL}/api/return-clients`, {
+            headers: { Authorization: `Bearer ${token2}` },
+          });
+          if (rcRes.ok) {
+            const rcJson = await rcRes.json();
+            returnClientIds = (rcJson.clients || [])
+              .filter(c => c.treatment_id && !c.return_dismissed_at)
+              .map(c => c.treatment_id);
+          }
+        }
+      }
+    } catch { /* fall through — test will skip */ }
+
+    const lastTid = returnClientIds[returnClientIds.length - 1] ?? null;
+
+    if (!lastTid) {
+      process.stdout.write("  ⚠ Hold a spot: no active return-clients — skipping (run Log form first)\n");
+    } else {
+      // Verify the .ics route once (Node-side, engine-independent)
+      const icsRes = await fetch(`${BASE_URL}/api/calendar-event/${lastTid}`);
+      const icsOk = icsRes.status === 200;
+      const icsCt = icsRes.headers.get("content-type") ?? "";
+      const icsCd = icsRes.headers.get("content-disposition") ?? "";
+      if (!icsOk) {
+        process.stdout.write(`  ✗ /api/calendar-event/${lastTid}: status ${icsRes.status}, expected 200\n`);
+        totalIssues++;
+      } else if (!icsCt.includes("text/calendar")) {
+        process.stdout.write(`  ✗ /api/calendar-event: Content-Type "${icsCt}", expected text/calendar\n`);
+        totalIssues++;
+      } else if (!icsCd.startsWith("inline")) {
+        process.stdout.write(`  ✗ /api/calendar-event: Content-Disposition "${icsCd}", expected inline\n`);
+        totalIssues++;
+      } else {
+        process.stdout.write(`  ✓ /api/calendar-event/${lastTid}: 200 text/calendar inline\n`);
+      }
+
+      // Browser specs: WebKit 320+375+390+820, Chromium 390+1440, Firefox 1440
+      // All available specs for each engine (use every defined width per engine)
+      const MENU_SPECS = VIEWPORT_SPECS; // webkit: 320/375/390/820/1440; chromium: 360/390/1440; firefox: 1440
+
+      for (const vp of MENU_SPECS) {
+        if (!BROWSERS[vp.engine]) {
+          process.stdout.write(`  ⚠ ${vp.label} — skipped (${vp.engine} unavailable)\n`);
+          continue;
+        }
+        totalScreens++;
+        const ctx = await BROWSERS[vp.engine].newContext({
+          viewport: { width: vp.width, height: vp.height },
+          userAgent: vp.ua ?? undefined,
+          isMobile: vp.isMobile,
+          hasTouch: vp.hasTouch,
+        });
+        const pg = await ctx.newPage();
+        const celebKey = testBotCelebratedKey;
+        await pg.addInitScript((key) => {
+          try { localStorage.setItem("adonisblue_cookie_consent", "true"); } catch {}
+          // Pre-mark welcome + launch celebration as seen so they never block test interactions.
+          try { localStorage.setItem("adonisblue-welcome-seen", "true"); } catch {}
+          if (key) { try { localStorage.setItem(key, "true"); } catch {} }
+        }, celebKey);
+        try {
+          await signIn(pg);
+          await pg.goto(`${BASE_URL}/dashboard`, { waitUntil: "networkidle", timeout: 20_000 });
+          await pg.waitForTimeout(1000);
+
+          // ── Expand "See all" if list is collapsed ──────────────────────────
+          const seeAll = pg.locator('#return-clients').getByRole('button', { name: /see all/i });
+          if (await seeAll.isVisible()) await seeAll.click();
+          await pg.waitForTimeout(400);
+
+          // ── Locate the LAST "Hold a spot" button in the list ──────────────
+          const holdBtns = pg.locator('#return-clients').getByRole('button', { name: /hold a spot/i });
+          const lastHoldBtn = holdBtns.last();
+          if (!await lastHoldBtn.isVisible()) {
+            process.stdout.write(`  ⚠ ${vp.label} — Hold a spot: no button found\n`);
+            await pg.close(); await ctx.close(); continue;
+          }
+
+          // Scroll the last button into center of viewport (sticky header safe)
+          await lastHoldBtn.evaluate(el => el.scrollIntoView({ block: "center" }));
+          await pg.waitForTimeout(400);
+          await lastHoldBtn.click();
+          await pg.waitForTimeout(400);
+
+          // ── Assert Google / Outlook / Yahoo all inside the viewport ──────
+          // Apple Calendar parked — re-enable after fixing production 500.
+          const optionNames = ["Google Calendar", "Outlook", "Yahoo"];
+          let allVisible = true;
+          for (const name of optionNames) {
+            const link = pg.getByRole('link', { name: new RegExp(name, 'i') }).first();
+            const visible = await link.isVisible().catch(() => false);
+            if (!visible) {
+              process.stdout.write(`  ✗ ${vp.label} — Hold a spot: "${name}" not visible after open\n`);
+              totalIssues++; allVisible = false; continue;
+            }
+            // Check it's inside the viewport (not clipped)
+            const inVP = await link.evaluate((el, h) => {
+              const r = el.getBoundingClientRect();
+              return r.top >= 0 && r.bottom <= h && r.height > 0;
+            }, vp.height).catch(() => false);
+            if (!inVP) {
+              process.stdout.write(`  ✗ ${vp.label} — Hold a spot: "${name}" clipped outside viewport\n`);
+              totalIssues++; allVisible = false;
+            }
+          }
+          if (allVisible) {
+            process.stdout.write(`  ✓ ${vp.label} — Hold a spot: Google/Outlook/Yahoo all in viewport\n`);
+          }
+
+          // ── Re-open page for ⋯ menu check ────────────────────────────────
+          // (celebration already suppressed via localStorage set in initScript)
+          await pg.goto(`${BASE_URL}/dashboard`, { waitUntil: "networkidle", timeout: 20_000 });
+          await pg.waitForTimeout(1000);
+          if (await pg.locator('#return-clients').getByRole('button', { name: /see all/i }).isVisible()) {
+            await pg.locator('#return-clients').getByRole('button', { name: /see all/i }).click();
+            await pg.waitForTimeout(400);
+          }
+
+          // Locate the LAST ⋯ button
+          const moreBtns = pg.locator('#return-clients').getByRole('button', { name: /more options/i });
+          const lastMoreBtn = moreBtns.last();
+          if (!await lastMoreBtn.isVisible()) {
+            process.stdout.write(`  ⚠ ${vp.label} — ⋯ menu: no button found\n`);
+            await pg.close(); await ctx.close(); continue;
+          }
+          await lastMoreBtn.evaluate(el => el.scrollIntoView({ block: "center" }));
+          await pg.waitForTimeout(400);
+          await lastMoreBtn.click();
+          await pg.waitForTimeout(400);
+
+          // Assert Change date and Remove from list are in-viewport
+          const moreOptions = ["Change date", "Remove from list"];
+          let moreOk = true;
+          for (const name of moreOptions) {
+            const btn2 = pg.getByRole('button', { name: new RegExp(name, 'i') }).first();
+            const vis = await btn2.isVisible().catch(() => false);
+            if (!vis) {
+              process.stdout.write(`  ✗ ${vp.label} — ⋯ menu: "${name}" not visible\n`);
+              totalIssues++; moreOk = false; continue;
+            }
+            const inVP2 = await btn2.evaluate((el, h) => {
+              const r = el.getBoundingClientRect();
+              return r.top >= 0 && r.bottom <= h && r.height > 0;
+            }, vp.height).catch(() => false);
+            if (!inVP2) {
+              process.stdout.write(`  ✗ ${vp.label} — ⋯ menu: "${name}" clipped outside viewport\n`);
+              totalIssues++; moreOk = false;
+            }
+          }
+          if (moreOk) {
+            process.stdout.write(`  ✓ ${vp.label} — ⋯ menu: both options in viewport\n`);
+          }
+
+        } catch (e) {
+          process.stdout.write(`  ⚠ ${vp.label} — Hold a spot / ⋯ menu: ${e.message}\n`);
+        }
+        await pg.close();
+        await ctx.close();
+      }
+    }
+  }
+
   // tested as a logged-out screen at all 6 viewports.
   if (!CI_MODE && hasCredentials) {
     process.stdout.write("\n── Healing chat screens ──\n");
